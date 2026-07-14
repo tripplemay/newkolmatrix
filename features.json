@@ -1,4 +1,53 @@
 {
-  "sprint": null,
-  "features": []
+  "sprint": "DS-FOUNDATION",
+  "features": [
+    {
+      "id": "F001",
+      "title": "从 Horizon 模板 scaffold 应用（复制框架 + 删 demo 业务页 + 装依赖 + 构建绿）",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "repo 根出现 Next.js 应用结构；demo 业务页已删除；npm install 成功；npm run dev 起 :3000 不白屏；npm run build + tsc --noEmit + next lint 无 error；db4rDjuaSCqaEFW9XcFo_ 模板源目录仍在 .gitignore 未提交"
+    },
+    {
+      "id": "F002",
+      "title": "浅色默认 theme + token 体系文档化（去 dark 默认 / 沿用 Horizon 紫 / 落 horizon-tokens.md）",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "layout.tsx 去 <body className=dark> → 浅色默认；深色 toggle 仍可用；品牌紫 --color-500 #422AFB 色阶未改；design-draft/horizon-tokens.md 落盘（tailwind 命名色 + CSS 变量色阶 + 字体 DM Sans/Poppins + 阴影/圆角约定）"
+    },
+    {
+      "id": "F003",
+      "title": "布局外壳（Sidebar+Navbar+Footer）+ KOLMatrix 品牌与最小导航",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "Sidebar 品牌 Horizon PRO → KOLMatrix；routes.tsx 改 KOLMatrix 最小 IA（Dashboard + Discovery/Database/Campaigns/Outreach 占位 disabled，无幽灵项，删 demo 导航）；外壳 sidebar mini/hover + 响应式 + navbar 全元素渲染；无死链报错"
+    },
+    {
+      "id": "F004",
+      "title": "基础组件集 + 抽可复用 Button 组件（≥5 variants）",
+      "priority": "medium-high",
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "保留模板原语（Card/MiniStatistics/InputField/TextField/SwitchField/checkbox/radio/switch/badge/Dropdown/Tooltip）浅色渲染正常；新增 components/common/Button.tsx（primary-gradient/solid/ghost/secondary/danger + size + disabled + loading）；Button 被实际使用非幽灵"
+    },
+    {
+      "id": "F005",
+      "title": "公共 hooks + contexts + utils",
+      "priority": "medium",
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "ConfiguratorContext / SidebarContext 正常提供并被外壳消费；utils/navigation.ts getActiveRoute/getActiveNavbar 正常；补 ≥1 个有用公共 hook（如 useColorMode/useMediaQuery）并被引用"
+    },
+    {
+      "id": "F006",
+      "title": "占位 Dashboard 页（端到端验证 + visual baseline）",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "root / 渲染 KOLMatrix 占位 dashboard 套外壳；3-4 KPI 卡（MiniStatistics 占位语义）+ ≥1 ApexChart（charts.ts options 形状）；浅色 console 无 error；tests/screenshots/baseline/en-dashboard.png 入 git（git ls-files 非空，≥1440px 浅色）"
+    }
+  ]
 }

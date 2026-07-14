@@ -32,7 +32,9 @@ KOLMatrix — AI 驱动的 KOL 营销管理平台：跨平台（YouTube / Twitch
 
 > 本项目是旧项目 `kolmatrix` 的全面重构：旧项目已实现 MVP，但（1）前端样式需替换为 Horizon UI Pro 付费模板风格，框架差异过大无法原地替换；（2）旧项目偏传统 SaaS 的交互与流程，与"AI 驱动"产品定位差异大，需重构用户体验与使用流程。
 
-**Tech Stack:** Next.js 15 · React 19 · TypeScript · Tailwind CSS · Chakra UI · ApexCharts（基于 Horizon UI Pro 模板重构，前端优先，暂无后端 / DB）
+**Tech Stack:** Next.js 15（App Router）· React 19 · TypeScript · **Tailwind CSS**（主设计系统：`tailwind.config.js` 色板 + `AppWrappers.tsx` 运行时 CSS 变量色阶）· Chakra UI（仅零散原语 Drawer / Modal / Tooltip / Popover / Accordion）· ApexCharts · DM Sans + Poppins（基于 Horizon UI Pro 模板 scaffold，前端优先，暂无后端 / DB）
+
+> 注意：模板**无** `src/theme/` / `ChakraProvider` / `extendTheme` —— 设计系统由 Tailwind + CSS 变量驱动，不是 Chakra theme。品牌主色 `--color-500 #422AFB`（Horizon 紫）。默认浅色（已去除模板的 `<body className="dark">`）。
 
 ## Commands
 

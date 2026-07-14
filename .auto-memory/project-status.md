@@ -4,21 +4,23 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **无** — 项目刚初始化（INIT 完成），等待第一个需求批次
-- 下一步：第一个批次做**设计系统**（颜色 token / 排版 / 基础组件 / 公共 hook / 布局框架），非业务页面
+- **DS-FOUNDATION：`building`**（设计系统地基：以 Horizon 模板 scaffold + 浅色设计系统 + 外壳 + 组件 + hook）
+- spec locked 2026-07-13；6 features（F001-F006 全 generator）；快车道，串行 building
+- spec: `docs/specs/DS-FOUNDATION-spec.md`
 
 ## 项目背景（为何重构）
 - 本项目是旧项目 `kolmatrix`（已实现 MVP）的**全面重构**
-- 动因 1：前端样式换为 Horizon UI Pro 付费模板风格，框架差异大 → 无法原地替换
-- 动因 2：旧项目偏传统 SaaS 交互，与"AI 驱动的 KOL 营销平台"定位差异大 → 重构 UX 与流程
+- 动因 1：前端样式换为 Horizon UI Pro 模板风格，框架差异大 → 无法原地替换
+- 动因 2：旧项目偏传统 SaaS 交互，与"AI 驱动的 KOL 营销平台"定位差异大 → 重构 UX
 
 ## 关键决策
-- 技术栈：Horizon 原生栈（Next.js 15 · React 19 · TS · Tailwind · Chakra UI · ApexCharts），前端优先，暂无后端 / DB
-- 车道：快车道（单会话，主实例 Andy = Planner+Generator，evaluator 走隔离 subagent）
-- 设计参考：`db4rDjuaSCqaEFW9XcFo_horizon-tailwind-react-nextjs-pro-3.0.0/`（Horizon 模板 + Figma 源）
+- 技术栈：Next.js 15 App Router · React 19 · TS · **Tailwind（主设计系统，非 Chakra theme）** · Chakra 原语 · ApexCharts · DM Sans/Poppins
+- 浅色默认（去 `<body dark>`）；品牌沿用 Horizon 紫 `#422AFB`
+- 模板源目录 `db4rDjuaSCqaEFW9XcFo_...` 保持 gitignore，不入库（付费资产）
+- 仓库 public（用户确认 license 允许）；repo: github.com/tripplemay/newkolmatrix
 
 ## 生产状态
 - 暂无生产 / staging；本地 dev = localhost:3000
 
-## 已知 gap（非阻塞）
-- 项目尚未 scaffold（无 package.json / src）；测试 runner 待配置
+## 已知 gap / backlog（非阻塞）
+- 模板 deps 未精简（fullcalendar/mapbox/nft）；测试 runner 未正式配置；React 19 RC + TS 4.9 沿用模板版本

@@ -1,15 +1,18 @@
 {
-  "status": "new",
-  "user_goal": "",
-  "total_features": 0,
+  "status": "building",
+  "user_goal": "以 Horizon UI Pro 为基座 scaffold KOLMatrix 应用，建立浅色设计系统、布局外壳、基础组件集与公共 hook（设计系统地基）",
+  "total_features": 6,
   "completed_features": 0,
   "fix_rounds": 0,
-  "current_sprint": null,
+  "current_sprint": "DS-FOUNDATION",
   "dashboard_url": null,
-  "last_updated": "",
-  "reference_docs": [],
+  "last_updated": "2026-07-13",
+  "reference_docs": [
+    "docs/specs/DS-FOUNDATION-spec.md",
+    "framework/patterns/ui-fidelity-guardrail.md"
+  ],
   "docs": {
-    "spec": null,
+    "spec": "specs/DS-FOUNDATION-spec.md",
     "test_cases": null,
     "signoff": null,
     "framework_reviewed": false
@@ -17,6 +20,8 @@
   "role_assignments": null,
   "evaluator_feedback": null,
   "generator_handoff": null,
-  "session_notes": {},
+  "session_notes": {
+    "Andy": "DS-FOUNDATION spec locked 2026-07-13。地基批次：以 Horizon 模板为基座 scaffold。关键：设计系统是 Tailwind+CSS变量非 Chakra theme；浅色默认（去 <body dark>）；品牌沿用 Horizon 紫 #422AFB；模板源目录 db4rDjuaSCqaEFW9XcFo_ 保持 gitignore 不入库。building 串行（feature 共享 scaffold 不并行）。仓库 public，用户已确认 license 允许。"
+  },
   "features": []
 }

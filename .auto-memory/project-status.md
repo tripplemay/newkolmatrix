@@ -4,9 +4,9 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **DS-FOUNDATION：`fixing`**（设计系统地基：Horizon scaffold + 浅色设计系统 + 外壳 + 组件 + hook）
-- 首轮验收(fix_rounds=0)：5 PASS / 1 PARTIAL / 0 FAIL。构建门/运行门(6 路由 0 error)/视觉门/深色回归/baseline/License 全过
-- 待修：**F005 SidebarContext 孤儿死代码**（未 provide 未 consume）→ 方案 A 接入消费 或 方案 B 删死代码+Planner 改 acceptance
+- **DS-FOUNDATION：`reverifying`**（设计系统地基：Horizon scaffold + 浅色设计系统 + 外壳 + 组件 + hook）
+- 首轮 5 PASS / 1 PARTIAL；fix-round 1 已修 F005（方案 B：删孤儿 SidebarContext + 修正 acceptance，用户 7-14 授权）；待隔离 evaluator 复验
+- 首轮全过项：构建门/运行门(6 路由 0 error)/视觉门/深色回归/baseline/License
 - 报告 `docs/test-reports/DS-FOUNDATION-verifying-2026-07-14.md`；spec `docs/specs/DS-FOUNDATION-spec.md`
 
 ## 项目背景（为何重构）

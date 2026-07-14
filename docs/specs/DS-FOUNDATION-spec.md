@@ -74,7 +74,8 @@ Generator 若认为某项应简化，须发 pre-impl 审计请求，不得自行
 - [ ] brand 紫色 CSS 变量色阶（`--color-50..900`）—— 不得改色
 - [ ] Sidebar mini / hover 折叠交互 + 响应式 margin 切换（`xl:ml-[313px]` ⟷ `xl:ml-[142px]`）
 - [ ] Navbar 全部元素：面包屑 + 搜索 pill + 通知 Dropdown + 配置齿轮 + 色彩 toggle + 头像 Dropdown
-- [ ] KPI 卡 `MiniStatistics` 结构（icon box + label + value + delta）
+- [ ] KPI 卡 `MiniStatistics` 结构（icon box + label + value）
+  - 注（verifying fix-round 1）：模板 `card/MiniStatistics` 原语本身只有 icon box + label + value，无 delta；原 spec「+ delta」系文字漂移，已修正
 - [ ] 深色 toggle 能力（浅色默认，但深色不得删除）
 
 ### 4.4 Visual baseline（§2.4，硬要求）
@@ -140,7 +141,8 @@ Generator 若认为某项应简化，须发 pre-impl 审计请求，不得自行
 ### F005 — 公共 hooks + contexts + utils（priority: medium）
 
 **Acceptance：**
-- [ ] `ConfiguratorContext`（mini/theme/hovered/contrast + setters）与 `SidebarContext`（toggleSidebar/width）正常提供并被外壳消费
+- [ ] `ConfiguratorContext`（mini/theme/hovered/contrast + setters）正常提供并被外壳消费（侧栏折叠状态由 `ConfiguratorContext.mini` 承担）
+  - 注（verifying fix-round 1，Planner 裁决方案 B，用户 2026-07-14 授权）：原列的模板遗留 `SidebarContext`（toggleSidebar/width）经 Evaluator 查证为孤儿死代码（未 provide 未 consume，模板中仅被已删的 auth/layout 引用）→ 已删除，acceptance 只认真正承担侧栏状态的 `ConfiguratorContext`，避免冗余抽象
 - [ ] `utils/navigation.ts` 的 `getActiveRoute` / `getActiveNavbar` 正常工作
 - [ ] 补充 ≥1 个有实际用途的公共 hook（如 `src/hooks/useColorMode.ts` 封装 dark class 切换、或 `useMediaQuery.ts`）并被引用
 - [ ] commit `feat(DS-FOUNDATION-F005): ...`

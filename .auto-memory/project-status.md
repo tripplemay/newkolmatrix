@@ -4,10 +4,10 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **DS-FOUNDATION：`reverifying`**（设计系统地基：Horizon scaffold + 浅色设计系统 + 外壳 + 组件 + hook）
-- 首轮 5 PASS / 1 PARTIAL；fix-round 1 已修 F005（方案 B：删孤儿 SidebarContext + 修正 acceptance，用户 7-14 授权）；待隔离 evaluator 复验
-- 首轮全过项：构建门/运行门(6 路由 0 error)/视觉门/深色回归/baseline/License
-- 报告 `docs/test-reports/DS-FOUNDATION-verifying-2026-07-14.md`；spec `docs/specs/DS-FOUNDATION-spec.md`
+- **DS-FOUNDATION：`done` ✅**（设计系统地基：Horizon scaffold + 浅色设计系统 + 外壳 + 组件 + hook）
+- 复验(fix_rounds=1)：**6 PASS / 0 PARTIAL / 0 FAIL**。F005 fix-round 1（方案 B 删孤儿 SidebarContext）复判 PASS，侧栏折叠实测工作、删代码无回归
+- 门禁全过：构建(typecheck/lint 0-0/build)/运行(6 路由 0 error)/视觉/深色回归/baseline/License
+- signoff `docs/test-reports/DS-FOUNDATION-signoff-2026-07-14.md`；下一步待 Planner 起下一批次（业务页面）
 
 ## 项目背景（为何重构）
 - 本项目是旧项目 `kolmatrix`（已实现 MVP）的**全面重构**

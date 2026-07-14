@@ -2,7 +2,7 @@
   "status": "building",
   "user_goal": "以 Horizon UI Pro 为基座 scaffold KOLMatrix 应用，建立浅色设计系统、布局外壳、基础组件集与公共 hook（设计系统地基）",
   "total_features": 6,
-  "completed_features": 4,
+  "completed_features": 5,
   "fix_rounds": 0,
   "current_sprint": "DS-FOUNDATION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",

@@ -9,11 +9,12 @@ import {
   getActiveRoute,
   isWindowAvailable,
 } from 'utils/navigation';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Portal } from '@chakra-ui/portal';
 import Navbar from 'components/navbar';
 import Sidebar from 'components/sidebar';
 import Footer from 'components/footer/Footer';
+import { useMediaQuery } from 'hooks/useMediaQuery';
 
 export default function Admin({ children }: { children: React.ReactNode }) {
   // states and functions
@@ -21,6 +22,11 @@ export default function Admin({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [hovered, setHovered] = useState(false);
   const pathname = usePathname();
+  // DS-FOUNDATION F005：切到桌面断点（tailwind xl=1200px）时自动收起移动端抽屉。
+  const isDesktop = useMediaQuery('(min-width: 1200px)');
+  useEffect(() => {
+    if (isDesktop) setOpen(false);
+  }, [isDesktop]);
   if (isWindowAvailable()) document.documentElement.dir = 'ltr';
   const context = useContext(ConfiguratorContext);
   const { mini, theme, setTheme, setMini } = context;

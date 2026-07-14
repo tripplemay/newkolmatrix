@@ -8,6 +8,7 @@ import Configurator from './Configurator';
 import { IoMdNotificationsOutline } from 'react-icons/io';
 import avatar from '/public/img/avatars/avatar4.png';
 import Image from 'next/image';
+import useColorMode from 'hooks/useColorMode';
 
 const Navbar = (props: {
   onOpenSidenav: () => void;
@@ -16,9 +17,9 @@ const Navbar = (props: {
   [x: string]: any;
 }) => {
   const { onOpenSidenav, brandText, mini, hovered } = props;
-  const [darkmode, setDarkmode] = React.useState(
-    document.body.classList.contains('dark'),
-  );
+  // DS-FOUNDATION F005：统一走 useColorMode（替代内联 body.classList 逻辑）。
+  // setDark 幂等，与 Configurator 内部的 classList add/remove 兼容。
+  const { isDark: darkmode, setDark: setDarkmode } = useColorMode();
   return (
     <nav
       className={`duration-175 linear fixed right-3 top-3 flex flex-row flex-wrap items-center justify-between rounded-xl bg-white/30 transition-all ${
@@ -133,18 +134,8 @@ const Navbar = (props: {
           darkmode={darkmode}
           setDarkmode={setDarkmode}
         />
-        <div
-          className="cursor-pointer text-gray-600"
-          onClick={() => {
-            if (darkmode) {
-              document.body.classList.remove('dark');
-              setDarkmode(false);
-            } else {
-              document.body.classList.add('dark');
-              setDarkmode(true);
-            }
-          }}
-        ></div>
+        {/* DS-FOUNDATION F005：移除模板遗留的空 toggle div（无内容的幽灵控件）；
+            深色切换由 Configurator 承担，逻辑统一走 useColorMode。 */}
         {/* Profile & Dropdown */}
         <Dropdown
           button={

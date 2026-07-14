@@ -1,12 +1,12 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "newkolmatrix 配 CI（push 自动检查）+ Docker CD（手动部署到 newkol.guangai.ai），复用旧 kolmatrix VPS Docker CI/CD 模式，与旧版共存；Andy 代执行 go-live（用户授权）",
   "total_features": 7,
   "completed_features": 7,
   "fix_rounds": 0,
   "current_sprint": "CICD-VPS",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-14T14:20",
+  "last_updated": "2026-07-14T14:45",
   "reference_docs": [
     "docs/specs/CICD-VPS-spec.md",
     "framework/patterns/deploy-patterns.md",
@@ -22,7 +22,7 @@
   "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "CICD-VPS spec locked 2026-07-14。探查 deploysvr(194.238.26.173 Ubuntu24/Node20/PM2/nginx/Docker29)：共享多app机，旧 kolmatrix docker-compose 活在 kol.guangai.ai:3001，本批全程不碰。新版部署 newkol.guangai.ai:3300 /opt/apps/newkolmatrix，Docker+ghcr+手动 deploy，复用旧 repo 模式(secret PROD_HOST/USER/SSH_KEY)。用户授权 Andy 代执行 go-live(DNS via CF token in 钥匙串/certbot/secrets/首次部署)，首次上线前确认。visual baseline 需在 CI/linux 重生(mac↔linux 字体差)。"
+    "Andy": "CICD-VPS building 完成 F001-F007。Generator 自测在真实环境全过：ci.yml(lint+typecheck+build+visual)绿、build-push 推 ghcr 成功、docker build+run 本地 200、compose config OK、actionlint 0。视觉 baseline: 初次 CI visual 因无 linux baseline 红(seeding gap)→ 跑 update-visual-baselines 在 CI/linux 重生 en-dashboard-linux.png 并 commit → 重触发 ci.yml 全绿。给 Evaluator 重点：(1) deploy-prod.yml 必须仅 workflow_dispatch(无 push 触发)且脚本只操作 /opt/apps/newkolmatrix + newkolmatrix-app 容器，绝无触碰旧 kolmatrix/其他 app 命令；(2) 4 workflow actionlint 干净、CI 最新 run 绿、ghcr 有镜像；(3) F001 docker 本地 build+run 200；(4) environment.md 无 secret/key。live-site(newkol.guangai.ai)依赖 §7 go-live(DNS/证书/secrets/首次部署)——Andy 将在验收通过后代执行，首次部署前与用户确认。"
   },
   "features": []
 }

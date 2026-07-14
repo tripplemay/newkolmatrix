@@ -22,7 +22,7 @@
       "title": "布局外壳（Sidebar+Navbar+Footer）+ KOLMatrix 品牌与最小导航",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "Sidebar 品牌 Horizon PRO → KOLMatrix；routes.tsx 改 KOLMatrix 最小 IA（Dashboard + Discovery/Database/Campaigns/Outreach 占位 disabled，无幽灵项，删 demo 导航）；外壳 sidebar mini/hover + 响应式 + navbar 全元素渲染；无死链报错"
     },
     {

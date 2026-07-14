@@ -3,7 +3,6 @@
 import { HiX } from 'react-icons/hi';
 import Links from './components/Links';
 
-import SidebarCard from 'components/sidebar/components/SidebarCard';
 import {
   renderThumb,
   renderTrack,
@@ -69,7 +68,7 @@ function SidebarHorizon(props: { routes: IRoute[]; [x: string]: any }) {
                       : 'hidden'
                   }`}
                 >
-                  Horizon <span className="font-medium">PRO</span>
+                  KOL<span className="font-medium">Matrix</span>
                 </div>
                 <div
                   className={`ml-1 mt-1 h-2.5 font-poppins text-[26px] font-bold uppercase text-navy-700 dark:text-white ${
@@ -80,7 +79,7 @@ function SidebarHorizon(props: { routes: IRoute[]; [x: string]: any }) {
                       : 'block'
                   }`}
                 >
-                  H
+                  K
                 </div>
               </div>
               <div className="mb-7 mt-[58px] h-px bg-gray-200 dark:bg-white/10" />
@@ -89,12 +88,9 @@ function SidebarHorizon(props: { routes: IRoute[]; [x: string]: any }) {
                 <Links mini={mini} hovered={hovered} routes={routes} />
               </ul>
             </div>
-            {/* Free Horizon Card    */}
+            {/* Sidebar profile info（DS-FOUNDATION F003：移除 Horizon 升级推广卡；
+                用户信息为占位，接入认证批次后动态化） */}
             <div className="mb-[30px] mt-[28px]">
-              <div className="flex justify-center">
-                <SidebarCard mini={mini} hovered={hovered} />
-              </div>
-              {/* Sidebar profile info */}
               <div className="mt-5 flex items-center justify-center gap-3">
                 <div className="relative h-12 w-12 rounded-full bg-blue-200">
                   <Image
@@ -114,10 +110,10 @@ function SidebarHorizon(props: { routes: IRoute[]; [x: string]: any }) {
                   }`}
                 >
                   <h4 className="text-base font-bold text-navy-700 dark:text-white">
-                    Adela Parkson
+                    KOLMatrix
                   </h4>
                   <p className="text-sm font-medium text-gray-600">
-                    Product Designer
+                    Marketing workspace
                   </p>
                 </div>
               </div>

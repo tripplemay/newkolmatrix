@@ -1,12 +1,12 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "以 Horizon UI Pro 为基座 scaffold KOLMatrix 应用，建立浅色设计系统、布局外壳、基础组件集与公共 hook（设计系统地基）",
   "total_features": 6,
   "completed_features": 6,
   "fix_rounds": 0,
   "current_sprint": "DS-FOUNDATION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-14",
+  "last_updated": "2026-07-14T04:00",
   "reference_docs": [
     "docs/specs/DS-FOUNDATION-spec.md",
     "framework/patterns/ui-fidelity-guardrail.md"
@@ -21,7 +21,7 @@
   "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "DS-FOUNDATION spec locked 2026-07-13。地基批次：以 Horizon 模板为基座 scaffold。关键：设计系统是 Tailwind+CSS变量非 Chakra theme；浅色默认（去 <body dark>）；品牌沿用 Horizon 紫 #422AFB；模板源目录 db4rDjuaSCqaEFW9XcFo_ 保持 gitignore 不入库。building 串行（feature 共享 scaffold 不并行）。仓库 public，用户已确认 license 允许。"
+    "Andy": "DS-FOUNDATION building 完成（F001-F006 全 completed），进入 verifying。Generator 自测：typecheck + build + lint 每条 feature 后全绿；dashboard visual baseline 浏览器实截确认浅色+品牌+KPI+图表正常。给 Evaluator 的重点：(1) 深色 toggle 回归——navbar 已重构走 useColorMode，Configurator 切深色应仍生效不崩；(2) 5 路由(/admin/dashboards/default + discovery/database/campaigns/outreach)全可达无死链；(3) 视觉对照 §4.3 不得简化清单（shadow-3xl/rounded-[20px]/DM Sans+Poppins/brand紫/sidebar mini-hover/navbar 全元素/MiniStatistics 结构）；(4) License 门：git ls-files 不含 db4rDjuaSCqaEFW9XcFo_ 模板源目录。已知延后(backlog 非阻塞)：模板 deps 未精简、E2E 全套未配、React19 RC+TS4.9 沿用模板版本、next lint 将在 Next16 弃用。踩坑：F001 模板 components/map 含硬编码 Mapbox token 被 push protection 拦，已删组件+amend；tsconfig 原 include **/* 会扫 gitignore 的模板源目录，已收敛到 src/。"
   },
   "features": []
 }

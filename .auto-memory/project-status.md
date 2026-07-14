@@ -4,9 +4,9 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **DS-FOUNDATION：`building`**（设计系统地基：以 Horizon 模板 scaffold + 浅色设计系统 + 外壳 + 组件 + hook）
-- spec locked 2026-07-13；6 features（F001-F006 全 generator）；快车道，串行 building
-- spec: `docs/specs/DS-FOUNDATION-spec.md`
+- **DS-FOUNDATION：`verifying`**（设计系统地基：以 Horizon 模板 scaffold + 浅色设计系统 + 外壳 + 组件 + hook）
+- building 完成 6/6（F001-F006 全 generator，各自 typecheck+build+lint 绿）；待隔离 evaluator 首轮验收
+- spec: `docs/specs/DS-FOUNDATION-spec.md`；visual baseline: `tests/screenshots/baseline/en-dashboard.png`
 
 ## 项目背景（为何重构）
 - 本项目是旧项目 `kolmatrix`（已实现 MVP）的**全面重构**

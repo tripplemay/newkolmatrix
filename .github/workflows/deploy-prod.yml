@@ -1,0 +1,65 @@
+name: Deploy to Production (deploysvr)
+
+# CICD-VPS F006 — 容器化部署到 deploysvr。SSH → docker compose pull → up -d → 健康检查。
+# 镜像由 build-push.yml 预构建推 GHCR；本 workflow 只 pull 不 build。
+# 仅手动触发（harness 铁律：deploy/prod 永留人类闸门）。
+#
+# 依赖 GitHub repo secrets（值来自 deploysvr 部署密钥）：
+#     PROD_HOST    = 194.238.26.173
+#     PROD_USER    = <部署用户>
+#     PROD_SSH_KEY = <deploysvr 部署私钥>
+# 部署目录 /opt/apps/newkolmatrix 须已放好 docker-compose.prod.yml（见 docs/dev/deploy.md）。
+# 新版部署到 newkol.guangai.ai:3300，与旧 kolmatrix(kol.guangai.ai:3001) 隔离，全程不碰旧 app。
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "要部署的镜像 tag（git SHA；或 'latest'）。回滚 = 填上一个 good SHA。"
+        default: "latest"
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-prod-newkolmatrix
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.image_tag }} to newkol.guangai.ai
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://newkol.guangai.ai
+    steps:
+      - name: SSH + docker compose deploy on deploysvr
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          envs: IMAGE_TAG
+          script: |
+            set -euo pipefail
+            cd /opt/apps/newkolmatrix
+            export IMAGE_TAG
+            COMPOSE="docker compose -f docker-compose.prod.yml"
+
+            echo "── 1/3 docker compose pull (IMAGE_TAG=${IMAGE_TAG})"
+            $COMPOSE pull
+
+            echo "── 2/3 up -d"
+            $COMPOSE up -d
+
+            echo "── 3/3 healthcheck (127.0.0.1:3300, 10×3s 重试)"
+            for i in $(seq 1 10); do
+              if curl -sf http://127.0.0.1:3300/admin/dashboards/default >/dev/null 2>&1; then
+                echo "✅ Deploy healthy: IMAGE_TAG=${IMAGE_TAG}"
+                exit 0
+              fi
+              echo "   healthcheck 重试 $i/10 ..."; sleep 3
+            done
+            echo "❌ healthcheck 失败"; $COMPOSE logs --tail 50 app; exit 1

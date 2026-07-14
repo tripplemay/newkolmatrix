@@ -8,6 +8,8 @@
 //   '@fullcalendar/react',
 
 const nextConfig = {
+  // CICD-VPS F001: standalone 输出 → 最小自包含 server（.next/standalone），供 Docker 精简镜像
+  output: 'standalone',
   basePath: process.env.NEXT_PUBLIC_BASE_PATH,
   assetPrefix: process.env.NEXT_PUBLIC_BASE_PATH,
   images: {

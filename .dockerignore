@@ -1,0 +1,29 @@
+# CICD-VPS F001 — 构建上下文排除（减小 context + 避免拷贝无关文件）
+node_modules
+.next
+out
+build
+.git
+.github
+# Horizon 付费模板源目录（gitignore，绝不入镜像）
+db4rDjuaSCqaEFW9XcFo_horizon-tailwind-react-nextjs-pro-3.0.0
+# 测试 / 文档 / 状态机 / 记忆（运行时不需要）
+tests
+scripts/test
+docs
+design-draft
+framework
+.auto-memory
+*.md
+progress.json
+features.json
+backlog.json
+.agent-id
+.agents-registry
+# 本地环境
+.env
+.env.local
+.DS_Store
+npm-debug.log*
+playwright-report
+test-results

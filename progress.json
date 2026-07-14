@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "newkolmatrix 配 CI（push 自动检查）+ Docker CD（手动部署到 newkol.guangai.ai），复用旧 kolmatrix VPS Docker CI/CD 模式，与旧版共存；Andy 代执行 go-live（用户授权）",
   "total_features": 7,
-  "completed_features": 0,
+  "completed_features": 7,
   "fix_rounds": 0,
   "current_sprint": "CICD-VPS",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-14T13:00",
+  "last_updated": "2026-07-14T14:20",
   "reference_docs": [
     "docs/specs/CICD-VPS-spec.md",
     "framework/patterns/deploy-patterns.md",

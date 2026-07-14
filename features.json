@@ -6,7 +6,7 @@
       "title": "Docker 化（Dockerfile standalone 多阶段 + .dockerignore + next.config output:standalone）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "next.config 加 output:standalone；多阶段 Dockerfile(node alpine 非 root，copy standalone+static+public)；本地 docker build 成功、docker run -p 3300:3000 curl 200 渲染 dashboard；.dockerignore 排除 node_modules/.next/.git/模板目录"
     },
     {
@@ -14,7 +14,7 @@
       "title": "docker-compose.prod.yml（单 app 服务拉 ghcr 镜像，127.0.0.1:3300:3000）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "docker compose config 校验通过；image=ghcr.io/tripplemay/newkolmatrix:${IMAGE_TAG:-latest}，ports 127.0.0.1:3300:3000，restart unless-stopped，healthcheck curl localhost:3000，container_name newkolmatrix-app"
     },
     {
@@ -22,7 +22,7 @@
       "title": "CI 工作流 ci.yml（push/PR main → lint+typecheck+build，state 文件 paths-ignore）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "合法 YAML；on push/PR main + paths-ignore(progress/features/backlog.json/.auto-memory/docs)；Node 20 npm ci；lint+typecheck+build 三 job；push 后全绿"
     },
     {
@@ -30,7 +30,7 @@
       "title": "视觉回归（playwright dashboard vs baseline + update-visual-baselines.yml 在 CI/linux 重生 + CI visual job）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "@playwright/test + config + tests/visual/dashboard.spec 比对 baseline；update-visual-baselines.yml 手动 dispatch 在 linux 重生 tests/screenshots/baseline PNG 并 commit；CI visual job 对齐该 linux baseline 通过"
     },
     {
@@ -38,7 +38,7 @@
       "title": "build-push.yml（构建镜像推 ghcr.io/tripplemay/newkolmatrix）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "合法 YAML；on push main + workflow_dispatch；buildx + login ghcr(GITHUB_TOKEN) + build-push-action@v6 push:true tags sha+latest；permissions packages:write；push 后 ghcr 有镜像"
     },
     {
@@ -46,7 +46,7 @@
       "title": "deploy-prod.yml（手动 workflow_dispatch → SSH deploysvr compose pull+up+健康检查）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "合法 YAML；仅 workflow_dispatch(inputs image_tag)无 push 触发；appleboy/ssh-action(PROD_HOST/USER/SSH_KEY)→cd /opt/apps/newkolmatrix→compose pull→up -d→curl -f localhost:3300 健康检查；无触碰旧 kolmatrix/其他 app 命令"
     },
     {
@@ -54,7 +54,7 @@
       "title": "部署文档 + nginx conf + .env.example + environment.md 更新",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "docs/dev/deploy.md 含一次性 setup(DNS/certbot/secrets/ghcr public/VPS 目录+network/nginx)+日常部署+回滚；deploy/nginx/newkol.guangai.ai.conf 反代 3300 语法正确；.env.example 极简；environment.md 更新且无任何 secret/IP/key"
     }
   ]

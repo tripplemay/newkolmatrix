@@ -1,71 +1,27 @@
 {
-  "status": "done",
-  "user_goal": "newkolmatrix 配 CI（push 自动检查）+ Docker CD（手动部署到 newkol.guangai.ai），复用旧 kolmatrix VPS Docker CI/CD 模式，与旧版共存；Andy 代执行 go-live（用户授权）",
+  "status": "building",
+  "user_goal": "旧 kolmatrix 功能逐步重构进新系统：保留功能，去传统 SaaS 化，改造为 AI native（Agent 驱动一切）。本批 AGENT-FOUNDATION = Phase 0 架构地基：全栈化 + Agent 驱动四柱（工具层/Agent 运行时/常驻对话面/generative canvas）+ hello-agent 端到端闭环",
   "total_features": 7,
-  "completed_features": 7,
+  "completed_features": 0,
   "fix_rounds": 0,
-  "current_sprint": "CICD-VPS",
+  "current_sprint": "AGENT-FOUNDATION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-14T15:00",
+  "last_updated": "2026-07-14T16:30",
   "reference_docs": [
-    "docs/specs/CICD-VPS-spec.md",
-    "framework/patterns/deploy-patterns.md",
+    "docs/specs/AGENT-FOUNDATION-spec.md",
     "framework/patterns/web-runtime-patterns.md"
   ],
   "docs": {
-    "spec": "specs/CICD-VPS-spec.md",
+    "spec": "specs/AGENT-FOUNDATION-spec.md",
     "test_cases": null,
-    "signoff": "test-reports/CICD-VPS-verifying-2026-07-14.md",
+    "signoff": null,
     "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": [
-    {
-      "feature_id": "F001",
-      "result": "PASS",
-      "description": "output:standalone + 三阶段非 root Dockerfile(node20-alpine uid1001)；实测 docker run -p3300:3000 curl /admin/dashboards/default 200 <title>KOLMatrix</title>；镜像 357MB 瘦；.dockerignore 排除齐全。",
-      "steps_to_reproduce": "docker run newkolmatrix:test + curl localhost:3300"
-    },
-    {
-      "feature_id": "F002",
-      "result": "PASS",
-      "description": "docker compose config 通过：image ghcr:${IMAGE_TAG:-latest}、ports 127.0.0.1:3300:3000、restart unless-stopped、container_name newkolmatrix-app、node-e healthcheck(比 AC 字面 curl 更健壮，alpine 无 curl)。",
-      "steps_to_reproduce": "IMAGE_TAG=latest docker compose -f docker-compose.prod.yml config"
-    },
-    {
-      "feature_id": "F003",
-      "result": "PASS",
-      "description": "actionlint 干净；on push/PR main + paths-ignore + dispatch；Node20 npm ci；最新 CI run 29341057207(4acd40a) Lint/Typecheck/Build/Visual 四 job 全 success。",
-      "steps_to_reproduce": "gh run view 29341057207 --json jobs"
-    },
-    {
-      "feature_id": "F004",
-      "result": "PASS",
-      "description": "@playwright/test + config(snapshot {platform}) + serve-standalone webServer + dashboard.spec；update-visual-baselines.yml 在 linux 重生并 commit(4acd40a [skip ci])；CI visual 对齐 linux baseline success。首推 visual 红=seeding gap 属实。",
-      "steps_to_reproduce": "git log -1 -- tests/screenshots/baseline/en-dashboard-linux.png"
-    },
-    {
-      "feature_id": "F005",
-      "result": "PASS",
-      "description": "actionlint 干净；push main + dispatch；buildx+login(GITHUB_TOKEN)+build-push@v6 target runner push tags sha+latest；Build&Push run 29340785764 success，log 确认层写入 ghcr。",
-      "steps_to_reproduce": "gh run view 29340785764"
-    },
-    {
-      "feature_id": "F006",
-      "result": "PASS",
-      "description": "安全门核心：deploy-prod 仅 workflow_dispatch(无 push)；脚本逐行只 cd /opt/apps/newkolmatrix + compose pull/up + curl localhost:3300 健康检查；跨 app 危险命令(kolmatrix-app/prune/rm/--remove-orphans/systemctl/其他 app)扫描脚本正文 0 命中，仅注释含隔离说明。旧 kolmatrix/其他 app 全不碰。",
-      "steps_to_reproduce": "逐行读 deploy-prod.yml + grep 危险命令"
-    },
-    {
-      "feature_id": "F007",
-      "result": "PASS",
-      "description": "deploy.md(setup DNS/certbot/secrets/ghcr public/VPS 目录/nginx + 日常 + 回滚)齐全；nginx conf 反代 3300 nginx1.24 语法合理；.env.example 极简；environment.md host/key 注明存 Secrets，无明文 IP/key/token。",
-      "steps_to_reproduce": "读 docs/dev/deploy.md + deploy/nginx/*.conf + grep 泄密"
-    }
-  ],
+  "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "CICD-VPS verifying：隔离 evaluator(Reviewer3, fresh context)完成独立验收并写完整报告 docs/test-reports/CICD-VPS-verifying-2026-07-14.md = 7/7 PASS, 8/8 门 PASS, 0 FAIL。安全门(deploy-prod 仅手动+严格作用域+不碰旧 app)独立复核通过。evaluator subagent 在写完报告后、回写 progress.json 前遭遇一次性 API 崩溃(Connection closed)——主上下文按 orchestration §8 机械回写其报告原样结论(未改任何判定)+置 done。该报告兼作 signoff。下一步：go-live(DNS via CF token/secrets/VPS setup/证书/首次部署)，首次部署前与用户确认。非阻塞遗留：en-dashboard.png(无平台后缀)冗余可清、node-e healthcheck(优于 curl)。"
+    "Andy": "AGENT-FOUNDATION（Phase 0）spec-lock 完成（plan-mode 批准）。重构总方向已定：后端全新重建 + 激进 Agent 驱动 + 首切片 Brief→Campaigns + Vercel AI SDK→aigcgateway + CSV seed 先灌真实 KOL。本批 = 全栈化 + Agent 四柱地基 + hello-agent（NL→search_kols→KOL 卡片流画布渲染）。7 features 全 generator，串行 building。数据源=旧仓库 docs/kol-seed-enriched-final.csv（~2524 真实 KOL），本会话克隆在 scratchpad/kolmatrix-old。旧系统深度分析见本会话 3 个 explore agent 结论（功能清单/数据模型/SaaS痕迹诊断）。程序级路线图：Phase0 地基→P1 Brief+Campaigns→P2 Match→P3 Reach+CRM→P4 Insight+ROI+周报→P5 收尾。下一步：进入 /build 逐条实现。注意 F001 需本地 docker Postgres+pgvector。"
   },
   "features": []
 }

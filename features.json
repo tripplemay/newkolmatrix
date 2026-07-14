@@ -1,61 +1,61 @@
 {
-  "sprint": "CICD-VPS",
+  "sprint": "AGENT-FOUNDATION",
   "features": [
     {
       "id": "F001",
-      "title": "Docker 化（Dockerfile standalone 多阶段 + .dockerignore + next.config output:standalone）",
+      "title": "全栈化 + DB/pgvector 地基 + Prisma schema 初版（Tenant/User/Kol）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "next.config 加 output:standalone；多阶段 Dockerfile(node alpine 非 root，copy standalone+static+public)；本地 docker build 成功、docker run -p 3300:3000 curl 200 渲染 dashboard；.dockerignore 排除 node_modules/.next/.git/模板目录"
+      "status": "pending",
+      "acceptance": "prisma migrate 成功 + CREATE EXTENSION vector 生效 + Kol.embedding 为 vector(1024) 列；docker-compose.dev.yml 起本地 postgres+pgvector；.env.example 加 DATABASE_URL（无明文密钥）；npm build + tsc --noEmit + lint 绿"
     },
     {
       "id": "F002",
-      "title": "docker-compose.prod.yml（单 app 服务拉 ghcr 镜像，127.0.0.1:3300:3000）",
+      "title": "aigcgateway ⇄ Vercel AI SDK provider 封装（chat tool-calling + embeddings 双链路）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "docker compose config 校验通过；image=ghcr.io/tripplemay/newkolmatrix:${IMAGE_TAG:-latest}，ports 127.0.0.1:3300:3000，restart unless-stopped，healthcheck curl localhost:3000，container_name newkolmatrix-app"
+      "status": "pending",
+      "acceptance": "src/lib/ai/gateway.ts 用自定义 baseURL 指向 aigcgateway；scripts/test/ai-gateway-smoke.ts 经网关完成 1 次 chat（含 tool-call 触发）+ 1 次 bge-m3 embedding；密钥走 env（AIGCGATEWAY_BASE_URL/API_KEY）无硬编码；失败清晰不静默吞"
     },
     {
       "id": "F003",
-      "title": "CI 工作流 ci.yml（push/PR main → lint+typecheck+build，state 文件 paths-ignore）",
+      "title": "CSV seed 灌 ~2500 真实 KOL + bge-m3 embedding 入 pgvector",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "合法 YAML；on push/PR main + paths-ignore(progress/features/backlog.json/.auto-memory/docs)；Node 20 npm ci；lint+typecheck+build 三 job；push 后全绿"
+      "status": "pending",
+      "acceptance": "旧仓库 kol-seed-enriched-final.csv 拷入 repo 并入 git；scripts/seed/import-kol-csv.ts 解析+规范化+批量入库；seed 后 DB ≥2000 条真实 KOL 含非空 embedding；一条 cosine(<=>) 查询对 NL query 返回相关 top-K；脚本幂等"
     },
     {
       "id": "F004",
-      "title": "视觉回归（playwright dashboard vs baseline + update-visual-baselines.yml 在 CI/linux 重生 + CI visual job）",
-      "priority": "medium",
+      "title": "Agent 运行时（streamText 流式 loop）+ 工具注册表 + search_kols/get_kol_detail",
+      "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "@playwright/test + config + tests/visual/dashboard.spec 比对 baseline；update-visual-baselines.yml 手动 dispatch 在 linux 重生 tests/screenshots/baseline PNG 并 commit；CI visual job 对齐该 linux baseline 通过"
+      "status": "pending",
+      "acceptance": "src/app/api/agent/route.ts 流式 agent loop；src/lib/agent/tools/ 注册表；POST NL 到 /api/agent → agent 调 search_kols → 流式返回工具结果+文本；工具 IO 用 zod 校验；注册表可扩展（加工具不改 route 核心）"
     },
     {
       "id": "F005",
-      "title": "build-push.yml（构建镜像推 ghcr.io/tripplemay/newkolmatrix）",
+      "title": "常驻 Agent 对话面 + Generative Canvas 协议（KOL 卡片流渲染）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "合法 YAML；on push main + workflow_dispatch；buildx + login ghcr(GITHUB_TOKEN) + build-push-action@v6 push:true tags sha+latest；permissions packages:write；push 后 ghcr 有镜像"
+      "status": "pending",
+      "acceptance": "Horizon 外壳加常驻对话面板（useChat）；canvas 协议 src/lib/agent/canvas-registry.tsx 工具结果 type→React 组件；浏览器打字'找 XX KOL'→流式回复+KOL 卡片流在画布渲染（真实 seed 数据）；加新结果类型只需加组件；浅色 console 无 error；忠实 Horizon 视觉"
     },
     {
       "id": "F006",
-      "title": "deploy-prod.yml（手动 workflow_dispatch → SSH deploysvr compose pull+up+健康检查）",
-      "priority": "high",
+      "title": "IA 重排工作流 5 项（Brief/Campaigns/Match/Reach/Insight）+ 占位页 + 对话面全局",
+      "priority": "medium-high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "合法 YAML；仅 workflow_dispatch(inputs image_tag)无 push 触发；appleboy/ssh-action(PROD_HOST/USER/SSH_KEY)→cd /opt/apps/newkolmatrix→compose pull→up -d→curl -f localhost:3300 健康检查；无触碰旧 kolmatrix/其他 app 命令"
+      "status": "pending",
+      "acceptance": "routes.tsx = Dashboard + Brief/Campaigns/Match/Reach/Insight；删除旧 Discovery/Database/Outreach 桩；各路由真实占位页（非幽灵，标 coming-soon）无死链报错；对话面在每个工作流页全局可达"
     },
     {
       "id": "F007",
-      "title": "部署文档 + nginx conf + .env.example + environment.md 更新",
-      "priority": "high",
+      "title": "端到端 hello-agent 打通 + 架构文档 + visual baseline",
+      "priority": "medium",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "docs/dev/deploy.md 含一次性 setup(DNS/certbot/secrets/ghcr public/VPS 目录+network/nginx)+日常部署+回滚；deploy/nginx/newkol.guangai.ai.conf 反代 3300 语法正确；.env.example 极简；environment.md 更新且无任何 secret/IP/key"
+      "status": "pending",
+      "acceptance": "docs/dev/agent-architecture.md 落盘（四柱架构+数据流+加新工具 how-to）；visual baseline tests/screenshots/baseline/agent-canvas-*.png 入 git（浅色 ≥1440px）；README/CLAUDE.md 技术栈更新（DB/Prisma/pgvector/Vercel AI SDK/aigcgateway）"
     }
   ]
 }

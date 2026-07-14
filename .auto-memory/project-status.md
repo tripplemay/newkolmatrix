@@ -4,27 +4,25 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **CICD-VPS：机件 `done` ✅ → 待 go-live**（配 CI + Docker CD 到 VPS；7 features 全 generator）
-- 隔离 evaluator 验收 7/7 PASS（CI 绿 + 镜像推 ghcr + docker 本地 200 + deploy-prod 安全门通过）；signoff `docs/test-reports/CICD-VPS-verifying-2026-07-14.md`
-- **剩 go-live**（Andy 代执行，用户授权）：DNS via CF token / 3 secrets / VPS 目录+nginx / 证书 / 首次部署 newkol.guangai.ai；首次部署前与用户确认
-- spec `docs/specs/CICD-VPS-spec.md`；部署 runbook `docs/dev/deploy.md`
+- **AGENT-FOUNDATION（Phase 0）：`building`**（Agent 驱动架构地基；7 features 全 generator，串行）
+- 目标：全栈化 + Agent 四柱（工具层/Agent 运行时/常驻对话面/generative canvas）+ hello-agent 闭环（NL→search_kols→KOL 卡片流画布渲染）
+- spec `docs/specs/AGENT-FOUNDATION-spec.md`；数据源=旧仓库 `docs/kol-seed-enriched-final.csv`（~2524 真实 KOL）
 
-## 上一批次（DS-FOUNDATION done ✅）
-- 6/6 PASS（fix_rounds=1，F005 删孤儿 SidebarContext）；signoff `docs/test-reports/DS-FOUNDATION-signoff-2026-07-14.md`
+## 重构总方向（用户 2026-07-14 拍板）
+- 旧 kolmatrix 功能逐步重构进新系统：保功能、去 SaaS 化、改 AI native
+- **诊断：旧系统 AI 基建已生产级，但都是"副驾/逃生舱"——本质是把 AI 从副驾提到主驾（问题在 UX/IA 非能力）**
+- 决策：后端全新重建（复用外部 infra，不移植旧 lib）· 激进 Agent 驱动一切 · Vercel AI SDK→aigcgateway · CSV seed 先灌数据
+- 路线图：P0 地基 → P1 Brief+Campaigns → P2 Match → P3 Reach+CRM → P4 Insight+ROI+周报 → P5 收尾
+- 旧系统 IA 已是工作流式（Brief→Campaigns→Match→Reach→Insight），新系统继承
 
-## 项目背景（为何重构）
-- 本项目是旧项目 `kolmatrix`（已实现 MVP）的**全面重构**
-- 动因 1：前端样式换为 Horizon UI Pro 模板风格，框架差异大 → 无法原地替换
-- 动因 2：旧项目偏传统 SaaS 交互，与"AI 驱动的 KOL 营销平台"定位差异大 → 重构 UX
+## 已完成批次
+- **CICD-VPS done ✅**（7/7 PASS）：CI + Docker CD 到 VPS；**剩 go-live**（Andy 代执行，用户授权，首次部署前确认）；signoff `docs/test-reports/CICD-VPS-verifying-2026-07-14.md`
+- **DS-FOUNDATION done ✅**（6/6，Horizon 设计系统地基）
 
-## 关键决策
-- 技术栈：Next.js 15 App Router · React 19 · TS · **Tailwind（主设计系统，非 Chakra theme）** · Chakra 原语 · ApexCharts · DM Sans/Poppins
-- 浅色默认（去 `<body dark>`）；品牌沿用 Horizon 紫 `#422AFB`
-- 模板源目录 `db4rDjuaSCqaEFW9XcFo_...` 保持 gitignore，不入库（付费资产）
-- 仓库 public（用户确认 license 允许）；repo: github.com/tripplemay/newkolmatrix
+## 关键技术决策
+- Next.js 15 App Router · React 19 · TS · Tailwind（主设计系统）· 浅色默认 · Horizon 紫 `#422AFB`
+- **本批新增全栈：Prisma + Postgres + pgvector（dev 本地 docker）· Vercel AI SDK · aigcgateway（AI 出口）**
+- 仓库 public；repo github.com/tripplemay/newkolmatrix；模板源目录保持 gitignore
 
-## 生产状态
-- 暂无生产 / staging；本地 dev = localhost:3000
-
-## 已知 gap / backlog（非阻塞）
-- 模板 deps 未精简（fullcalendar/mapbox/nft）；测试 runner 未正式配置；React 19 RC + TS 4.9 沿用模板版本
+## 已知下游（不在本批）
+- 真实认证/多租户 RLS · 全栈 prod 部署改造（当前 CICD-VPS 前端-only）· Apify 采集管道 · CICD-VPS go-live

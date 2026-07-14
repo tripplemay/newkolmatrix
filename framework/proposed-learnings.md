@@ -102,6 +102,16 @@
 - **建议写入：** `harness-rules.md` 铁律 2/3 理由重述（"跨设备恢复 + 抗压缩" → "抗压缩持久 + 审计轨迹"）。
 - **状态：** 待确认
 
+## [2026-07-14] Andy（Generator · DS-FOUNDATION F001）— 来源：以付费模板 scaffold 时首推被 GitHub push protection 拦截
+
+**类型：** 新坑 / 铁律补充
+
+**内容：** 以第三方/付费 UI 模板为基座 scaffold 时，模板 demo 代码常含作者硬编码的第三方 secret（本次 `src/components/map/MapComponent.tsx:8` 硬编码 Mapbox token）。即使该组件在删 demo 后未被引用，只要进了 commit，GitHub push protection（public 仓库默认开）就会 GH013 拒推整个 push。规律：**scaffold feature 完成、首次 push 前必须先 `grep -rnE "pk\.|sk\.|token|secret|api[_-]?key" src/` 扫硬编码 secret**，命中即删/换 env；secret 一旦入本地 commit，必须 amend（未推送时）而非新增 commit 才能清出 push 的历史。配套：`.gitignore` 补 `.env*` 早于任何 install/scaffold。
+
+**建议写入：** `framework/patterns/web-runtime-patterns.md`（新增「§3 付费/第三方模板 scaffold 的 secret 预扫」）或 `harness/generator.md` scaffold 类 feature 开工提示；`security.md` 提交前 checklist 呼应。
+
+**状态：** 待确认
+
 <!-- 2026-07-13: 自主开发模式 + 进度看板 沉淀完成（用户确认，默认安装）。
      自主：机件转正入 templates/claude/{agents/{generator-restricted,spec-lock-critic}.md, skills/autodrive/, autonomous/*}；harness/autonomous-mode.md 转正为 T2 规范。
      看板：templates/dashboard.template.html + templates/claude/skills/dashboard/SKILL.md + progress.init.json(dashboard_url) + bootstrap chmod + harness-rules §四 + templates/CLAUDE.md。

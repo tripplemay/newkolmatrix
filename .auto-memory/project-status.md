@@ -4,9 +4,10 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **DS-FOUNDATION：`verifying`**（设计系统地基：以 Horizon 模板 scaffold + 浅色设计系统 + 外壳 + 组件 + hook）
-- building 完成 6/6（F001-F006 全 generator，各自 typecheck+build+lint 绿）；待隔离 evaluator 首轮验收
-- spec: `docs/specs/DS-FOUNDATION-spec.md`；visual baseline: `tests/screenshots/baseline/en-dashboard.png`
+- **DS-FOUNDATION：`fixing`**（设计系统地基：Horizon scaffold + 浅色设计系统 + 外壳 + 组件 + hook）
+- 首轮验收(fix_rounds=0)：5 PASS / 1 PARTIAL / 0 FAIL。构建门/运行门(6 路由 0 error)/视觉门/深色回归/baseline/License 全过
+- 待修：**F005 SidebarContext 孤儿死代码**（未 provide 未 consume）→ 方案 A 接入消费 或 方案 B 删死代码+Planner 改 acceptance
+- 报告 `docs/test-reports/DS-FOUNDATION-verifying-2026-07-14.md`；spec `docs/specs/DS-FOUNDATION-spec.md`
 
 ## 项目背景（为何重构）
 - 本项目是旧项目 `kolmatrix`（已实现 MVP）的**全面重构**

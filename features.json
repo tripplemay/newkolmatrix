@@ -38,7 +38,7 @@
       "title": "公共 hooks + contexts + utils",
       "priority": "medium",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "acceptance": "ConfiguratorContext / SidebarContext 正常提供并被外壳消费；utils/navigation.ts getActiveRoute/getActiveNavbar 正常；补 ≥1 个有用公共 hook（如 useColorMode/useMediaQuery）并被引用"
     },
     {

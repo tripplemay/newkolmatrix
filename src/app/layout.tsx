@@ -6,7 +6,9 @@ import AppWrappers from './AppWrappers';
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className="dark" id={'root'}>
+      {/* DS-FOUNDATION F002: 浅色为默认（去除模板原本的 className="dark"）。
+          深色仍可用：navbar Configurator / FixedPlugin 的 toggle 会向 body 追加 "dark" class。 */}
+      <body id={'root'}>
         <AppWrappers>{children}</AppWrappers>
       </body>
     </html>

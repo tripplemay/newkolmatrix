@@ -14,7 +14,7 @@
       "title": "浅色默认 theme + token 体系文档化（去 dark 默认 / 沿用 Horizon 紫 / 落 horizon-tokens.md）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "layout.tsx 去 <body className=dark> → 浅色默认；深色 toggle 仍可用；品牌紫 --color-500 #422AFB 色阶未改；design-draft/horizon-tokens.md 落盘（tailwind 命名色 + CSS 变量色阶 + 字体 DM Sans/Poppins + 阴影/圆角约定）"
     },
     {

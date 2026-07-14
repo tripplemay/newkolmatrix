@@ -1,53 +1,61 @@
 {
-  "sprint": "DS-FOUNDATION",
+  "sprint": "CICD-VPS",
   "features": [
     {
       "id": "F001",
-      "title": "从 Horizon 模板 scaffold 应用（复制框架 + 删 demo 业务页 + 装依赖 + 构建绿）",
+      "title": "Docker 化（Dockerfile standalone 多阶段 + .dockerignore + next.config output:standalone）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "repo 根出现 Next.js 应用结构；demo 业务页已删除；npm install 成功；npm run dev 起 :3000 不白屏；npm run build + tsc --noEmit + next lint 无 error；db4rDjuaSCqaEFW9XcFo_ 模板源目录仍在 .gitignore 未提交"
+      "status": "pending",
+      "acceptance": "next.config 加 output:standalone；多阶段 Dockerfile(node alpine 非 root，copy standalone+static+public)；本地 docker build 成功、docker run -p 3300:3000 curl 200 渲染 dashboard；.dockerignore 排除 node_modules/.next/.git/模板目录"
     },
     {
       "id": "F002",
-      "title": "浅色默认 theme + token 体系文档化（去 dark 默认 / 沿用 Horizon 紫 / 落 horizon-tokens.md）",
+      "title": "docker-compose.prod.yml（单 app 服务拉 ghcr 镜像，127.0.0.1:3300:3000）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "layout.tsx 去 <body className=dark> → 浅色默认；深色 toggle 仍可用；品牌紫 --color-500 #422AFB 色阶未改；design-draft/horizon-tokens.md 落盘（tailwind 命名色 + CSS 变量色阶 + 字体 DM Sans/Poppins + 阴影/圆角约定）"
+      "status": "pending",
+      "acceptance": "docker compose config 校验通过；image=ghcr.io/tripplemay/newkolmatrix:${IMAGE_TAG:-latest}，ports 127.0.0.1:3300:3000，restart unless-stopped，healthcheck curl localhost:3000，container_name newkolmatrix-app"
     },
     {
       "id": "F003",
-      "title": "布局外壳（Sidebar+Navbar+Footer）+ KOLMatrix 品牌与最小导航",
+      "title": "CI 工作流 ci.yml（push/PR main → lint+typecheck+build，state 文件 paths-ignore）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "Sidebar 品牌 Horizon PRO → KOLMatrix；routes.tsx 改 KOLMatrix 最小 IA（Dashboard + Discovery/Database/Campaigns/Outreach 占位 disabled，无幽灵项，删 demo 导航）；外壳 sidebar mini/hover + 响应式 + navbar 全元素渲染；无死链报错"
+      "status": "pending",
+      "acceptance": "合法 YAML；on push/PR main + paths-ignore(progress/features/backlog.json/.auto-memory/docs)；Node 20 npm ci；lint+typecheck+build 三 job；push 后全绿"
     },
     {
       "id": "F004",
-      "title": "基础组件集 + 抽可复用 Button 组件（≥5 variants）",
-      "priority": "medium-high",
+      "title": "视觉回归（playwright dashboard vs baseline + update-visual-baselines.yml 在 CI/linux 重生 + CI visual job）",
+      "priority": "medium",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "保留模板原语（Card/MiniStatistics/InputField/TextField/SwitchField/checkbox/radio/switch/badge/Dropdown/Tooltip）浅色渲染正常；新增 components/common/Button.tsx（primary-gradient/solid/ghost/secondary/danger + size + disabled + loading）；Button 被实际使用非幽灵"
+      "status": "pending",
+      "acceptance": "@playwright/test + config + tests/visual/dashboard.spec 比对 baseline；update-visual-baselines.yml 手动 dispatch 在 linux 重生 tests/screenshots/baseline PNG 并 commit；CI visual job 对齐该 linux baseline 通过"
     },
     {
       "id": "F005",
-      "title": "公共 hooks + contexts + utils",
-      "priority": "medium",
+      "title": "build-push.yml（构建镜像推 ghcr.io/tripplemay/newkolmatrix）",
+      "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "ConfiguratorContext 正常提供并被外壳消费（侧栏折叠状态由 ConfiguratorContext.mini 承担；模板遗留的孤儿 SidebarContext 已删除）；utils/navigation.ts getActiveRoute/getActiveNavbar 正常；补 ≥1 个有用公共 hook（如 useColorMode/useMediaQuery）并被引用"
+      "status": "pending",
+      "acceptance": "合法 YAML；on push main + workflow_dispatch；buildx + login ghcr(GITHUB_TOKEN) + build-push-action@v6 push:true tags sha+latest；permissions packages:write；push 后 ghcr 有镜像"
     },
     {
       "id": "F006",
-      "title": "占位 Dashboard 页（端到端验证 + visual baseline）",
+      "title": "deploy-prod.yml（手动 workflow_dispatch → SSH deploysvr compose pull+up+健康检查）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "root / 渲染 KOLMatrix 占位 dashboard 套外壳；3-4 KPI 卡（MiniStatistics 占位语义）+ ≥1 ApexChart（charts.ts options 形状）；浅色 console 无 error；tests/screenshots/baseline/en-dashboard.png 入 git（git ls-files 非空，≥1440px 浅色）"
+      "status": "pending",
+      "acceptance": "合法 YAML；仅 workflow_dispatch(inputs image_tag)无 push 触发；appleboy/ssh-action(PROD_HOST/USER/SSH_KEY)→cd /opt/apps/newkolmatrix→compose pull→up -d→curl -f localhost:3300 健康检查；无触碰旧 kolmatrix/其他 app 命令"
+    },
+    {
+      "id": "F007",
+      "title": "部署文档 + nginx conf + .env.example + environment.md 更新",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "docs/dev/deploy.md 含一次性 setup(DNS/certbot/secrets/ghcr public/VPS 目录+network/nginx)+日常部署+回滚；deploy/nginx/newkol.guangai.ai.conf 反代 3300 语法正确；.env.example 极简；environment.md 更新且无任何 secret/IP/key"
     }
   ]
 }

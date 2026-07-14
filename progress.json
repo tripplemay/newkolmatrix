@@ -1,65 +1,28 @@
 {
-  "status": "done",
-  "user_goal": "以 Horizon UI Pro 为基座 scaffold KOLMatrix 应用，建立浅色设计系统、布局外壳、基础组件集与公共 hook（设计系统地基）",
-  "total_features": 6,
-  "completed_features": 6,
-  "fix_rounds": 1,
-  "current_sprint": "DS-FOUNDATION",
+  "status": "building",
+  "user_goal": "newkolmatrix 配 CI（push 自动检查）+ Docker CD（手动部署到 newkol.guangai.ai），复用旧 kolmatrix VPS Docker CI/CD 模式，与旧版共存；Andy 代执行 go-live（用户授权）",
+  "total_features": 7,
+  "completed_features": 0,
+  "fix_rounds": 0,
+  "current_sprint": "CICD-VPS",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-14T13:30",
+  "last_updated": "2026-07-14T13:00",
   "reference_docs": [
-    "docs/specs/DS-FOUNDATION-spec.md",
-    "framework/patterns/ui-fidelity-guardrail.md"
+    "docs/specs/CICD-VPS-spec.md",
+    "framework/patterns/deploy-patterns.md",
+    "framework/patterns/web-runtime-patterns.md"
   ],
   "docs": {
-    "spec": "specs/DS-FOUNDATION-spec.md",
+    "spec": "specs/CICD-VPS-spec.md",
     "test_cases": null,
-    "signoff": "test-reports/DS-FOUNDATION-signoff-2026-07-14.md",
+    "signoff": null,
     "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": [
-    {
-      "feature_id": "F001",
-      "result": "PASS",
-      "description": "首轮 PASS，本轮回归 smoke 无异常：Next.js 结构齐全、demo 页全删、build+typecheck+lint 全绿、dev/start 200、模板源目录未入库。",
-      "steps_to_reproduce": "npm run typecheck && npm run lint && npm run build 全 exit 0；git ls-files|grep db4r 空"
-    },
-    {
-      "feature_id": "F002",
-      "result": "PASS",
-      "description": "首轮 PASS，回归无异常：浅色默认(body class 空、app 底白)、深色 toggle 可用、品牌紫 #422AFB 未改、horizon-tokens.md 齐。",
-      "steps_to_reproduce": "Playwright 读 body.className 空、.bg-background-100 白；深色 toggle hasDarkClass=true 0 error"
-    },
-    {
-      "feature_id": "F003",
-      "result": "PASS",
-      "description": "首轮 PASS，回归无异常：Sidebar=KOLMatrix、5 路由无幽灵项、navbar 全元素、6 路由 0 死链报错。",
-      "steps_to_reproduce": "Playwright 遍历 6 路由全 200 0 error；dashboard 截图佐证 navbar+sidebar 全元素"
-    },
-    {
-      "feature_id": "F004",
-      "result": "PASS",
-      "description": "首轮 PASS，回归无异常：模板原语全保留、Button 5 variants+size+disabled+loading、被实际使用。",
-      "steps_to_reproduce": "Read Button.tsx；grep Button 使用点=dashboard+ComingSoon"
-    },
-    {
-      "feature_id": "F005",
-      "result": "PASS",
-      "description": "首轮 PARTIAL → fix-round 1 方案 B 已修，本轮复判 PASS。按修订后 acceptance：孤儿 SidebarContext.ts 已删除且 src/ 无残留(grep 空)；ConfiguratorContext 仍 provide(AppWrappers)+consume(admin/layout+sidebar)；侧栏折叠交互实测工作(Configurator 点 Mini → main margin xl:ml-[313px]→ml-0 xl:ml-[142px]，0 error)；navigation getActiveRoute/getActiveNavbar 正常；useColorMode(navbar)+useMediaQuery(admin/layout) 仍被引用。删代码无回归。",
-      "steps_to_reproduce": "grep -rn SidebarContext src/ 空；node scripts/test/ds-sidebar-toggle-check.mjs → toggledToMini:true errors:[]"
-    },
-    {
-      "feature_id": "F006",
-      "result": "PASS",
-      "description": "首轮 PASS，回归无异常：root→dashboard 套外壳、4 KPI+LineChart、浅色 console 0 error、baseline 入库 1512x982。",
-      "steps_to_reproduce": "Playwright dashboard 200/0 error；git ls-files baseline png 非空；file 报 1512x982"
-    }
-  ],
+  "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "fix-round 1（F005 PARTIAL 修复）：Planner 裁决方案 B（用户 2026-07-14 授权）—— 删除模板遗留孤儿 SidebarContext.ts（未 provide 未 consume），修正 F005 acceptance 只认真正承担侧栏状态的 ConfiguratorContext；顺带修 spec §4.3 MiniStatistics '+delta' 文字漂移（模板原语无 delta）。侧栏折叠功能未变（ConfiguratorContext.mini）。验证：typecheck+build+lint 全绿，src/ 无 SidebarContext 残留。→ reverifying，请隔离 evaluator 复验 F005（其余 5 条首轮已 PASS）。",
-    "evaluator-subagent": "DS-FOUNDATION 复验(reverifying, fix_rounds=1)：6 PASS / 0 PARTIAL / 0 FAIL → done。F005 fix-round 1 方案 B 复判 PASS：孤儿 SidebarContext.ts 已删且 src/ 无残留、ConfiguratorContext 仍 provide+consume、侧栏折叠交互实测工作(margin 313px→142px 0 error)、navigation+useColorMode+useMediaQuery 仍在。回归 smoke 全过：typecheck/lint(0/0)/build 绿、6 路由 200 0 console error、深色 toggle 不崩、浅色默认、baseline 入库、License 门空。删代码无回归。signoff 已写 docs/test-reports/DS-FOUNDATION-signoff-2026-07-14.md 并填 docs.signoff。4 条 soft-watch(deps 未精简/测试 runner 未配/React19RC+TS4.9/gh-pages 残留)均有 backlog+spec 明文兜底。测试产物 scripts/test/ds-foundation-verify.mjs + ds-sidebar-toggle-check.mjs + tests/screenshots/verify/ 待随 commit 入库。"
+    "Andy": "CICD-VPS spec locked 2026-07-14。探查 deploysvr(194.238.26.173 Ubuntu24/Node20/PM2/nginx/Docker29)：共享多app机，旧 kolmatrix docker-compose 活在 kol.guangai.ai:3001，本批全程不碰。新版部署 newkol.guangai.ai:3300 /opt/apps/newkolmatrix，Docker+ghcr+手动 deploy，复用旧 repo 模式(secret PROD_HOST/USER/SSH_KEY)。用户授权 Andy 代执行 go-live(DNS via CF token in 钥匙串/certbot/secrets/首次部署)，首次上线前确认。visual baseline 需在 CI/linux 重生(mac↔linux 字体差)。"
   },
   "features": []
 }

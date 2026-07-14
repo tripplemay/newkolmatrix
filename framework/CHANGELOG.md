@@ -5,6 +5,17 @@
 
 ---
 
+## v1.0.4 — 2026-07-14（模板 scaffold secret 预扫）
+
+**来源：** KOLMatrix DS-FOUNDATION F001（首个真实项目跑通 v1.0 三角色闭环的地基批次）。以 Horizon UI Pro 付费模板 scaffold 时，模板 demo 组件 `MapComponent.tsx:8` 硬编码 Mapbox token，首次 push 被 GitHub push protection GH013 拦。
+
+**变更：**
+- `framework/patterns/web-runtime-patterns.md` 新增 **§3**：付费/第三方模板 scaffold 类 feature 首次 push 前必跑全仓 secret grep；命中即删未用 demo 组件或换 env；**清历史铁律**——secret 进本地 commit 后未推送必须 `git commit --amend` 改写（新增删除 commit 不够，push protection 扫本次 push 全部 commit）；`.gitignore` 补 `.env*` 应早于 install/scaffold。
+
+**兼容性：** 纯新增 pattern，不改状态机 / 字段 / 角色协议。触发条件：scaffold 类 feature（copy 第三方/付费模板入库）。
+
+---
+
 ## v1.0.3 — 2026-07-13（自主开发模式 + 进度看板：默认安装）
 
 **来源：** 单工具 Claude + dynamic Workflow 工作流下两项能力落地，用户确认默认安装。

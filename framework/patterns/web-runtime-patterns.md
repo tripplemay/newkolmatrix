@@ -82,8 +82,31 @@ function resolveRequestOrigin(request: Request): string {
 
 ---
 
+## 3. 付费 / 第三方模板 scaffold：首次 push 前必扫硬编码 secret（v1.0.4 — KOLMatrix DS-FOUNDATION F001 沉淀）
+
+**背景：** 以付费 / 第三方 UI 模板为基座 scaffold（skeleton 模式）时，模板 demo 代码常内嵌作者硬编码的第三方 secret。KOLMatrix DS-FOUNDATION F001 把 Horizon UI Pro 模板 copy 入 repo，`src/components/map/MapComponent.tsx:8` 硬编码了模板作者的 Mapbox token；即便删 demo 页后该组件已无人引用，只要进了 commit，public 仓库默认开启的 GitHub push protection 就 GH013 拒推**整个 push**。
+
+**规律：** scaffold 类 feature（copy 模板框架入库）完成、**首次 push 前必须全仓扫硬编码 secret**：
+
+```bash
+grep -rnE "pk\.[A-Za-z0-9]|sk-[A-Za-z0-9]|sk\.eyJ|AIza[0-9A-Za-z_-]{35}|ghp_[A-Za-z0-9]|xox[baprs]-|-----BEGIN [A-Z ]*PRIVATE KEY-----|api[_-]?key['\"]?\s*[:=]" src/
+```
+
+命中即处理：**未使用的 demo 组件直接删**（连带减 dead code）；**在用的**换 `process.env.X` + `.env.example` 占位。
+
+**清历史铁律：** secret 一旦进本地 commit，**未推送时必须 `git commit --amend`（或 rebase）改写该 commit** —— 新增一个"删除"commit 不够，push protection 扫的是本次 push 的**所有** commit，旧 commit 里的 secret 仍会被拦。
+
+**前置：** `.gitignore` 补 `.env*` 应早于任何 install / scaffold（防 `.env` 误入库）。
+
+**反面：** DS-FOUNDATION F001 首推被 GH013 拦（Mapbox token @ `MapComponent.tsx:8`）→ 删未用的 `components/map` + `git commit --amend` 才推成功（commit a04699e）。
+
+来源：KOLMatrix DS-FOUNDATION F001。
+
+---
+
 ## 版本历史
 
 | 日期 | 修订 | 来源 |
 |---|---|---|
 | 2026-07-09 | v1.0 重构：自 `harness/generator.md` §8-§9 原文迁出成独立 pattern 文件 | 框架 v1.0 目录分层 |
+| 2026-07-14 | §3 付费/第三方模板 scaffold 首推前 secret 预扫（含 `--amend` 清历史铁律） | KOLMatrix DS-FOUNDATION F001 |

@@ -16,6 +16,10 @@ node_modules/
 next-env.d.ts
 *.tsbuildinfo
 .vercel
+# Playwright（F006 visual baseline 用；baseline PNG 本身入 git）
+/test-results/
+/playwright-report/
+/playwright/.cache/
 # 环境变量
 .env.local
 .env.development.local

@@ -46,7 +46,7 @@
       "title": "占位 Dashboard 页（端到端验证 + visual baseline）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "root / 渲染 KOLMatrix 占位 dashboard 套外壳；3-4 KPI 卡（MiniStatistics 占位语义）+ ≥1 ApexChart（charts.ts options 形状）；浅色 console 无 error；tests/screenshots/baseline/en-dashboard.png 入 git（git ls-files 非空，≥1440px 浅色）"
     }
   ]

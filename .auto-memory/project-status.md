@@ -4,10 +4,10 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **CICD-VPS：`building`**（配 CI + Docker CD 到 VPS 供在线验收；7 features 全 generator）
-- 部署：newkol.guangai.ai:3300 /opt/apps/newkolmatrix，Docker+ghcr+手动 deploy，复用旧 repo VPS 模式；与旧 kolmatrix(kol.guangai.ai) 共存不碰
-- 用户授权 Andy 代执行 go-live（DNS via CF token / certbot / secrets / 首次部署），首次上线前确认
-- spec `docs/specs/CICD-VPS-spec.md`
+- **CICD-VPS：机件 `done` ✅ → 待 go-live**（配 CI + Docker CD 到 VPS；7 features 全 generator）
+- 隔离 evaluator 验收 7/7 PASS（CI 绿 + 镜像推 ghcr + docker 本地 200 + deploy-prod 安全门通过）；signoff `docs/test-reports/CICD-VPS-verifying-2026-07-14.md`
+- **剩 go-live**（Andy 代执行，用户授权）：DNS via CF token / 3 secrets / VPS 目录+nginx / 证书 / 首次部署 newkol.guangai.ai；首次部署前与用户确认
+- spec `docs/specs/CICD-VPS-spec.md`；部署 runbook `docs/dev/deploy.md`
 
 ## 上一批次（DS-FOUNDATION done ✅）
 - 6/6 PASS（fix_rounds=1，F005 删孤儿 SidebarContext）；signoff `docs/test-reports/DS-FOUNDATION-signoff-2026-07-14.md`

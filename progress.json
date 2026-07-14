@@ -1,12 +1,12 @@
 {
-  "status": "verifying",
+  "status": "done",
   "user_goal": "newkolmatrix 配 CI（push 自动检查）+ Docker CD（手动部署到 newkol.guangai.ai），复用旧 kolmatrix VPS Docker CI/CD 模式，与旧版共存；Andy 代执行 go-live（用户授权）",
   "total_features": 7,
   "completed_features": 7,
   "fix_rounds": 0,
   "current_sprint": "CICD-VPS",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-14T14:45",
+  "last_updated": "2026-07-14T15:00",
   "reference_docs": [
     "docs/specs/CICD-VPS-spec.md",
     "framework/patterns/deploy-patterns.md",
@@ -15,14 +15,57 @@
   "docs": {
     "spec": "specs/CICD-VPS-spec.md",
     "test_cases": null,
-    "signoff": null,
+    "signoff": "test-reports/CICD-VPS-verifying-2026-07-14.md",
     "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": null,
+  "evaluator_feedback": [
+    {
+      "feature_id": "F001",
+      "result": "PASS",
+      "description": "output:standalone + 三阶段非 root Dockerfile(node20-alpine uid1001)；实测 docker run -p3300:3000 curl /admin/dashboards/default 200 <title>KOLMatrix</title>；镜像 357MB 瘦；.dockerignore 排除齐全。",
+      "steps_to_reproduce": "docker run newkolmatrix:test + curl localhost:3300"
+    },
+    {
+      "feature_id": "F002",
+      "result": "PASS",
+      "description": "docker compose config 通过：image ghcr:${IMAGE_TAG:-latest}、ports 127.0.0.1:3300:3000、restart unless-stopped、container_name newkolmatrix-app、node-e healthcheck(比 AC 字面 curl 更健壮，alpine 无 curl)。",
+      "steps_to_reproduce": "IMAGE_TAG=latest docker compose -f docker-compose.prod.yml config"
+    },
+    {
+      "feature_id": "F003",
+      "result": "PASS",
+      "description": "actionlint 干净；on push/PR main + paths-ignore + dispatch；Node20 npm ci；最新 CI run 29341057207(4acd40a) Lint/Typecheck/Build/Visual 四 job 全 success。",
+      "steps_to_reproduce": "gh run view 29341057207 --json jobs"
+    },
+    {
+      "feature_id": "F004",
+      "result": "PASS",
+      "description": "@playwright/test + config(snapshot {platform}) + serve-standalone webServer + dashboard.spec；update-visual-baselines.yml 在 linux 重生并 commit(4acd40a [skip ci])；CI visual 对齐 linux baseline success。首推 visual 红=seeding gap 属实。",
+      "steps_to_reproduce": "git log -1 -- tests/screenshots/baseline/en-dashboard-linux.png"
+    },
+    {
+      "feature_id": "F005",
+      "result": "PASS",
+      "description": "actionlint 干净；push main + dispatch；buildx+login(GITHUB_TOKEN)+build-push@v6 target runner push tags sha+latest；Build&Push run 29340785764 success，log 确认层写入 ghcr。",
+      "steps_to_reproduce": "gh run view 29340785764"
+    },
+    {
+      "feature_id": "F006",
+      "result": "PASS",
+      "description": "安全门核心：deploy-prod 仅 workflow_dispatch(无 push)；脚本逐行只 cd /opt/apps/newkolmatrix + compose pull/up + curl localhost:3300 健康检查；跨 app 危险命令(kolmatrix-app/prune/rm/--remove-orphans/systemctl/其他 app)扫描脚本正文 0 命中，仅注释含隔离说明。旧 kolmatrix/其他 app 全不碰。",
+      "steps_to_reproduce": "逐行读 deploy-prod.yml + grep 危险命令"
+    },
+    {
+      "feature_id": "F007",
+      "result": "PASS",
+      "description": "deploy.md(setup DNS/certbot/secrets/ghcr public/VPS 目录/nginx + 日常 + 回滚)齐全；nginx conf 反代 3300 nginx1.24 语法合理；.env.example 极简；environment.md host/key 注明存 Secrets，无明文 IP/key/token。",
+      "steps_to_reproduce": "读 docs/dev/deploy.md + deploy/nginx/*.conf + grep 泄密"
+    }
+  ],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "CICD-VPS building 完成 F001-F007。Generator 自测在真实环境全过：ci.yml(lint+typecheck+build+visual)绿、build-push 推 ghcr 成功、docker build+run 本地 200、compose config OK、actionlint 0。视觉 baseline: 初次 CI visual 因无 linux baseline 红(seeding gap)→ 跑 update-visual-baselines 在 CI/linux 重生 en-dashboard-linux.png 并 commit → 重触发 ci.yml 全绿。给 Evaluator 重点：(1) deploy-prod.yml 必须仅 workflow_dispatch(无 push 触发)且脚本只操作 /opt/apps/newkolmatrix + newkolmatrix-app 容器，绝无触碰旧 kolmatrix/其他 app 命令；(2) 4 workflow actionlint 干净、CI 最新 run 绿、ghcr 有镜像；(3) F001 docker 本地 build+run 200；(4) environment.md 无 secret/key。live-site(newkol.guangai.ai)依赖 §7 go-live(DNS/证书/secrets/首次部署)——Andy 将在验收通过后代执行，首次部署前与用户确认。"
+    "Andy": "CICD-VPS verifying：隔离 evaluator(Reviewer3, fresh context)完成独立验收并写完整报告 docs/test-reports/CICD-VPS-verifying-2026-07-14.md = 7/7 PASS, 8/8 门 PASS, 0 FAIL。安全门(deploy-prod 仅手动+严格作用域+不碰旧 app)独立复核通过。evaluator subagent 在写完报告后、回写 progress.json 前遭遇一次性 API 崩溃(Connection closed)——主上下文按 orchestration §8 机械回写其报告原样结论(未改任何判定)+置 done。该报告兼作 signoff。下一步：go-live(DNS via CF token/secrets/VPS setup/证书/首次部署)，首次部署前与用户确认。非阻塞遗留：en-dashboard.png(无平台后缀)冗余可清、node-e healthcheck(优于 curl)。"
   },
   "features": []
 }

@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:visual": "playwright test",
+    "test:visual:update": "playwright test --update-snapshots"
   },
   "dependencies": {
     "@babel/traverse": "^7.24.6",
@@ -68,6 +70,7 @@
   "devDependencies": {
     "@babel/cli": "^7.24.6",
     "@babel/core": "^7.24.6",
+    "@playwright/test": "^1.61.1",
     "@types/jest": "^25.2.3",
     "@types/node": "^18.7.6",
     "@types/react": "18.2.0",

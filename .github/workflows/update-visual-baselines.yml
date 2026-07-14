@@ -1,0 +1,43 @@
+name: Update visual baselines
+
+# CICD-VPS F004 — 手动在 CI(linux) 重生视觉 baseline 并 commit。
+# 因 mac↔linux 字体渲染不 pixel-match，CI 的视觉回归须用 linux 生成的 baseline。
+# 首次配置 或 dashboard 视觉有意变更后，跑此 workflow 更新 -linux baseline。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-visual-baselines
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+      - name: Regenerate baselines (linux)
+        run: npm run test:visual:update
+      - name: Commit updated baselines
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests/screenshots/baseline
+          if git diff --cached --quiet; then
+            echo "no baseline changes"
+          else
+            git commit -m "chore(visual): update linux baselines [skip ci]"
+            git push
+          fi

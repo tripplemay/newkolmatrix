@@ -1,5 +1,7 @@
 'use client';
+import { useRouter } from 'next/navigation';
 import Card from 'components/card';
+import Button from 'components/common/Button';
 
 // DS-FOUNDATION F003：占位模块页的共用外观。业务批次会用真实内容替换对应 page。
 export default function ComingSoon({
@@ -9,6 +11,7 @@ export default function ComingSoon({
   title: string;
   description?: string;
 }) {
+  const router = useRouter();
   return (
     <div className="mt-3 grid grid-cols-1 gap-5">
       <Card extra="!p-[24px] flex min-h-[260px] items-center justify-center">
@@ -22,6 +25,15 @@ export default function ComingSoon({
           <p className="mt-2 text-sm text-gray-600">
             {description || 'Coming soon'}
           </p>
+          <div className="mt-6 flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push('/admin/dashboards/default')}
+            >
+              ← 返回 Dashboard
+            </Button>
+          </div>
         </div>
       </Card>
     </div>

@@ -30,7 +30,7 @@
       "title": "基础组件集 + 抽可复用 Button 组件（≥5 variants）",
       "priority": "medium-high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "保留模板原语（Card/MiniStatistics/InputField/TextField/SwitchField/checkbox/radio/switch/badge/Dropdown/Tooltip）浅色渲染正常；新增 components/common/Button.tsx（primary-gradient/solid/ghost/secondary/danger + size + disabled + loading）；Button 被实际使用非幽灵"
     },
     {

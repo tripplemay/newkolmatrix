@@ -7,3 +7,19 @@
 # Horizon UI Pro 付费模板（设计参考基座，本地保留，不入 git）
 # 含 171MB .fig 超 GitHub 限制；付费资产不入库。设计系统批次将 token/样式提取到 design-draft/
 db4rDjuaSCqaEFW9XcFo_horizon-tailwind-react-nextjs-pro-3.0.0/
+
+# Next.js / Node（DS-FOUNDATION F001 scaffold）
+node_modules/
+.next/
+/out/
+/build
+next-env.d.ts
+*.tsbuildinfo
+.vercel
+# 环境变量
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+npm-debug.log*
+# 注：package-lock.json 保留入 git（可复现构建）

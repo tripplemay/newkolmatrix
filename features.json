@@ -6,7 +6,7 @@
       "title": "从 Horizon 模板 scaffold 应用（复制框架 + 删 demo 业务页 + 装依赖 + 构建绿）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "repo 根出现 Next.js 应用结构；demo 业务页已删除；npm install 成功；npm run dev 起 :3000 不白屏；npm run build + tsc --noEmit + next lint 无 error；db4rDjuaSCqaEFW9XcFo_ 模板源目录仍在 .gitignore 未提交"
     },
     {

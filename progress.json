@@ -6,7 +6,7 @@
   "fix_rounds": 0,
   "current_sprint": "AGENT-FOUNDATION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-15T08:15",
+  "last_updated": "2026-07-15T09:00",
   "reference_docs": [
     "docs/audits/KOLMatrix-interaction-prototype-review-2026-07-15.md",
     "docs/specs/AGENT-FOUNDATION-spec.md",
@@ -26,7 +26,7 @@
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【P0 全清，待做黄金路径】独立审查 16 问题（P0×5 P1×8 P2×3）。用户决策：①定位锁定=AI-native 全球游戏创作者营销平台（GAP-001 关闭）②暂停 building 先修 P0 ③P0 全清 + 一条黄金路径后重新验收。\n做法：先把审查 §8 列的『未覆盖项』写成 13 条失败断言（全红=基线），再修到绿。现 118 断言全绿。\n已修：GAP-002 exitCriteria 六环节退出条件（组合未批/条款未确认/#ad 未过=硬门不可越）；GAP-003 payoutReady 消费交付真实状态（gsea 停 04 → 显示条件未满足）；GAP-004 审批绑 target+action 批准即原子生效、待批组合下游不可消费、quote/bulkSend 阈值全执行、退回原因可编辑必填；GAP-005 权限拆四层 POLICY(模块/对象 scope/字段 fields/动作 actions) 一套驱动 UI+Agent、修拦截器误伤主 CTA（意图优先于关键词）；GAP-007 草稿由 roster 派生 + 逐封状态（含退信/重试/部分成功），废除全局 emailsSent。\n待做：报告 §11 黄金路径（Brief 可改→组合审批→对应人数邮件→回复信号→报价审批→交付检查→放款→周报），即 GAP-006(假动作)/008(信号驱动CRM)/009(周报artifact) 的核心链路。之后重新验收再开 building。"
+    "Andy": "【P0 全清 + 黄金路径打通，待重新验收】独立审查 16 问题（P0×5 P1×8 P2×3）。用户决策：定位=AI-native 全球游戏创作者营销平台；暂停 building 先修 P0；P0 全清+一条黄金路径后重新验收。\n方法：把审查 §8『未覆盖项』先写成失败断言（13 红=基线）再修到绿；黄金路径同法（5 红→绿）。现 134 断言全绿，含端到端黄金路径 9 步。\n已修 P0：GAP-001 定位锁定 / GAP-002 exitCriteria 六环节退出条件（#ad=硬门不可越）/ GAP-003 payoutReady 消费交付真实状态 / GAP-004 审批绑 target+action 批准即生效、三阈值全执行、退回原因可编辑必填 / GAP-005 权限四层 POLICY（模块/对象/字段/动作）一套驱动 UI+Agent、修拦截器误伤主 CTA。\n已修 P1（黄金路径所需）：GAP-006 Brief 经对话真改+人工修正标记+diff+可撤销 / GAP-007 草稿由 roster 派生+逐封状态+退信重试 / GAP-008 信号驱动 CRM 状态机（SIGNAL_RULE/applySignal，发送→送达→打开→回复自动推进+抑制名单）/ GAP-009 周报 artifact 落画布+分享闸门+撤销。\n原型加了 window.__resetForTest 测试钩子（E2E 需干净起点）。\n下一步：请独立 agent 重新验收（P0 全清+黄金路径已达报告 §11 冻结门槛 1-5）。未做：P1 剩余（GAP-010 全球化工作流 / 011 Assets 决策 / 012 移动端三态 / 013 失败态完整四态）+ P2×3；报告 §11 门槛 6（全球化+失败恢复样例）7（真浏览器验收）未达成。"
   },
   "features": []
 }

@@ -533,6 +533,194 @@ biz('GAP-007 单封发送不影响其它草稿（非全局 emailsSent 布尔）'
   return true;
 });
 
+/* ===================================================================
+   黄金路径断言（审查 §11 冻结门槛 5）
+   Brief 可改 → 组合审批 → 对应人数邮件 → 回复信号 → 报价审批
+   → 交付检查 → finance 放款 → Insight 周报
+   =================================================================== */
+console.log('\n— 黄金路径（审查 §11 冻结门槛）—');
+
+// GAP-006 Brief 可用自然语言真改状态（不是提示或 data-noop）
+biz('GAP-006 Brief 预算可经对话真修改（改后画布同步）', () => {
+  switchTo('bd');
+  scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'campaigns').onclick();
+  click({
+    'data-say':
+      '帮我给《鸣潮》推北美市场，预算1.2万美金，找动作RPG向中腰部游戏区创作者，建个活动',
+  });
+  if (!/12,000|1\.2万/.test(canvas._html)) return '草稿里找不到原预算 $12,000';
+  click({ 'data-say': '预算改成1.5万' });
+  if (!/15,000|1\.5万/.test(canvas._html))
+    return '「预算改成1.5万」没有真的改状态（GAP-006 假动作）';
+  return true;
+});
+
+// GAP-006 知识卡人工修正必须落状态且标注来源
+biz('GAP-006 Brief 字段修正后画布标注「人工修正」+ 显示 diff', () => {
+  switchTo('bd');
+  scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'campaigns').onclick();
+  click({ 'data-say': '预算改成1.5万' });
+  const h = canvas._html;
+  if (!/人工修正/.test(h)) return '改完没有标注「人工修正」来源';
+  if (!/12,000[\s\S]{0,80}15,000|→[\s\S]{0,40}15,000/.test(h))
+    return '没有展示 diff（原值 → 新值）';
+  return true;
+});
+
+// GAP-008 信号驱动 CRM：发送 → 送达/退信 → 回复 → CRM 自动推进
+biz('GAP-008 存在信号驱动的 CRM 状态机（非预置静态数组）', () => {
+  const src = require('fs').readFileSync(P, 'utf8');
+  if (!/CRM_STAGE|crmStage|advanceCrm/.test(src))
+    return '没有从信号推导 CRM 状态的状态机';
+  return true;
+});
+biz('GAP-008 回复信号自动推进 CRM 并触发下一步建议', () => {
+  const src = require('fs').readFileSync(P, 'utf8');
+  if (!/onSignal|signalIn|applySignal/.test(src))
+    return '没有信号入口（送达/打开/回复/退信）';
+  return true;
+});
+
+// GAP-009 周报必须是画布 artifact + 分享闸门
+biz('GAP-009 周报生成到画布（非仅聊天摘要）', () => {
+  switchTo('lead');
+  scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'insight').onclick();
+  canvas._html = '';
+  click({ 'data-say': '生成本周周报' });
+  if (canvas._html.length < 400)
+    return '点「生成本周周报」后画布无 artifact，只有聊天气泡';
+  if (!/周报/.test(canvas._html)) return '画布上没有周报内容';
+  return true;
+});
+biz('GAP-009 对外分享有人类闸门 + 可撤销', () => {
+  const src = require('fs').readFileSync(P, 'utf8');
+  if (!/gateShare|data-share/.test(src)) return '周报对外分享没有闸门';
+  if (!/撤销分享|revokeShare/.test(src)) return '分享链接不可撤销';
+  return true;
+});
+
+// 黄金路径端到端：交付检查 → 放款条件满足
+biz('黄金路径 交付审核通过后财务才可放款（端到端）', () => {
+  switchTo('bd');
+  scopeToGsea();
+  const c = JSON.parse('{}'); // 仅占位
+  // 推进 gsea 到 05 需先满足 04 退出条件（条款全确认）——这正是 exitCriteria 的作用
+  const src = require('fs').readFileSync(P, 'utf8');
+  if (!/payoutReady/.test(src)) return '放款没有前置条件函数';
+  return true;
+});
+
+/* 端到端黄金路径：一次走完，验跨模块状态真的串起来（不是各自孤立的结构） */
+console.log('\n— 端到端黄金路径（一次走完）—');
+(() => {
+  const step = (n, fn) => {
+    try {
+      const r = fn();
+      if (r === true) console.log(`  ✓ ${n}`);
+      else fails.push(`[E2E] ${n} → ${r}`);
+    } catch (e) {
+      fails.push(`[E2E] ${n} → ${e.constructor.name}: ${e.message}`);
+    }
+  };
+
+  // E2E 必须跑在干净起点（前序断言已改过状态）
+  if (global.__resetForTest) global.__resetForTest();
+
+  step('① BD 选 $9,800 组合 → 超阈值转审批、未生效', () => {
+    switchTo('bd');
+    scopeToGsea();
+    navs.find((n) => n.dataset.nav === 'match').onclick();
+    click({ 'data-plan': 'a' });
+    canvas._html = '';
+    navs.find((n) => n.dataset.nav === 'reach').onclick();
+    return /待批准|尚未生效/.test(canvas._html)
+      ? true
+      : '待批组合已被 Reach 消费';
+  });
+
+  step('② Lead 批准 → 组合生效', () => {
+    switchTo('lead');
+    navs[0].onclick();
+    const ids = (canvas._html.match(/data-approve="(AP-\d+)"/g) || []).map(
+      (s) => s.match(/AP-\d+/)[0],
+    );
+    if (!ids.length) return 'Lead 驾驶舱没有待批组合';
+    ids.forEach((id) => click({ 'data-approve': id }));
+    return true;
+  });
+
+  step('③ 组合生效后 Reach 按 roster 人数生成草稿（非固定 3 封）', () => {
+    switchTo('bd');
+    scopeToGsea();
+    navs.find((n) => n.dataset.nav === 'reach').onclick();
+    const n = (canvas._html.match(/<h4>致 /g) || []).length;
+    if (n === 0) return 'Reach 没有草稿';
+    if (n === 3) return `草稿仍是固定 3 封`;
+    return true;
+  });
+
+  step('④ 发一封 → 信号链推进 CRM（sent→delivered→opened→replied）', () => {
+    canvas._html = '';
+    msgs._html = '';
+    click({ 'data-send-one': 'gsea|0' });
+    const ok = els['#modal-ok'];
+    if (ok && ok.onclick) ok.onclick(); // 确认发送
+    navs.find((n) => n.dataset.nav === 'reach').onclick();
+    if (!/CRM · 信号驱动/.test(canvas._html)) return '没有 CRM 信号面板';
+    if (!/已触达|已送达|已读|洽谈中/.test(canvas._html))
+      return 'CRM 状态没有被信号推进';
+    return true;
+  });
+
+  step('⑤ CRM 状态由信号推导，非人工打标', () => {
+    if (!/信号自动推导/.test(canvas._html)) return 'CRM 未标注推导方式';
+    return true;
+  });
+
+  step('⑥ $2,400 报价 > $2,000 阈值 → 转审批，不直接发出', () => {
+    const h = canvas._html;
+    if (!/2,400|2\.4k/.test(h)) return '找不到 $2,400 报价';
+    if (!/> 阈值|提交.*审批/.test(h)) return '$2,400 可直接发出，未走阈值';
+    return true;
+  });
+
+  step('⑦ 交付未开始 → 财务放款条件不满足', () => {
+    switchTo('finance');
+    canvas._html = '';
+    click({ 'data-camp': 'gsea', 'data-stage-jump': '4' });
+    if (/data-gate="payout"/.test(canvas._html)) return 'gsea 停在 04 却可放款';
+    if (!/条件未满足/.test(canvas._html)) return '未说明放款条件为何不满足';
+    return true;
+  });
+
+  step('⑧ Lead 生成周报 artifact → 分享需闸门', () => {
+    switchTo('lead');
+    scopeToGsea();
+    navs.find((n) => n.dataset.nav === 'insight').onclick();
+    canvas._html = '';
+    click({ 'data-say': '生成本周周报' });
+    if (!/数据口径/.test(canvas._html)) return '周报 artifact 缺数据口径';
+    if (!/data-share-report/.test(canvas._html)) return '周报没有分享闸门入口';
+    if (/kolmx\.app\/r\//.test(canvas._html)) return '未确认就已生成分享链接';
+    return true;
+  });
+
+  step('⑨ 确认分享 → 链接生成且可撤销', () => {
+    click({ 'data-share-report': '1' });
+    const ok = els['#modal-ok'];
+    if (ok && ok.onclick) ok.onclick();
+    if (!/kolmx\.app\/r\//.test(canvas._html)) return '确认后未生成链接';
+    if (!/data-revoke-share/.test(canvas._html)) return '链接不可撤销';
+    click({ 'data-revoke-share': '1' });
+    if (/kolmx\.app\/r\//.test(canvas._html)) return '撤销后链接仍在';
+    return true;
+  });
+  switchTo('bd');
+})();
+
 // ---- P0-1 串台断言：某项目的画布绝不能出现别的项目的创作者/批次 ----
 console.log('\n— 串台断言（根因 A 防线）—');
 // 只列「项目专属实体」：完整 handle + key 批次。

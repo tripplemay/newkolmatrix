@@ -1116,6 +1116,44 @@
      GAP-007 修复：邮件草稿由【已生效组合的 roster】派生，逐封独立状态
      （原实现：固定 3 封 EMAILS + 全局 emailsSent 布尔 → 单封发送让全部变已发送）
      =================================================================== */
+  /* ===================================================================
+     GAP-008 修复：信号驱动 CRM —— 状态由【真实信号】推导，不是人工打标
+     原实现：回复是预置数组，发送只把全局 emailsSent 置 true，没有状态机。
+     这是「从传统手工 CRM 到信号驱动运营」的关键跃迁，也是原则 4 的兑现。
+     =================================================================== */
+  const CRM_STAGE=["未触达","已触达","已送达","已读","洽谈中","条款确认中","已签约","已流失"];
+  const CRM={};                        /* {cid: {kolName: {stage, since, by, evidence[]}}} */
+  const SUPPRESS=new Set();            /* 抑制名单：硬退信/退订 —— 不再打扰 */
+  /* 信号 → CRM 状态的推导规则（单一出口，UI 与 Agent 共用）*/
+  const SIGNAL_RULE={
+    sent:      {to:"已触达",  ev:"邮件已发出"},
+    delivered: {to:"已送达",  ev:"Resend 回调：已送达"},
+    opened:    {to:"已读",    ev:"Resend 回调：已打开"},
+    replied:   {to:"洽谈中",  ev:"收到回复"},
+    quoted:    {to:"条款确认中", ev:"进入报价条款"},
+    signed:    {to:"已签约",  ev:"条款已确认"},
+    bounced:   {to:"已流失",  ev:"硬退信 → 已加入抑制名单"},
+    unsub:     {to:"已流失",  ev:"退订 → 已加入抑制名单"}
+  };
+  function crmOf(cid,kol){
+    CRM[cid]=CRM[cid]||{};
+    CRM[cid][kol]=CRM[cid][kol]||{stage:"未触达",since:"—",by:"—",evidence:[]};
+    return CRM[cid][kol];
+  }
+  /* 信号入口：所有 CRM 状态变更必须经此 —— 人不手动打标 */
+  function applySignal(cid,kol,sig,extra){
+    const rule=SIGNAL_RULE[sig]; if(!rule) return null;
+    const c=crmOf(cid,kol), from=c.stage;
+    /* 只前进不后退（除流失）*/
+    const i=CRM_STAGE.indexOf(rule.to), j=CRM_STAGE.indexOf(from);
+    if(rule.to!=="已流失"&&i<=j) { c.evidence.push(rule.ev+(extra?` · ${extra}`:"")); return null; }
+    c.stage=rule.to; c.since="刚刚"; c.by="信号自动推导";
+    c.evidence.push(rule.ev+(extra?` · ${extra}`:""));
+    if(sig==="bounced"||sig==="unsub") SUPPRESS.add(kol);
+    return {from,to:rule.to,ev:rule.ev};
+  }
+  const crmTone=s=>({"已签约":"good","洽谈中":"brand","条款确认中":"warn","已流失":"bad","未触达":"ghost"})[s]||"ghost";
+
   const DRAFTS={};                     /* {cid: [{kol, subj, body, why, status, err}]} */
   const MAIL_STATUS={draft:"草稿",queued:"发送中",sent:"已发送",delivered:"已送达",
     opened:"已打开",replied:"已回复",bounced:"退信",failed:"发送失败"};
@@ -1505,7 +1543,12 @@
     return `<div class="section-h" style="margin-top:6px"><h3>Agent 生成的项目 Brief 草稿</h3><span class="sub">已从你的一句话解析，核对后确认</span></div>
       <div class="draft anim-in" style="margin-bottom:22px">
         <div class="draft-h">${IC.camp}<h4>${CAMPAIGN.name}</h4><span class="pill warn">草稿 · 待确认</span></div>
-        <div class="fields">${CAMPAIGN.rows.map((r,i)=>`<div class="field ${i>=4?'full':''}"><div class="k">${r[0]}</div><div class="v">${r[1]}<span class="edit">改</span></div></div>`).join("")}</div>
+        <div class="fields">${CAMPAIGN.rows.map((r,i)=>{
+          const ed=CAMPAIGN._edited&&CAMPAIGN._edited[r[0]];
+          return `<div class="field ${i>=4?'full':''}"><div class="k">${r[0]}
+            ${ed?`<span class="src third" title="人工修正，覆盖 AI 抽取值">人工修正</span>`:""}</div>
+            <div class="v">${r[1]}<span class="edit">改</span>
+            ${ed?`<div class="kb-cite" style="margin-top:6px">${IC.user}<span><b>${ed.by} 修正：</b><s style="color:var(--muted)">${ed.from}</s> → <b>${ed.to}</b> · 置信度 100（人工值优先于 AI 抽取值）</span></div>`:""}</div></div>`;}).join("")}</div>
         ${readyBlock("AI 已完成必要信息检查 —— Brief 已就绪","目标市场、衡量标准与内容边界已经明确。",[["市场范围已确认",1],["候选标准已定义",1],["团队审核节点已保留",1]])}
         <div class="draft-foot"><span class="hint">${IC.bulb}想改哪项？直接对我说，例如"预算改成 1.5 万"。</span><div class="spacer"></div>
           <button class="btn line sm" data-noop>丢弃</button><button class="btn primary" data-confirm-camp>确认建立 · 进入全球发现</button></div>
@@ -2079,10 +2122,12 @@
     const replies=REPLIES.map((r,i)=>{
       const k=allKols().find(x=>x.id===r.kid);
       const gate=r.done?`<button class="btn ok sm" style="flex:none">${IC.check} 条款已确认</button>`
-        :(r.gate?(()=>{const amt=quoteAmount(r), over=amt>THRESHOLD.quote&&!ownsGate("approve-quote");
+        :(!ownsGate("submit-quote")&&!ownsGate("approve-quote")
+          ? `<span class="await">${IC.shield}条款由${gateOwner("submit-quote").label}提交</span>`
+          :(r.gate?(()=>{const amt=quoteAmount(r), over=amt>THRESHOLD.quote&&!ownsGate("approve-quote");
             return `${over?`<span class="await" style="margin-right:8px">${IC.shield}$${amt.toLocaleString()} > 阈值 $${THRESHOLD.quote.toLocaleString()}</span>`:""}
             <button class="btn primary sm" style="flex:none" data-gate="terms" data-ri="${i}" data-cid="${scopeId}">${IC.shield} ${over?`提交${gateOwner("approve-quote").label}审批`:r.gate.label}</button>`;})()
-        :`<button class="btn line sm" data-noop>采用草稿回信</button>`);
+        :`<button class="btn line sm" data-noop>采用草稿回信</button>`));
       return `<div class="reply anim-in">
         <div class="reply-top">
           <div class="kol-av" style="background:linear-gradient(135deg,${AV[r.kid-1]},${AV[r.kid%6]})">${r.kol[0]}</div>
@@ -2107,7 +2152,24 @@
             : (e.status==="bounced"||e.status==="failed"
                ? (ownsGate("send")?`<button class="btn line sm" style="flex:none" data-retry="${scopeId}|${i}">重试</button>`:"")
                : `<span class="pill ${stTone[e.status]}">${IC.check} ${MAIL_STATUS[e.status]}</span>`)}</div></div>`).join("");
+    /* GAP-008：CRM 由信号推导，每条状态都能追溯到具体信号 */
+    const crmRows=EMAILS.map(e=>{const c=crmOf(scopeId,e.kol);
+      return `<div class="krow" style="grid-template-columns:1.2fr 96px 1fr auto">
+        <div class="kn">${e.kol}${SUPPRESS.has(e.kol)?' <span class="pill bad" style="font-size:9px">抑制名单</span>':""}</div>
+        <div><span class="pill ${crmTone(c.stage)}">${c.stage}</span></div>
+        <div class="dv" style="font-size:11px;color:var(--muted)">${c.evidence.length?c.evidence[c.evidence.length-1]:"—"}</div>
+        <div style="text-align:right;font-size:10.5px;color:var(--muted);font-weight:700">${c.by}</div></div>`;}).join("");
+
     canvas.innerHTML=scopeBar(4)+`
+      <div class="draft" style="margin-bottom:18px">
+        <div class="draft-h">${IC.people}<h4>CRM · 信号驱动</h4>
+          <span class="partner">${IC.bolt.replace('class="ic"','class="ic" style="width:11px;height:11px"')}状态由<b>信号推导</b>，非人工打标</span>
+          <span class="pill brand" style="margin-left:auto">${EMAILS.filter(e=>crmOf(scopeId,e.kol).stage!=="未触达").length} / ${EMAILS.length} 已进入流程</span></div>
+        <div class="deliv" style="padding-top:10px">
+          <div class="krow khead" style="grid-template-columns:1.2fr 96px 1fr auto"><div>创作者</div><div>CRM 状态</div><div>最近信号（依据）</div><div>推导方式</div></div>
+          ${crmRows||'<div class="arc-item">尚无触达记录</div>'}</div>
+        <div class="draft-foot"><span class="hint">${IC.bulb}发送 → 送达 → 打开 → 回复 → 条款 → 签约：<b>每一步都由真实信号推进</b>；硬退信/退订自动进抑制名单，不再打扰。</span></div></div>
+
       <div class="section-h" style="margin-top:6px"><h3>回复工作区</h3><span class="sub">AI 归纳重点 + 起草下一步 · 报价/合同由你确认</span><div class="spacer"></div><span class="pill brand">${REPLIES.filter(r=>!r.done).length} 条待处理</span></div>
       ${replies}
       <div class="section-h"><h3>邀约草稿</h3><span class="sub">每封按 KOL 画像个性化 · 审阅后再发</span><div class="spacer"></div>${emailsSent?'<span class="pill good">已发送 · 追踪中</span>':`<span class="pill warn">${EMAILS.length} 封待发</span>`}</div>
@@ -2133,8 +2195,35 @@
       <path d="${line}" fill="none" stroke="#422AFB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
       <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="4" fill="#422AFB"/></svg>`;
   }
+  /* GAP-009：周报 artifact —— Agent 的产出必须落画布，且对外分享要闸门 */
+  const REPORT={shown:false, shared:false, token:null, exported:false};
+  function reportCard(){
+    if(!REPORT.shown) return "";
+    return `<div class="draft anim-in" style="margin-bottom:18px">
+      <div class="draft-h">${IC.doc}<h4>本周周报 · 2026-07-08 ~ 07-15</h4>
+        <span class="pill brand">AI 生成 · 可编辑</span>
+        ${REPORT.shared?`<span class="pill good" style="margin-left:auto">已分享 · 只读链接</span>`:`<span class="pill ghost" style="margin-left:auto">未对外</span>`}</div>
+      <div class="fields">
+        <div class="field full"><div class="k">摘要（可编辑）<span class="edit">改</span></div>
+          <div class="v">本周触达 <b>23 位</b>创作者、<b>8 位</b>回复、<b>3 位</b>进入合作。「原神·东南亚 Q2」以 ROI <b>3.4x</b> 领先，主要由 3 位女性向腰部创作者贡献，获客成本比头部低 41%。</div></div>
+        <div class="field"><div class="k">数据口径</div><div class="v">触达=已发出邮件数；回复=Resend 回调 replied；ROI=(营收−KOL投入)÷KOL投入</div></div>
+        <div class="field"><div class="k">时间范围</div><div class="v">2026-07-08 00:00 ~ 07-15 23:59（UTC+8）</div></div>
+        <div class="field full"><div class="k">来源</div><div class="v">
+          ${srcBadge("first")} Resend 送达/回复回调 · ${srcBadge("infer")} 受众画像（爬取推断）· 人工录入营收<br>
+          <span style="color:var(--muted);font-size:11.5px">${IC.warn.replace('class="ic"','class="ic" style="width:11px;height:11px;vertical-align:-1px"')} 受众相关结论基于推断数据，接入第三方评估后可提升可信度</span></div></div>
+      </div>
+      <div class="risk-list"><div class="risk"><span>${IC.bulb} <b>证据缺口（保留待验证）：</b>TikTok 短内容对转化的贡献证据不足 —— 下一轮需埋点。<b>本周报不宣称该渠道有效。</b></span></div></div>
+      <div class="draft-foot">
+        <span class="hint">${IC.shield}导出 PDF = 内部动作，直接做；<b>对外分享 = 人类闸门</b></span>
+        <div class="spacer"></div>
+        <button class="btn line sm" data-export-report>${REPORT.exported?"已导出 ✓":"导出 PDF"}</button>
+        ${REPORT.shared
+          ? `<button class="btn line sm" data-revoke-share>撤销分享链接</button>
+             <span class="pill good">${REPORT.token}</span>`
+          : `<button class="btn primary sm" style="flex:none" data-share-report>${IC.shield} 生成对外分享链接</button>`}</div></div>`;
+  }
   function renderInsight(){
-    canvas.innerHTML=`
+    canvas.innerHTML=reportCard()+`
       <div class="kpi-row">
         <div class="kpi"><div class="kic">${IC.star}</div><div><div class="kv tnum">2,481</div><div class="kl">已发现 KOL</div></div></div>
         <div class="kpi"><div class="kic">${IC.camp}</div><div><div class="kv tnum">4</div><div class="kl">进行中项目</div></div></div>
@@ -2239,6 +2328,40 @@
         "越权拦截 · "+role().copilotScope,()=>setChips("default"),null);
       return;
     }
+    /* ===================================================================
+       GAP-006 修复：AI 起草 → 人审阅 → 【可修正】。原实现「改/修正」只给提示，
+       后续输入「预算改成 1.5 万」没有对应状态分支 —— 用户只能接受固定假数据。
+       现在：真改状态 + 展示 diff + 标注来源为人工 + 可撤销。
+       =================================================================== */
+    const amtCN=t=>{const m=t.match(/([\d.]+)\s*万/); if(m) return Math.round(parseFloat(m[1])*10000);
+      const d=t.match(/\$?\s*([\d,]+)/); return d?parseInt(d[1].replace(/,/g,"")):null;};
+    if(has("预算改","改成","预算调")&&amtCN(text)){
+      const v=amtCN(text), old=CAMPAIGN.rows[1][1];
+      CAMPAIGN.rows[1][1]=`$${v.toLocaleString()}`;
+      CAMPAIGN._edited=CAMPAIGN._edited||{};
+      CAMPAIGN._edited["预算"]={from:old,to:`$${v.toLocaleString()}`,by:role().name};
+      renderModule(activeModule==="brief"?"brief":"campaigns");
+      undoToast(`预算 ${old} → $${v.toLocaleString()}`,()=>{CAMPAIGN.rows[1][1]=old;delete CAMPAIGN._edited["预算"];renderModule(activeModule);});
+      agentReply(`已改：<b>预算 ${old} → $${v.toLocaleString()}</b>。<br>
+        该字段已标为<b>人工修正</b>（来源：${role().name}，覆盖 AI 抽取值，置信度 100）。<br>
+        ${v>THRESHOLD.planBudget?`⚠️ 注意：$${v.toLocaleString()} 仍超过你的审批额度 $${THRESHOLD.planBudget.toLocaleString()}，组合方案仍需 ${gateOwner("approve-plan").label} 批。`:`✓ 现在在你的审批额度内。`}<br>
+        <b>可撤销。</b>`,
+        "edit_brief · 人工值覆盖 AI 抽取值 · 已留痕",null,"match");
+      return;
+    }
+    if(has("市场加","市场改","加上越南","目标市场")){
+      const old=CAMPAIGN.rows[3][1];
+      CAMPAIGN.rows[3][1]=old+" / 越南";
+      CAMPAIGN._edited=CAMPAIGN._edited||{};
+      CAMPAIGN._edited["目标市场"]={from:old,to:CAMPAIGN.rows[3][1],by:role().name};
+      renderModule(activeModule==="brief"?"brief":"campaigns");
+      undoToast(`目标市场已加越南`,()=>{CAMPAIGN.rows[3][1]=old;delete CAMPAIGN._edited["目标市场"];renderModule(activeModule);});
+      agentReply(`已改：<b>目标市场 ${old} → ${CAMPAIGN.rows[3][1]}</b>（人工修正，来源 ${role().name}）。<br>
+        <b>影响范围：</b>越南在知识库里标为「待开发市场」（Q3 用研 p.8-14）—— 加入后组合的市场覆盖要求从 2/2 变 3/3，现有候选池可能凑不齐。`,
+        "edit_brief · 已提示影响范围",null,"match");
+      return;
+    }
+
     /* GAP-005 修复：拦截器不能误伤合法任务。
        原实现 has("预算") 会拦掉首屏主 CTA「…预算1.2万美金…建个活动」——
        用户点自己的主按钮被自己的权限拦截器拒绝。
@@ -2296,8 +2419,11 @@
       return;
     }
     if(has("周报")){
-      agentReply(`已生成本周周报草稿：本周触达 <b>23 位</b> KOL、<b>8 位</b>回复、<b>3 位</b>进入合作；「原神·东南亚 Q2」贡献主要 ROI。要导出 PDF，还是生成给客户的只读分享链接？<b>对外分享需你确认。</b>`,
-        "调用 generate_weekly_report · 草案已生成",()=>setChips("afterReach"),"retro");
+      /* GAP-009：周报必须是画布 artifact，不是聊天摘要 */
+      REPORT.shown=true;
+      agentReply(`已生成<b>本周周报</b>并渲染到画布 —— 含数据口径、时间范围与来源。<br>
+        摘要可编辑；<b>导出 PDF 不需要确认</b>（内部动作），但<b>生成对外分享链接需要你确认</b>（对外暴露数据，可撤销）。`,
+        "generate_weekly_report · artifact 已渲染到画布",()=>{renderModule("insight");setChips("afterReach");},"retro");
       return;
     }
     /* P1-2 修复：「为什么」是可解释匹配的关键词，不能被 ROI 分支抢走。
@@ -2377,9 +2503,30 @@
       "确认发送",()=>{
         d.status="queued"; renderReach();
         setTimeout(()=>{
-          /* 演示真实世界：并非每封都成功 */
-          if(/GachaQueen|\(2\)/.test(d.kol)){d.status="bounced";d.err="硬退信：邮箱地址无效（来源为爬取推断，未经平台一方验证）→ 已自动加入抑制名单";}
-          else d.status="sent";
+          /* 演示真实世界：并非每封都成功。所有状态变更走信号入口（GAP-008）*/
+          if(/GachaQueen|\(2\)/.test(d.kol)){
+            d.status="bounced";d.err="硬退信：邮箱地址无效（来源为爬取推断，未经平台一方验证）→ 已自动加入抑制名单";
+            applySignal(scopeId,d.kol,"bounced","邮箱来源=爬取推断");
+          } else {
+            d.status="sent"; applySignal(scopeId,d.kol,"sent");
+            /* 真实世界的后续信号会陆续到达 —— 这里演示送达/打开/回复链 */
+            setTimeout(()=>{
+              applySignal(scopeId,d.kol,"delivered"); d.status="delivered";
+              if(/Ayu/.test(d.kol)){
+                applySignal(scopeId,d.kol,"opened"); d.status="opened";
+                setTimeout(()=>{
+                  applySignal(scopeId,d.kol,"replied","对合作有兴趣，问排期与报价");
+                  d.status="replied";
+                  if(activeModule==="reach")renderReach();
+                  agentReply(`📨 <b>${d.kol} 回复了</b> —— CRM 已<b>自动</b>从「已读」推进到「洽谈中」（<b>不是你手动打的标</b>）。<br>
+                    回复重点：对合作有兴趣，问排期与报价。<br>
+                    <b>我的下一步建议：</b>起草回信 + 给报价区间 —— 但报价是对外承诺，超 $${THRESHOLD.quote.toLocaleString()} 要走审批。`,
+                    "signal: replied → CRM 自动推进 · 已起草下一步",()=>setChips("afterReach"),"comms");
+                },reduce?10:1400);
+              }
+              if(activeModule==="reach")renderReach();
+            },reduce?10:700);
+          }
           renderReach();
           if(d.status==="bounced"){toast(`${d.kol} 退信`);
             agentReply(`<b>${d.kol}</b> 硬退信 —— 邮箱来源是<b>爬取推断</b>（非平台一方验证），已自动加入抑制名单，不会重复打扰。<br>这正是数据层缺口的产品后果：接入一方数据后此类退信会大幅下降。`,
@@ -2483,6 +2630,24 @@
         renderModule(activeModule);
         toast("已确认放款 · partner 执行中");
         agentReply(`放款指令已发给 partner，${amt} 从托管账户转出给 <b>${kol}</b>。交易记录写入其经营档案，作为下一轮报价参考。`,"放款闸门通过 · partner 执行 · 逐笔留痕",null,"rel");});}
+  /* GAP-009：对外分享 = 人类闸门（对外暴露数据）+ 可撤销 */
+  function gateShare(){
+    openGate("生成对外分享链接",`将为<b>本周周报</b>生成<b>只读公开链接</b>，任何拿到链接的人都能查看。<br><br>
+      <b>会暴露：</b>触达/回复量 · 各项目 ROI · 创作者组合结论<br>
+      <b>不会暴露：</b>创作者联系方式 · 合同金额 · 内部判断与退回记录<br><br>
+      链接 <b>7 天后自动过期</b>，也可随时撤销。<b>这是对外动作 —— 我不会替你分享。</b>`,
+      "确认生成链接",()=>{
+        REPORT.shared=true; REPORT.token="kolmx.app/r/8f3a…（7 天后过期）";
+        renderInsight(); toast("分享链接已生成 · 7 天后过期");
+        agentReply(`已生成只读分享链接 <b>${REPORT.token}</b>。<br>
+          已脱敏：创作者联系方式、合同金额、内部判断与退回记录<b>均不在链接内</b>。<br>
+          谁访问过会记录；随时可撤销。`,
+          "share_report · 对外闸门通过 · 已脱敏 · 可撤销",null,"retro");});}
+  function revokeShare(){
+    REPORT.shared=false; REPORT.token=null; renderInsight();
+    undoToast("分享链接已撤销 · 旧链接立即失效",null);
+    agentReply(`分享链接已撤销 —— 旧链接<b>立即失效</b>，再访问会 404。撤销动作已留痕。`,"revoke_share · 已失效",null,"retro");}
+
   function gateKeys(cid){
     const K=D(cid,"keys"); if(!K) return;
     const n=rosterOf(cid).length||3;
@@ -2634,6 +2799,13 @@
     const rty=e.target.closest("[data-retry]");
     if(rty){const [cid,i]=rty.dataset.retry.split("|");doRetry(cid,+i);return;}
     const blk=e.target.closest("[data-bulk]"); if(blk){doBulk(blk.dataset.bulk);return;}
+    /* GAP-009：导出=内部动作直接做；对外分享=人类闸门 + 可撤销 */
+    if(e.target.closest("[data-export-report]")){
+      REPORT.exported=true; renderInsight();
+      undoToast("周报已导出 PDF（内部动作）",()=>{REPORT.exported=false;renderInsight();});
+      return;}
+    if(e.target.closest("[data-share-report]")){gateShare();return;}
+    if(e.target.closest("[data-revoke-share]")){revokeShare();return;}
     if(e.target.closest("[data-upload]")){doUpload();return;}
     /* P1-7：AI 起草→人审阅，审阅必须能导向修改（原来 15 个「改/修正」连 handler 都没有）*/
     const kf=e.target.closest("[data-kfix]");
@@ -2729,6 +2901,19 @@
     const b=el("button","ra");b.style.background=a.clr;b.textContent=a.av;b.title=a.nm+" · "+a.cat;
     b.onclick=()=>addAgent(`我是<b>${a.nm}</b>（${a.cat}）。把任务交给我时，我提供草案与建议 —— 最终判断始终由你确认。`,null,k);
     roster.appendChild(b);});
+  /* 测试钩子：让端到端回归能跑在干净起点（生产版不导出）*/
+  if(typeof window!=="undefined") window.__resetForTest=()=>{
+    APPROVALS.length=0; apSeq=0; seedApproval();
+    selectedPlan=null; pendingPlan=null; accepted.clear(); skipped.clear();
+    Object.keys(DRAFTS).forEach(k=>delete DRAFTS[k]);
+    Object.keys(CRM).forEach(k=>delete CRM[k]); SUPPRESS.clear();
+    REPORT.shown=false; REPORT.shared=false; REPORT.token=null; REPORT.exported=false;
+    DONE_TODAY.clear(); OVERRULED.clear(); GATE_LOG.length=0;
+    CAMPAIGNS.forEach(c=>{c.stage=({gsea:4,hsr:5,zzz:2,sky:6})[c.id]||c.stage;});
+    delete CAMPAIGN._shown; delete CAMPAIGN._confirmed; delete CAMPAIGN._edited;
+    CAMPAIGN.rows[1][1]="$12,000";
+  };
+
   seedApproval();
   renderRoleSwitch(); renderRoleChrome();
   addAgent(`你好 ${role().name}，我是<b>${role().agent.nm}</b>。<br><b>我的数据边界：</b>${role().copilotScope}<br><b>我不会做的事：</b>${role().agent.guard}<br>你的待办按「${role().taskDesc}」。<br><br>试试切换右上角的<b>角色</b> —— 导航、待办、闸门归属、我的数据边界都会跟着变。`);

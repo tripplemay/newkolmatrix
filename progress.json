@@ -6,7 +6,7 @@
   "fix_rounds": 0,
   "current_sprint": "AGENT-FOUNDATION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-15T09:00",
+  "last_updated": "2026-07-15T10:00",
   "reference_docs": [
     "docs/audits/KOLMatrix-interaction-prototype-review-2026-07-15.md",
     "docs/specs/AGENT-FOUNDATION-spec.md",
@@ -26,7 +26,7 @@
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【P0 全清 + 黄金路径打通，待重新验收】独立审查 16 问题（P0×5 P1×8 P2×3）。用户决策：定位=AI-native 全球游戏创作者营销平台；暂停 building 先修 P0；P0 全清+一条黄金路径后重新验收。\n方法：把审查 §8『未覆盖项』先写成失败断言（13 红=基线）再修到绿；黄金路径同法（5 红→绿）。现 134 断言全绿，含端到端黄金路径 9 步。\n已修 P0：GAP-001 定位锁定 / GAP-002 exitCriteria 六环节退出条件（#ad=硬门不可越）/ GAP-003 payoutReady 消费交付真实状态 / GAP-004 审批绑 target+action 批准即生效、三阈值全执行、退回原因可编辑必填 / GAP-005 权限四层 POLICY（模块/对象/字段/动作）一套驱动 UI+Agent、修拦截器误伤主 CTA。\n已修 P1（黄金路径所需）：GAP-006 Brief 经对话真改+人工修正标记+diff+可撤销 / GAP-007 草稿由 roster 派生+逐封状态+退信重试 / GAP-008 信号驱动 CRM 状态机（SIGNAL_RULE/applySignal，发送→送达→打开→回复自动推进+抑制名单）/ GAP-009 周报 artifact 落画布+分享闸门+撤销。\n原型加了 window.__resetForTest 测试钩子（E2E 需干净起点）。\n下一步：请独立 agent 重新验收（P0 全清+黄金路径已达报告 §11 冻结门槛 1-5）。未做：P1 剩余（GAP-010 全球化工作流 / 011 Assets 决策 / 012 移动端三态 / 013 失败态完整四态）+ P2×3；报告 §11 门槛 6（全球化+失败恢复样例）7（真浏览器验收）未达成。"
+    "Andy": "【P0 全清 + 黄金路径打通，待重新验收】独立审查 16 问题（P0×5 P1×8 P2×3）。用户决策：定位=AI-native 全球游戏创作者营销平台；暂停 building 先修 P0；P0 全清+一条黄金路径后重新验收。\n方法：把审查 §8『未覆盖项』先写成失败断言（13 红=基线）再修到绿；黄金路径同法（5 红→绿）。现 134 断言全绿，含端到端黄金路径 9 步。\n已修 P0：GAP-001 定位锁定 / GAP-002 exitCriteria 六环节退出条件（#ad=硬门不可越）/ GAP-003 payoutReady 消费交付真实状态 / GAP-004 审批绑 target+action 批准即生效、三阈值全执行、退回原因可编辑必填 / GAP-005 权限四层 POLICY（模块/对象/字段/动作）一套驱动 UI+Agent、修拦截器误伤主 CTA。\n已修 P1（黄金路径所需）：GAP-006 Brief 经对话真改+人工修正标记+diff+可撤销 / GAP-007 草稿由 roster 派生+逐封状态+退信重试 / GAP-008 信号驱动 CRM 状态机（SIGNAL_RULE/applySignal，发送→送达→打开→回复自动推进+抑制名单）/ GAP-009 周报 artifact 落画布+分享闸门+撤销。\n原型加了 window.__resetForTest 测试钩子（E2E 需干净起点）。\n下一步：请独立 agent 重新验收（P0 全清+黄金路径已达报告 §11 冻结门槛 1-5）。未做：P1 剩余（GAP-010 全球化工作流 / 011 Assets 决策 / 012 移动端三态 / 013 失败态完整四态）+ P2×3；报告 §11 门槛 6（全球化+失败恢复样例）7（真浏览器验收）未达成。\n【IA 分层重构 v12】用户实测：组织/产品/项目三层被平铺成同级 → 心智混乱。核实发现底下还有真 bug：renderBrief 完全不读 scopeId，切项目后产品级仍是原神设定集、项目级仍是东南亚 Q2（Brief 串台，旧断言未覆盖）。根因：「游戏」是一级实体（1 游戏 : N campaign），却被降格成知识库的一个『层』。用户决策：①游戏提为一级导航 ②项目里用单一视图+来源徽标表达继承 ③组织级折叠。已实现：GAMES/GAME_KB/PROJ_KB/ORG_KB 拆分（废弃旧 KB.layers 三张平铺卡）；新增 renderGames/renderGameDetail（游戏卡显示其下项目数+知识缺口影响面）；renderBrief 改为『本项目可用的全部知识』单一视图，每条标 继承自组织/继承自《原神》/本项目，继承的可就地覆盖；覆盖度改为三层加权(组织20%+游戏40%+项目40%)动态算；项目卡显示所属游戏。断言 134→142。"
   },
   "features": []
 }

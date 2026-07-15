@@ -715,6 +715,12 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>
       <span>Dashboard</span>
     </button>
+    <div class="nav-label">资产</div>
+    <button class="nav-item" data-nav="games">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="6" width="20" height="12" rx="4"/><path d="M7 12h4M9 10v4"/><circle cx="16" cy="11" r="1"/><circle cx="18.5" cy="13.5" r="1"/></svg>
+      <span>游戏</span>
+      <span class="nav-badge">1:N</span>
+    </button>
     <div class="nav-label">项目</div>
     <button class="nav-item" data-nav="campaigns">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m3 11 18-5v12L3 14v-3Z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
@@ -1005,13 +1011,13 @@
      =================================================================== */
   const POLICY={
     lead:{
-      modules:["dashboard","campaigns","brief","match","reach","delivery","insight"],
+      modules:["dashboard","games","campaigns","brief","match","reach","delivery","insight"],
       scope:()=>CAMPAIGNS.map(c=>c.id).concat("new"),      /* 对象级：全部项目 */
       fields:["budget","roi","totalBudget","avgRoi"],       /* 字段级：可见金额与全局指标 */
       actions:["plan","advance","approve-quote","approve-plan","retro"]
     },
     bd:{
-      modules:["dashboard","campaigns","brief","match","reach","delivery"],
+      modules:["dashboard","games","campaigns","brief","match","reach","delivery"],
       scope:()=>["gsea","zzz","new"],                       /* 对象级：只负责东南亚/全球项目 */
       fields:["budget"],                                     /* 字段级：见项目预算，不见总预算/跨项目 ROI */
       actions:["send","keys","mark-pub","submit-quote","submit-plan","advance-bd"]
@@ -1184,33 +1190,92 @@
   /* 某项目是否已抵达某环节（未抵达 → 空态而非串台）*/
   const reached=(id,n)=>{const c=CAMPAIGNS.find(x=>x.id===id)||(id==="new"?{stage:2}:null); return c?c.stage>=n:false;};
 
-  /* ---- 项目知识库（三层继承 · 全模态 · AI 抽取可审阅）---- */
-  const KB={
-    coverage:72, matchCeil:78, matchIfFilled:91,
-    layers:[
-      {id:"org",nm:"组织级",sub:"全公司共享 · 所有项目自动继承",tone:"good",st:"完整",cov:100,
-       files:[{n:"品牌调性指南.pdf",t:"doc",s:"已解析",tone:"good",m:"12 页 · 2026-03"},
-              {n:"合规红线.md",t:"doc",s:"已解析",tone:"good",m:"3 页"},
-              {n:"商务条款模板.docx",t:"doc",s:"已解析",tone:"good",m:"8 页"}],
-       cards:[{k:"品牌调性",v:"专业但不严肃；鼓励创作者表达个人风格，<b>避免硬广口播</b>",src:"品牌调性指南.pdf · p.3",conf:94},
-              {k:"合规红线",v:"不合作：低俗擦边 · 赌博博彩 · 未成年人不当内容 · <b>90 天内有竞品合作者</b>",src:"合规红线.md · §2",conf:98},
-              {k:"披露要求",v:"所有市场强制 #ad 标注；美国需符合 FTC 指引",src:"合规红线.md · §5",conf:96}]},
-      {id:"prod",nm:"产品级 · 原神 Genshin Impact",sub:"传一次，该游戏所有 campaign 复用",tone:"warn",st:"美术风格解析中",cov:78,
-       files:[{n:"设定集_v3.pdf",t:"doc",s:"已解析",tone:"good",m:"48 页 · 世界观/角色"},
-              {n:"玩法演示.mp4",t:"video",s:"已解析",tone:"good",m:"4:12 · 提取 18 个关键帧"},
-              {n:"Steam / 官网商店页",t:"link",s:"已解析",tone:"good",m:"品类标签 · 描述 · 截图 · 评价"},
-              {n:"美术素材包.zip",t:"img",s:"解析中 32/86",tone:"warn",m:"86 张原画与截图"}],
-       cards:[{k:"品类与玩法",v:"开放世界动作 RPG · <b>元素反应战斗</b> · 抽卡养成 · 探索解谜",src:"玩法演示.mp4 01:20–02:40 + Steam 标签",conf:92},
-              {k:"世界观与调性",v:"提瓦特大陆七国元素神话。基调<b>明亮 / 冒险 / 治愈</b>，非黑暗系 —— 创作者调性需匹配",src:"设定集_v3.pdf · p.12–31",conf:89},
-              {k:"美术风格",v:"日式二次元 · 明亮饱和色 · 卡通渲染（<b>识别中，已分析 32/86 张</b>）",src:"美术素材包.zip（部分）",conf:61,warn:true},
-              {k:"核心卖点",v:"① 开放世界探索 ② 元素反应战斗组合 ③ 角色叙事深度",src:"Steam 页面 + 设定集 p.4",conf:87}]},
-      {id:"proj",nm:"项目级 · 东南亚女性向 Q2",sub:"本次 campaign 专属",tone:"bad",st:"缺受众研究",cov:45,
-       files:[{n:"竞品分析_东南亚.xlsx",t:"doc",s:"已解析",tone:"good",m:"对比 6 款竞品"},
-              {n:"Q3 东南亚用研报告",t:"doc",s:"未上传",tone:"bad",m:"← 缺口，匹配精度受限"}],
-       cards:[{k:"目标受众",v:"<b>（缺用研报告）</b>AI 仅能从产品级推断：18–34 二次元玩家 —— <b>置信度低，建议补用研</b>",src:"产品级推断，无一手依据",conf:52,warn:true},
-              {k:"竞品格局",v:"东南亚主要竞品：崩铁 / 星穹 / 幻塔 —— 与其重合受众的创作者需评估排他风险",src:"竞品分析_东南亚.xlsx",conf:91}]}
-    ]
+  /* ===================================================================
+     IA 分层修复（用户实测：组织/产品/项目被平铺成同级 → 心智混乱）
+     根因：「游戏」是一级实体（1 游戏 : N campaign），却被降格成知识库的一个「层」。
+     决策：①游戏提为一级导航 ②项目里用单一视图+来源徽标表达继承 ③组织级折叠
+     =================================================================== */
+  const GAMES=[
+    {id:"gs",  nm:"原神",   full:"原神 Genshin Impact", cat:"开放世界动作 RPG", tone:"blue",   av:"原"},
+    {id:"hsr", nm:"崩铁",   full:"崩坏：星穹铁道",      cat:"回合制 RPG",       tone:"violet", av:"崩"},
+    {id:"zzz", nm:"绝区零", full:"绝区零 ZZZ",          cat:"都市动作",         tone:"gold",   av:"绝"},
+    {id:"sky", nm:"星穹",   full:"星穹",                cat:"休闲",             tone:"good",   av:"星"},
+    {id:"ww",  nm:"鸣潮",   full:"鸣潮 Wuthering Waves",cat:"开放世界动作 RPG", tone:"bad",    av:"鸣"}
+  ];
+  const gameById=id=>GAMES.find(g=>g.id===id)||GAMES[0];
+  /* 项目 → 所属游戏（1 游戏 : N campaign） */
+  const CAMPAIGN_GAME={gsea:"gs", hsr:"hsr", zzz:"zzz", sky:"sky", "new":"ww"};
+  const gameOfCampaign=cid=>gameById(CAMPAIGN_GAME[cid]||"gs");
+  const campaignsOfGame=gid=>CAMPAIGNS.filter(c=>CAMPAIGN_GAME[c.id]===gid);
+
+  /* 游戏级知识：传一次，该游戏所有 campaign 复用（原「产品级」）*/
+  const GAME_KB={
+    gs:{cov:78, files:[
+        {n:"设定集_v3.pdf",t:"doc",s:"已解析",tone:"good",m:"48 页 · 世界观/角色"},
+        {n:"玩法演示.mp4",t:"video",s:"已解析",tone:"good",m:"4:12 · 提取 18 个关键帧"},
+        {n:"Steam / 官网商店页",t:"link",s:"已解析",tone:"good",m:"品类标签 · 描述 · 截图 · 评价"},
+        {n:"美术素材包.zip",t:"img",s:"解析中 32/86",tone:"warn",m:"86 张原画与截图"}],
+      cards:[
+        {k:"品类与玩法",v:"开放世界动作 RPG · <b>元素反应战斗</b> · 抽卡养成 · 探索解谜",src:"玩法演示.mp4 01:20–02:40 + Steam 标签",conf:92},
+        {k:"世界观与调性",v:"提瓦特大陆七国元素神话。基调<b>明亮 / 冒险 / 治愈</b>，非黑暗系 —— 创作者调性需匹配",src:"设定集_v3.pdf · p.12–31",conf:89},
+        {k:"美术风格",v:"日式二次元 · 明亮饱和色 · 卡通渲染（<b>识别中，已分析 32/86 张</b>）",src:"美术素材包.zip（部分）",conf:61,warn:true},
+        {k:"核心卖点",v:"① 开放世界探索 ② 元素反应战斗组合 ③ 角色叙事深度",src:"Steam 页面 + 设定集 p.4",conf:87}]},
+    hsr:{cov:64, files:[
+        {n:"星穹铁道_设定纲要.pdf",t:"doc",s:"已解析",tone:"good",m:"31 页"},
+        {n:"1.x 版本 PV 合集.mp4",t:"video",s:"已解析",tone:"good",m:"6:40"},
+        {n:"美术素材包",t:"img",s:"未上传",tone:"bad",m:"← 缺口"}],
+      cards:[
+        {k:"品类与玩法",v:"回合制策略 RPG · 命途/属性克制 · 剧情驱动",src:"设定纲要 p.3-9",conf:90},
+        {k:"世界观与调性",v:"科幻星际列车 · 基调<b>轻松诙谐 + 群像叙事</b>，与原神的史诗感不同",src:"设定纲要 p.10-22",conf:86},
+        {k:"美术风格",v:"<b>（缺美术素材包）</b>仅能从 PV 粗判：科幻二次元",src:"1.x PV（推断）",conf:48,warn:true}]},
+    zzz:{cov:52, files:[
+        {n:"绝区零_首曝资料.pdf",t:"doc",s:"已解析",tone:"good",m:"18 页"},
+        {n:"实机演示.mp4",t:"video",s:"未上传",tone:"bad",m:"← 缺口"}],
+      cards:[
+        {k:"品类与玩法",v:"都市动作 · 快节奏连招 · Roguelike 关卡",src:"首曝资料 p.2-7",conf:84},
+        {k:"世界观与调性",v:"末世都市 · <b>潮流/街头/赛博</b>，受众与原神差异大",src:"首曝资料 p.8-14",conf:81}]},
+    sky:{cov:70, files:[{n:"星穹_产品简介.pdf",t:"doc",s:"已解析",tone:"good",m:"9 页"}],
+      cards:[{k:"品类与玩法",v:"休闲社交 · 轻度养成",src:"产品简介 p.2",conf:83}]},
+    ww:{cov:35, files:[{n:"鸣潮_Steam 页",t:"link",s:"已解析",tone:"good",m:"品类标签 · 描述"}],
+      cards:[{k:"品类与玩法",v:"开放世界动作 RPG · 高难度实时战斗（弹反/切人连携）",src:"Steam 标签",conf:79},
+             {k:"世界观与调性",v:"<b>（缺设定集）</b>仅从商店页推断：末世科幻二次元，基调偏严肃",src:"Steam 描述（推断）",conf:44,warn:true}]}
   };
+
+  /* ---- 项目知识库（三层继承 · 全模态 · AI 抽取可审阅）---- */
+  /* 组织级：全公司一份，一年动一次 → 默认折叠（决策③） */
+  const ORG_KB={cov:100,
+    files:[{n:"品牌调性指南.pdf",t:"doc",s:"已解析",tone:"good",m:"12 页 · 2026-03"},
+           {n:"合规红线.md",t:"doc",s:"已解析",tone:"good",m:"3 页"},
+           {n:"商务条款模板.docx",t:"doc",s:"已解析",tone:"good",m:"8 页"}],
+    cards:[{k:"品牌调性",v:"专业但不严肃；鼓励创作者表达个人风格，<b>避免硬广口播</b>",src:"品牌调性指南.pdf · p.3",conf:94},
+           {k:"合规红线",v:"不合作：低俗擦边 · 赌博博彩 · 未成年人不当内容 · <b>90 天内有竞品合作者</b>",src:"合规红线.md · §2",conf:98},
+           {k:"披露要求",v:"所有市场强制 #ad 标注；美国需符合 FTC 指引",src:"合规红线.md · §5",conf:96}]};
+
+  /* 项目级：本次 campaign 专属 —— 按 campaignId 分片（修 Brief 串台） */
+  const PROJ_KB={
+    gsea:{cov:45,
+      files:[{n:"竞品分析_东南亚.xlsx",t:"doc",s:"已解析",tone:"good",m:"对比 6 款竞品"},
+             {n:"Q3 东南亚用研报告",t:"doc",s:"未上传",tone:"bad",m:"← 缺口，匹配精度受限"}],
+      cards:[{k:"目标受众",v:"<b>（缺用研报告）</b>AI 仅能从游戏级推断：18–34 二次元玩家 —— <b>置信度低，建议补用研</b>",src:"游戏级推断，无一手依据",conf:52,warn:true},
+             {k:"竞品格局",v:"东南亚主要竞品：崩铁 / 星穹 / 幻塔 —— 与其重合受众的创作者需评估排他风险",src:"竞品分析_东南亚.xlsx",conf:91}]},
+    hsr:{cov:80,
+      files:[{n:"日韩市场用研.pdf",t:"doc",s:"已解析",tone:"good",m:"27 页 · 样本 890"},
+             {n:"回流用户画像.xlsx",t:"doc",s:"已解析",tone:"good",m:"分层 4 类"}],
+      cards:[{k:"目标受众",v:"<b>回流老玩家为主</b>：20–40 男女均衡，日服占 62%、韩服 38%；对剧情更新最敏感",src:"日韩市场用研.pdf · p.5-11",conf:92},
+             {k:"竞品格局",v:"日韩竞品：FGO / 蔚蓝档案 —— 档期冲突需避开各自版本更新",src:"回流用户画像.xlsx",conf:88}]},
+    zzz:{cov:30,
+      files:[{n:"全球首曝策略",t:"doc",s:"未上传",tone:"bad",m:"← 缺口"}],
+      cards:[{k:"目标受众",v:"<b>（缺策略文档）</b>仅从游戏级推断：18–30 动作/潮流 —— 置信度低",src:"游戏级推断",conf:41,warn:true}]},
+    sky:{cov:75,
+      files:[{n:"老带新复盘_Q1.pdf",t:"doc",s:"已解析",tone:"good",m:"12 页"}],
+      cards:[{k:"目标受众",v:"存量用户的社交关系链，18–34 休闲玩家",src:"老带新复盘_Q1.pdf p.3",conf:85}]},
+    "new":{cov:20, files:[{n:"北美内测计划",t:"doc",s:"未上传",tone:"bad",m:"← 缺口"}],
+      cards:[{k:"目标受众",v:"<b>（缺计划文档）</b>仅从游戏级推断：18–34 动作 RPG",src:"游戏级推断",conf:38,warn:true}]}
+  };
+
+  /* KB 只保留可变的覆盖度/精度指标；三层内容已拆到 ORG_KB / GAME_KB / PROJ_KB
+     （旧 KB.layers 三张平铺卡已废弃 —— 用户实测：平铺掩盖了继承关系）*/
+  const KB={coverage:72, matchCeil:78, matchIfFilled:91, uploading:false};
 
   /* ---- 统一组合态：库规模只改数字，不改交互（决策次数恒定）---- */
   const LIBS={
@@ -1275,7 +1340,7 @@
      提前引用会抛 ReferenceError，整个 IIFE 挂掉、画布全空）。
      lib 用 getter 而非快照，因为它随库规模模拟动态变。 */
   Object.assign(DATA.gsea,{pool:KOLS,plans:PLANS,replies:REPLIES,emails:EMAILS,
-    deliv:DELIV,keys:KEYS,missions:MISSIONS,settle:SETTLE,retro:null,kbProj:KB.layers[2]});
+    deliv:DELIV,keys:KEYS,missions:MISSIONS,settle:SETTLE,retro:null,kbProj:PROJ_KB.gsea});
   Object.defineProperty(DATA.gsea,"lib",{get(){return LIBS[libKey];},configurable:true});
 
   const MARKETS=[
@@ -1289,6 +1354,7 @@
   let emailsSent=false, activeModule="dashboard", currentCampaignId=null, viewStage=null;
   let libKey="now", selectedPlan=null, pendingPlan=null, auditOpen=false;
   let roleId="bd";                        /* 当前角色（BD 是主力岗，默认）*/
+  let orgOpen=false, currentGameId=null;  /* 组织级默认折叠（决策③）；游戏详情 */
   let scopeId="gsea", backTo=null;        /* IA 方案 C：环节页作用域 + 返回项目的面包屑 */
   const GATE_LOG=[];                       /* 越阶段门的理由记录（闸门要留痕才算门）*/
   const OVERRULED=new Set();               /* 被推翻的自动排除规则 */
@@ -1321,7 +1387,7 @@
     book:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6.5A2.5 2.5 0 0 0 4 21.5v-2Z"/><path d="M8 7h7M8 11h7"/></svg>'
   };
   /* P1-8 术语统一：项目(campaign) · 创作者(KOL) · 驾驶舱(Dashboard) —— 一个概念一个叫法 */
-  const MODMETA={dashboard:["驾驶舱","驾驶舱"],brief:["Brief · 项目知识库","Brief"],campaigns:["项目","项目"],
+  const MODMETA={dashboard:["驾驶舱","驾驶舱"],games:["游戏","游戏"],brief:["Brief · 项目知识库","Brief"],campaigns:["项目","项目"],
     match:["Match · 发现与匹配","Match"],reach:["Reach · 沟通协作","Reach"],
     delivery:["Delivery · 内容交付","Delivery"],insight:["Insight · 效果复盘","Insight"]};
 
@@ -1407,6 +1473,7 @@
      → refreshKols 的 !currentCampaignId 恒假 → Match 接受/跳过静默失效 */
   function setActive(mod){
     if(mod!=="campaigns"){currentCampaignId=null;viewStage=null;}
+    if(mod!=="games"){currentGameId=null;}
     activeModule=mod;setTitle(mod);
     document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n.dataset.nav===mod));}
   function safetyBadge(s){const cls=s.startsWith("A")?"a":"b";return `<span class="safety ${cls}" title="品牌安全评级">${IC.shield.replace('class="ic"','class="ic" style="width:10px;height:10px"')}${s}</span>`;}
@@ -1563,7 +1630,7 @@
       list.unshift({id:"new",nm:CAMPAIGN.name,stage:2,status:"进行中",tone:"good",product:"鸣潮",market:"美国 / 加拿大",budget:"$12,000",kols:"候选池生成中",roi:"—",aud:"18–34 · 动作 RPG",pic:"中腰部 · 动作 RPG",sug:"Brief 已确认，进入全球发现"});
     const cards=list.map(c=>`<div class="cc" data-camp="${c.id}">
         <div class="cc-top"><div class="cc-ic">${IC.camp}</div>
-          <div style="flex:1;min-width:0"><div class="cc-nm">${c.nm}</div><div class="cc-sub">${c.product} · ${c.market}</div></div>
+          <div style="flex:1;min-width:0"><div class="cc-nm">${c.nm}</div><div class="cc-sub"><b style="color:var(--brand)">${gameOfCampaign(c.id).nm}</b> · ${c.market}</div></div>
           <span class="pill ${c.tone}">${c.status}</span></div>
         <div class="cc-stage">${IC.bolt}环节 ${STAGES[c.stage-1].n} / 06 · ${STAGES[c.stage-1].nm}</div>
         <div class="cc-stats">
@@ -1725,7 +1792,7 @@
             [["市场范围已确认",1],["候选标准已定义",1],["团队审核节点已保留",1],["目标受众有一手依据",1]],false)
         : readyBlock(`知识覆盖度 ${KB.coverage}% —— 未达阶段门要求（≥80%）`,`Brief 就绪与否由<b>知识库覆盖度</b>决定，不是走个形式。缺「Q3 东南亚用研报告」→ 目标受众置信度仅 52，匹配精度上限被压在 ${KB.matchCeil}%。`,
             [["市场范围已确认",1],["候选标准已定义",1],["团队审核节点已保留",1],["目标受众有一手依据",0]],true)}
-      <div class="draft-foot"><span class="hint">${IC.book}知识库：${KB.layers.map(l=>l.nm.split(" · ")[0]+" "+l.cov+"%").join(" · ")}</span><div class="spacer"></div>
+      <div class="draft-foot"><span class="hint">${IC.book}知识：组织 ${ORG_KB.cov}% · 《${gameOfCampaign(c.id).nm}》${(GAME_KB[gameOfCampaign(c.id).id]||{cov:0}).cov}% · 本项目 ${(PROJ_KB[c.id]||{cov:0}).cov}%</span><div class="spacer"></div>
         <button class="btn line sm" data-goto="brief">去补知识库</button>${adv(KB.coverage>=80?"进入全球发现 →":"仍要进入全球发现 →")}</div></div>`;
     if(n===2) return note+`<div class="draft anim-in">
       <div class="draft-h">${IC.star}<h4>全球发现 · 多市场候选池</h4><span class="pill ${isPast?'good':(isCur?'brand':'ghost')}">${isPast?'候选池已确认':(isCur?'当前环节':'未开始')}</span>${ownerTag}</div>
@@ -1846,7 +1913,7 @@
     agentReply(`收到「Q3 东南亚用研报告.pdf」，正在解析 —— 提取受众画像、市场偏好与竞品认知…`,"parse_document · 解析中",null,"match");
     setTimeout(()=>{
       KB.uploading=false;
-      const proj=KB.layers[2];
+      const proj=PROJ_KB[scopeId]||PROJ_KB.gsea;
       proj.files[1]={n:"Q3 东南亚用研报告.pdf",t:"doc",s:"已解析",tone:"good",m:"32 页 · 样本 1,204 人"};
       proj.cards[0]={k:"目标受众",v:"<b>18–24 女性为主（占 54%）</b>，二次元/剧情向偏好显著；印尼与泰国渗透率最高，越南待开发",
         src:"Q3 东南亚用研报告.pdf · p.8-14",conf:93};
@@ -1860,52 +1927,137 @@
         "知识缺口已补齐 · 覆盖度/精度/阶段门 全部重算",null,"match");
     },reduce?200:1800);
   }
-  function renderBrief(){
-    const draft=(CAMPAIGN._shown&&!CAMPAIGN._confirmed)?draftCardHtml():"";
-    const layers=KB.layers.map(L=>`<div class="draft kb-layer anim-in">
-      <div class="lhead">
-        <div class="lic tone-${L.tone==='good'?'good':(L.tone==='warn'?'warn':'bad')}">${L.id==='org'?IC.shield:(L.id==='prod'?IC.camp:IC.target)}</div>
-        <div style="flex:1;min-width:150px"><div class="ln">${L.nm}</div><div class="ls">${L.sub}</div></div>
-        <span class="pill ${L.tone}">${L.st}</span>
-        <div class="lcov"><div class="lv" style="color:${L.cov>=90?'var(--good)':(L.cov>=60?'#B9820B':'var(--bad)')}">${L.cov}%</div><div class="ll">覆盖度</div></div>
-      </div>
+  /* ===== 游戏页（一级实体：1 游戏 : N campaign）===== */
+  function renderGames(){
+    const cards=GAMES.map(g=>{
+      const kb=GAME_KB[g.id]||{cov:0,files:[],cards:[]};
+      const cs=campaignsOfGame(g.id).filter(c=>inScope(c.id));
+      const gap=kb.files.filter(f=>f.tone==="bad").length;
+      return `<div class="cc" data-game="${g.id}">
+        <div class="cc-top"><div class="cc-ic" style="background:${RTONE[g.tone]||'var(--brand-ghost)'};color:#fff;font-family:var(--font-head);font-weight:800">${g.av}</div>
+          <div style="flex:1;min-width:0"><div class="cc-nm">${g.full}</div><div class="cc-sub">${g.cat}</div></div>
+          <span class="pill ${kb.cov>=70?'good':(kb.cov>=45?'warn':'bad')}">知识 ${kb.cov}%</span></div>
+        <div class="cc-stats">
+          <div class="st"><div class="v tnum">${cs.length}</div><div class="l">个项目</div></div>
+          <div class="st"><div class="v tnum">${kb.files.length}</div><div class="l">资料</div></div>
+          <div class="st"><div class="v tnum">${kb.cards.length}</div><div class="l">知识卡</div></div></div>
+        <div class="cc-sug">${IC.bulb}<span>${gap?`缺 ${gap} 项资料 —— 该游戏<b>所有</b>项目的匹配精度都受限`:`知识齐备，该游戏所有项目可直接复用`}</span></div>
+        ${cs.length?`<div class="kb-cite" style="margin-top:2px">${IC.camp}<span>${cs.map(c=>c.nm.split(" · ")[1]||c.nm).join(" · ")}</span></div>`:""}</div>`;}).join("");
+    canvas.innerHTML=`
+      <div class="section-h" style="margin-top:6px"><h3>游戏</h3>
+        <span class="sub">游戏知识<b>传一次，其下所有项目复用</b> —— 这是「产品」层存在的理由</span>
+        <div class="spacer"></div><span class="pill ghost">${GAMES.length} 款</span></div>
+      <div class="risk-list" style="padding:0 0 14px"><div class="risk" style="background:var(--brand-ghost)">${IC.bulb}
+        <span>游戏 = <b>一级实体</b>（1 游戏 : N 个项目）。设定集/玩法/美术属于<b>游戏</b>，不属于某次 campaign；
+        本次目标/市场/预算才属于<b>项目</b>。<b>层级不同，家就不同。</b></span></div></div>
+      <div class="camp-cards">${cards}</div>`;
+  }
+  function renderGameDetail(gid){
+    const g=gameById(gid), kb=GAME_KB[gid]||{cov:0,files:[],cards:[]};
+    const cs=campaignsOfGame(gid).filter(c=>inScope(c.id));
+    canvas.innerHTML=`
+      <button class="back-btn" data-back-games>← 返回游戏列表</button>
+      <div class="prof-hd">
+        <div class="kol-av" style="background:${RTONE[g.tone]||'var(--brand)'};width:56px;height:56px;font-size:22px;border-radius:16px">${g.av}</div>
+        <div><div class="pn">${g.full}</div><div class="pm">${g.cat} · <b>${cs.length}</b> 个项目在跑</div></div>
+        <div class="spacer"></div>
+        <span class="pill ${kb.cov>=70?'good':'warn'}">游戏知识 ${kb.cov}%</span></div>
+      <div class="risk-list" style="padding:0 0 14px"><div class="risk" style="background:var(--brand-ghost)">${IC.bulb}
+        <span>以下知识<b>被该游戏的所有 ${cs.length} 个项目继承</b>。在这里改一次，全部项目同步生效。</span></div></div>
+      ${kbSection(`${g.nm} 的游戏知识`,kb,"game",g.nm)}
+      <div class="section-h"><h3>该游戏下的项目</h3><span class="sub">继承上面的游戏知识</span></div>
+      <div class="camp-cards">${cs.length?cs.map(c=>`<div class="cc" data-camp="${c.id}">
+        <div class="cc-top"><div class="cc-ic">${IC.camp}</div>
+          <div style="flex:1;min-width:0"><div class="cc-nm">${c.nm}</div><div class="cc-sub">${c.market}</div></div>
+          <span class="pill ${c.tone}">${c.status}</span></div>
+        <div class="cc-stage">${IC.bolt}环节 ${STAGES[c.stage-1].n} / 06 · ${STAGES[c.stage-1].nm}</div></div>`).join("")
+        :`<div class="arc-item">该游戏在你的范围内暂无项目</div>`}</div>`;
+  }
+
+  /* 知识区块（复用于游戏页与项目 Brief）*/
+  function kbSection(title,kb,origin,originName){
+    return `<div class="draft" style="margin-bottom:18px">
+      <div class="draft-h">${IC.book}<h4>${title}</h4><span class="pill ghost" style="margin-left:auto">${kb.files.length} 份资料</span></div>
       <div class="deliv" style="padding-top:12px">
-        ${L.files.map(f=>`<div class="frow">
+        ${kb.files.map(f=>`<div class="frow">
           <div class="fic" ${f.tone==='bad'?'style="background:var(--bad-bg);color:var(--bad)"':''}>${FIC[f.t]}</div>
           <div><div class="fn2">${f.n}</div><div class="fm">${f.m}</div></div>
           <div class="fsp"></div><span class="pill ${f.tone}">${f.s}</span></div>`).join("")}
       </div>
-      <div class="eval-sub" style="padding:4px 20px 0">AI 抽取的知识 —— 每条可审阅、可修正、有出处</div>
-      <div class="kcards">${L.cards.map(c=>`<div class="kcard ${c.warn?'warn':''}">
-        <div class="kk">${IC.bulb}<span class="kn2">${c.k}</span><span class="kedit" data-kfix="${L.id}|${c.k}">修正</span></div>
-        <div class="kv2">${c.v}</div>
-        <div class="kfoot"><span class="kcite" title="点击可跳转原文">${IC.link}来源：${c.src}</span>
-          <span class="kconf ${confCls(c.conf)}">置信 ${c.conf}</span></div></div>`).join("")}</div>
-    </div>`).join("");
+      <div class="kcards">${kb.cards.map(c=>kcard(c,origin,originName)).join("")}</div>
+      <div class="draft-foot"><span class="hint">${IC.upload}拖拽资料或粘贴链接 → AI 解析 → 生成可审阅的知识卡片</span>
+        <div class="spacer"></div><button class="btn line sm" data-upload>上传资料</button></div></div>`;
+  }
+  /* 知识卡：单一视图 + 来源徽标（决策②）—— 用户不关心知识存哪层，只关心它从哪继承、能不能覆盖 */
+  function kcard(c,origin,originName){
+    const badge=origin==="org"?`<span class="src third" title="全公司共享，一年动一次">继承自组织</span>`
+      :origin==="game"?`<span class="src first" title="该游戏所有项目共享">继承自《${originName}》</span>`
+      :`<span class="src infer" title="本次 campaign 专属">本项目</span>`;
+    return `<div class="kcard ${c.warn?'warn':''}">
+      <div class="kk">${IC.bulb}<span class="kn2">${c.k}</span>${badge}
+        <span class="kedit" data-kfix="${origin}|${c.k}">${origin==="proj"?"修正":"覆盖"}</span></div>
+      <div class="kv2">${c.v}</div>
+      <div class="kfoot"><span class="kcite" title="点击可跳转原文">${IC.link}${c.src}</span>
+        <span class="kconf ${confCls(c.conf)}">置信 ${c.conf}</span></div></div>`;
+  }
 
-    canvas.innerHTML=draft+`
+  /* ===== 项目 Brief：单一视图 —— 本项目【可用的全部知识】，按来源标注 ===== */
+  function renderBrief(){
+    const cid=scopeId, c=getCamp(cid), g=gameOfCampaign(cid);
+    const gkb=GAME_KB[g.id]||{cov:0,files:[],cards:[]};
+    const pkb=PROJ_KB[cid]||{cov:0,files:[],cards:[]};
+    const draft=(CAMPAIGN._shown&&!CAMPAIGN._confirmed)?draftCardHtml():"";
+    /* 覆盖度 = 三层加权（组织 20% / 游戏 40% / 项目 40%）*/
+    const cov=Math.round(ORG_KB.cov*.2+gkb.cov*.4+pkb.cov*.4);
+    KB.coverage=cov;
+    const ceil=Math.min(95,Math.round(40+cov*.58)), ifFilled=91;
+    KB.matchCeil=ceil;
+    /* 单一视图：本项目可用的全部知识卡，按来源排序（本项目 → 游戏 → 组织）*/
+    const all=[...pkb.cards.map(x=>[x,"proj",""]),
+               ...gkb.cards.map(x=>[x,"game",g.nm]),
+               ...ORG_KB.cards.map(x=>[x,"org",""])];
+    const gaps=[...pkb.files,...gkb.files].filter(f=>f.tone==="bad");
+
+    canvas.innerHTML=scopeBar(1)+draft+`
       <div class="kb-hero">
-        <div class="kh-l"><div class="kh-t">项目知识库为 Agent 提供<b>项目侧上下文</b> —— 匹配是两侧向量做比对，<b>精度天花板卡在信息薄的一侧</b>。<br>
-          当前覆盖度 <b>${KB.coverage}%</b> → 匹配置信度上限 <b>${KB.matchCeil}%</b>；补齐「Q3 东南亚用研报告」预计升至 <b>~${KB.matchIfFilled}%</b>。</div>
-          <div class="cov-track"><div class="cov-fill" style="width:${KB.coverage}%"></div></div></div>
-        <div style="text-align:right"><div class="big tnum">${KB.coverage}%</div><div class="cap">知识覆盖度</div></div></div>
+        <div class="kh-l"><div class="kh-t">
+          <b>${c?c.nm:cid}</b> 可用的全部知识 —— 匹配是两侧向量比对，<b>精度天花板卡在信息薄的一侧</b>。<br>
+          知识来自三处，<b>你不需要关心它存在哪层</b>：${IC.shield}<span class="src third">组织</span>
+          <span class="src first">《${g.nm}》</span><span class="src infer">本项目</span><br>
+          覆盖度 <b>${cov}%</b> → 匹配置信度上限 <b>${ceil}%</b>${gaps.length?`；补齐 ${gaps.length} 项缺口预计升至 <b>~${ifFilled}%</b>`:""}。</div>
+          <div class="cov-track"><div class="cov-fill" style="width:${cov}%"></div></div></div>
+        <div style="text-align:right"><div class="big tnum">${cov}%</div><div class="cap">知识覆盖度</div></div></div>
 
-      <div class="upload" data-upload>
-        <div class="uic">${IC.upload}</div>
-        <div><div class="ut">${KB.uploading?"正在解析「Q3 东南亚用研报告.pdf」…":"拖拽资料到这里，或粘贴链接"}</div>
-          <div class="us">${KB.uploading?"提取受众画像 → 抽取结构化知识 → 生成可审阅的知识卡片":"AI 自动解析 → 抽取结构化知识 → 生成可审阅的知识卡片（点此模拟上传缺失的用研报告）"}</div>
-          ${KB.uploading?`<div class="cov-track" style="width:260px;margin-top:8px"><div class="cov-fill" style="width:100%;animation:grow 1.6s linear"></div></div>`:""}</div>
-        <div class="modes">
-          <span class="mode">${IC.doc}文档 PDF/DOCX/MD</span>
-          <span class="mode">${IC.img}图片 美术/截图</span>
-          <span class="mode">${IC.video}视频 预告片/实机</span>
-          <span class="mode">${IC.link}链接 Steam/官网</span></div></div>
+      ${gaps.length?`<div class="risk-list" style="padding:0 0 16px"><div class="risk gap">${IC.warn}
+        <span><b>知识缺口（${gaps.length} 项）：</b>${gaps.map(f=>f.n).join("、")}
+        ${gkb.files.some(f=>f.tone==="bad")?`<br>其中游戏级缺口会影响<b>《${g.nm}》的所有项目</b> —— 建议去游戏页补，一次修复全部。`:""}</span>
+        ${gkb.files.some(f=>f.tone==="bad")?`<button class="btn line sm" style="flex:none;margin-left:auto" data-game="${g.id}">去《${g.nm}》补</button>`:`<button class="btn primary sm" style="flex:none;margin-left:auto" data-upload>补上传</button>`}</div></div>`:""}
 
-      ${KB.coverage<80?`<div class="risk-list" style="padding:0 0 16px"><div class="risk gap">${IC.warn}<span><b>知识缺口：</b>项目级缺「Q3 东南亚用研报告」 —— 目标受众只能从产品级推断（置信度 52），<b>这是当前匹配精度的主要瓶颈</b>。Brief 阶段门要求覆盖度 ≥ 80%。</span>
-        <button class="btn primary sm" style="flex:none;margin-left:auto" data-upload>补上传</button></div></div>`
-        :`<div class="risk-list" style="padding:0 0 16px"><div class="risk" style="background:var(--good-bg)">${IC.check}<span><b>知识库已达阶段门要求</b>（${KB.coverage}% ≥ 80%）—— 目标受众有一手依据（置信度 93），匹配精度上限升至 ${KB.matchCeil}%。</span></div></div>`}
+      <div class="section-h" style="margin-top:2px"><h3>本项目可用的知识</h3>
+        <span class="sub">单一视图 · 每条标来源 · 继承的可就地覆盖</span>
+        <div class="spacer"></div><span class="pill brand">${all.length} 条</span></div>
+      <div class="kcards" style="padding:0 0 16px">${all.map(([x,o,n])=>kcard(x,o,n)).join("")}</div>
 
-      ${layers}`;
+      <div class="section-h"><h3>本项目的资料</h3><span class="sub">只属于「${c?c.nm:cid}」</span>
+        <div class="spacer"></div><button class="btn line sm" style="flex:none" data-upload>上传资料</button></div>
+      <div class="draft" style="margin-bottom:18px"><div class="deliv" style="padding-top:12px">
+        ${pkb.files.map(f=>`<div class="frow">
+          <div class="fic" ${f.tone==='bad'?'style="background:var(--bad-bg);color:var(--bad)"':''}>${FIC[f.t]}</div>
+          <div><div class="fn2">${f.n}</div><div class="fm">${f.m}</div></div>
+          <div class="fsp"></div><span class="pill ${f.tone}">${f.s}</span></div>`).join("")}
+      </div></div>
+
+      <div class="draft" style="margin-bottom:18px">
+        <div class="lhead" data-toggle-org style="cursor:pointer">
+          <div class="lic tone-good">${IC.shield}</div>
+          <div style="flex:1"><div class="ln">继承自组织 · ${ORG_KB.cards.length} 条</div>
+            <div class="ls">品牌调性 / 合规红线 / 条款模板 —— 全公司共享，一年动一次</div></div>
+          <span class="pill ghost">${orgOpen?"收起 ▴":"展开 ▾"}</span></div>
+        ${orgOpen?`<div class="deliv" style="padding-top:12px">
+          ${ORG_KB.files.map(f=>`<div class="frow"><div class="fic">${FIC[f.t]}</div>
+            <div><div class="fn2">${f.n}</div><div class="fm">${f.m}</div></div>
+            <div class="fsp"></div><span class="pill ${f.tone}">${f.s}</span></div>`).join("")}</div>`:""}
+      </div>`;
   }
 
   /* ===================================================================
@@ -2297,6 +2449,7 @@
       return;}
     setActive(mod);
     if(mod==="dashboard"){renderDashboard();return;}
+    if(mod==="games"){currentGameId?renderGameDetail(currentGameId):renderGames();return;}
     if(mod==="campaigns"){renderCampaigns();return;}
     if(mod==="brief"){renderBrief();return;}
     if(mod==="match"){renderMatch();return;}
@@ -2761,6 +2914,10 @@
       setActive("campaigns");renderCampaignDetail(cid,+st);return;}
     const sp=e.target.closest("[data-setscope]");
     if(sp){scopeId=sp.dataset.setscope;backTo=null;renderModule(activeModule);return;}
+    const gm=e.target.closest("[data-game]");
+    if(gm){setActive("games");currentGameId=gm.dataset.game;renderGameDetail(currentGameId);return;}
+    if(e.target.closest("[data-back-games]")){currentGameId=null;renderGames();return;}
+    if(e.target.closest("[data-toggle-org]")){orgOpen=!orgOpen;renderBrief();return;}
     const camp=e.target.closest("[data-camp]");
     if(camp){const id=camp.dataset.camp, jump=camp.dataset.stageJump;
       setActive("campaigns"); renderCampaignDetail(id, jump?+jump:undefined); return;}

@@ -80,6 +80,7 @@ const switchTo = (id) => {
 };
 const navs = [
   'dashboard',
+  'games',
   'campaigns',
   'brief',
   'match',
@@ -178,6 +179,7 @@ const scopeToGsea = () => {
 const ACCESS = {
   lead: [
     'dashboard',
+    'games',
     'campaigns',
     'brief',
     'match',
@@ -185,7 +187,15 @@ const ACCESS = {
     'delivery',
     'insight',
   ],
-  bd: ['dashboard', 'campaigns', 'brief', 'match', 'reach', 'delivery'],
+  bd: [
+    'dashboard',
+    'games',
+    'campaigns',
+    'brief',
+    'match',
+    'reach',
+    'delivery',
+  ],
   finance: ['dashboard', 'campaigns', 'insight'],
 };
 
@@ -720,6 +730,73 @@ console.log('\n— 端到端黄金路径（一次走完）—');
   });
   switchTo('bd');
 })();
+
+/* ===================================================================
+   IA 分层断言（用户实测：组织/产品/项目三层被平铺在同一层级 → 心智混乱）
+   决策：①游戏提为一级导航 ②单一视图+来源徽标 ③组织级折叠
+   =================================================================== */
+console.log('\n— IA 分层（组织 / 游戏 / 项目）—');
+
+biz('IA 游戏是一级导航实体', () => {
+  const src = require('fs').readFileSync(P, 'utf8');
+  if (!/data-nav="games"/.test(src)) return '导航里没有「游戏」入口';
+  return true;
+});
+
+biz('IA 游戏页列出所有游戏 + 其下项目数', () => {
+  switchTo('lead');
+  const g = navs.find((n) => n.dataset.nav === 'games');
+  if (!g) return '测试桩没有 games 导航';
+  g.onclick();
+  const h = canvas._html;
+  if (!/原神/.test(h) || !/崩坏|崩铁/.test(h)) return '游戏页没有列出游戏';
+  if (!/个项目|项目数/.test(h))
+    return '游戏卡没有显示其下项目数（1 游戏 : N campaign 关系不可见）';
+  return true;
+});
+
+biz('IA Brief 响应 scope（切项目 → 项目级知识跟着变，不串台）', () => {
+  switchTo('lead');
+  click({ 'data-setscope': 'gsea' });
+  navs.find((n) => n.dataset.nav === 'brief').onclick();
+  const a = canvas._html;
+  if (!/东南亚/.test(a)) return 'gsea 的 Brief 没有本项目知识';
+  click({ 'data-setscope': 'hsr' });
+  navs.find((n) => n.dataset.nav === 'brief').onclick();
+  // 只查知识区（scopeBar 的项目切换按钮本就会列出所有项目名，不算串台）
+  const b = canvas._html.slice(canvas._html.indexOf('本项目可用的知识'));
+  if (!b) return '找不到知识区';
+  if (/东南亚|女性向/.test(b))
+    return '切到崩铁项目，知识区仍出现东南亚 Q2 的项目级知识（串台）';
+  if (/设定集_v3|元素反应|提瓦特/.test(b))
+    return '切到崩铁项目，知识区仍是原神的游戏级知识（串台）';
+  if (!/回流|日韩|星穹铁道/.test(b)) return '崩铁项目的知识没有出现';
+  return true;
+});
+
+biz('IA 知识为单一视图 + 来源徽标（非三张平铺等大卡）', () => {
+  switchTo('lead');
+  click({ 'data-setscope': 'gsea' });
+  navs.find((n) => n.dataset.nav === 'brief').onclick();
+  const h = canvas._html;
+  if (!/继承自/.test(h)) return '知识卡没有「继承自 XXX」来源徽标';
+  if (!/本项目/.test(h)) return '知识卡没有区分「本项目」与继承';
+  return true;
+});
+
+biz('IA 组织级默认折叠（一年动一次的东西不该占 1/3 篇幅）', () => {
+  const src = require('fs').readFileSync(P, 'utf8');
+  if (!/orgOpen|org-collapse|data-toggle-org/.test(src))
+    return '组织级没有折叠机制';
+  return true;
+});
+
+biz('IA 项目列表显示所属游戏', () => {
+  switchTo('lead');
+  navs.find((n) => n.dataset.nav === 'campaigns').onclick();
+  if (!/原神/.test(canvas._html)) return '项目卡没有显示所属游戏';
+  return true;
+});
 
 // ---- P0-1 串台断言：某项目的画布绝不能出现别的项目的创作者/批次 ----
 console.log('\n— 串台断言（根因 A 防线）—');

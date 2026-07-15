@@ -1,14 +1,18 @@
 {
   "status": "building",
   "user_goal": "旧 kolmatrix 功能逐步重构进新系统：保留功能，去传统 SaaS 化，改造为 AI native（Agent 驱动一切）。本批 AGENT-FOUNDATION = Phase 0 架构地基：全栈化 + Agent 驱动四柱（工具层/Agent 运行时/常驻对话面/generative canvas）+ hello-agent 端到端闭环",
-  "total_features": 7,
+  "total_features": 8,
   "completed_features": 0,
   "fix_rounds": 0,
   "current_sprint": "AGENT-FOUNDATION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-14T16:30",
+  "last_updated": "2026-07-15T06:25",
   "reference_docs": [
     "docs/specs/AGENT-FOUNDATION-spec.md",
+    "docs/product/interaction-prototype.html",
+    "scripts/test/prototype-smoke.js",
+    "docs/product/ai-native-usage.md",
+    "docs/product/gap-product-layer.md",
     "framework/patterns/web-runtime-patterns.md"
   ],
   "docs": {
@@ -21,7 +25,7 @@
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "AGENT-FOUNDATION（Phase 0）spec-lock 完成（plan-mode 批准）。重构总方向已定：后端全新重建 + 激进 Agent 驱动 + 首切片 Brief→Campaigns + Vercel AI SDK→aigcgateway + CSV seed 先灌真实 KOL。本批 = 全栈化 + Agent 四柱地基 + hello-agent（NL→search_kols→KOL 卡片流画布渲染）。7 features 全 generator，串行 building。数据源=旧仓库 docs/kol-seed-enriched-final.csv（~2524 真实 KOL），本会话克隆在 scratchpad/kolmatrix-old。旧系统深度分析见本会话 3 个 explore agent 结论（功能清单/数据模型/SaaS痕迹诊断）。程序级路线图：Phase0 地基→P1 Brief+Campaigns→P2 Match→P3 Reach+CRM→P4 Insight+ROI+周报→P5 收尾。下一步：进入 /build 逐条实现。注意 F001 需本地 docker Postgres+pgvector。"
+    "Andy": "AGENT-FOUNDATION spec r2：纳入角色体系（用户决策：3 角色 lead/bd/finance · 交接加退回链路 · 提前到 Phase 0）。退回 planning 修订后锁回 building，features 7→8（新增 F008 闸门归属+环节 owner+阈值+交接链）；F001/F004/F005/F006 分别加了 role/scope/Approval schema、工具按角色 gating、copilotScope 拒答、路由层权限守卫。关键决策 D9-D15 见 spec §3。血的教训 D10：权限守卫必须在路由层——原型 v9 只在侧栏查权限，财务经画布 data-goto 溜进 Match（用户实测发现）。交互契约 = docs/product/interaction-prototype.html（权威，含角色/组合态/知识库/评估面板/交接链）；回归 scripts/test/prototype-smoke.js（105 断言：权限守卫/跨项目串台/交接链闭环），node 直接跑。来源：分析 docs/product/有墨公考-AI业务工作台.html 得到的可借鉴模式（否定式护栏/置信度降级为待补充/执行过程可视化/四级动作分类/角色即产品）。下一步：/build 从 F001 开始串行实现。"
   },
   "features": []
 }

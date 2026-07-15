@@ -665,6 +665,14 @@
   .modal h3{font-size:19px;margin-bottom:9px}
   .modal p{color:var(--soft);font-size:14px;margin:0 0 22px;line-height:1.6}
   .modal p b{color:var(--ink-2)}
+  .reason-box{margin-top:14px;text-align:left}
+  .reason-box label{display:block;font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.05em;margin-bottom:6px}
+  .reason-box textarea{width:100%;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);
+    padding:10px 12px;font-family:inherit;font-size:13px;color:var(--ink);resize:vertical}
+  .reason-box textarea:focus{outline:none;border-color:var(--brand)}
+  .reason-quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .reason-quick .chip{font-size:11px;padding:5px 10px}
   .modal .row{display:flex;gap:11px}
   .modal .row .btn{flex:1;padding:12px}
 
@@ -988,8 +996,40 @@
      taskDesc:"按资金风险与到期时间排序",
      gates:["payout"]}
   ];
-  /* 阈值量化：学有墨「退款超过 ¥1,000 需审批」—— 闸门要有数字，不能是「高风险」这种形容词 */
+  /* 阈值量化：闸门要有数字，不能是「高风险」这种形容词。三条全部必须被执行 */
   const THRESHOLD={quote:2000, planBudget:8000, bulkSend:10};
+
+  /* ===================================================================
+     GAP-005 修复：权限拆四层，一套 policy 同时驱动 UI + Agent
+     （原实现只到「模块级」→ BD 看得到全部项目/总预算，Lead 能点 BD 的动作）
+     =================================================================== */
+  const POLICY={
+    lead:{
+      modules:["dashboard","campaigns","brief","match","reach","delivery","insight"],
+      scope:()=>CAMPAIGNS.map(c=>c.id).concat("new"),      /* 对象级：全部项目 */
+      fields:["budget","roi","totalBudget","avgRoi"],       /* 字段级：可见金额与全局指标 */
+      actions:["plan","advance","approve-quote","approve-plan","retro"]
+    },
+    bd:{
+      modules:["dashboard","campaigns","brief","match","reach","delivery"],
+      scope:()=>["gsea","zzz","new"],                       /* 对象级：只负责东南亚/全球项目 */
+      fields:["budget"],                                     /* 字段级：见项目预算，不见总预算/跨项目 ROI */
+      actions:["send","keys","mark-pub","submit-quote","submit-plan","advance-bd"]
+    },
+    finance:{
+      modules:["dashboard","campaigns","insight"],
+      scope:()=>CAMPAIGNS.map(c=>c.id),                     /* 对象级：全部（要对账）*/
+      fields:["budget","roi","totalBudget","avgRoi"],
+      actions:["payout"]
+    }
+  };
+  const pol=()=>POLICY[roleId]||POLICY.bd;
+  const canAccess=v=>pol().modules.includes(v);            /* 模块级 */
+  const inScope=cid=>pol().scope().includes(cid);          /* 对象级 */
+  const canSeeField=f=>pol().fields.includes(f);           /* 字段级 */
+  const ownsGate=a=>pol().actions.includes(a);             /* 动作级 */
+  /* 本角色可见的项目（对象级过滤的唯一出口）*/
+  const visibleCampaigns=()=>CAMPAIGNS.filter(c=>inScope(c.id));
   /* 审批/交接单：每条 = 一次跨角色责任转移。支持批准与「退回并注明原因」 */
   const APPROVALS=[];
   let apSeq=0;
@@ -1071,6 +1111,37 @@
     return {length:p.auto+manual.length, auto:p.auto, manual};
   }
   const rosterCount=cid=>{const r=rosterOf(cid); return r.length||0;};
+
+  /* ===================================================================
+     GAP-007 修复：邮件草稿由【已生效组合的 roster】派生，逐封独立状态
+     （原实现：固定 3 封 EMAILS + 全局 emailsSent 布尔 → 单封发送让全部变已发送）
+     =================================================================== */
+  const DRAFTS={};                     /* {cid: [{kol, subj, body, why, status, err}]} */
+  const MAIL_STATUS={draft:"草稿",queued:"发送中",sent:"已发送",delivered:"已送达",
+    opened:"已打开",replied:"已回复",bounced:"退信",failed:"发送失败"};
+  function rosterNames(cid){
+    const S=D(cid)||{}; const eff=effectivePlan(cid);
+    if(!S.pool) return [];
+    if(!eff) return [];
+    const p=(S.plans||[]).find(x=>x.id===eff); if(!p) return [];
+    /* 组合 = auto 位自动纳入 + 人工确认的例外。用池子里的人凑够 p.n 位 */
+    const manual=S.pool.filter(k=>accepted.has(k.id)).map(k=>k.nm);
+    const rest=S.pool.filter(k=>!accepted.has(k.id)&&!skipped.has(k.id)).map(k=>k.nm);
+    const extra=[];
+    for(let i=0;extra.length+manual.length<p.n;i++) extra.push(rest[i%Math.max(1,rest.length)]+(i>=rest.length?` (${Math.floor(i/rest.length)+1})`:""));
+    return manual.concat(extra).slice(0,p.n);
+  }
+  function draftsFor(cid){
+    if(DRAFTS[cid]) return DRAFTS[cid];
+    const names=rosterNames(cid); if(!names.length) return [];
+    const S=D(cid)||{}; const tpl=S.emails||[];
+    DRAFTS[cid]=names.map((nm,i)=>{
+      const t=tpl[i%Math.max(1,tpl.length)]||tpl[0];
+      return {kol:nm, subj:(t?t.subj:"合作邀约").replace(/致 .*/,""), body:t?t.body:"", why:t?t.why:"",
+        status:"draft", err:null};
+    });
+    return DRAFTS[cid];
+  }
   const stageName=n=>STAGES[n-1].nm;
   /* 某项目是否已抵达某环节（未抵达 → 空态而非串台）*/
   const reached=(id,n)=>{const c=CAMPAIGNS.find(x=>x.id===id)||(id==="new"?{stage:2}:null); return c?c.stage>=n:false;};
@@ -1178,7 +1249,7 @@
      组合内的人 = p.auto（自动纳入，不进此 Set）∪ 这里人工确认的例外 */
   const accepted=new Set(), skipped=new Set();
   let emailsSent=false, activeModule="dashboard", currentCampaignId=null, viewStage=null;
-  let libKey="now", selectedPlan=null, auditOpen=false;
+  let libKey="now", selectedPlan=null, pendingPlan=null, auditOpen=false;
   let roleId="bd";                        /* 当前角色（BD 是主力岗，默认）*/
   let scopeId="gsea", backTo=null;        /* IA 方案 C：环节页作用域 + 返回项目的面包屑 */
   const GATE_LOG=[];                       /* 越阶段门的理由记录（闸门要留痕才算门）*/
@@ -1239,29 +1310,44 @@
   /* ---------- 角色 / 权限 / 闸门归属 / 交接 ---------- */
   const role=()=>ROLES.find(r=>r.id===roleId)||ROLES[1];
   const roleById=id=>ROLES.find(r=>r.id===id)||ROLES[1];
-  const canAccess=view=>role().access.includes(view);
-  /* 闸门归属：不是我的闸门 → 不给按钮，显示「待 XXX 处理」 */
-  const ownsGate=g=>role().gates.includes(g);
-  const gateOwner=g=>ROLES.find(r=>r.gates.includes(g));
+  /* canAccess / ownsGate / inScope / canSeeField 已由 POLICY 统一提供（见上方）*/
+  const gateOwner=g=>ROLES.find(r=>POLICY[r.id].actions.includes(g))||roleById("lead");
   /* 待我处理的交接单 */
   const myApprovals=()=>APPROVALS.filter(a=>a.status==="pending"&&a.to===roleId);
   /* 被退回给我的 */
   const myReturned=()=>APPROVALS.filter(a=>a.status==="returned"&&a.from===roleId);
 
-  function submitApproval(type,cid,title,detail,amount){
+  /* GAP-004 修复：审批单必须【引用目标业务对象 + 待执行 action】，
+     批准后原子生效；批准前该对象对下游不可用（原实现只改审批单状态，
+     且待批组合已 selectedPlan=id 立即生效 → 审批是视觉闭环不是业务闭环）*/
+  function submitApproval(type,cid,title,detail,amount,target,action){
     const to=gateOwner(type.replace("submit-","approve-"))||roleById("lead");
     const a={id:"AP-"+(++apSeq),type,cid,title,detail,amount,
+      target,          /* {kind:'plan'|'quote'|'bulkSend', id} —— 绑定的业务对象 */
+      action,          /* 批准后要执行的动作（闭包） */
       from:roleId,to:to.id,status:"pending",at:"刚刚"};
     APPROVALS.push(a); return a;
   }
+  /* 某业务对象是否已获批（下游只消费已批准的） */
+  const isApproved=(kind,id,cid)=>APPROVALS.some(a=>a.status==="approved"&&a.target&&
+    a.target.kind===kind&&a.target.id===id&&a.cid===cid);
+  const isPendingApproval=(kind,id,cid)=>APPROVALS.some(a=>a.status==="pending"&&a.target&&
+    a.target.kind===kind&&a.target.id===id&&a.cid===cid);
+  /* 项目当前【已生效】的组合（未批 = 不生效） */
+  const effectivePlan=cid=>{
+    const a=APPROVALS.find(x=>x.status==="approved"&&x.target&&x.target.kind==="plan"&&x.cid===cid);
+    return a?a.target.id:null;
+  };
+
   function approveIt(id){
     const a=APPROVALS.find(x=>x.id===id); if(!a) return;
     a.status="approved"; a.decidedBy=roleId;
+    if(typeof a.action==="function") a.action();   /* ← 批准即原子生效 */
     DONE_TODAY.add("approve:"+id);
     renderModule(activeModule);
     undoToast(`已批准：${a.title}`,()=>{a.status="pending";delete a.decidedBy;renderModule(activeModule);});
-    agentReply(`已批准 <b>${a.title}</b>${a.amount?`（${a.amount}）`:""}。<b>${roleById(a.from).label} ${roleById(a.from).name}</b> 的驾驶舱会收到通知，可以继续推进。<br>决策已留痕：发起人 ${roleById(a.from).name} · 批准人 ${role().name} · 理由已记录。`,
-      "approve · 责任转移已留痕",null,null);
+    agentReply(`已批准 <b>${a.title}</b>${a.amount?`（${a.amount}）`:""} —— <b>已即时生效</b>，${roleById(a.from).label} ${roleById(a.from).name} 可以继续推进。<br>决策已留痕：发起人 ${roleById(a.from).name} · 批准人 ${role().name} · 时间已记录。`,
+      "approve · 业务对象已生效 · 责任转移已留痕",null,null);
   }
   function returnIt(id,reason){
     const a=APPROVALS.find(x=>x.id===id); if(!a) return;
@@ -1428,7 +1514,8 @@
   function renderCampaigns(){
     currentCampaignId=null;viewStage=null;
     const draft=(CAMPAIGN._shown&&!CAMPAIGN._confirmed)?draftCardHtml():"";
-    const list=CAMPAIGNS.slice();
+    /* GAP-005 对象级过滤：只列本角色 scope 内的项目 */
+    const list=visibleCampaigns().slice();
     if(CAMPAIGN._confirmed&&!list.some(c=>c.id==="new"))
       list.unshift({id:"new",nm:CAMPAIGN.name,stage:2,status:"进行中",tone:"good",product:"鸣潮",market:"美国 / 加拿大",budget:"$12,000",kols:"候选池生成中",roi:"—",aud:"18–34 · 动作 RPG",pic:"中腰部 · 动作 RPG",sug:"Brief 已确认，进入全球发现"});
     const cards=list.map(c=>`<div class="cc" data-camp="${c.id}">
@@ -1449,11 +1536,13 @@
         const withRoi=list.filter(c=>ROIOF[c.id]);
         const avg=withRoi.length?(withRoi.reduce((a,c)=>a+ROIOF[c.id],0)/withRoi.length):0;
         const kols=list.reduce((a,c)=>a+rosterCount(c.id),0);
+        /* GAP-005 字段级遮罩：总预算 / 跨项目平均 ROI 只对有该字段权限的角色可见 */
         return `<div class="summary-row" style="margin-bottom:16px">
-        <div class="s"><div class="v tnum">${list.length}</div><div class="l">项目总数</div></div>
-        <div class="s"><div class="v tnum">$${(bud/1000).toFixed(0)}K</div><div class="l">总预算</div></div>
-        <div class="s"><div class="v tnum">${avg?avg.toFixed(1)+"x":"—"}</div><div class="l">平均 ROI<span style="font-weight:600">（${withRoi.length} 个已出数）</span></div></div>
-        <div class="s"><div class="v tnum">${kols}</div><div class="l">合作创作者</div></div></div>`;})()}
+        <div class="s"><div class="v tnum">${list.length}</div><div class="l">${canSeeField("totalBudget")?"项目总数":"我负责的项目"}</div></div>
+        ${canSeeField("totalBudget")?`<div class="s"><div class="v tnum">$${(bud/1000).toFixed(0)}K</div><div class="l">总预算</div></div>`:""}
+        ${canSeeField("avgRoi")?`<div class="s"><div class="v tnum">${avg?avg.toFixed(1)+"x":"—"}</div><div class="l">平均 ROI<span style="font-weight:600">（${withRoi.length} 个已出数）</span></div></div>`:""}
+        <div class="s"><div class="v tnum">${kols}</div><div class="l">合作创作者</div></div>
+        ${!canSeeField("totalBudget")?`<div class="s"><div class="v" style="font-size:12px;color:var(--muted);font-weight:600;padding-top:6px">${IC.shield} 全局金额与跨项目指标<br>不在${role().label}的字段权限内</div></div>`:""}</div>`;})()}
       <div class="camp-cards">${cards}</div>`;
   }
 
@@ -1507,6 +1596,20 @@
   }
 
   /* ---- P1-F3 合同 / 支付（partner 形态）---- */
+  /* GAP-003 修复：放款条件由【交付环节的真实状态】驱动，不是硬编码 ready:true。
+     原实现：gsea 停在 04（05 交付尚未开始），结算面板却已允许财务放款
+     —— 不可逆资金动作建立在互相矛盾的阶段状态上。 */
+  function payoutReady(cid,kol){
+    const c=getCamp(cid), DL=D(cid,"deliv");
+    if(!c||c.stage<5) return {ok:false,why:`项目尚未进入 ${STAGES[4].n} ${STAGES[4].nm} —— 内容还没交付，不存在「审核通过」`};
+    if(!DL) return {ok:false,why:"本项目没有交付记录"};
+    const row=DL.rows.find(r=>r.kol===kol);
+    if(!row) return {ok:false,why:`${kol} 没有交付物`};
+    if(!row.published) return {ok:false,why:`${kol} 的终稿尚未标记可发布（待${gateOwner("mark-pub").label}审核）`};
+    const ad=DL.checks.find(x=>x[0]==="披露要求 #ad");
+    if(ad&&!ad[1]) return {ok:false,why:"披露要求 #ad 未通过 —— 合规未过不放款"};
+    return {ok:true,why:"内容审核已通过 · 披露合规已过"};
+  }
   function settlePanel(c,isCur){
     const SETTLE=D(c.id,"settle"); if(!SETTLE) return "";
     return `<div class="draft anim-in" style="margin-top:18px">
@@ -1514,17 +1617,17 @@
         <span class="partner">${IC.shield.replace('class="ic"','class="ic" style="width:11px;height:11px"')}由 <b>partner</b> 提供 · 电子签 + Stripe 托管</span>
         <span class="pill ${SETTLE.paid?'good':'warn'}" style="margin-left:auto">${SETTLE.paid?'已放款':'托管中 '+SETTLE.escrowTotal}</span></div>
       <div class="deliv" style="padding-top:10px">
-        ${SETTLE.rows.map(r=>`<div class="srow">
-          <div><div class="sn2">${r.kol}</div><div class="sc">${r.cond}</div></div>
+        ${SETTLE.rows.map(r=>{const pr=payoutReady(c.id,r.kol);
+          return `<div class="srow">
+          <div><div class="sn2">${r.kol}</div><div class="sc">${pr.ok?pr.why:`${IC.shield.replace('class="ic"','class="ic" style="width:11px;height:11px;vertical-align:-1px"')} ${pr.why}`}</div></div>
           <div class="sa">${r.amount}</div>
           <div><span class="pill ${r.cTone}">${r.contract}</span></div>
           <div><span class="pill ${r.eTone}">${r.escrow}</span></div>
-          <div style="text-align:right">${SETTLE.paid&&r.ready?`<span class="pill good">已放款 ✓</span>`
-            :(r.ready&&isCur
-              ? (ownsGate("payout")
+          <div style="text-align:right">${r.paid?`<span class="pill good">已放款 ✓</span>`
+            :(!pr.ok ? `<span class="pill ghost" title="${pr.why}">条件未满足</span>`
+              : (ownsGate("payout")
                  ? `<button class="btn primary sm" style="flex:none" data-gate="payout" data-cid="${c.id}" data-kol="${r.kol}" data-amt="${r.amount}">放款</button>`
-                 : `<span class="await">${IC.shield}待${gateOwner("payout").label}放款</span>`)
-              :`<span class="pill ${r.pTone}">${r.payout}</span>`)}</div></div>`).join("")}
+                 : `<span class="await">${IC.shield}待${gateOwner("payout").label}放款</span>`))}</div></div>`;}).join("")}
       </div>
       <div class="risk-list"><div class="risk">${IC.shield}<span><b>边界说明：</b>合同签署与资金托管/结算由 partner（电子签 + Stripe Connect escrow）承担，KOLMatrix 不碰资金与税务 —— 我们只负责触发条件（内容审核通过）与人类闸门。</span></div></div>
       <div class="draft-foot"><span class="hint">${IC.bulb}流程：条款确认 → 合同签署 → 资金托管 → 内容审核通过 → <b>人工确认放款</b></span><div class="spacer"></div></div></div>`;
@@ -1959,11 +2062,26 @@
     const S=D(scopeId)||{};
     if(!S.replies&&!S.emails) return void(canvas.innerHTML=scopeEmpty(4,
       getCamp(scopeId)&&getCamp(scopeId).stage<4?"本项目还没进入沟通协作环节。":"本项目没有沟通记录。"));
-    const REPLIES=S.replies||[], EMAILS=S.emails||[];
+    /* GAP-004：组合待批 → 下游不得消费。这是审批「业务闭环」而非「视觉闭环」的关键 */
+    if(pendingPlan&&!effectivePlan(scopeId)){
+      const pend=APPROVALS.find(a=>a.status==="pending"&&a.target&&a.target.kind==="plan"&&a.cid===scopeId);
+      return void(canvas.innerHTML=scopeBar(4)+`<div class="empty" style="margin-top:30px">
+        <div class="halo" style="background:var(--warn-bg);color:#B9820B;box-shadow:none">${IC.shield}</div>
+        <h2>组合待批准 —— 尚未生效</h2>
+        <p>「${getCamp(scopeId).nm}」的组合方案已提交 <b>${roleById(pend?pend.to:"lead").label}</b> 审批（单号 ${pend?pend.id:"—"}）。<br>
+          <b>批准前不能起草或发送邀约</b> —— 否则审批就只是走过场。</p>
+        <div class="starter" style="margin-top:8px"><button data-camp="${scopeId}" data-stage-jump="3">
+          <span class="k" style="background:linear-gradient(135deg,#FFB547,#f59e0b)">${IC.shield}</span>查看待批组合</button></div></div>`);
+    }
+    const REPLIES=S.replies||[];
+    /* GAP-007：草稿由【已生效组合的 roster】派生，不是固定 3 封 */
+    const EMAILS=draftsFor(scopeId);
     const replies=REPLIES.map((r,i)=>{
       const k=allKols().find(x=>x.id===r.kid);
       const gate=r.done?`<button class="btn ok sm" style="flex:none">${IC.check} 条款已确认</button>`
-        :(r.gate?`<button class="btn primary sm" style="flex:none" data-gate="terms" data-ri="${i}" data-cid="${scopeId}">${IC.shield} ${r.gate.label}</button>`
+        :(r.gate?(()=>{const amt=quoteAmount(r), over=amt>THRESHOLD.quote&&!ownsGate("approve-quote");
+            return `${over?`<span class="await" style="margin-right:8px">${IC.shield}$${amt.toLocaleString()} > 阈值 $${THRESHOLD.quote.toLocaleString()}</span>`:""}
+            <button class="btn primary sm" style="flex:none" data-gate="terms" data-ri="${i}" data-cid="${scopeId}">${IC.shield} ${over?`提交${gateOwner("approve-quote").label}审批`:r.gate.label}</button>`;})()
         :`<button class="btn line sm" data-noop>采用草稿回信</button>`);
       return `<div class="reply anim-in">
         <div class="reply-top">
@@ -1973,18 +2091,34 @@
         <ul>${r.pts.map(p=>`<li>${p}</li>`).join("")}</ul>
         <div class="next-box">${IC.bulb}<span><b>AI 下一步草案：</b>${r.next}</span></div>
         <div class="reply-foot"><span class="owner">${IC.user.replace('class="ic"','class="ic" style="width:12px;height:12px"')}负责人 · ${r.owner}</span><div class="spacer"></div>${gate}</div></div>`;}).join("");
-    const drafts=EMAILS.map(e=>`<div class="draft anim-in" style="margin-bottom:16px">
-        <div class="draft-h">${IC.mail}<h4>致 ${e.to}</h4>${emailsSent?'<span class="pill good">已发送 ✓</span>':'<span class="pill ghost">草稿</span>'}</div>
+    /* GAP-007/013：逐封独立状态（含退信/失败/重试），不再是全局布尔 */
+    const stTone={draft:"ghost",queued:"warn",sent:"good",delivered:"good",opened:"brand",replied:"brand",bounced:"bad",failed:"bad"};
+    const drafts=EMAILS.map((e,i)=>`<div class="draft anim-in" style="margin-bottom:16px">
+        <div class="draft-h">${IC.mail}<h4>致 ${e.kol}</h4>
+          <span class="pill ${stTone[e.status]}">${MAIL_STATUS[e.status]}${e.status==="bounced"?" ⚠":""}</span></div>
         <div class="mail-body"><div class="subj">${e.subj}</div>${e.body}</div>
-        <div class="rationale">${IC.bulb} <b>为什么这么写：</b>${e.why}</div>
-        <div class="draft-foot"><span class="hint">收件人 1 · 来源 产品资料 + KOL 画像</span><div class="spacer"></div>
-          ${emailsSent?`<button class="btn ok sm" style="flex:none">${IC.check} 已发送</button>`:`<button class="btn line sm" data-noop>编辑</button><button class="btn primary sm" style="flex:none" data-gate="send" data-n="1">发送</button>`}</div></div>`).join("");
+        ${e.err?`<div class="rationale" style="background:var(--bad-bg);border-left-color:var(--bad)">${IC.warn} <b>失败原因：</b>${e.err}</div>`
+          :`<div class="rationale">${IC.bulb} <b>为什么这么写：</b>${e.why}</div>`}
+        <div class="draft-foot"><span class="hint">收件人 1 · 来源 知识库产品资料 + KOL 画像</span><div class="spacer"></div>
+          ${e.status==="draft"
+            ? (ownsGate("send")
+               ? `<button class="btn line sm" data-noop>编辑</button><button class="btn primary sm" style="flex:none" data-send-one="${scopeId}|${i}">发送</button>`
+               : `<span class="await">${IC.shield}待${gateOwner("send").label}发送</span>`)
+            : (e.status==="bounced"||e.status==="failed"
+               ? (ownsGate("send")?`<button class="btn line sm" style="flex:none" data-retry="${scopeId}|${i}">重试</button>`:"")
+               : `<span class="pill ${stTone[e.status]}">${IC.check} ${MAIL_STATUS[e.status]}</span>`)}</div></div>`).join("");
     canvas.innerHTML=scopeBar(4)+`
       <div class="section-h" style="margin-top:6px"><h3>回复工作区</h3><span class="sub">AI 归纳重点 + 起草下一步 · 报价/合同由你确认</span><div class="spacer"></div><span class="pill brand">${REPLIES.filter(r=>!r.done).length} 条待处理</span></div>
       ${replies}
       <div class="section-h"><h3>邀约草稿</h3><span class="sub">每封按 KOL 画像个性化 · 审阅后再发</span><div class="spacer"></div>${emailsSent?'<span class="pill good">已发送 · 追踪中</span>':`<span class="pill warn">${EMAILS.length} 封待发</span>`}</div>
       ${drafts}
-      ${emailsSent?"":`<div style="display:flex;justify-content:flex-end;margin-top:4px"><button class="btn primary" data-gate="send" data-n="${EMAILS.length}" style="flex:none;padding:12px 22px">${IC.mail} 全部发送（${EMAILS.length} 封）</button></div>`}`;
+      ${(()=>{const pend=EMAILS.filter(e=>e.status==="draft").length;
+        if(!pend||!ownsGate("send")) return "";
+        const over=pend>THRESHOLD.bulkSend;
+        return `<div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:4px">
+          ${over?`<span class="await">${IC.shield}${pend} 封 > 阈值 ${THRESHOLD.bulkSend} 封 · 需${gateOwner("approve-quote").label}批</span>`:""}
+          <button class="btn primary" data-bulk="${scopeId}" style="flex:none;padding:12px 22px">
+            ${IC.mail} ${over?`提交批量发送审批（${pend} 封）`:`全部发送（${pend} 封）`}</button></div>`;})()}`;
   }
 
   /* ================= Insight（效果复盘） ================= */
@@ -2105,7 +2239,13 @@
         "越权拦截 · "+role().copilotScope,()=>setChips("default"),null);
       return;
     }
-    if(roleId==="bd"&&has("预算","总预算","roi","全局","所有项目")){
+    /* GAP-005 修复：拦截器不能误伤合法任务。
+       原实现 has("预算") 会拦掉首屏主 CTA「…预算1.2万美金…建个活动」——
+       用户点自己的主按钮被自己的权限拦截器拒绝。
+       修法：意图优先于关键词 —— 先排除「建项目/找人/起草」这类本职任务，
+       只拦真正的「查询全局数据」意图。 */
+    const isOwnTask=has("建个","建一个","建活动","建项目","鸣潮","找","创作者","起草","邮件","key","分发");
+    if(roleId==="bd"&&!isOwnTask&&has("总预算","跨项目","全局","所有项目")){
       agentReply(`已找到相关数据，但<b>当前${role().label}仅可查看你负责项目的信息</b> —— 全局预算与跨项目 ROI 不在数据边界内。<br>
         你可以改为查询：<b>你负责项目的候选池 · 组合方案 · 沟通记录 · key 分发</b>。<br>需要全局数据？让 <b>${roleById("lead").label} ${roleById("lead").name}</b> 看。`,
         "越权拦截 · "+role().copilotScope,()=>setChips("default"),null);
@@ -2220,17 +2360,89 @@
   function closeGate(){scrim.classList.remove("on");gateCb=null;}
   $("#modal-cancel").onclick=closeGate;
   scrim.addEventListener("click",e=>{if(e.target===scrim)closeGate();});
-  $("#modal-ok").onclick=()=>{const cb=gateCb;closeGate();cb&&cb();};
+  /* 退回原因的快捷填充（点 chip 填进输入框，仍可自由编辑） */
+  scrim.addEventListener("click",e=>{const r=e.target.closest("[data-reason]");
+    if(r&&$("#return-reason")){$("#return-reason").value=r.dataset.reason;$("#return-reason").focus();}});
+  $("#modal-ok").onclick=()=>{
+    /* 校验型 gate（如退回必填原因）可在 cb 内 return 掉，不关弹窗 */
+    const cb=gateCb;
+    if($("#return-reason")){ const v=$("#return-reason").value.trim();
+      if(!v){toast("请填写退回原因");return;} }
+    closeGate();cb&&cb();};
 
-  function gateSend(n){
-    openGate("确认发送邮件",`即将通过 Resend 向 <b>${n} 位 KOL</b> 发送邀约。这是对外、不可撤销的动作 —— 确认后立即发出。`,
-      "确认发送",()=>{emailsSent=true;renderReach();toast(n+" 封邮件已发送 · 开始追踪");
-        agentReply(`已发出 ${n} 封。我会追踪送达/打开/回复，有人回复时归纳重点并提醒你。`,"send_email · 已落追踪",()=>setChips("afterReach"),"comms");});}
+  /* GAP-007/013：逐封发送 + 部分成功 + 退信 —— 不是全局布尔 */
+  function doSendOne(cid,i){
+    const d=draftsFor(cid)[i]; if(!d||d.status!=="draft") return;
+    openGate("确认发送邀约",`即将通过 Resend 向 <b>${d.kol}</b> 发送邀约。<b>对外、不可撤销</b> —— 确认后立即发出。`,
+      "确认发送",()=>{
+        d.status="queued"; renderReach();
+        setTimeout(()=>{
+          /* 演示真实世界：并非每封都成功 */
+          if(/GachaQueen|\(2\)/.test(d.kol)){d.status="bounced";d.err="硬退信：邮箱地址无效（来源为爬取推断，未经平台一方验证）→ 已自动加入抑制名单";}
+          else d.status="sent";
+          renderReach();
+          if(d.status==="bounced"){toast(`${d.kol} 退信`);
+            agentReply(`<b>${d.kol}</b> 硬退信 —— 邮箱来源是<b>爬取推断</b>（非平台一方验证），已自动加入抑制名单，不会重复打扰。<br>这正是数据层缺口的产品后果：接入一方数据后此类退信会大幅下降。`,
+              "send_email · 退信已归档 · 抑制名单已更新",null,"comms");}
+          else {toast(`已发送给 ${d.kol}`);
+            agentReply(`已发出给 <b>${d.kol}</b>。我会追踪送达/打开/回复 —— 有回复时归纳重点并提醒你。<b>其它草稿不受影响。</b>`,
+              "send_email · 已落追踪",()=>setChips("afterReach"),"comms");}
+        },reduce?10:600);
+      });}
+  function doRetry(cid,i){
+    const d=draftsFor(cid)[i]; if(!d) return;
+    d.status="draft"; d.err=null; renderReach();
+    toast(`${d.kol} 已重置为草稿`);
+    agentReply(`<b>${d.kol}</b> 已重置为草稿。退信原因是邮箱来源不可靠 —— 建议先补一方邮箱再重发，否则大概率再次退信。`,
+      "retry · 需先修复根因",null,"comms");}
+  function doBulk(cid){
+    const ds=draftsFor(cid), pend=ds.filter(e=>e.status==="draft");
+    if(!pend.length) return;
+    /* GAP-004③：批量发信阈值必须执行 */
+    if(pend.length>THRESHOLD.bulkSend&&!ownsGate("approve-quote")){
+      const a=submitApproval("submit-quote",cid,`批量发送邀约：${pend.length} 封`,
+        `「${getCamp(cid).nm}」组合内 ${pend.length} 位创作者的个性化邀约。超过批量阈值 ${THRESHOLD.bulkSend} 封。`,
+        `${pend.length} 封`,{kind:"bulkSend",id:cid},()=>{pend.forEach(d=>{d.status="sent";});});
+      renderReach();
+      agentReply(`<b>${pend.length} 封 > 批量阈值 ${THRESHOLD.bulkSend} 封</b> —— 已提交 <b>${gateOwner("approve-quote").label}</b> 审批（单号 ${a.id}）。<br><b>批准前一封都不会发出。</b>`,
+        "submit-bulkSend · 阈值已执行 · 待批不发送",null,"comms");
+      return;}
+    openGate("确认批量发送",`即将通过 Resend 发送 <b>${pend.length} 封</b>邀约。<b>对外、不可撤销。</b><br>预计其中约 1 封因邮箱来源为爬取推断而退信。`,
+      `确认发送 ${pend.length} 封`,()=>{
+        pend.forEach(d=>{d.status=/GachaQueen|\(2\)/.test(d.kol)?"bounced":"sent";
+          if(d.status==="bounced")d.err="硬退信：邮箱地址无效（爬取推断来源）→ 已加入抑制名单";});
+        renderReach();
+        const ok=pend.filter(d=>d.status==="sent").length, bad=pend.length-ok;
+        toast(`${ok} 封已发送${bad?` · ${bad} 封退信`:""}`);
+        agentReply(`批量发送完成：<b>${ok} 封已发出</b>${bad?`、<b>${bad} 封退信</b>（邮箱为爬取推断来源，已加入抑制名单）`:""}。<br><b>部分成功不是失败</b> —— 已发出的继续追踪，退信的单独列出可重试。`,
+          "send_email ×"+pend.length+" · 部分成功已逐项落状态",()=>setChips("afterReach"),"comms");});}
+  /* GAP-004②：报价阈值必须执行 —— 原实现 THRESHOLD.quote 定义了从未使用，
+     $2,400 报价可经条款弹窗直接发出，绕过 $2,000 门 */
+  /* 报价金额解析：支持 $2,400 / $2.4k / $1.5k–2.2k（区间取上界，按最坏情况判门） */
+  const quoteAmount=r=>{
+    const d=(r.gate&&r.gate.desc)||"";
+    const nums=[...d.matchAll(/\$?\s*([\d,]+(?:\.\d+)?)\s*(k)?/gi)]
+      .map(m=>{const v=parseFloat(m[1].replace(/,/g,"")); return m[2]?v*1000:v;})
+      .filter(v=>v>=100);            /* 滤掉「长视频 1 支」这类小数字 */
+    return nums.length?Math.max(...nums):0;
+  };
   function gateTerms(i,cid){
-    const R=D(cid||scopeId,"replies"); if(!R) return;
-    const r=R[i];
+    cid=cid||scopeId;
+    const R=D(cid,"replies"); if(!R) return;
+    const r=R[i]; if(!r||!r.gate) return;
+    const amt=quoteAmount(r);
+    if(amt>THRESHOLD.quote&&!ownsGate("approve-quote")){
+      const a=submitApproval("submit-quote",cid,`报价确认：${r.kol} $${amt.toLocaleString()}`,
+        r.gate.desc.replace(/<[^>]+>/g,""),`$${amt.toLocaleString()}`,
+        {kind:"quote",id:r.kol},()=>{r.done=true;});
+      renderReach();
+      agentReply(`<b>$${amt.toLocaleString()} 超过报价阈值 $${THRESHOLD.quote.toLocaleString()}</b> —— 已提交 <b>${gateOwner("approve-quote").label} ${gateOwner("approve-quote").name}</b> 审批（单号 ${a.id}）。<br>
+        <b>批准前不会向 ${r.kol} 发出任何报价承诺</b> —— 报价是对外承诺，我不会替你拍。`,
+        "submit-quote · 阈值已执行 · 待批不发出",null,"comms");
+      return;}
     openGate(r.gate.title,r.gate.desc,"确认条款并发出",()=>{r.done=true;DONE_TODAY.add("terms:"+r.kol);renderReach();toast("条款已确认 · 回信已发出");
-      agentReply(`已按确认条款回复 <b>${r.kol}</b>。合同要点已归档到该创作者的经营档案。`,"条款闸门通过 · 已回信并归档",null,"comms");});}
+      agentReply(`已按确认条款回复 <b>${r.kol}</b>（$${amt.toLocaleString()}，在你的 $${THRESHOLD.quote.toLocaleString()} 额度内）。合同要点已归档到该创作者的经营档案。`,
+        "条款闸门通过 · 已回信并归档",null,"comms");});}
   /* ===== P0-7 闸门预算重排 =====
      真闸门（对外 / 不可逆 / 花钱）：send · terms · payout · keys · advanceStage(越门) · selectPlan
      撤掉的假闸门（内部 / 可撤销 / 不花钱）：retro · asset · publish → 改「立即执行 + undo」 */
@@ -2260,10 +2472,17 @@
 
   /* ---- 真闸门 ---- */
   function gatePayout(cid,kol,amt){
-    openGate("确认放款",`向 <b>${kol}</b> 放款 <b>${amt}</b>（内容审核已通过）。资金由 partner 托管（Stripe escrow），确认后由 partner 执行转账 —— <b>对外、不可撤销</b>。`,
-      "确认放款",()=>{const S=D(cid,"settle"); S.paid=true; renderCampaignDetail(cid,4);
+    const pr=payoutReady(cid,kol);
+    if(!pr.ok){toast("放款条件未满足");
+      agentReply(`<b>不能放款</b>：${pr.why}。<br>放款条件由<b>交付环节的真实状态</b>驱动 —— 我不会因为面板上有个按钮就让你把钱打出去。`,
+        "payout 前置校验未过 · 已阻断",null,"rel");return;}
+    openGate("确认放款",`向 <b>${kol}</b> 放款 <b>${amt}</b>。<br>前置条件已满足：${pr.why}。<br>资金由 partner 托管（Stripe escrow），确认后由 partner 执行转账 —— <b>对外、不可撤销</b>。`,
+      "确认放款",()=>{const S=D(cid,"settle"); const row=S.rows.find(r=>r.kol===kol);
+        if(row) row.paid=true;
+        if(S.rows.every(r=>r.paid||!payoutReady(cid,r.kol).ok)) S.paid=true;
+        renderModule(activeModule);
         toast("已确认放款 · partner 执行中");
-        agentReply(`放款指令已发给 partner，${amt} 从托管账户转出。交易记录写入 ${kol} 的经营档案，作为下一轮报价参考。`,"放款闸门通过 · partner 执行",null,"rel");});}
+        agentReply(`放款指令已发给 partner，${amt} 从托管账户转出给 <b>${kol}</b>。交易记录写入其经营档案，作为下一轮报价参考。`,"放款闸门通过 · partner 执行 · 逐笔留痕",null,"rel");});}
   function gateKeys(cid){
     const K=D(cid,"keys"); if(!K) return;
     const n=rosterOf(cid).length||3;
@@ -2272,10 +2491,62 @@
         toast(`已分发 ${n*20} 个 key`);
         agentReply(`已向 ${n} 位创作者分发 key。我会追踪领取→兑换→内容产出，转化率低的提醒你回收转投。`,"distribute_keys · 已落追踪",null,"review");});}
   /* 越阶段门：真正的高风险动作 —— 必须捕获理由 */
+  /* ===================================================================
+     GAP-002 修复：六环节每个阶段门都有 exitCriteria（退出条件）。
+     原实现只守 Brief，其余可直接 c.stage++ → 六环节退化成可点击进度条。
+     每条 = {ok, why, hard} —— hard 表示不可越门（合规/资金类）
+     =================================================================== */
+  function exitCriteria(cid,n){
+    const c=getCamp(cid), S=D(cid)||{};
+    switch(n){
+      case 1: return KB.coverage>=80
+        ? [{ok:true,why:`知识覆盖度 ${KB.coverage}% ≥ 80%`}]
+        : [{ok:false,hard:false,why:`知识覆盖度 ${KB.coverage}% < 80% —— 缺 Q3 东南亚用研报告，目标受众置信度仅 52，匹配精度上限被压在 ${KB.matchCeil}%`}];
+      case 2: return [S.pool&&S.pool.length
+        ? {ok:true,why:`候选池已生成（${S.pool.length} 位）`}
+        : {ok:false,hard:true,why:"候选池尚未生成 —— 没有候选就没有可匹配的对象"}];
+      case 3: {  /* 组合必须【已批准】才能进入沟通 —— 与 GAP-004 同源 */
+        const eff=effectivePlan(cid);
+        if(eff) return [{ok:true,why:"组合方案已批准并生效"}];
+        const pend=APPROVALS.find(a=>a.status==="pending"&&a.target&&a.target.kind==="plan"&&a.cid===cid);
+        return [{ok:false,hard:true,why:pend
+          ? `组合方案待 ${roleById(pend.to).label} 审批（单号 ${pend.id}）—— 未批准不得开始触达`
+          : "尚未选定组合方案 —— 不知道要联系谁"}];
+      }
+      case 4: {  /* 有待处理条款不得进入交付 */
+        const open=(S.replies||[]).filter(r=>r.gate&&!r.done);
+        return [open.length
+          ? {ok:false,hard:true,why:`还有 ${open.length} 条待确认条款（${open.map(r=>r.kol).join("、")}）—— 报价没谈定不能进交付`}
+          : {ok:true,why:"条款均已确认"}];
+      }
+      case 5: {  /* 披露合规未过不得完成交付 —— 硬阻断 */
+        const DL=S.deliv, out=[];
+        if(!DL) return [{ok:false,hard:true,why:"没有交付物"}];
+        const ad=DL.checks.find(x=>x[0]==="披露要求 #ad");
+        out.push(ad&&ad[1] ? {ok:true,why:"披露要求 #ad 已通过"}
+          : {ok:false,hard:true,why:"披露要求 #ad 未通过 —— <b>合规硬门，不可越过</b>"});
+        const unpub=DL.rows.filter(r=>r.publishable&&!r.published);
+        if(unpub.length) out.push({ok:false,hard:false,why:`${unpub.length} 条终稿尚未标记可发布`});
+        return out;
+      }
+      default: return [{ok:true,why:"—"}];
+    }
+  }
   function gateAdvance(cid){
-    const c=getCamp(cid); const blocked=(c.stage===1&&KB.coverage<80);
-    if(!blocked){advanceStage();return;}
-    openGate("越过阶段门",`「${stageName(1)}」阶段门要求<b>知识覆盖度 ≥ 80%</b>，当前 <b>${KB.coverage}%</b>（缺 Q3 东南亚用研报告 → 目标受众置信度仅 52，匹配精度上限被压在 ${KB.matchCeil}%）。<br><b>强行推进会影响后续所有环节的匹配质量，且理由会被记录。</b>`,
+    const c=getCamp(cid); if(!c||c.stage>=6) return;
+    const crit=exitCriteria(cid,c.stage), bad=crit.filter(x=>!x.ok);
+    if(!bad.length){advanceStage();return;}
+    const hard=bad.some(x=>x.hard);
+    if(hard){
+      toast("阶段门未通过 · 不可越过");
+      agentReply(`<b>不能推进到 ${STAGES[c.stage].n} ${stageName(c.stage+1)}</b> —— ${STAGES[c.stage-1].nm} 的退出条件未满足：<br>
+        ${bad.map(x=>`· ${x.why}`).join("<br>")}<br>
+        <b>这是硬门，我不提供越门选项</b> —— 越过去后面全是错的。`,
+        "exitCriteria 未过 · 硬阻断",null,null);
+      return;}
+    openGate("越过阶段门",`「${stageName(c.stage)}」的退出条件未满足：<br>
+      ${bad.map(x=>`· ${x.why}`).join("<br>")}<br><br>
+      <b>强行推进会影响后续所有环节，且理由会被记录（发起人 / 时间 / 理由）。</b>`,
       "记录理由并强行推进",()=>{advanceStage(true);});}
 
   /* ================= interactions ================= */
@@ -2299,13 +2570,16 @@
       const q=effQ(p), budget=+p.budget.replace(/[$,]/g,"");
       /* 闸门归属 + 阈值：BD 选方案 = 提交审批；营销负责人才能直接拍板 */
       if(!ownsGate("plan")&&budget>THRESHOLD.planBudget){
-        const a=submitApproval("submit-plan",scopeId,`组合方案：${p.nm}`,
-          `${p.n} 位创作者 · 预估触达 ${q.reach} · 市场覆盖 ${q.mk} · 受众重叠 ${q.ov}% · 平均可信度 ${q.cred}`,p.budget);
-        selectedPlan=id; renderMatch();
+        const cid=scopeId;
+        /* GAP-004：绑定业务对象 + 待执行 action；【不】立即设 selectedPlan */
+        const a=submitApproval("submit-plan",cid,`组合方案：${p.nm}`,
+          `${p.n} 位创作者 · 预估触达 ${q.reach} · 市场覆盖 ${q.mk} · 受众重叠 ${q.ov}% · 平均可信度 ${q.cred}`,
+          p.budget,{kind:"plan",id},()=>{selectedPlan=id;});
+        pendingPlan=id; renderMatch();
         agentReply(`已选 <b>${p.nm}</b>（${p.n} 位 · ${p.budget}）。<br>
           <b>${p.budget} 超过你的审批额度（$${THRESHOLD.planBudget.toLocaleString()}）</b> —— 已提交给 <b>${gateOwner("approve-plan").label} ${gateOwner("approve-plan").name}</b> 审批，单号 ${a.id}。<br>
-          <b>我没有替你批，也没有开始触达</b>。批下来之前这个组合不生效。`,
-          "submit-plan · 已交接 · 等待审批",()=>setChips("afterMatch"),"match");
+          <b>组合在批准前不生效</b> —— 我没有替你批，Reach 也不会据此起草邮件。`,
+          "submit-plan · 已交接 · 业务对象待批不生效",()=>setChips("afterMatch"),"match");
         return;}
       selectedPlan=id; renderMatch();
       agentReply(`已选 <b>${p.nm}</b>（${p.n} 位 · ${p.budget} · 预估触达 ${q.reach}）。${ovTone(q.ov)!=="good"||mkTone(q.mk)!=="good"?`⚠️ 受众重叠 <b>${q.ov}%</b>（相当一部分触达是重复付费）、市场覆盖 <b>${q.mk}</b> —— 确定要这个方案吗？`:`市场覆盖 ${q.mk}、受众重叠仅 ${q.ov}%、平均可信度 ${q.cred}，组合成立。`}<br>其中 <b>${p.auto} 位</b>高置信已自动纳入（可抽样审计），<b>${p.review} 位</b>处于模糊地带需你判断。`,
@@ -2338,12 +2612,28 @@
     const ap=e.target.closest("[data-approve]"); if(ap){approveIt(ap.dataset.approve);return;}
     const rt2=e.target.closest("[data-return]");
     if(rt2){const a=APPROVALS.find(x=>x.id===rt2.dataset.return);
+      /* GAP-004④：退回原因必须由决策人填写，不能硬编码 */
       openGate("退回并注明原因",`将把 <b>${a.title}</b> 退回给 <b>${roleById(a.from).label} ${roleById(a.from).name}</b>。<br>
-        <b>退回不是拒绝</b> —— 原因会随退回单进入对方待办，对方改完可重新提交。<br><br>
-        <b>常见原因：</b>预算超出本季度额度 · 组合缺市场覆盖 · 需要先补齐知识库 · 报价高于市场行情`,
-        "确认退回",()=>returnIt(a.id,"预算超出本季度额度，请压到 $8,000 内或补充追投理由"));
+        <b>退回不是拒绝</b> —— 原因会随退回单进入对方待办，对方改完可重新提交。
+        <div class="reason-box">
+          <label>退回原因（必填，会展示给发起人）</label>
+          <textarea id="return-reason" rows="3" placeholder="例如：预算超出本季度额度，请压到 $8,000 内或补充追投理由"></textarea>
+          <div class="reason-quick">
+            ${["预算超出本季度额度，请压到 $8,000 内或补充追投理由","组合缺市场覆盖（越南空缺），请补齐或说明取舍",
+               "请先补齐知识库用研报告再提交","报价高于市场行情，请重新谈判或启用替补池"]
+              .map(r=>`<button class="chip" data-reason="${r}">${r.slice(0,12)}…</button>`).join("")}
+          </div></div>`,
+        "确认退回",()=>{
+          const v=($("#return-reason")&&$("#return-reason").value||"").trim();
+          if(!v){toast("请填写退回原因");return;}
+          returnIt(a.id,v);});
       return;}
     const rs=e.target.closest("[data-resubmit]"); if(rs){resubmit(rs.dataset.resubmit);return;}
+    const s1=e.target.closest("[data-send-one]");
+    if(s1){const [cid,i]=s1.dataset.sendOne.split("|");doSendOne(cid,+i);return;}
+    const rty=e.target.closest("[data-retry]");
+    if(rty){const [cid,i]=rty.dataset.retry.split("|");doRetry(cid,+i);return;}
+    const blk=e.target.closest("[data-bulk]"); if(blk){doBulk(blk.dataset.bulk);return;}
     if(e.target.closest("[data-upload]")){doUpload();return;}
     /* P1-7：AI 起草→人审阅，审阅必须能导向修改（原来 15 个「改/修正」连 handler 都没有）*/
     const kf=e.target.closest("[data-kfix]");
@@ -2366,8 +2656,7 @@
     /* 真闸门：对外 / 不可逆 / 花钱 */
     const g=e.target.closest("[data-gate]");
     if(g){const t=g.dataset.gate;
-      if(t==="send")gateSend(+g.dataset.n||1);
-      else if(t==="terms")gateTerms(+g.dataset.ri,g.dataset.cid);
+      if(t==="terms")gateTerms(+g.dataset.ri,g.dataset.cid);
       else if(t==="asset")doAsset(+g.dataset.kid);
       else if(t==="payout")gatePayout(g.dataset.cid,g.dataset.kol,g.dataset.amt);
       else if(t==="keys")gateKeys(g.dataset.cid);

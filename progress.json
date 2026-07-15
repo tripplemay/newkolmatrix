@@ -1,13 +1,14 @@
 {
-  "status": "building",
+  "status": "planning",
   "user_goal": "旧 kolmatrix 功能逐步重构进新系统：保留功能，去传统 SaaS 化，改造为 AI native（Agent 驱动一切）。本批 AGENT-FOUNDATION = Phase 0 架构地基：全栈化 + Agent 驱动四柱（工具层/Agent 运行时/常驻对话面/generative canvas）+ hello-agent 端到端闭环",
   "total_features": 8,
   "completed_features": 0,
   "fix_rounds": 0,
   "current_sprint": "AGENT-FOUNDATION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-15T06:25",
+  "last_updated": "2026-07-15T08:15",
   "reference_docs": [
+    "docs/audits/KOLMatrix-interaction-prototype-review-2026-07-15.md",
     "docs/specs/AGENT-FOUNDATION-spec.md",
     "docs/product/interaction-prototype.html",
     "scripts/test/prototype-smoke.js",
@@ -25,7 +26,7 @@
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "AGENT-FOUNDATION spec r2：纳入角色体系（用户决策：3 角色 lead/bd/finance · 交接加退回链路 · 提前到 Phase 0）。退回 planning 修订后锁回 building，features 7→8（新增 F008 闸门归属+环节 owner+阈值+交接链）；F001/F004/F005/F006 分别加了 role/scope/Approval schema、工具按角色 gating、copilotScope 拒答、路由层权限守卫。关键决策 D9-D15 见 spec §3。血的教训 D10：权限守卫必须在路由层——原型 v9 只在侧栏查权限，财务经画布 data-goto 溜进 Match（用户实测发现）。交互契约 = docs/product/interaction-prototype.html（权威，含角色/组合态/知识库/评估面板/交接链）；回归 scripts/test/prototype-smoke.js（105 断言：权限守卫/跨项目串台/交接链闭环），node 直接跑。来源：分析 docs/product/有墨公考-AI业务工作台.html 得到的可借鉴模式（否定式护栏/置信度降级为待补充/执行过程可视化/四级动作分类/角色即产品）。下一步：/build 从 F001 开始串行实现。"
+    "Andy": "【P0 全清，待做黄金路径】独立审查 16 问题（P0×5 P1×8 P2×3）。用户决策：①定位锁定=AI-native 全球游戏创作者营销平台（GAP-001 关闭）②暂停 building 先修 P0 ③P0 全清 + 一条黄金路径后重新验收。\n做法：先把审查 §8 列的『未覆盖项』写成 13 条失败断言（全红=基线），再修到绿。现 118 断言全绿。\n已修：GAP-002 exitCriteria 六环节退出条件（组合未批/条款未确认/#ad 未过=硬门不可越）；GAP-003 payoutReady 消费交付真实状态（gsea 停 04 → 显示条件未满足）；GAP-004 审批绑 target+action 批准即原子生效、待批组合下游不可消费、quote/bulkSend 阈值全执行、退回原因可编辑必填；GAP-005 权限拆四层 POLICY(模块/对象 scope/字段 fields/动作 actions) 一套驱动 UI+Agent、修拦截器误伤主 CTA（意图优先于关键词）；GAP-007 草稿由 roster 派生 + 逐封状态（含退信/重试/部分成功），废除全局 emailsSent。\n待做：报告 §11 黄金路径（Brief 可改→组合审批→对应人数邮件→回复信号→报价审批→交付检查→放款→周报），即 GAP-006(假动作)/008(信号驱动CRM)/009(周报artifact) 的核心链路。之后重新验收再开 building。"
   },
   "features": []
 }

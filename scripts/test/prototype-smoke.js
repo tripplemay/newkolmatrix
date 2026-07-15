@@ -168,6 +168,7 @@ try {
 }
 console.log('  ✓ 脚本初始化 OK\n');
 
+const getStage = (cid) => global.__stageOf && global.__stageOf(cid);
 const scopeToGsea = () => {
   try {
     click({ 'data-setscope': 'gsea' });
@@ -206,9 +207,11 @@ Object.keys(ACCESS).forEach((rid) => {
     .filter((n) => ACCESS[rid].includes(n.dataset.nav))
     .forEach((n) => run(`${rid} → ${n.dataset.nav}`, () => n.onclick()));
 });
-switchTo('bd');
+// 串台防线要覆盖全部 4 个项目 → 必须用 scope 含全部项目的角色。
+// 用 BD 跑的话 sky 会撞「不在你的负责范围」拦截页，那 6 条断言就变成空转的假绿。
+switchTo('lead');
 
-console.log('\n— 四个项目 × 六环节（P0-1 串台防线）—');
+console.log('\n— 四个项目 × 六环节（P0-1 串台防线 · 以 lead 全 scope 跑）—');
 ['gsea', 'hsr', 'zzz', 'sky'].forEach((cid) => {
   for (let st = 1; st <= 6; st++)
     run(`${cid} 环节 0${st}`, () =>
@@ -216,7 +219,7 @@ console.log('\n— 四个项目 × 六环节（P0-1 串台防线）—');
     );
 });
 
-console.log('\n— 环节页 × 各项目作用域（空态防线）—');
+console.log('\n— 环节页 × 各项目作用域（空态防线 · lead 全 scope）—');
 ['match', 'reach', 'delivery'].forEach((mod) => {
   ['gsea', 'hsr', 'zzz', 'sky'].forEach((cid) => {
     run(`${mod} @ ${cid}`, () => {
@@ -227,6 +230,7 @@ console.log('\n— 环节页 × 各项目作用域（空态防线）—');
 });
 
 console.log('\n— 关键动作 —');
+switchTo('bd');
 click({ 'data-setscope': 'gsea' });
 navs.find((n) => n.dataset.nav === 'match').onclick();
 run('选组合方案 a', () => click({ 'data-plan': 'a' }));
@@ -303,9 +307,15 @@ switchTo('finance');
 canvas._html = '';
 click({ 'data-camp': 'gsea', 'data-stage-jump': '4' });
 if (canvas._html.includes('data-gate="payout"'))
-  fails.push('GAP-003 回归：gsea 停在 04（交付未开始）却出现放款按钮');
-else if (!canvas._html.includes('条件未满足'))
-  fails.push('GAP-003：应显示「条件未满足」并说明原因');
+  fails.push('GAP-003 回归：04 是托管环节，不该出现放款按钮');
+else if (!canvas._html.includes('交付审核后放款'))
+  fails.push('GAP-003：04 托管面板应指明放款发生在 05');
+canvas._html = '';
+click({ 'data-camp': 'gsea', 'data-stage-jump': '5' });
+if (canvas._html.includes('data-gate="payout"'))
+  fails.push('GAP-003 回归：gsea 交付未开始却出现放款按钮');
+else if (!canvas._html.includes('尚未开始'))
+  fails.push('GAP-003：交付未抵达应走空态并说明当前进度');
 else
   console.log('  ✓ 财务在 gsea/04 看到「条件未满足」（交付未开始 → 不可放款）');
 switchTo('bd');
@@ -409,11 +419,84 @@ biz('GAP-005 默认 BD 可走首屏「建项目」（不被预算关键词误拦
 });
 
 // GAP-005 ② BD 不该看到全部项目 / 总预算 / 跨项目 ROI（对象级 + 字段级权限）
-biz('GAP-005 BD 看不到不负责的项目', () => {
+/* RE-GAP-002 的正面断言：复审探针发现「Lead 直接选方案 → Reach 草稿 0 封」，
+   即组合 owner 的核心路径整条不可用，只有「BD 超阈值 → Lead 批」这条偶然可走。 */
+biz('RE-GAP-002 Lead（组合 owner）直接拍板 → 组合立即生效，Reach 起草', () => {
+  if (global.__resetForTest) global.__resetForTest();
+  switchTo('lead');
+  scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'match').onclick();
+  click({ 'data-plan': 'a' });                   // Lead 无需审批
+  if (!/已选/.test(canvas._html)) return 'Lead 选完方案没有标记「已选」';
+  navs.find((n) => n.dataset.nav === 'reach').onclick();
+  if (/组合待批准|尚未生效/.test(canvas._html))
+    return 'Lead 是组合 owner，自己拍板却被挡在「待批准」—— 没有人能批准 owner 自己';
+  const n = (canvas._html.match(/<h4>致 /g) || []).length;
+  if (!n) return 'Lead 直接选定组合后 Reach 起草 0 封 —— 组合没生效';
+  if (n !== 14) return `草稿 ${n} 封，与方案 a 的 14 位不符`;
+  return true;
+});
+
+biz('RE-GAP-002 BD 选阈值内组合（$7,400 < $8,000）→ 直接生效，不走审批', () => {
+  if (global.__resetForTest) global.__resetForTest();
   switchTo('bd');
+  scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'match').onclick();
+  click({ 'data-plan': 'c' });                   // $7,400，额度内
+  navs.find((n) => n.dataset.nav === 'reach').onclick();
+  if (/组合待批准/.test(canvas._html))
+    return '$7,400 在 BD 的 $8,000 额度内却仍要审批 —— 那阈值就没有意义';
+  const n = (canvas._html.match(/<h4>致 /g) || []).length;
+  if (!n) return '阈值内直接生效失败，Reach 起草 0 封';
+  switchTo('lead'); navs[0].onclick();
+  if (/组合方案/.test(canvas._html)) return '$7,400 不该出现在 Lead 待批队列';
+  return true;
+});
+
+biz('RE-GAP-002 BD 超阈值组合（$9,800 > $8,000）→ 必须审批，未批不生效', () => {
+  if (global.__resetForTest) global.__resetForTest();
+  switchTo('bd');
+  scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'match').onclick();
+  click({ 'data-plan': 'a' });                   // $9,800，超额
+  navs.find((n) => n.dataset.nav === 'reach').onclick();
+  if (!/组合待批准|尚未生效/.test(canvas._html))
+    return '$9,800 超出 BD 额度却直接生效了 —— 阈值未执行';
+  if ((canvas._html.match(/<h4>致 /g) || []).length)
+    return '待批组合已被 Reach 消费起草';
+  return true;
+});
+
+biz('GAP-005 作用域切换同样受对象级守卫（最隐蔽的一个入口）', () => {
+  if (global.__resetForTest) global.__resetForTest();
+  switchTo('bd');
+  scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'delivery').onclick();
+  const before = canvas._html;
+  if (!/原神|东南亚/.test(before)) return '起点不是 gsea，测不出切换';
+  click({ 'data-setscope': 'sky' });            // 伪造：切到不在 scope 的项目
+  navs.find((n) => n.dataset.nav === 'delivery').onclick();
+  if (/星穹|老带新/.test(canvas._html))
+    return 'BD 可用 data-setscope 把作用域切到不负责的项目 → 环节页读到了它的数据';
+  return true;
+});
+
+biz('GAP-005 对象级权限在【所有入口】生效（驾驶舱/scopeBar/详情直达）', () => {
+  if (global.__resetForTest) global.__resetForTest();
+  switchTo('bd');
+  navs[0].onclick();
+  if (/星穹|老带新/.test(canvas._html)) return '驾驶舱出现了不在 BD scope 的项目（星穹）';
   navs.find((n) => n.dataset.nav === 'campaigns').onclick();
-  if (/崩铁|日韩回流/.test(canvas._html))
-    return 'BD 看到了不负责的项目（崩铁·日韩回流）';
+  if (/星穹|老带新/.test(canvas._html)) return '项目列表出现了不在 scope 的项目';
+  scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'match').onclick();
+  if (/data-setscope="sky"/.test(canvas._html)) return 'scopeBar 列出了不在 scope 的项目';
+  canvas._html = '';
+  click({ 'data-camp': 'sky', 'data-stage-jump': '6' });   // 伪造直达
+  if (!/不在你的负责范围/.test(canvas._html))
+    return 'BD 可伪造 data-camp 直达不在 scope 的项目详情（对象级守卫缺失）';
+  if (/复盘|关系资产|采纳结论/.test(canvas._html))
+    return '拦截页仍然渲染了该项目的业务内容（守卫只是盖了层壳）';
   return true;
 });
 biz('GAP-005 BD 看不到总预算与平均 ROI（字段遮罩）', () => {
@@ -482,10 +565,24 @@ biz('GAP-004 报价 > $2,000 转审批（THRESHOLD.quote 已执行）', () => {
 });
 
 // GAP-004 ③ 批量发信阈值
-biz('GAP-004 批量发信 > 10 人转审批（THRESHOLD.bulkSend 已执行）', () => {
-  const src = require('fs').readFileSync(P, 'utf8');
-  if (!/THRESHOLD\.bulkSend/.test(src))
-    return 'THRESHOLD.bulkSend 定义了但从未被使用';
+biz('GAP-004 批量发信 > 10 人转审批（真行为：提交→待批→批准→逐封生效）', () => {
+  if (global.__resetForTest) global.__resetForTest();
+  switchTo('bd'); scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'match').onclick();
+  click({ 'data-plan': 'a' });                       // 14 人，超额度 → 转审批
+  switchTo('lead'); navs[0].onclick();
+  (canvas._html.match(/data-approve="(AP-\d+)"/g) || [])
+    .map((x) => x.match(/AP-\d+/)[0]).forEach((id) => click({ 'data-approve': id }));
+  switchTo('bd'); scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'reach').onclick();
+  const pend = (canvas._html.match(/<h4>致 /g) || []).length;
+  if (pend <= 10) return `草稿只有 ${pend} 封，测不到 >10 的批量阈值`;
+  click({ 'data-bulk': 'gsea' });                    // 应转审批，不直接发
+  navs.find((n) => n.dataset.nav === 'reach').onclick();
+  if (/已发送|已送达/.test(canvas._html))
+    return `${pend} 封 > 阈值 10，却直接发出了（阈值未执行）`;
+  switchTo('lead'); navs[0].onclick();
+  if (!/批量发送/.test(canvas._html)) return '批量发送没有进 Lead 的待批队列';
   return true;
 });
 
@@ -526,12 +623,22 @@ biz('GAP-002 披露 #ad 未通过不得完成交付', () => {
 });
 
 // GAP-007 Match → Reach 数量一致
-biz('GAP-007 邮件草稿数 = 组合人数（非固定 3 封）', () => {
-  switchTo('bd');
-  scopeToGsea();
+biz('GAP-007 草稿 = 唯一创作者（非复制同一批凑数）', () => {
+  if (global.__resetForTest) global.__resetForTest();
+  switchTo('bd'); scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'match').onclick();
+  click({ 'data-plan': 'a' });
+  switchTo('lead'); navs[0].onclick();
+  (canvas._html.match(/data-approve="(AP-\d+)"/g) || [])
+    .map((x) => x.match(/AP-\d+/)[0]).forEach((id) => click({ 'data-approve': id }));
+  switchTo('bd'); scopeToGsea();
   navs.find((n) => n.dataset.nav === 'reach').onclick();
-  const drafts = (canvas._html.match(/致 /g) || []).length;
-  if (drafts === 3) return `邮件草稿固定 3 封，与组合人数（14）不一致`;
+  const names = (canvas._html.match(/<h4>致 ([^<]+)<\/h4>/g) || [])
+    .map((x) => x.replace(/<[^>]+>|致 /g, '').trim());
+  if (!names.length) return 'Reach 没有草稿';
+  const dup = names.filter((x, i) => names.indexOf(x) !== i);
+  if (dup.length) return `草稿含重复创作者（复制凑数）：${[...new Set(dup)].slice(0,3).join('、')}`;
+  if (names.some((x) => /\(\d\)/.test(x))) return `创作者名带 (2)(3) 后缀 —— 是复制出来的假人`;
   return true;
 });
 
@@ -580,16 +687,50 @@ biz('GAP-006 Brief 字段修正后画布标注「人工修正」+ 显示 diff', 
 });
 
 // GAP-008 信号驱动 CRM：发送 → 送达/退信 → 回复 → CRM 自动推进
-biz('GAP-008 存在信号驱动的 CRM 状态机（非预置静态数组）', () => {
-  const src = require('fs').readFileSync(P, 'utf8');
-  if (!/CRM_STAGE|crmStage|advanceCrm/.test(src))
-    return '没有从信号推导 CRM 状态的状态机';
+biz('GAP-008 CRM 由信号推进（真行为：发一封 → 状态从未触达变化）', () => {
+  if (global.__resetForTest) global.__resetForTest();
+  switchTo('bd'); scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'match').onclick();
+  click({ 'data-plan': 'a' });
+  switchTo('lead'); navs[0].onclick();
+  (canvas._html.match(/data-approve="(AP-\d+)"/g) || [])
+    .map((x) => x.match(/AP-\d+/)[0]).forEach((id) => click({ 'data-approve': id }));
+  switchTo('bd'); scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'reach').onclick();
+  const before = canvas._html;
+  if (!/未触达/.test(before)) return 'CRM 面板初始不是「未触达」';
+  click({ 'data-send-one': 'gsea|0' });
+  const ok = els['#modal-ok']; if (ok && ok.onclick) ok.onclick();
+  navs.find((n) => n.dataset.nav === 'reach').onclick();
+  if (!/已触达|已送达|已读|洽谈中/.test(canvas._html))
+    return '发送后 CRM 状态没有被信号推进';
+  if (!/信号自动推导/.test(canvas._html)) return 'CRM 未标注推导方式';
   return true;
 });
-biz('GAP-008 回复信号自动推进 CRM 并触发下一步建议', () => {
-  const src = require('fs').readFileSync(P, 'utf8');
-  if (!/onSignal|signalIn|applySignal/.test(src))
-    return '没有信号入口（送达/打开/回复/退信）';
+
+biz('GAP-008 批量发送（经审批）也走 signal 入口（与单封一致）', () => {
+  if (global.__resetForTest) global.__resetForTest();
+  switchTo('bd'); scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'match').onclick();
+  click({ 'data-plan': 'a' });                        // $9,800 > $8,000 → 转审批
+  switchTo('lead'); navs[0].onclick();
+  (canvas._html.match(/data-approve="(AP-\d+)"/g) || [])
+    .map((x) => x.match(/AP-\d+/)[0]).forEach((id) => click({ 'data-approve': id }));
+  switchTo('bd'); scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'reach').onclick();
+  const n0 = (canvas._html.match(/未触达/g) || []).length;
+  if (!n0) return 'CRM 面板初始没有「未触达」，测不出推进';
+  click({ 'data-bulk': 'gsea' });                     // 14 封 > 10 → 再次转审批
+  switchTo('lead'); navs[0].onclick();
+  const bulk = (canvas._html.match(/data-approve="(AP-\d+)"/g) || [])
+    .map((x) => x.match(/AP-\d+/)[0]);
+  if (!bulk.length) return '批量发送没有进 Lead 待批队列';
+  bulk.forEach((id) => click({ 'data-approve': id })); // 批准 → 真发出
+  switchTo('bd'); scopeToGsea();
+  navs.find((n) => n.dataset.nav === 'reach').onclick();
+  const n1 = (canvas._html.match(/未触达/g) || []).length;
+  if (n1 >= n0) return `批准批量发送后仍有 ${n1}/${n0} 个「未触达」→ 批量绕过了 signal 入口`;
+  if (!/信号自动推导/.test(canvas._html)) return '批量推进的 CRM 未标注推导方式';
   return true;
 });
 
@@ -613,13 +754,24 @@ biz('GAP-009 对外分享有人类闸门 + 可撤销', () => {
 });
 
 // 黄金路径端到端：交付检查 → 放款条件满足
-biz('黄金路径 交付审核通过后财务才可放款（端到端）', () => {
+biz('黄金路径 交付合规 → finance 真的放款成功（端到端）', () => {
+  if (global.__resetForTest) global.__resetForTest();
+  // 用 HSR（停在 05 交付、#ad 已通过）走完整资金路径
   switchTo('bd');
-  scopeToGsea();
-  const c = JSON.parse('{}'); // 仅占位
-  // 推进 gsea 到 05 需先满足 04 退出条件（条款全确认）——这正是 exitCriteria 的作用
-  const src = require('fs').readFileSync(P, 'utf8');
-  if (!/payoutReady/.test(src)) return '放款没有前置条件函数';
+  click({ 'data-setscope': 'hsr' });
+  navs.find((n) => n.dataset.nav === 'delivery').onclick();
+  if (!/data-mark-pub/.test(canvas._html)) return 'BD 在 HSR 交付环节拿不到「标记终稿可发布」（scope 或权限问题）';
+  click({ 'data-mark-pub': 'hsr' });                 // 交付审核通过
+  switchTo('finance');
+  canvas._html = '';
+  click({ 'data-camp': 'hsr', 'data-stage-jump': '5' });
+  if (!/data-gate="payout"/.test(canvas._html))
+    return '交付已标记可发布、#ad 已过，finance 仍拿不到放款按钮 —— 资金路径不可执行';
+  click({ 'data-gate': 'payout', 'data-cid': 'hsr', 'data-kol': 'ミコGAMING', 'data-amt': '$2,600' });
+  const ok = els['#modal-ok']; if (ok && ok.onclick) ok.onclick();
+  canvas._html = '';
+  click({ 'data-camp': 'hsr', 'data-stage-jump': '5' });
+  if (!/已放款/.test(canvas._html)) return '点了放款但状态没有变成「已放款」';
   return true;
 });
 
@@ -697,12 +849,84 @@ console.log('\n— 端到端黄金路径（一次走完）—');
     return true;
   });
 
-  step('⑦ 交付未开始 → 财务放款条件不满足', () => {
+  step('⑦ 交付未开始 → 04/05 均无放款入口，且都说明了为什么', () => {
     switchTo('finance');
     canvas._html = '';
+    click({ 'data-camp': 'gsea', 'data-stage-jump': '5' });   // 未抵达 → 空态
+    if (/data-gate="payout"/.test(canvas._html)) return 'gsea 交付未开始却可放款';
+    if (!/尚未开始/.test(canvas._html)) return '05 未抵达却没说明当前进度';
+    canvas._html = '';
+    click({ 'data-camp': 'gsea', 'data-stage-jump': '4' });   // 04 = 合同托管
+    if (/data-gate="payout"/.test(canvas._html)) return '04 是托管环节，不该出现放款按钮';
+    if (!/交付审核后放款/.test(canvas._html)) return '04 托管面板没指明放款发生在 05';
+    return true;
+  });
+
+  /* ↓↓↓ 复审 §9-2 要求：一次真正走完 —— 不能停在「阻断」上就宣称打通 ↓↓↓ */
+  step('⑦b BD 确认两笔条款 → 均 > $2,000 → 转 Lead 审批', () => {
+    switchTo('bd'); scopeToGsea();
+    navs.find((n) => n.dataset.nav === 'reach').onclick();
+    const ris = [...canvas._html.matchAll(/data-gate="terms" data-ri="(\d+)"/g)].map((m) => +m[1]);
+    if (!ris.length) return 'BD 拿不到条款确认入口';
+    ris.forEach((ri) => {
+      click({ 'data-gate': 'terms', 'data-ri': String(ri), 'data-cid': 'gsea' });
+      const ok = els['#modal-ok']; if (ok && ok.onclick) ok.onclick();
+    });
+    switchTo('lead'); navs[0].onclick();
+    if (!/报价|条款/.test(canvas._html)) return '报价没有进 Lead 待批队列';
+    return true;
+  });
+
+  step('⑦c Lead 批准报价 → 04 出口条件满足 → BD 推进到 05 交付', () => {
+    (canvas._html.match(/data-approve="(AP-\d+)"/g) || [])
+      .map((x) => x.match(/AP-\d+/)[0]).forEach((id) => click({ 'data-approve': id }));
+    switchTo('bd');
+    canvas._html = '';
     click({ 'data-camp': 'gsea', 'data-stage-jump': '4' });
-    if (/data-gate="payout"/.test(canvas._html)) return 'gsea 停在 04 却可放款';
-    if (!/条件未满足/.test(canvas._html)) return '未说明放款条件为何不满足';
+    if (!/data-advance/.test(canvas._html)) return 'BD（04 owner）拿不到推进按钮';
+    click({ 'data-advance': '1' });
+    const ok = els['#modal-ok']; if (ok && ok.onclick) ok.onclick();
+    if (getStage('gsea') !== 5) return `推进失败，gsea 仍在环节 ${getStage('gsea')}`;
+    return true;
+  });
+
+  step('⑦d #ad 披露未过 → 放款仍被挡（合规是硬前置）', () => {
+    switchTo('finance');
+    canvas._html = '';
+    click({ 'data-camp': 'gsea', 'data-stage-jump': '5' });
+    if (/data-gate="payout"/.test(canvas._html)) return '#ad 未过却已放行放款';
+    if (!/披露/.test(canvas._html)) return '没说明是披露合规卡住了';
+    return true;
+  });
+
+  step('⑦e BD 复核 #ad 通过 + 标记终稿可发布', () => {
+    switchTo('bd');
+    canvas._html = '';
+    click({ 'data-camp': 'gsea', 'data-stage-jump': '5' });
+    const m = canvas._html.match(/data-check-ok="(gsea\|\d+)"/);
+    if (!m) return 'BD 拿不到「复核通过」入口 —— #ad 仍是没有动作能改的死状态';
+    click({ 'data-check-ok': m[1] });
+    canvas._html = '';
+    click({ 'data-camp': 'gsea', 'data-stage-jump': '5' });
+    if (!/data-mark-pub/.test(canvas._html)) return 'BD 拿不到「标记终稿可发布」';
+    click({ 'data-mark-pub': 'gsea' });
+    const ok = els['#modal-ok']; if (ok && ok.onclick) ok.onclick();
+    return true;
+  });
+
+  step('⑦f finance 真的放款成功（资金路径全程走通）', () => {
+    switchTo('finance');
+    canvas._html = '';
+    click({ 'data-camp': 'gsea', 'data-stage-jump': '5' });
+    if (!/data-gate="payout"/.test(canvas._html))
+      return '交付合规已过，finance 仍拿不到放款按钮 —— 资金路径不可执行';
+    const m = canvas._html.match(/data-gate="payout" data-cid="gsea" data-kol="([^"]+)" data-amt="([^"]+)"/);
+    if (!m) return '放款按钮没有绑定具体创作者与金额';
+    click({ 'data-gate': 'payout', 'data-cid': 'gsea', 'data-kol': m[1], 'data-amt': m[2] });
+    const ok = els['#modal-ok']; if (ok && ok.onclick) ok.onclick();
+    canvas._html = '';
+    click({ 'data-camp': 'gsea', 'data-stage-jump': '5' });
+    if (!/已放款/.test(canvas._html)) return '点了放款但状态没有变成「已放款」';
     return true;
   });
 

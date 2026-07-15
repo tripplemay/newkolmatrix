@@ -1018,7 +1018,7 @@
     },
     bd:{
       modules:["dashboard","games","campaigns","brief","match","reach","delivery"],
-      scope:()=>["gsea","zzz","new"],                       /* 对象级：只负责东南亚/全球项目 */
+      scope:()=>["gsea","hsr","zzz","new"],                 /* 对象级：负责东南亚/日韩/全球；星穹(sky)已结项交接给营销负责人复盘 */
       fields:["budget"],                                     /* 字段级：见项目预算，不见总预算/跨项目 ROI */
       actions:["send","keys","mark-pub","submit-quote","submit-plan","advance-bd"]
     },
@@ -1110,7 +1110,7 @@
   function rosterOf(cid){
     const S=D(cid)||{};
     if(!S.pool) return (S.deliv?S.deliv.rows.map(r=>({nm:r.kol})):[]);
-    const p=(S.plans||[]).find(x=>x.id===selectedPlan);
+    const p=(S.plans||[]).find(x=>x.id===effectivePlan(cid));
     const manual=S.pool.filter(k=>accepted.has(k.id));
     if(!p) return manual;
     /* 组合 = 自动纳入(auto 位) ∪ 人工确认的例外 */
@@ -1161,6 +1161,14 @@
   const crmTone=s=>({"已签约":"good","洽谈中":"brand","条款确认中":"warn","已流失":"bad","未触达":"ghost"})[s]||"ghost";
 
   const DRAFTS={};                     /* {cid: [{kol, subj, body, why, status, err}]} */
+  /* RE-GAP-005 修复：组合的「auto 位」= 库内高置信、自动纳入的【真实创作者】。
+     原实现拿池内 6 人做 rest[i%6]+" (2)" 复制到 14 位 —— 假人。
+     「1 次决策覆盖 14 位」若其中 8 位是复制品，这句话就是空话。 */
+  const AUTO_ROSTER={
+    gsea:["Rina Cosplay","JakartaGacha","Kiko แกลม","Bùi Mai Anh","PinoyPrimo","SiamRPG","Dara Plays","Zahra Otaku"],
+    hsr:["さくらRPG","MinjunGame","KyotoPlay","한별Stream"],
+    zzz:[], sky:[], "new":[]
+  };
   const MAIL_STATUS={draft:"草稿",queued:"发送中",sent:"已发送",delivered:"已送达",
     opened:"已打开",replied:"已回复",bounced:"退信",failed:"发送失败"};
   function rosterNames(cid){
@@ -1168,21 +1176,28 @@
     if(!S.pool) return [];
     if(!eff) return [];
     const p=(S.plans||[]).find(x=>x.id===eff); if(!p) return [];
-    /* 组合 = auto 位自动纳入 + 人工确认的例外。用池子里的人凑够 p.n 位 */
+    /* 组合 = auto 位（库内自动纳入的真人）∪ 例外位（人工判断的候选池）*/
+    const auto=(AUTO_ROSTER[cid]||[]).slice(0,p.auto);
     const manual=S.pool.filter(k=>accepted.has(k.id)).map(k=>k.nm);
     const rest=S.pool.filter(k=>!accepted.has(k.id)&&!skipped.has(k.id)).map(k=>k.nm);
-    const extra=[];
-    for(let i=0;extra.length+manual.length<p.n;i++) extra.push(rest[i%Math.max(1,rest.length)]+(i>=rest.length?` (${Math.floor(i/rest.length)+1})`:""));
-    return manual.concat(extra).slice(0,p.n);
+    const review=manual.concat(rest).slice(0,p.review);
+    /* 剔除了人 → 组合就是会变小。宁可少，不造假人补齐。 */
+    return auto.concat(review).filter((x,i,a)=>a.indexOf(x)===i);
   }
   function draftsFor(cid){
     if(DRAFTS[cid]) return DRAFTS[cid];
     const names=rosterNames(cid); if(!names.length) return [];
-    const S=D(cid)||{}; const tpl=S.emails||[];
-    DRAFTS[cid]=names.map((nm,i)=>{
-      const t=tpl[i%Math.max(1,tpl.length)]||tpl[0];
-      return {kol:nm, subj:(t?t.subj:"合作邀约").replace(/致 .*/,""), body:t?t.body:"", why:t?t.why:"",
-        status:"draft", err:null};
+    const S=D(cid)||{}, tpl=S.emails||[], prod=(getCamp(cid)||{}).product||"本项目";
+    /* RE-GAP-004 修复：原实现 tpl[i%3] 把「Hi Ayu，追你的枫丹篇」发给了 14 个不同的人。
+       个性化是这个产品的立身之本，模板轮播是对它的反证。
+       人工确认位 → 有逐人细读的深度草案；自动纳入位 → 如实标注个性化较浅、建议抽查。 */
+    DRAFTS[cid]=names.map(nm=>{
+      const t=tpl.find(x=>x.to===nm);
+      if(t) return {kol:nm, subj:t.subj, body:t.body, why:t.why, status:"draft", err:null, depth:"deep"};
+      return {kol:nm, subj:`《${prod}》合作邀约 —— 为你的观众定制`,
+        body:`Hi ${nm},\n\n我们正为《${prod}》寻找像你这样了解本地观众的创作者。想聊聊一个 4-6 周的合作：定制内容 + 限定兑换码给你的粉丝。预算好谈，档期你定。\n\n方便这周聊聊吗？`,
+        why:`<b>自动纳入位</b> —— 按内容标签与地区生成，<b>个性化深度低于人工确认位</b>（没有引用其具体作品）。建议发送前抽查一部分。`,
+        status:"draft", err:null, depth:"auto"};
     });
     return DRAFTS[cid];
   }
@@ -1352,7 +1367,15 @@
      组合内的人 = p.auto（自动纳入，不进此 Set）∪ 这里人工确认的例外 */
   const accepted=new Set(), skipped=new Set();
   let emailsSent=false, activeModule="dashboard", currentCampaignId=null, viewStage=null;
-  let libKey="now", selectedPlan=null, pendingPlan=null, auditOpen=false;
+  let libKey="now", pendingPlan=null, auditOpen=false;
+  /* RE-GAP-002 修复：组合「生效」是按项目的业务态，不是一个全局 selectedPlan。
+     原实现 effectivePlan() 只认 approved 审批单 → 营销负责人（组合 owner）直接拍板
+     后组合永不生效，Reach 起草 0 封 —— owner 的核心路径整条不可用。
+     现在：direct（阈值内/owner 拍板，立即生效）与 approved（超阈值经审批生效）都写这里。 */
+  const ACTIVE_PLAN={};   /* {cid:{id, via:"direct"|"approved", by}} */
+  const setActivePlan=(cid,id,via)=>{ACTIVE_PLAN[cid]={id,via,by:roleId};
+    delete DRAFTS[cid];        /* 组合变了，草稿必须按新 roster 重派生 */
+    if(pendingPlan===id)pendingPlan=null;};
   let roleId="bd";                        /* 当前角色（BD 是主力岗，默认）*/
   let orgOpen=false, currentGameId=null;  /* 组织级默认折叠（决策③）；游戏详情 */
   let scopeId="gsea", backTo=null;        /* IA 方案 C：环节页作用域 + 返回项目的面包屑 */
@@ -1438,10 +1461,8 @@
   const isPendingApproval=(kind,id,cid)=>APPROVALS.some(a=>a.status==="pending"&&a.target&&
     a.target.kind===kind&&a.target.id===id&&a.cid===cid);
   /* 项目当前【已生效】的组合（未批 = 不生效） */
-  const effectivePlan=cid=>{
-    const a=APPROVALS.find(x=>x.status==="approved"&&x.target&&x.target.kind==="plan"&&x.cid===cid);
-    return a?a.target.id:null;
-  };
+  const effectivePlan=cid=>(ACTIVE_PLAN[cid]||{}).id||null;
+  const planVia=cid=>(ACTIVE_PLAN[cid]||{}).via||null;
 
   function approveIt(id){
     const a=APPROVALS.find(x=>x.id===id); if(!a) return;
@@ -1524,7 +1545,8 @@
       s:`覆盖度 ${KB.coverage}% · 匹配精度被压在 ${KB.matchCeil}% · 卡住 Brief 阶段门`,btn:"去补",goto:"brief"});
     if(!OVERRULED.size) queue.push({ic:IC.shield,tone:"bad",t:"GachaQueen 可信度仅 58 —— 建议剔除",
       s:"检出 2 次异常粉丝尖峰 · 受众与项目冲突",btn:"看评估",say:"评估一下候选的可信度"});
-    CAMPAIGNS.forEach(c=>{
+    /* RE-GAP-001：驾驶舱同样是对象级入口 —— 只能出现自己 scope 内的项目 */
+    visibleCampaigns().forEach(c=>{
       const S=D(c.id)||{};
       if(S.settle&&!S.settle.paid){const r=S.settle.rows.find(x=>x.ready);
         if(r) queue.push({ic:IC.coin,tone:"good",t:`${r.kol} ${r.amount} 待放款`,
@@ -1539,7 +1561,7 @@
       if(c.stage===2&&S.pool&&!S.plans) queue.push({ic:IC.star,tone:"brand",t:`「${c.nm}」候选池待确认`,
         s:"全球发现环节 · 等待团队缩小范围",btn:"去确认",camp:c.id,stage:2});
     });
-    if(D("gsea","replies")&&D("gsea","replies").some(r=>!r.done))
+    if(inScope("gsea")&&D("gsea","replies")&&D("gsea","replies").some(r=>!r.done))
       queue.push({ic:IC.mail,tone:"good",t:`${D("gsea","replies").filter(r=>!r.done).length} 位创作者回复待跟进`,
         s:"原神 · 东南亚 Q2 · 含报价需条款确认",btn:"去跟进",goto:"reach",scope:"gsea"});
     const doneCount=DONE_TODAY.size;
@@ -1571,7 +1593,8 @@
       <button class="qbtn" ${q.say?`data-say="${q.say}"`
         :(q.goto?`data-goto="${q.goto}"${q.scope?` data-scope="${q.scope}"`:""}`
         :`data-camp="${q.camp}"${q.stage?` data-stage-jump="${q.stage}"`:""}`)}>${q.btn} →</button></div>`).join("");
-    const campHtml=CAMPAIGNS.map(c=>`<div class="camp-item">
+    const myCamps=visibleCampaigns();
+    const campHtml=myCamps.map(c=>`<div class="camp-item">
       <div class="ci-main"><div class="ci-nm">${c.nm}</div><div class="ci-meta">环节 ${STAGES[c.stage-1].n} · ${STAGES[c.stage-1].nm} · ${c.kols}</div></div>
       <span class="pill ${c.tone}">${c.status}</span>
       <div class="ci-prog"><i style="width:${Math.round(c.stage/6*100)}%"></i></div>
@@ -1588,11 +1611,11 @@
         ${queue.length?`当前 <b>${queue.length} 项</b>待你决策`:`<b>待办已清空 ✓</b>`}${doneCount?` · 今日已处理 <b>${doneCount} 项</b>`:""}。</p></div>
       <div class="kpi-row" style="margin-top:18px">
         <div class="kpi"><div class="kic">${IC.star}</div><div><div class="kv tnum">2,481</div><div class="kl">库内 KOL</div></div></div>
-        <div class="kpi"><div class="kic">${IC.camp}</div><div><div class="kv tnum">4</div><div class="kl">进行中项目</div></div></div>
+        <div class="kpi"><div class="kic">${IC.camp}</div><div><div class="kv tnum">${myCamps.length}</div><div class="kl">我负责的项目</div></div></div>
         <div class="kpi"><div class="kic">${IC.mail}</div><div><div class="kv tnum">63%</div><div class="kl">触达回复率</div></div></div>
         <div class="kpi"><div class="kic">${IC.chart}</div><div><div class="kv tnum">3.4x</div><div class="kl">本月最高 ROI</div></div></div></div>
       <div class="ops-grid">
-        <div class="panel"><div class="panel-h">${IC.camp}<h3>项目运转 · 六环节链路</h3><span class="sub">4 个项目</span></div>${campHtml}</div>
+        <div class="panel"><div class="panel-h">${IC.camp}<h3>项目运转 · 六环节链路</h3><span class="sub">${myCamps.length} 个项目 · ${role().label}范围内</span></div>${campHtml}</div>
         <div class="panel"><div class="panel-h">${IC.bolt}<h3>需要你处理</h3><span class="sub">${role().taskDesc}</span></div>
           ${queueHtml||`<div class="arc-item" style="color:var(--good)">${IC.check} 待办已清空</div>`}</div>
       </div>
@@ -1720,10 +1743,14 @@
     if(ad&&!ad[1]) return {ok:false,why:"披露要求 #ad 未通过 —— 合规未过不放款"};
     return {ok:true,why:"内容审核已通过 · 披露合规已过"};
   }
-  function settlePanel(c,isCur){
+  /* RE-GAP-003 修复：原实现把整块结算钉在 04，可放款条件却要 05 交付审核通过才成立 ——
+     用户被迫「回到历史环节找放款按钮」，且实际没有任何一条走得通的资金路径。
+     现在按资金生命周期拆：04 谈定条款 → 签署托管；05 交付审核通过 → 放款。 */
+  function settlePanel(c,isCur,mode){
     const SETTLE=D(c.id,"settle"); if(!SETTLE) return "";
+    const escrow=mode==="escrow";
     return `<div class="draft anim-in" style="margin-top:18px">
-      <div class="draft-h">${IC.doc}<h4>合同与结算</h4>
+      <div class="draft-h">${IC.doc}<h4>${escrow?"合同与资金托管":"放款 · 交付审核通过后"}</h4>
         <span class="partner">${IC.shield.replace('class="ic"','class="ic" style="width:11px;height:11px"')}由 <b>partner</b> 提供 · 电子签 + Stripe 托管</span>
         <span class="pill ${SETTLE.paid?'good':'warn'}" style="margin-left:auto">${SETTLE.paid?'已放款':'托管中 '+SETTLE.escrowTotal}</span></div>
       <div class="deliv" style="padding-top:10px">
@@ -1734,10 +1761,11 @@
           <div><span class="pill ${r.cTone}">${r.contract}</span></div>
           <div><span class="pill ${r.eTone}">${r.escrow}</span></div>
           <div style="text-align:right">${r.paid?`<span class="pill good">已放款 ✓</span>`
+            :(escrow ? `<span class="pill ghost" title="放款按钮在 ${STAGES[4].n} ${STAGES[4].nm} —— 审核通过才谈放款">${STAGES[4].n} 交付审核后放款</span>`
             :(!pr.ok ? `<span class="pill ghost" title="${pr.why}">条件未满足</span>`
               : (ownsGate("payout")
                  ? `<button class="btn primary sm" style="flex:none" data-gate="payout" data-cid="${c.id}" data-kol="${r.kol}" data-amt="${r.amount}">放款</button>`
-                 : `<span class="await">${IC.shield}待${gateOwner("payout").label}放款</span>`))}</div></div>`;}).join("")}
+                 : `<span class="await">${IC.shield}待${gateOwner("payout").label}放款</span>`)))}</div></div>`;}).join("")}
       </div>
       <div class="risk-list"><div class="risk">${IC.shield}<span><b>边界说明：</b>合同签署与资金托管/结算由 partner（电子签 + Stripe Connect escrow）承担，KOLMatrix 不碰资金与税务 —— 我们只负责触发条件（内容审核通过）与人类闸门。</span></div></div>
       <div class="draft-foot"><span class="hint">${IC.bulb}流程：条款确认 → 合同签署 → 资金托管 → 内容审核通过 → <b>人工确认放款</b></span><div class="spacer"></div></div></div>`;
@@ -1826,7 +1854,7 @@
         <span class="pill good">3 已发送</span><span class="pill brand">3 已回复</span><span class="pill warn">1 待条款确认</span><span class="pill ghost">负责人：你 ×2 · Sarah ×1</span></div>
       ${readyBlock("协作路径已建立","项目成员可以看到每位创作者的当前状态与负责人。",[["回复重点已归纳",1],["负责人已标记",1],["下一动作清晰可见",1]],!isPast)}
       <div class="draft-foot"><button class="btn line sm" data-goto="reach" data-scope="${c.id}" data-from="${c.id}:4">去回复工作区处理 →</button><div class="spacer"></div>${adv("查看内容交付 →")}</div></div>
-      ${settlePanel(c,isCur)}`;
+      ${settlePanel(c,isCur,"escrow")}`;
     if(n===5){
       const DL=S.deliv;
       const rows=DL.rows.map(r=>{
@@ -1840,10 +1868,12 @@
       <div class="draft-h">${IC.eye}<h4>内容交付 · 版本与发布管理</h4><span class="pill ${isPast?'good':(isCur?'brand':'ghost')}">${isPast?'已完成':(isCur?'当前环节':'未开始')}</span>${ownerTag}</div>
       <div class="deliv">${rows}</div>
       <div style="padding:2px 20px 6px;display:flex;gap:7px 16px;flex-wrap:wrap">
-        ${DL.checks.map(x=>`<span class="chk ${x[1]?'':'warn'}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-2)">${x[1]?IC.check:IC.warn}审核项 · ${x[0]}</span>`).join("")}</div>
+        ${DL.checks.map((x,ci)=>`<span class="chk ${x[1]?'':'warn'}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-2)">${x[1]?IC.check:IC.warn}审核项 · ${x[0]}
+          ${!x[1]&&isCur?act("mark-pub",`<button class="btn line sm" style="flex:none;padding:3px 10px;font-size:11px" data-check-ok="${c.id}|${ci}">复核通过</button>`):""}</span>`).join("")}</div>
       <div class="risk-list"><div class="risk">${IC.warn}<span><b>风险项：</b>${DL.risk}</span></div></div>
       ${readyBlock("交付节点可跟踪","团队能清楚看到待审核内容、修改意见与发布日期。",[["版本历史已保留",1],["风险项已标记",1],["发布时间可协调",1],["披露要求 #ad",adOk]],!isPast)}
-      <div class="draft-foot"><button class="btn line sm" data-goto="delivery" data-scope="${c.id}" data-from="${c.id}:5">在交付工作台打开 →</button><div class="spacer"></div>${adv("进入效果复盘 →")}</div></div>`;
+      <div class="draft-foot"><button class="btn line sm" data-goto="delivery" data-scope="${c.id}" data-from="${c.id}:5">在交付工作台打开 →</button><div class="spacer"></div>${adv("进入效果复盘 →")}</div></div>
+      ${settlePanel(c,isCur,"payout")}`;
     }
     const RETRO=S.retro;
     return note+`<div class="draft anim-in">
@@ -1861,6 +1891,19 @@
                    :`<span class="await">${IC.shield}待${stageOwner(6).label}采纳</span>`):"")}</div></div>`;
   }
   function renderCampaignDetail(id,stage){
+    /* RE-GAP-001：对象级守卫必须在【渲染入口】，不能只在列表页过滤 ——
+       否则任何 data-camp 跳转（驾驶舱待办、返回锚点、伪造点击）都能绕过。
+       这是 D10「权限守卫装在路由层」在对象级的同一课。 */
+    if(!inScope(id)){
+      currentCampaignId=null;
+      canvas.innerHTML=`<div class="empty" style="margin-top:40px">
+        <div class="halo" style="background:var(--bad-bg);color:var(--bad);box-shadow:none">${IC.shield}</div>
+        <h2>不在你的负责范围</h2>
+        <p>「${(getCamp(id)||{nm:id}).nm}」不在<b>${role().label} ${role().name}</b>的项目范围内。<br>
+          项目范围由角色的 <b>scope</b> 决定 —— 换个角色或找该项目负责人。</p>
+        <div class="starter" style="margin-top:8px"><button data-back>
+          <span class="k" style="background:linear-gradient(135deg,#868CFF,#4318FF)">${IC.camp}</span>回到我的项目列表</button></div></div>`;
+      return;}
     currentCampaignId=id;
     const c=getCamp(id);
     viewStage=stage||c.stage;
@@ -2067,7 +2110,8 @@
   function scopeBar(stageNo){
     const c=getCamp(scopeId);
     const back=backTo?`<button class="btn line sm" style="flex:none" data-backto="${backTo}">← 回到 ${getCamp(backTo.split(":")[0]).nm} · 环节 ${STAGES[+backTo.split(":")[1]-1].n}</button>`:"";
-    const opts=CAMPAIGNS.concat(CAMPAIGN._confirmed?[{id:"new",nm:CAMPAIGN.name,stage:2}]:[])
+    /* RE-GAP-001：作用域条只列自己负责的项目 */
+    const opts=visibleCampaigns().concat(CAMPAIGN._confirmed&&inScope("new")?[{id:"new",nm:CAMPAIGN.name,stage:2}]:[])
       .map(x=>`<button data-setscope="${x.id}" class="${scopeId===x.id?'on':''}" title="${x.nm}">${x.nm.split(" · ")[0]}</button>`).join("");
     return `<div class="scope-bar">${back}
       <span class="sl">${IC.camp}作用域</span>
@@ -2112,7 +2156,7 @@
     const e=EXCL[i], n=Math.round(LIBS[libKey].excluded*e.ratio);
     if(was){toast(`已恢复规则「${e.r}」`);return;}
     undoToast(`已推翻「${e.r}」· ${n} 位放回优选池`,()=>{OVERRULED.delete(i);renderMatch();});
-    const p=(D(scopeId,"plans")||[]).find(x=>x.id===selectedPlan);
+    const p=(D(scopeId,"plans")||[]).find(x=>x.id===effectivePlan(scopeId));
     agentReply(`已推翻规则 <b>「${e.r}」</b> —— <b>${n} 位</b>候选放回优选池，优选池扩到 <b>${effLib().pool}</b> 位。<br>
       ${p?`代价已重算：<b>${p.nm}</b> 平均可信度 ${p.q[libKey].cred} → <b>${effQ(p).cred}</b>、受众重叠 ${p.q[libKey].ov}% → <b>${effQ(p).ov}%</b>。`
         :`选一个方案就能看到指标变化。`}<br><b>这是你的判断，我记下了</b> —— 规则不是我说了算。`,
@@ -2129,12 +2173,12 @@
         <div class="spacer"></div><span class="pill warn">${S.pool.length} 位候选</span></div>
       <div class="risk-list" style="padding:0 0 14px"><div class="risk">${IC.bulb}<span>本项目还在<b>全球发现</b>环节 —— 确认候选池后我才会构建组合方案。组合决策发生在 ${STAGES[2].n} 智能匹配。</span></div></div>
       <div class="kol-grid">${S.pool.map(k=>kolCard(k)).join("")}</div>`);
-    const p=PLANS_.find(x=>x.id===selectedPlan);
+    const p=PLANS_.find(x=>x.id===effectivePlan(scopeId));
     const q=p?effQ(p):null;
     /* P1-12 修复：不玩数字 —— 未选方案时也如实展示「1 次选择 + N 次例外」 */
     const revN=p?p.review:(PLANS_[0]?PLANS_[0].review:0);
     const decisions=1+(p?p.review:revN);
-    const cards=PLANS_.map(x=>{const y=effQ(x),sel=selectedPlan===x.id;
+    const cards=PLANS_.map(x=>{const y=effQ(x),sel=effectivePlan(scopeId)===x.id;
       return `<div class="plan ${sel?'sel':''}" data-plan="${x.id}">
       <div class="plan-top"><div class="plan-nm">${x.nm}</div>${x.tag?`<span class="pill ${x.tone}">${x.tag}</span>`:""}
         ${sel?'<span class="pill brand" style="margin-left:auto">已选</span>':''}</div>
@@ -2274,8 +2318,11 @@
     const replies=REPLIES.map((r,i)=>{
       const k=allKols().find(x=>x.id===r.kid);
       const gate=r.done?`<button class="btn ok sm" style="flex:none">${IC.check} 条款已确认</button>`
-        :(!ownsGate("submit-quote")&&!ownsGate("approve-quote")
-          ? `<span class="await">${IC.shield}条款由${gateOwner("submit-quote").label}提交</span>`
+        :(!ownsGate("submit-quote")
+          /* 审批者 ≠ 发起者：营销负责人持 approve-quote，但对外发报价是 BD 的动作。
+             原守卫写成 (!submit-quote && !approve-quote) → 营销负责人直接拿到「确认报价并回信」，
+             等于自己发起自己批准，责任链短路。 */
+          ? `<span class="await">${IC.shield}条款由${gateOwner("submit-quote").label}提交${ownsGate("approve-quote")?"，超 $"+THRESHOLD.quote.toLocaleString()+" 才到你这批":""}</span>`
           :(r.gate?(()=>{const amt=quoteAmount(r), over=amt>THRESHOLD.quote&&!ownsGate("approve-quote");
             return `${over?`<span class="await" style="margin-right:8px">${IC.shield}$${amt.toLocaleString()} > 阈值 $${THRESHOLD.quote.toLocaleString()}</span>`:""}
             <button class="btn primary sm" style="flex:none" data-gate="terms" data-ri="${i}" data-cid="${scopeId}">${IC.shield} ${over?`提交${gateOwner("approve-quote").label}审批`:r.gate.label}</button>`;})()
@@ -2657,7 +2704,7 @@
         d.status="queued"; renderReach();
         setTimeout(()=>{
           /* 演示真实世界：并非每封都成功。所有状态变更走信号入口（GAP-008）*/
-          if(/GachaQueen|\(2\)/.test(d.kol)){
+          if(/GachaQueen/.test(d.kol)){
             d.status="bounced";d.err="硬退信：邮箱地址无效（来源为爬取推断，未经平台一方验证）→ 已自动加入抑制名单";
             applySignal(scopeId,d.kol,"bounced","邮箱来源=爬取推断");
           } else {
@@ -2702,15 +2749,24 @@
     if(pend.length>THRESHOLD.bulkSend&&!ownsGate("approve-quote")){
       const a=submitApproval("submit-quote",cid,`批量发送邀约：${pend.length} 封`,
         `「${getCamp(cid).nm}」组合内 ${pend.length} 位创作者的个性化邀约。超过批量阈值 ${THRESHOLD.bulkSend} 封。`,
-        `${pend.length} 封`,{kind:"bulkSend",id:cid},()=>{pend.forEach(d=>{d.status="sent";});});
+        `${pend.length} 封`,{kind:"bulkSend",id:cid},()=>{pend.forEach(d=>{
+          d.status="sent"; applySignal(cid,d.kol,"sent","批量发送 · 经审批"); applySignal(cid,d.kol,"delivered","批量发送 · 经审批");});});
       renderReach();
       agentReply(`<b>${pend.length} 封 > 批量阈值 ${THRESHOLD.bulkSend} 封</b> —— 已提交 <b>${gateOwner("approve-quote").label}</b> 审批（单号 ${a.id}）。<br><b>批准前一封都不会发出。</b>`,
         "submit-bulkSend · 阈值已执行 · 待批不发送",null,"comms");
       return;}
     openGate("确认批量发送",`即将通过 Resend 发送 <b>${pend.length} 封</b>邀约。<b>对外、不可撤销。</b><br>预计其中约 1 封因邮箱来源为爬取推断而退信。`,
       `确认发送 ${pend.length} 封`,()=>{
-        pend.forEach(d=>{d.status=/GachaQueen|\(2\)/.test(d.kol)?"bounced":"sent";
-          if(d.status==="bounced")d.err="硬退信：邮箱地址无效（爬取推断来源）→ 已加入抑制名单";});
+        /* RE-GAP-006 修复：批量原本只改 d.status，绕过 applySignal → CRM 全部停在「未触达」。
+           批量和单封必须走同一条信号入口，否则 CRM 状态机只对手工操作成立。 */
+        pend.forEach(d=>{
+          if(/GachaQueen/.test(d.kol)){
+            d.status="bounced"; d.err="硬退信：邮箱地址无效（爬取推断来源）→ 已加入抑制名单";
+            applySignal(cid,d.kol,"bounced","邮箱来源=爬取推断 · 批量发送");
+          }else{
+            d.status="sent"; applySignal(cid,d.kol,"sent","批量发送");
+            applySignal(cid,d.kol,"delivered","批量发送");
+          }});
         renderReach();
         const ok=pend.filter(d=>d.status==="sent").length, bad=pend.length-ok;
         toast(`${ok} 封已发送${bad?` · ${bad} 封退信`:""}`);
@@ -2872,13 +2928,13 @@
     const say=e.target.closest("[data-say]"); if(say){submit(say.dataset.say);return;}
     const lb=e.target.closest("[data-lib]");
     if(lb){const k=lb.dataset.lib; if(k===libKey)return; libKey=k; setActive("match"); renderMatch();
-      const L=LIBS[k], p=PLANS.find(x=>x.id===selectedPlan);
+      const L=LIBS[k], p=PLANS.find(x=>x.id===effectivePlan(scopeId));
       agentReply(`库规模切到 <b>${L.label}</b>：语义相关 <b>${L.relevant}</b> 位、自动排除 <b>${L.excluded}</b> 位、优选池 <b>${L.pool}</b> 位。<br><b>交互没变，决策次数还是 ${p?1+p.review:1} 次</b> —— 这就是决策单元升到「组合」的意义：<b>人的决策量不随库规模增长</b>。${k==="now"?"注意方案质量：当前库覆盖不到越南、平均可信度只有 79。":"库变大 ≠ 选更多人（人数由预算决定），而是<b>同样人数、质量更高</b>。"}`,
         "库规模 → "+L.label+" · 决策次数不变",null,"match");
       return;}
     const pl=e.target.closest("[data-plan]");
     if(pl){const id=pl.dataset.plan, p=(D(scopeId,"plans")||[]).find(x=>x.id===id);
-      if(!p||selectedPlan===id)return;
+      if(!p||effectivePlan(scopeId)===id)return;
       /* 守卫：既无决策权也无提交权 → 只读 */
       if(!ownsGate("plan")&&!ownsGate("submit-plan")){
         toast(`组合决策属${gateOwner("plan").label}`);
@@ -2892,15 +2948,16 @@
         /* GAP-004：绑定业务对象 + 待执行 action；【不】立即设 selectedPlan */
         const a=submitApproval("submit-plan",cid,`组合方案：${p.nm}`,
           `${p.n} 位创作者 · 预估触达 ${q.reach} · 市场覆盖 ${q.mk} · 受众重叠 ${q.ov}% · 平均可信度 ${q.cred}`,
-          p.budget,{kind:"plan",id},()=>{selectedPlan=id;});
+          p.budget,{kind:"plan",id},()=>{setActivePlan(cid,id,"approved");});
         pendingPlan=id; renderMatch();
         agentReply(`已选 <b>${p.nm}</b>（${p.n} 位 · ${p.budget}）。<br>
           <b>${p.budget} 超过你的审批额度（$${THRESHOLD.planBudget.toLocaleString()}）</b> —— 已提交给 <b>${gateOwner("approve-plan").label} ${gateOwner("approve-plan").name}</b> 审批，单号 ${a.id}。<br>
           <b>组合在批准前不生效</b> —— 我没有替你批，Reach 也不会据此起草邮件。`,
           "submit-plan · 已交接 · 业务对象待批不生效",()=>setChips("afterMatch"),"match");
         return;}
-      selectedPlan=id; renderMatch();
-      agentReply(`已选 <b>${p.nm}</b>（${p.n} 位 · ${p.budget} · 预估触达 ${q.reach}）。${ovTone(q.ov)!=="good"||mkTone(q.mk)!=="good"?`⚠️ 受众重叠 <b>${q.ov}%</b>（相当一部分触达是重复付费）、市场覆盖 <b>${q.mk}</b> —— 确定要这个方案吗？`:`市场覆盖 ${q.mk}、受众重叠仅 ${q.ov}%、平均可信度 ${q.cred}，组合成立。`}<br>其中 <b>${p.auto} 位</b>高置信已自动纳入（可抽样审计），<b>${p.review} 位</b>处于模糊地带需你判断。`,
+      /* 阈值内 / owner 拍板 → 立即生效（用户决策：BD 对 $8,000 以下组合可直接生效） */
+      setActivePlan(scopeId,id,"direct"); renderMatch();
+      agentReply(`已选 <b>${p.nm}</b>（${p.n} 位 · ${p.budget} · 预估触达 ${q.reach}）—— <b>组合已生效</b>${!ownsGate("plan")?`（${p.budget} 在你的 $${THRESHOLD.planBudget.toLocaleString()} 额度内，无需审批）`:""}，Reach 可以据此起草邀约。${ovTone(q.ov)!=="good"||mkTone(q.mk)!=="good"?`⚠️ 受众重叠 <b>${q.ov}%</b>（相当一部分触达是重复付费）、市场覆盖 <b>${q.mk}</b> —— 确定要这个方案吗？`:`市场覆盖 ${q.mk}、受众重叠仅 ${q.ov}%、平均可信度 ${q.cred}，组合成立。`}<br>其中 <b>${p.auto} 位</b>高置信已自动纳入（可抽样审计），<b>${p.review} 位</b>处于模糊地带需你判断。`,
         "select_portfolio · 1 次决策覆盖 "+p.n+" 位",null,"match");
       return;}
     if(e.target.closest("[data-audit]")){auditOpen=!auditOpen;renderMatch();return;}
@@ -2913,7 +2970,11 @@
     if(bk){const [cid,st]=bk.dataset.backto.split(":");backTo=null;
       setActive("campaigns");renderCampaignDetail(cid,+st);return;}
     const sp=e.target.closest("[data-setscope]");
-    if(sp){scopeId=sp.dataset.setscope;backTo=null;renderModule(activeModule);return;}
+    /* RE-GAP-001：作用域切换是对象级入口里最隐蔽的一个 —— 它不渲染项目详情，
+       但会让所有环节页（match/reach/delivery）去读那个项目的数据。守卫必须同样下沉到这里。 */
+    if(sp){const t=sp.dataset.setscope;
+      if(!inScope(t)){toast(`「${(getCamp(t)||{nm:t}).nm}」不在你的负责范围`);return;}
+      scopeId=t;backTo=null;renderModule(activeModule);return;}
     const gm=e.target.closest("[data-game]");
     if(gm){setActive("games");currentGameId=gm.dataset.game;renderGameDetail(currentGameId);return;}
     if(e.target.closest("[data-back-games]")){currentGameId=null;renderGames();return;}
@@ -2973,12 +3034,24 @@
     if(ed){agentReply(`要改这个字段？直接对我说 —— 例如「预算改成 1.5 万」「市场加上越南」。我改完你再确认。`,null,null,"match");return;}
     const ov=e.target.closest("[data-overrule]"); if(ov){doOverrule(+ov.dataset.overrule);return;}
     if(e.target.closest("[data-sample]")){
-      const S=D(scopeId)||{}, p=(S.plans||[]).find(x=>x.id===selectedPlan);
+      const S=D(scopeId)||{}, p=(S.plans||[]).find(x=>x.id===effectivePlan(scopeId));
       const sample=(S.pool||[]).filter(k=>EVAL[k.id]&&EVAL[k.id].cred>=80).slice(0,3);
       agentReply(`抽样审计 <b>3 位</b>自动纳入的候选（从 ${p?p.auto:0} 位中随机）：<br>
         ${sample.map(k=>`· <b>${k.nm}</b> 可信 ${EVAL[k.id].cred} —— ${EVAL[k.id].sig[0][1]}；${EVAL[k.id].sig[1][1]}`).join("<br>")}<br>
         <b>三位信号均正常，自动纳入成立。</b>不认可可以点头像看完整依据、或直接剔除。`,
         "sample_audit · 规模下建立信任的方式：抽检而非全检",null,"match");return;}
+    /* RE-GAP-003：合规审核项不能是「固定为 0、没有任何动作能改」的死状态 —— 那是假控件。
+       #ad 未过 → payoutReady 永远 false → 该项目的资金路径永远走不通，且用户无处补救。 */
+    const ck=e.target.closest("[data-check-ok]");
+    if(ck){const [cid,ci]=ck.dataset.checkOk.split("|");
+      if(!ownsGate("mark-pub")){toast(`内容审核属${gateOwner("mark-pub").label}`);return;}
+      const DL=D(cid,"deliv"); if(!DL||!DL.checks[+ci]) return;
+      const item=DL.checks[+ci][0]; DL.checks[+ci][1]=1;
+      renderCampaignDetail(cid,5);
+      undoToast(`审核项「${item}」已复核通过`,()=>{DL.checks[+ci][1]=0;renderCampaignDetail(cid,5);});
+      agentReply(`审核项 <b>「${item}」</b>已由你复核通过。<br>${/#ad/.test(item)?`披露合规是<b>放款的硬前置</b> —— 这一项过了，已标记可发布的创作者才会对${gateOwner("payout").label}亮出放款按钮。`:"该项已计入交付合规。"}<br><b>可撤销的内部审核动作</b>，不是对外承诺。`,
+        "review_check · 合规项人工复核 · 可撤销",null,"deliver");
+      return;}
     const mp=e.target.closest("[data-mark-pub]"); if(mp){doMarkPub(mp.dataset.markPub);return;}
     const rt=e.target.closest("[data-retro]"); if(rt){doRetro(rt.dataset.retro);return;}
     const rc=e.target.closest("[data-reclaim]"); if(rc){doReclaim(rc.dataset.reclaim);return;}
@@ -3018,7 +3091,7 @@
     if(id===roleId) return;
     roleId=id; const r=role();
     if(!canAccess(activeModule)) activeModule="dashboard";
-    selectedPlan=selectedPlan; auditOpen=false;
+    auditOpen=false;
     renderRoleSwitch(); renderRoleChrome();
     /* 学有墨：换岗位 = 换数据权限，旧对话可能越权 → 清空重开 */
     msgs.innerHTML="";
@@ -3059,9 +3132,18 @@
     b.onclick=()=>addAgent(`我是<b>${a.nm}</b>（${a.cat}）。把任务交给我时，我提供草案与建议 —— 最终判断始终由你确认。`,null,k);
     roster.appendChild(b);});
   /* 测试钩子：让端到端回归能跑在干净起点（生产版不导出）*/
+  /* 可变业务数据的初始快照 —— 原 __resetForTest 只还原状态机，没还原 deliv/settle，
+     导致前一个测试「标记终稿可发布」之后，后一个测试再也拿不到那个按钮（假阴性）。*/
+  const _SNAP=JSON.stringify(["gsea","hsr","zzz","sky"].map(id=>
+    ({id,deliv:D(id,"deliv"),settle:D(id,"settle"),keys:D(id,"keys"),retro:D(id,"retro")})));
+  /* 只读探针：让回归能断言阶段真的推进了，而不是靠文案猜 */
+  if(typeof window!=="undefined") window.__stageOf=cid=>(getCamp(cid)||{}).stage;
   if(typeof window!=="undefined") window.__resetForTest=()=>{
+    JSON.parse(_SNAP).forEach(sn=>["deliv","settle","keys","retro"].forEach(k=>{
+      const cur=D(sn.id,k); if(cur&&sn[k]) Object.assign(cur,sn[k]);}));
     APPROVALS.length=0; apSeq=0; seedApproval();
-    selectedPlan=null; pendingPlan=null; accepted.clear(); skipped.clear();
+    Object.keys(ACTIVE_PLAN).forEach(k=>delete ACTIVE_PLAN[k]);
+    pendingPlan=null; accepted.clear(); skipped.clear();
     Object.keys(DRAFTS).forEach(k=>delete DRAFTS[k]);
     Object.keys(CRM).forEach(k=>delete CRM[k]); SUPPRESS.clear();
     REPORT.shown=false; REPORT.shared=false; REPORT.token=null; REPORT.exported=false;

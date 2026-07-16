@@ -350,6 +350,44 @@
   .drow .dact{display:flex;align-items:center;gap:8px;justify-content:flex-end}
 
   /* reply workspace */
+  /* ---------- 04 关系推进面（BD 的作业单元 = 一段关系）---------- */
+  .rel-hd{display:flex;gap:20px;align-items:center;padding:14px 20px 16px;border-bottom:1px solid var(--line-2);flex-wrap:wrap}
+  .rel-hl{flex:1;min-width:260px}
+  .rel-ht{font-family:var(--font-head);font-weight:700;font-size:14px;color:var(--ink);line-height:1.5}
+  .rel-hs{font-size:12px;color:var(--muted);font-weight:600;margin-top:4px;line-height:1.6}
+  .rel-hr{min-width:210px}
+  .relbar{display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--surface-2);gap:2px}
+  .relbar i{display:block}
+  .relbar .t-bad{background:var(--bad)} .relbar .t-warn{background:var(--warn)}
+  .relbar .t-brand{background:var(--brand)} .relbar .t-good{background:var(--good)}
+  .relbar .t-ghost{background:var(--line)}
+  .rel-hn{font-size:11.5px;color:var(--muted);font-weight:700;margin-top:7px;text-align:right}
+  .rel-hn b{color:var(--bad);font-size:13px}
+  .rel-g{padding:4px 20px 10px}
+  .rel-gh{display:flex;align-items:center;gap:10px;padding:14px 0 8px;flex-wrap:wrap}
+  .rel-gd{font-size:11.5px;color:var(--muted);font-weight:600}
+  .rel{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line-2)}
+  .rel-av{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:#fff;
+    font-family:var(--font-head);font-weight:700;font-size:13px;flex:none}
+  .rel-m{flex:1;min-width:0}
+  .rel-n{font-family:var(--font-head);font-weight:700;font-size:13.5px;color:var(--ink);
+    display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .rel-by{color:var(--brand);font-weight:700}
+  .rel-s{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rel-a{display:flex;gap:8px;align-items:center;flex:none}
+  .rel-x{background:var(--surface-2);border-radius:var(--r-sm);padding:13px 15px;margin:0 0 6px 46px}
+  .rel-x.quiet{background:transparent;border:1px dashed var(--line-2)}
+  .rel-q{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--ink-2);
+    font-weight:600;margin-bottom:8px;line-height:1.5}
+  .rel-q .ic{width:14px;height:14px;color:var(--brand);flex:none}
+  .rel-x ul{margin:0 0 10px;padding-left:18px;color:var(--soft);font-size:12.5px;line-height:1.7}
+  .rel-x ul b{color:var(--ink-2)}
+  .rel-w{display:flex;gap:8px;align-items:flex-start;background:var(--warn-bg);color:#8a6100;
+    border-radius:var(--r-sm);padding:9px 12px;font-size:12px;font-weight:600;line-height:1.6;margin-top:8px}
+  .rel-w.ok{background:var(--good-bg);color:#046c52}
+  .rel-w .ic{width:14px;height:14px;flex:none;margin-top:2px}
+  .rel-bulk{display:flex;align-items:center;gap:12px;padding:14px 0 4px;border-top:1px solid var(--line-2);margin-top:6px}
   .reply{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);border:1px solid var(--line-2);
     padding:18px;margin-bottom:14px}
   .reply-top{display:flex;align-items:center;gap:11px;margin-bottom:11px}
@@ -727,31 +765,10 @@
       <span>项目</span>
       <span class="nav-badge">六环节</span>
     </button>
-    <div class="nav-label">环节工作台 · 跨项目</div>
-    <button class="nav-item" data-nav="brief">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6.5A2.5 2.5 0 0 0 4 21.5v-2Z"/><path d="M8 7h7M8 11h7"/></svg>
-      <span>Brief · 知识库</span>
-      <span class="nav-badge">①</span>
-    </button>
-    <button class="nav-item" data-nav="match">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m12 3 1.9 4.3 4.6.5-3.4 3.1.9 4.5L12 13.2 7.9 15.4l1-4.5L5.5 7.8l4.6-.5Z"/></svg>
-      <span>Match · 发现匹配</span>
-      <span class="nav-badge">②③</span>
-    </button>
-    <button class="nav-item" data-nav="reach">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
-      <span>Reach · 沟通协作</span>
-      <span class="nav-badge">④</span>
-    </button>
-    <button class="nav-item" data-nav="delivery">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-      <span>Delivery · 内容交付</span>
-      <span class="nav-badge">⑤</span>
-    </button>
     <button class="nav-item" data-nav="insight">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18"/><path d="m7 14 3-4 4 3 4-6"/></svg>
-      <span>Insight · 效果复盘</span>
-      <span class="nav-badge">⑥</span>
+      <span>洞察</span>
+      <span class="nav-badge">跨项目</span>
     </button>
     <div class="rail-foot">
       <div class="userchip">
@@ -1011,13 +1028,13 @@
      =================================================================== */
   const POLICY={
     lead:{
-      modules:["dashboard","games","campaigns","brief","match","reach","delivery","insight"],
+      modules:["dashboard","campaigns","games","insight"],
       scope:()=>CAMPAIGNS.map(c=>c.id).concat("new"),      /* 对象级：全部项目 */
       fields:["budget","roi","totalBudget","avgRoi"],       /* 字段级：可见金额与全局指标 */
       actions:["plan","advance","approve-quote","approve-plan","retro"]
     },
     bd:{
-      modules:["dashboard","games","campaigns","brief","match","reach","delivery"],
+      modules:["dashboard","campaigns","games"],
       scope:()=>["gsea","hsr","zzz","new"],                 /* 对象级：负责东南亚/日韩/全球；星穹(sky)已结项交接给营销负责人复盘 */
       fields:["budget"],                                     /* 字段级：见项目预算，不见总预算/跨项目 ROI */
       actions:["send","keys","mark-pub","submit-quote","submit-plan","advance-bd"]
@@ -1366,7 +1383,7 @@
   /* P1-6：例外必须是「未回答」的 —— 预置 accepted 会让例外队列变成道具。
      组合内的人 = p.auto（自动纳入，不进此 Set）∪ 这里人工确认的例外 */
   const accepted=new Set(), skipped=new Set();
-  let emailsSent=false, activeModule="dashboard", currentCampaignId=null, viewStage=null;
+  let activeModule="dashboard", currentCampaignId=null, viewStage=null;
   let libKey="now", pendingPlan=null, auditOpen=false;
   /* RE-GAP-002 修复：组合「生效」是按项目的业务态，不是一个全局 selectedPlan。
      原实现 effectivePlan() 只认 approved 审批单 → 营销负责人（组合 owner）直接拍板
@@ -1378,7 +1395,15 @@
     if(pendingPlan===id)pendingPlan=null;};
   let roleId="bd";                        /* 当前角色（BD 是主力岗，默认）*/
   let orgOpen=false, currentGameId=null;  /* 组织级默认折叠（决策③）；游戏详情 */
-  let scopeId="gsea", backTo=null;        /* IA 方案 C：环节页作用域 + 返回项目的面包屑 */
+  /* 用户实测推翻了 IA 方案 C（环节页 = 跨项目聚合 + scopeBar 选项目）：
+     「把组织/产品/项目混在同级」「心流难以聚焦单项目」。根因是把【环节】做成了空间、
+     把【项目】降格成筛选器 —— 但用户心智里项目才是空间，环节是这个项目所处的时间。
+     现在：项目空间是环节的唯一容器；scopeId 恒等于当前所在项目。 */
+  let scopeId="gsea";
+  /* 动作后重渲染当前环节面（原先散落的 renderMatch()/renderReach() 调用都归到这里）*/
+  const reStage=()=>{if(currentCampaignId)renderCampaignDetail(currentCampaignId,viewStage);};
+  /* 从对话/动作跳到本项目的某个环节 —— 仍在项目空间内，不是「去另一个页面」*/
+  const jumpStage=n=>{setActive("campaigns");renderCampaignDetail(scopeId,n);};
   const GATE_LOG=[];                       /* 越阶段门的理由记录（闸门要留痕才算门）*/
   const OVERRULED=new Set();               /* 被推翻的自动排除规则 */
   const DONE_TODAY=new Set();              /* 今日已处理 —— 让主路径有「完成」这一步 */
@@ -1410,9 +1435,7 @@
     book:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6.5A2.5 2.5 0 0 0 4 21.5v-2Z"/><path d="M8 7h7M8 11h7"/></svg>'
   };
   /* P1-8 术语统一：项目(campaign) · 创作者(KOL) · 驾驶舱(Dashboard) —— 一个概念一个叫法 */
-  const MODMETA={dashboard:["驾驶舱","驾驶舱"],games:["游戏","游戏"],brief:["Brief · 项目知识库","Brief"],campaigns:["项目","项目"],
-    match:["Match · 发现与匹配","Match"],reach:["Reach · 沟通协作","Reach"],
-    delivery:["Delivery · 内容交付","Delivery"],insight:["Insight · 效果复盘","Insight"]};
+  const MODMETA={dashboard:["驾驶舱","驾驶舱"],games:["游戏","游戏"],campaigns:["项目","项目"],insight:["洞察 · 跨项目","洞察"]};
 
   /* ================= chat ================= */
   const msgs=$("#msgs");
@@ -1541,30 +1564,53 @@
     /* P0-6 修复：queue 由状态派生 —— 否则「完成」这一步在产品里不存在，
        驾驶舱指针焊死，处理完回来待办原样还在 */
     const queue=[];
-    if(KB.coverage<80) queue.push({ic:IC.book,tone:"bad",t:"知识库缺「Q3 东南亚用研报告」",
-      s:`覆盖度 ${KB.coverage}% · 匹配精度被压在 ${KB.matchCeil}% · 卡住 Brief 阶段门`,btn:"去补",goto:"brief"});
-    if(!OVERRULED.size) queue.push({ic:IC.shield,tone:"bad",t:"GachaQueen 可信度仅 58 —— 建议剔除",
+    /* 每条待办 = 某个角色在某个环节的一件事。不标 own，三个角色就会共用一个 queue ——
+       BD 的驾驶舱里出现「知识库缺用研报告」（那是 01 Brief，营销负责人的环节），
+       正是用户说的「工作流交叉，略显混乱」。 */
+    if(KB.coverage<80&&inScope("gsea")) queue.push({own:"lead",ic:IC.book,tone:"bad",t:"知识库缺「Q3 东南亚用研报告」",
+      s:`覆盖度 ${KB.coverage}% · 匹配精度被压在 ${KB.matchCeil}% · 卡住 ${STAGES[0].n} 阶段门`,btn:"去补",camp:"gsea",stage:1});
+    if(!OVERRULED.size&&inScope("gsea")) queue.push({own:"lead",ic:IC.shield,tone:"bad",t:"GachaQueen 可信度仅 58 —— 建议剔除",
       s:"检出 2 次异常粉丝尖峰 · 受众与项目冲突",btn:"看评估",say:"评估一下候选的可信度"});
     /* RE-GAP-001：驾驶舱同样是对象级入口 —— 只能出现自己 scope 内的项目 */
     visibleCampaigns().forEach(c=>{
       const S=D(c.id)||{};
       if(S.settle&&!S.settle.paid){const r=S.settle.rows.find(x=>x.ready);
-        if(r) queue.push({ic:IC.coin,tone:"good",t:`${r.kol} ${r.amount} 待放款`,
+        if(r) queue.push({own:"finance",ic:IC.coin,tone:"good",t:`${r.kol} ${r.amount} 待放款`,
           s:`${c.nm} · 内容审核已通过 · 资金已由 partner 托管`,btn:"去放款",camp:c.id,stage:4});}
       if(S.deliv){const r=S.deliv.rows.find(x=>x.publishable&&!x.published);
-        if(r) queue.push({ic:IC.eye,tone:"warn",t:"1 条终稿待标记可发布",s:`${c.nm} · 内容交付环节`,btn:"去审核",camp:c.id,stage:5});}
+        if(r) queue.push({own:"bd",ic:IC.eye,tone:"warn",t:"1 条终稿待标记可发布",s:`${c.nm} · ${STAGES[4].n} 内容交付`,btn:"去审核",camp:c.id,stage:5});}
       if(S.keys){const w=S.keys.rows.find(x=>x.n-x.claimed>20);
-        if(w) queue.push({ic:IC.key,tone:"warn",t:`${w.kol} 有 ${w.n-w.claimed} 个 key 未领取`,
+        if(w) queue.push({own:"bd",ic:IC.key,tone:"warn",t:`${w.kol} 有 ${w.n-w.claimed} 个 key 未领取`,
           s:`${c.nm} · 建议回收转投已验证创作者`,btn:"看 key",camp:c.id,stage:5});}
-      if(S.retro&&!S.retro.confirmed) queue.push({ic:IC.chart,tone:"warn",t:`「${c.nm}」复盘草案待采纳`,
+      if(S.retro&&!S.retro.confirmed) queue.push({own:"lead",ic:IC.chart,tone:"warn",t:`「${c.nm}」复盘草案待采纳`,
         s:"结论与关系资产写入 · 可撤销",btn:"去复盘",camp:c.id,stage:6});
-      if(c.stage===2&&S.pool&&!S.plans) queue.push({ic:IC.star,tone:"brand",t:`「${c.nm}」候选池待确认`,
+      if(c.stage===2&&S.pool&&!S.plans) queue.push({own:"bd",ic:IC.star,tone:"brand",t:`「${c.nm}」候选池待确认`,
         s:"全球发现环节 · 等待团队缩小范围",btn:"去确认",camp:c.id,stage:2});
     });
     if(inScope("gsea")&&D("gsea","replies")&&D("gsea","replies").some(r=>!r.done))
-      queue.push({ic:IC.mail,tone:"good",t:`${D("gsea","replies").filter(r=>!r.done).length} 位创作者回复待跟进`,
-        s:"原神 · 东南亚 Q2 · 含报价需条款确认",btn:"去跟进",goto:"reach",scope:"gsea"});
+      queue.push({own:"bd",ic:IC.mail,tone:"good",t:`${D("gsea","replies").filter(r=>!r.done).length} 位创作者回复待跟进`,
+        s:"原神 · 东南亚 Q2 · 含报价需条款确认",btn:"去跟进",camp:"gsea",stage:4});
+    const myQueue=queue.filter(q=>!q.own||q.own===roleId);
     const doneCount=DONE_TODAY.size;
+    /* BD 的作业单元是【一段关系】—— 它的驾驶舱要回答「哪几段关系在等我」，
+       而不是给它一份和营销负责人、财务共用的通用待办。 */
+    const relStrip=(()=>{
+      if(roleId!=="bd") return "";
+      const all=visibleCampaigns().flatMap(c=>effectivePlan(c.id)?relationsOf(c.id).map(x=>({...x,cid:c.id,cnm:c.nm})):[]);
+      if(!all.length) return `<div class="digest" style="margin-top:16px"><div class="orb">${IC.people}</div>
+        <p>还没有生效的组合 —— <b>先在项目里定组合，才有关系可推进</b>。组合决策是${gateOwner("plan").label}的闸门；额度内你可以直接拍板。</p></div>`;
+      const g=k=>all.filter(x=>x.bucket===k);
+      const mine=g("me").concat(g("todo"));
+      return `<div class="section-h" style="margin:20px 2px 12px"><h3>我的关系推进</h3>
+        <span class="sub">跨项目 · 你的作业单元是一段关系，不是一个页面</span><div class="spacer"></div>
+        <span class="pill ${mine.length?'bad':'good'}">${mine.length} 段等你动</span></div>
+      <div class="panel"><div class="panel-h">${IC.people}<h3>按「该谁动」分组</h3><span class="sub">状态由信号自动推进</span></div>
+        ${REL_BUCKET.map(b=>{const list=g(b.k); if(!list.length) return "";
+          return `<div class="camp-item">
+            <div class="ci-main"><div class="ci-nm"><span class="pill ${b.tone}">${b.t}</span> ${list.length} 段</div>
+              <div class="ci-meta">${list.slice(0,4).map(x=>x.d.kol).join(" · ")}${list.length>4?` …等 ${list.length} 位`:""}</div></div>
+            <div class="ci-right">${[...new Set(list.map(x=>x.cnm.split(" · ")[0]))].map(nm=>`<span class="tag">${nm}</span>`).join("")}</div></div>`;}).join("")}
+      </div>`;})();
 
     /* 交接单：每条 = 一次跨角色责任转移。有墨的缺陷 3 是「交接没有 UI」—— 这是我们的机会 */
     const chainOf=a=>{const f=roleById(a.from),t=roleById(a.to);
@@ -1587,12 +1633,11 @@
           <button class="btn primary sm" style="flex:none" data-resubmit="${a.id}">已修改 · 重新提交</button></div></div>`)
     ].join("");
 
-    const queueHtml=queue.map(q=>`<div class="queue-item">
+    const queueHtml=myQueue.map(q=>`<div class="queue-item">
       <div class="qic tone-${q.tone}">${q.ic}</div>
       <div class="qm"><div class="qt">${q.t}</div><div class="qs">${q.s}</div></div>
       <button class="qbtn" ${q.say?`data-say="${q.say}"`
-        :(q.goto?`data-goto="${q.goto}"${q.scope?` data-scope="${q.scope}"`:""}`
-        :`data-camp="${q.camp}"${q.stage?` data-stage-jump="${q.stage}"`:""}`)}>${q.btn} →</button></div>`).join("");
+        :`data-camp="${q.camp}"${q.stage?` data-stage-jump="${q.stage}"`:""}`}>${q.btn} →</button></div>`).join("");
     const myCamps=visibleCampaigns();
     const campHtml=myCamps.map(c=>`<div class="camp-item">
       <div class="ci-main"><div class="ci-nm">${c.nm}</div><div class="ci-meta">环节 ${STAGES[c.stage-1].n} · ${STAGES[c.stage-1].nm} · ${c.kols}</div></div>
@@ -1608,12 +1653,13 @@
         <span class="pill bad">${myApprovals().length+myReturned().length} 条</span></div>${handoffHtml}`:""}
       <div class="digest"><div class="orb">${IC.star}</div>
         <p>今日速览：Agent 已扫描全库 <b>${LIBS[libKey].lib.toLocaleString()}</b> 位创作者并完成可信度评估。
-        ${queue.length?`当前 <b>${queue.length} 项</b>待你决策`:`<b>待办已清空 ✓</b>`}${doneCount?` · 今日已处理 <b>${doneCount} 项</b>`:""}。</p></div>
+        ${myQueue.length?`当前 <b>${myQueue.length} 项</b>待你决策`:`<b>待办已清空 ✓</b>`}${doneCount?` · 今日已处理 <b>${doneCount} 项</b>`:""}。</p></div>
       <div class="kpi-row" style="margin-top:18px">
         <div class="kpi"><div class="kic">${IC.star}</div><div><div class="kv tnum">2,481</div><div class="kl">库内 KOL</div></div></div>
         <div class="kpi"><div class="kic">${IC.camp}</div><div><div class="kv tnum">${myCamps.length}</div><div class="kl">我负责的项目</div></div></div>
         <div class="kpi"><div class="kic">${IC.mail}</div><div><div class="kv tnum">63%</div><div class="kl">触达回复率</div></div></div>
         <div class="kpi"><div class="kic">${IC.chart}</div><div><div class="kv tnum">3.4x</div><div class="kl">本月最高 ROI</div></div></div></div>
+      ${relStrip}
       <div class="ops-grid">
         <div class="panel"><div class="panel-h">${IC.camp}<h3>项目运转 · 六环节链路</h3><span class="sub">${myCamps.length} 个项目 · ${role().label}范围内</span></div>${campHtml}</div>
         <div class="panel"><div class="panel-h">${IC.bolt}<h3>需要你处理</h3><span class="sub">${role().taskDesc}</span></div>
@@ -1705,9 +1751,11 @@
           <div><span class="pill ${r.tone}">${r.content}</span></div></div>`).join("")}
       </div>
       <div class="risk-list"><div class="risk">${IC.warn}<span><b>Agent 提示：</b>${worst.kol} 分发 ${worst.n} key、兑换 ${worst.redeemed}、${worst.content} —— 建议回收未领取 key 并转投已验证创作者。</span>
-        ${isCur?`<button class="btn line sm" style="flex:none;margin-left:auto" data-reclaim="${c.id}">回收未领取</button>`:""}</div></div>
+        ${isCur?`<span style="margin-left:auto">${ownsGate("keys")
+          ? `<button class="btn line sm" style="flex:none" data-reclaim="${c.id}">回收未领取</button>`
+          : `<span class="await">${IC.shield}key 分发属${gateOwner("keys").label}</span>`}</span>`:""}</div></div>
       <div class="draft-foot"><span class="hint">${IC.bulb}Key → 兑换 → 内容 全链路可追踪，转化率直接反哺下一轮组合建议。</span><div class="spacer"></div>
-        ${isCur?`<button class="btn line sm" data-noop>导入新批次</button><button class="btn primary sm" style="flex:none" data-gate="keys" data-cid="${c.id}">分发给组合内创作者</button>`:""}</div></div>`;
+        ${isCur&&ownsGate("keys")?`<button class="btn line sm" data-noop>导入新批次</button><button class="btn primary sm" style="flex:none" data-gate="keys" data-cid="${c.id}">分发给组合内创作者</button>`:""}</div></div>`;
   }
 
   /* ---- P1-F2 绩效任务 Missions ---- */
@@ -1820,8 +1868,9 @@
             [["市场范围已确认",1],["候选标准已定义",1],["团队审核节点已保留",1],["目标受众有一手依据",1]],false)
         : readyBlock(`知识覆盖度 ${KB.coverage}% —— 未达阶段门要求（≥80%）`,`Brief 就绪与否由<b>知识库覆盖度</b>决定，不是走个形式。缺「Q3 东南亚用研报告」→ 目标受众置信度仅 52，匹配精度上限被压在 ${KB.matchCeil}%。`,
             [["市场范围已确认",1],["候选标准已定义",1],["团队审核节点已保留",1],["目标受众有一手依据",0]],true)}
-      <div class="draft-foot"><span class="hint">${IC.book}知识：组织 ${ORG_KB.cov}% · 《${gameOfCampaign(c.id).nm}》${(GAME_KB[gameOfCampaign(c.id).id]||{cov:0}).cov}% · 本项目 ${(PROJ_KB[c.id]||{cov:0}).cov}%</span><div class="spacer"></div>
-        <button class="btn line sm" data-goto="brief">去补知识库</button>${adv(KB.coverage>=80?"进入全球发现 →":"仍要进入全球发现 →")}</div></div>`;
+      <div class="draft-foot"><span class="hint">${IC.book}知识：组织 ${ORG_KB.cov}% · 《${gameOfCampaign(c.id).nm}》${(GAME_KB[gameOfCampaign(c.id).id]||{cov:0}).cov}% · 本项目 ${(PROJ_KB[c.id]||{cov:0}).cov}% —— 知识库就在下面，不用跳出去</span><div class="spacer"></div>
+        ${adv(KB.coverage>=80?"进入全球发现 →":"仍要进入全球发现 →")}</div></div>
+      ${briefBody()}`;
     if(n===2) return note+`<div class="draft anim-in">
       <div class="draft-h">${IC.star}<h4>全球发现 · 多市场候选池</h4><span class="pill ${isPast?'good':(isCur?'brand':'ghost')}">${isPast?'候选池已确认':(isCur?'当前环节':'未开始')}</span>${ownerTag}</div>
       <div class="fields">
@@ -1829,8 +1878,9 @@
         <div class="field"><div class="k">优先内容类型</div><div class="v">深度体验 · 玩法解析 · 直播与社区内容</div></div>
         <div class="field"><div class="k">筛选逻辑</div><div class="v">市场相关性 · 内容一致性 · 受众语境</div></div>
         <div class="field"><div class="k">团队动作</div><div class="v">确认需要进入进一步评估的候选池</div></div></div>
-      ${readyBlock("候选池待确认","系统已给出 6 位候选与匹配理由，等待团队缩小范围。",[["候选来源可追溯",1],["匹配理由可解释",1],["支持团队短名单确认",1]],!isPast)}
-      <div class="draft-foot"><button class="btn line sm" data-goto="match" data-scope="${c.id}" data-from="${c.id}:2">在 Match 工作台打开 →</button><div class="spacer"></div>${adv("确认候选池 · 进入智能匹配 →")}</div></div>`;
+      ${readyBlock("候选池待确认","系统已给出候选与匹配理由，等待团队缩小范围。",[["候选来源可追溯",1],["匹配理由可解释",1],["支持团队短名单确认",1]],!isPast)}
+      <div class="draft-foot"><div class="spacer"></div>${adv("确认候选池 · 进入智能匹配 →")}</div></div>
+      ${matchBody(2)}`;
     if(n===3) return note+`<div class="draft anim-in">
       <div class="draft-h">${IC.tune}<h4>智能匹配 · 创作者组合建议</h4><span class="pill ${isPast?'good':(isCur?'brand':'ghost')}">${isPast?'组合已评审':(isCur?'当前环节':'未开始')}</span>${ownerTag}</div>
       <div class="fields">
@@ -1842,18 +1892,12 @@
         <div class="risk gap">${IC.warn}<span><b>组合缺口：</b>${PORTFOLIO.gap}</span></div></div>
       <div class="bench">替补池已保留：${PORTFOLIO.bench.map(b=>`<span class="tag">${b}</span>`).join("")}<span style="color:var(--muted)">· 可调整权重、替换候选，判断理由会记录进关系资产</span></div>
       ${readyBlock("组合建议可评审","团队可以调整权重、替换候选并记录判断理由。",[["候选优先级已整理",1],["组合缺口已提示",1],["替补对象已保留",1]],!isPast)}
-      <div class="draft-foot"><button class="btn line sm" data-goto="match" data-scope="${c.id}" data-from="${c.id}:3">在 Match 工作台做组合决策 →</button><div class="spacer"></div>${adv("进入沟通协作 →")}</div></div>`;
-    if(n===4) return note+`<div class="draft anim-in">
-      <div class="draft-h">${IC.mail}<h4>沟通协作 · 邀约与回复工作区</h4><span class="pill ${isPast?'good':(isCur?'brand':'ghost')}">${isPast?'已完成':(isCur?'当前环节':'未开始')}</span>${ownerTag}</div>
-      <div class="fields">
-        <div class="field"><div class="k">邀约策略</div><div class="v">按市场、创作者内容与项目价值生成个性化邀约</div></div>
-        <div class="field"><div class="k">协作节点</div><div class="v">邀约 → 回复 → 条款确认 → 内容审核 → 发布日期</div></div>
-        <div class="field"><div class="k">AI 建议</div><div class="v">整理回复重点并生成下一步草案</div></div>
-        <div class="field"><div class="k">人工确认</div><div class="v">报价、合同与正式承诺由团队确认</div></div></div>
-      <div style="padding:14px 20px 4px;display:flex;gap:14px;flex-wrap:wrap">
-        <span class="pill good">3 已发送</span><span class="pill brand">3 已回复</span><span class="pill warn">1 待条款确认</span><span class="pill ghost">负责人：你 ×2 · Sarah ×1</span></div>
-      ${readyBlock("协作路径已建立","项目成员可以看到每位创作者的当前状态与负责人。",[["回复重点已归纳",1],["负责人已标记",1],["下一动作清晰可见",1]],!isPast)}
-      <div class="draft-foot"><button class="btn line sm" data-goto="reach" data-scope="${c.id}" data-from="${c.id}:4">去回复工作区处理 →</button><div class="spacer"></div>${adv("查看内容交付 →")}</div></div>
+      <div class="draft-foot"><div class="spacer"></div>${adv("进入沟通协作 →")}</div></div>
+      ${matchBody(3)}`;
+    if(n===4) return note+`<div class="draft anim-in" style="padding-bottom:2px">
+      <div class="draft-h">${IC.mail}<h4>沟通协作 · 关系推进</h4><span class="pill ${isPast?'good':(isCur?'brand':'ghost')}">${isPast?'已完成':(isCur?'当前环节':'未开始')}</span>${ownerTag}</div>
+      ${reachBody(isCur)}
+      <div class="draft-foot" style="margin-top:10px"><span class="hint">${IC.bulb}出口条件：<b>所有报价条款谈定</b>才能进交付 —— 价没谈完就做内容，返工的是创作者。</span><div class="spacer"></div>${adv("进入内容交付 →")}</div></div>
       ${settlePanel(c,isCur,"escrow")}`;
     if(n===5){
       const DL=S.deliv;
@@ -1872,7 +1916,7 @@
           ${!x[1]&&isCur?act("mark-pub",`<button class="btn line sm" style="flex:none;padding:3px 10px;font-size:11px" data-check-ok="${c.id}|${ci}">复核通过</button>`):""}</span>`).join("")}</div>
       <div class="risk-list"><div class="risk">${IC.warn}<span><b>风险项：</b>${DL.risk}</span></div></div>
       ${readyBlock("交付节点可跟踪","团队能清楚看到待审核内容、修改意见与发布日期。",[["版本历史已保留",1],["风险项已标记",1],["发布时间可协调",1],["披露要求 #ad",adOk]],!isPast)}
-      <div class="draft-foot"><button class="btn line sm" data-goto="delivery" data-scope="${c.id}" data-from="${c.id}:5">在交付工作台打开 →</button><div class="spacer"></div>${adv("进入效果复盘 →")}</div></div>
+      <div class="draft-foot"><span class="hint">${IC.bulb}内容发在创作者自己的频道 —— <b>我们发不了，只能标记「终稿可发布」</b>（内部状态，可撤销）。</span><div class="spacer"></div>${adv("进入效果复盘 →")}</div></div>
       ${settlePanel(c,isCur,"payout")}`;
     }
     const RETRO=S.retro;
@@ -1904,7 +1948,7 @@
         <div class="starter" style="margin-top:8px"><button data-back>
           <span class="k" style="background:linear-gradient(135deg,#868CFF,#4318FF)">${IC.camp}</span>回到我的项目列表</button></div></div>`;
       return;}
-    currentCampaignId=id;
+    currentCampaignId=id; scopeId=id;   /* 进项目空间 = 作用域就是它，不需要再选 */
     const c=getCamp(id);
     viewStage=stage||c.stage;
     canvas.innerHTML=`
@@ -1952,7 +1996,7 @@
      缺口 → 补齐 → 覆盖度涨 → 匹配精度上限涨 → Brief 阶段门变绿，整条叙事闭环一次 */
   function doUpload(){
     if(KB.uploading||KB.coverage>=80) return;
-    KB.uploading=true; renderBrief();
+    KB.uploading=true; reStage();
     agentReply(`收到「Q3 东南亚用研报告.pdf」，正在解析 —— 提取受众画像、市场偏好与竞品认知…`,"parse_document · 解析中",null,"match");
     setTimeout(()=>{
       KB.uploading=false;
@@ -1962,7 +2006,7 @@
         src:"Q3 东南亚用研报告.pdf · p.8-14",conf:93};
       proj.cov=88; proj.tone="good"; proj.st="完整";
       KB.coverage=88; KB.matchCeil=KB.matchIfFilled;
-      renderBrief();
+      reStage();
       undoToast("用研报告已解析 · 覆盖度 72% → 88%",null);
       agentReply(`解析完成。<b>目标受众</b>从「产品级推断、置信度 52」升级为<b>一手依据、置信度 93</b>：18–24 女性占 54%，剧情向偏好显著，越南待开发。<br>
         <b>知识覆盖度 72% → 88%</b>；<b>匹配精度上限 78% → 91%</b>；<b>Brief 阶段门（≥80%）已通过 ✓</b><br>
@@ -2045,7 +2089,8 @@
   }
 
   /* ===== 项目 Brief：单一视图 —— 本项目【可用的全部知识】，按来源标注 ===== */
-  function renderBrief(){
+  /* 01 Brief 环节的知识库体（原 renderBrief 跨项目页）*/
+  function briefBody(){
     const cid=scopeId, c=getCamp(cid), g=gameOfCampaign(cid);
     const gkb=GAME_KB[g.id]||{cov:0,files:[],cards:[]};
     const pkb=PROJ_KB[cid]||{cov:0,files:[],cards:[]};
@@ -2061,7 +2106,7 @@
                ...ORG_KB.cards.map(x=>[x,"org",""])];
     const gaps=[...pkb.files,...gkb.files].filter(f=>f.tone==="bad");
 
-    canvas.innerHTML=scopeBar(1)+draft+`
+    return draft+`
       <div class="kb-hero">
         <div class="kh-l"><div class="kh-t">
           <b>${c?c.nm:cid}</b> 可用的全部知识 —— 匹配是两侧向量比对，<b>精度天花板卡在信息薄的一侧</b>。<br>
@@ -2107,26 +2152,9 @@
      IA 方案 C：环节页 = 跨项目聚合视图（顶部可切作用域）
      项目详情 = 单项目六环节。跳转必须带上下文 + 返回锚点
      =================================================================== */
-  function scopeBar(stageNo){
-    const c=getCamp(scopeId);
-    const back=backTo?`<button class="btn line sm" style="flex:none" data-backto="${backTo}">← 回到 ${getCamp(backTo.split(":")[0]).nm} · 环节 ${STAGES[+backTo.split(":")[1]-1].n}</button>`:"";
-    /* RE-GAP-001：作用域条只列自己负责的项目 */
-    const opts=visibleCampaigns().concat(CAMPAIGN._confirmed&&inScope("new")?[{id:"new",nm:CAMPAIGN.name,stage:2}]:[])
-      .map(x=>`<button data-setscope="${x.id}" class="${scopeId===x.id?'on':''}" title="${x.nm}">${x.nm.split(" · ")[0]}</button>`).join("");
-    return `<div class="scope-bar">${back}
-      <span class="sl">${IC.camp}作用域</span>
-      <div class="seg">${opts}</div>
-      <span class="sd">${c?`环节 ${STAGES[c.stage-1].n} · ${stageName(c.stage)}`:""}</span>
-      <button class="btn line sm" style="flex:none;margin-left:auto" data-camp="${scopeId}"${stageNo?` data-stage-jump="${stageNo}"`:""}>在项目里打开 →</button></div>`;
-  }
-  /* 该项目未抵达此环节 → 诚实空态，不借别人数据 */
-  function scopeEmpty(stageNo,why){
-    const c=getCamp(scopeId);
-    return scopeBar(stageNo)+`<div class="empty" style="margin-top:30px">
-      <div class="halo" style="background:var(--surface-2);color:var(--muted);box-shadow:none">${IC.eye}</div>
-      <h2>「${c?c.nm:scopeId}」在本环节没有数据</h2>
-      <p>${why}<br><b>这里不会显示其它项目的数据</b> —— 换个作用域，或去项目里推进环节。</p></div>`;
-  }
+  /* scopeBar / scopeEmpty 已删 —— 它们是「环节是空间、项目是筛选器」这个错误模型的产物。
+     scopeBar 里甚至有个按钮写着「在项目里打开 →」：环节页自己都知道它不是该待的地方。
+     项目空间的环节导轨（proj-hd 上的 ①②③④⑤⑥）取代了它。 */
 
   /* ================= 统一组合态 Match（决策单元 = 组合，非个体）================= */
   function libBar(){
@@ -2152,27 +2180,45 @@
   function doOverrule(i){
     const was=OVERRULED.has(i);
     if(was)OVERRULED.delete(i);else OVERRULED.add(i);
-    renderMatch();
+    reStage();
     const e=EXCL[i], n=Math.round(LIBS[libKey].excluded*e.ratio);
     if(was){toast(`已恢复规则「${e.r}」`);return;}
-    undoToast(`已推翻「${e.r}」· ${n} 位放回优选池`,()=>{OVERRULED.delete(i);renderMatch();});
+    undoToast(`已推翻「${e.r}」· ${n} 位放回优选池`,()=>{OVERRULED.delete(i);reStage();});
     const p=(D(scopeId,"plans")||[]).find(x=>x.id===effectivePlan(scopeId));
     agentReply(`已推翻规则 <b>「${e.r}」</b> —— <b>${n} 位</b>候选放回优选池，优选池扩到 <b>${effLib().pool}</b> 位。<br>
       ${p?`代价已重算：<b>${p.nm}</b> 平均可信度 ${p.q[libKey].cred} → <b>${effQ(p).cred}</b>、受众重叠 ${p.q[libKey].ov}% → <b>${effQ(p).ov}%</b>。`
         :`选一个方案就能看到指标变化。`}<br><b>这是你的判断，我记下了</b> —— 规则不是我说了算。`,
       "overrule_rule · 候选已放回 · 方案指标已重算",null,"match");}
 
-  function renderMatch(){
+  /* 02 全球发现（候选池）与 03 智能匹配（组合决策）的体 —— 原 renderMatch 把两个环节挤在一页 */
+  function matchBody(n){
     const S=D(scopeId)||{};
-    if(!S.pool) return void(canvas.innerHTML=scopeEmpty(2,
-      getCamp(scopeId)&&getCamp(scopeId).stage>3?"本项目已过发现与匹配环节，候选决策已完成。":"本项目还没有候选池。"));
+    if(!S.pool) return "";
     const L=(scopeId==="gsea")?effLib():(S.lib||LIBS[libKey]);
     const PLANS_=S.plans;
-    if(!PLANS_) return void(canvas.innerHTML=scopeBar(2)+`
-      <div class="section-h" style="margin-top:6px"><h3>候选池待确认</h3><span class="sub">${STAGES[1].n} 全球发现 · 等待团队缩小范围</span>
-        <div class="spacer"></div><span class="pill warn">${S.pool.length} 位候选</span></div>
-      <div class="risk-list" style="padding:0 0 14px"><div class="risk">${IC.bulb}<span>本项目还在<b>全球发现</b>环节 —— 确认候选池后我才会构建组合方案。组合决策发生在 ${STAGES[2].n} 智能匹配。</span></div></div>
-      <div class="kol-grid">${S.pool.map(k=>kolCard(k)).join("")}</div>`);
+    /* 03 是组合决策环节，owner = 营销负责人。
+       财务在这里的职责不是「选哪个组合」，是「这个组合花多少钱、承诺了什么」——
+       给它一样的选择卡，就是把它拖进不属于它的决策里（这正是用户说的「工作流交叉」）。 */
+    if(n===3&&PLANS_&&!ownsGate("plan")&&!ownsGate("submit-plan")){
+      const eff=(PLANS_||[]).find(x=>x.id===effectivePlan(scopeId));
+      if(!eff) return `<div class="risk-list" style="padding:14px 0"><div class="risk">${IC.shield}<span>组合尚未定案 —— <b>${gateOwner("plan").label}</b>拍板后你会看到最终预算与承诺。</span></div></div>`;
+      const q=effQ(eff);
+      return `<div class="draft anim-in" style="margin-top:14px">
+        <div class="draft-h">${IC.tune}<h4>已定案组合 · ${eff.nm}</h4>
+          <span class="partner">${IC.shield.replace('class="ic"','class="ic" style="width:11px;height:11px"')}由 <b>${roleById((ACTIVE_PLAN[scopeId]||{}).by||"lead").label}</b> ${planVia(scopeId)==="approved"?"经审批":"直接"}拍板</span>
+          <span class="pill good" style="margin-left:auto">已生效</span></div>
+        <div class="fields">
+          <div class="field"><div class="k">组合预算</div><div class="v tnum">${eff.budget}</div></div>
+          <div class="field"><div class="k">创作者数</div><div class="v tnum">${eff.n} 位</div></div>
+          <div class="field"><div class="k">层级结构</div><div class="v">${eff.tiers}</div></div>
+          <div class="field"><div class="k">预估触达</div><div class="v">${q.reach}</div></div></div>
+        <div class="draft-foot"><span class="hint">${IC.bulb}你看到的是<b>结果</b>不是选项 —— 组合决策是${gateOwner("plan").label}的闸门，你的闸门是放款。</span></div></div>`;
+    }
+    if(n===2||!PLANS_) return `
+      <div class="section-h" style="margin-top:6px"><h3>候选池</h3><span class="sub">${PLANS_?"已确认 · 组合决策在 "+STAGES[2].n+" 智能匹配":"等待团队缩小范围"}</span>
+        <div class="spacer"></div><span class="pill ${PLANS_?'good':'warn'}">${S.pool.length} 位候选</span></div>
+      <div class="risk-list" style="padding:0 0 14px"><div class="risk">${IC.bulb}<span>${PLANS_?`候选池已确认 —— <b>组合决策发生在 ${STAGES[2].n} 智能匹配</b>，不在这里。`:`确认候选池后我才会构建组合方案。<b>组合决策发生在 ${STAGES[2].n} 智能匹配。</b>`}</span></div></div>
+      <div class="kol-grid">${S.pool.map(k=>kolCard(k)).join("")}</div>`;
     const p=PLANS_.find(x=>x.id===effectivePlan(scopeId));
     const q=p?effQ(p):null;
     /* P1-12 修复：不玩数字 —— 未选方案时也如实展示「1 次选择 + N 次例外」 */
@@ -2227,7 +2273,7 @@
       :`<div class="empty" style="margin-top:16px"><div class="halo">${IC.target}</div><h2>先选一个组合方案</h2>
         <p><b>${L.relevant}</b> 位相关候选无法逐个裁决 —— 而且逐个挑「好的个体」也拼不出「好的组合」。<br>Agent 已从 <b>${L.pool}</b> 位优选池构建 3 个完整组合：<b>选一个 = 1 次决策覆盖十几位创作者</b>。</p></div>`;
 
-    canvas.innerHTML=scopeBar(3)+libBar()+`
+    return libBar()+`
       <div class="scan-hero">
         <div class="sh-l"><div class="sh-t">Agent 已扫描 <b>${L.lib.toLocaleString()}</b> 位创作者 → 语义匹配出 <b>${L.relevant}</b> 位相关。<br>
           逐卡 accept/skip 需 <b>${L.relevant} 次</b>人工裁决，且你永远不知道第 ${L.relevant+1} 位是否更好。</div></div>
@@ -2268,9 +2314,9 @@
   function renderKolProfile(id){
     const k=allKols().find(x=>x.id===id); if(!k) return;
     const p=PROFILES[id]||{coop:[],perf:"暂无表现历史",judge:[],reuse:"暂无复用建议"};
-    setActive("match");
+    setActive("campaigns"); currentCampaignId=scopeId;   /* 档案是项目空间内的下钻，不是另一个模块 */
     canvas.innerHTML=`
-      <button class="back-btn" data-goto="match">← 返回候选流</button>
+      <button class="back-btn" data-camp="${scopeId}" data-stage-jump="2">← 返回候选池</button>
       <div class="prof-hd">
         <div class="kol-av" style="background:linear-gradient(135deg,${AV[id-1]},${AV[id%6]})">${k.nm[0]}</div>
         <div><div class="pn">${k.nm}</div>
@@ -2297,89 +2343,131 @@
   }
 
   /* ================= Reach（回复工作区 + 邀约草稿） ================= */
-  function renderReach(){
-    const S=D(scopeId)||{};
-    if(!S.replies&&!S.emails) return void(canvas.innerHTML=scopeEmpty(4,
-      getCamp(scopeId)&&getCamp(scopeId).stage<4?"本项目还没进入沟通协作环节。":"本项目没有沟通记录。"));
-    /* GAP-004：组合待批 → 下游不得消费。这是审批「业务闭环」而非「视觉闭环」的关键 */
-    if(pendingPlan&&!effectivePlan(scopeId)){
-      const pend=APPROVALS.find(a=>a.status==="pending"&&a.target&&a.target.kind==="plan"&&a.cid===scopeId);
-      return void(canvas.innerHTML=scopeBar(4)+`<div class="empty" style="margin-top:30px">
+  /* ================= 04 沟通协作 · BD 的关系推进面 =================
+     用户实测：「各环节工作台的设计趋同，没有按照角色的定位和在本环节的职责精细设计」。
+     原 renderReach 按【数据类型】分块：CRM 面板 / 回复工作区 / 邀约草稿 —— 三块各自为政，
+     同一个创作者在三个地方各出现一次，BD 得自己在脑子里把它们缝起来。
+     BD 在 04 的职责不是「看数据」，是【把每一段关系从未触达推到条款谈定】。
+     所以这里按【该谁动】组织：一个创作者 = 一行 = 一段关系；CRM 是它的状态，不是另一张表。 */
+  const REL_BUCKET=[
+    {k:"me",     t:"需要你回应", d:"对方已回复 · AI 备好草案 · 报价与承诺由你拍板", tone:"bad",   open:true},
+    {k:"todo",   t:"待发出邀约", d:"组合已生效 · 草稿按人生成 · 发出即对外不可撤销",   tone:"warn",  open:true},
+    {k:"pending",t:"等待审批",   d:"已交接出去 · 批准前不会对外发出任何承诺",         tone:"brand", open:false},
+    {k:"wait",   t:"等对方回应", d:"已发出 · 状态由 Resend 信号自动推进，不用你盯",    tone:"ghost", open:false},
+    {k:"done",   t:"已谈定",     d:"条款已确认 · 合同要点已归档到经营档案",           tone:"good",  open:false},
+    {k:"dead",   t:"已流失",     d:"硬退信或退订 · 已进抑制名单，不再打扰",           tone:"ghost", open:false}
+  ];
+  function relationsOf(cid){
+    const S=D(cid)||{}, replies=S.replies||[];
+    return draftsFor(cid).map((d,i)=>{
+      const ri=replies.findIndex(r=>r.kol===d.kol);
+      const rep=ri>=0?replies[ri]:null;
+      const crm=crmOf(cid,d.kol);
+      const pend=rep?isPendingApproval("quote",d.kol,cid):false;
+      const bucket = SUPPRESS.has(d.kol) ? "dead"
+                   : (rep&&rep.done)     ? "done"
+                   : pend                ? "pending"
+                   : rep                 ? "me"
+                   : d.status==="draft"  ? "todo"
+                   : "wait";
+      return {d,i,rep,ri,crm,bucket};
+    });
+  }
+  /* 一段关系 = 一行。状态、依据、下一步动作都在这一行里。 */
+  function relRow(cid,x,isCur){
+    const {d,i,rep,ri,crm}=x;
+    const k=allKols().find(y=>y.nm===d.kol);
+    const ev=crm.evidence.length?crm.evidence[crm.evidence.length-1]:"尚无信号";
+    const av=d.kol[0];
+    const meta=k?`${k.pf} · ${k.rg} · ${k.fo}粉`:`${d.depth==="auto"?"自动纳入位":"组合成员"}`;
+    let act="";
+    if(!isCur) act=`<span class="pill ghost">归档</span>`;
+    else if(x.bucket==="me"&&rep){
+      if(!ownsGate("submit-quote"))
+        act=`<span class="await">${IC.shield}待${gateOwner("submit-quote").label}处理${ownsGate("approve-quote")?`（超 $${THRESHOLD.quote.toLocaleString()} 才到你这批）`:""}</span>`;
+      else if(rep.gate){const amt=quoteAmount(rep), over=amt>THRESHOLD.quote&&!ownsGate("approve-quote");
+        act=`<button class="btn primary sm" style="flex:none" data-gate="terms" data-ri="${ri}" data-cid="${cid}">${IC.shield} ${over?`提交${gateOwner("approve-quote").label}审批`:rep.gate.label}</button>`;}
+      else act=`<button class="btn line sm" data-noop>采用草稿回信</button>`;
+    }
+    else if(x.bucket==="todo")
+      act=ownsGate("send")
+        ? `<button class="btn line sm" data-noop>看草稿</button><button class="btn primary sm" style="flex:none" data-send-one="${cid}|${i}">发送</button>`
+        : `<span class="await">${IC.shield}待${gateOwner("send").label}发送</span>`;
+    else if(x.bucket==="dead"&&ownsGate("send"))
+      act=`<button class="btn line sm" style="flex:none" data-retry="${cid}|${i}">重试</button>`;
+    return `<div class="rel" data-rel="${d.kol}">
+      <div class="rel-av" style="background:linear-gradient(135deg,${AV[i%AV.length]},${AV[(i+2)%AV.length]})">${av}</div>
+      <div class="rel-m">
+        <div class="rel-n">${d.kol}
+          <span class="pill ${crmTone(crm.stage)}">${crm.stage}</span>
+          ${d.depth==="auto"?`<span class="src infer" title="自动纳入位：按标签与地区生成，个性化深度低于人工确认位">自动纳入</span>`:""}
+          ${SUPPRESS.has(d.kol)?'<span class="pill bad" style="font-size:9px">抑制名单</span>':""}</div>
+        <div class="rel-s">${meta} · ${ev} <span class="rel-by" title="CRM 状态不是人工打标，可追溯到具体信号">· ${crm.by==="—"?"信号自动推导":crm.by}</span></div>
+      </div>
+      <div class="rel-a">${act}</div></div>
+      ${x.bucket==="me"&&rep?`<div class="rel-x">
+        <div class="rel-q">${IC.mail}<b>${rep.kol} 说：</b>${rep.tl}</div>
+        <ul>${rep.pts.map(pt=>`<li>${pt}</li>`).join("")}</ul>
+        <div class="next-box">${IC.bulb}<span><b>AI 下一步草案：</b>${rep.next}</span></div>
+        ${(()=>{if(!rep.gate)return"";const amt=quoteAmount(rep);
+          return amt>THRESHOLD.quote
+            ? `<div class="rel-w">${IC.shield}<b>$${amt.toLocaleString()} > 报价阈值 $${THRESHOLD.quote.toLocaleString()}</b> —— 需 ${gateOwner("approve-quote").label} ${gateOwner("approve-quote").name} 批准。<b>报价是对外承诺，我不会替你拍。</b></div>`
+            : `<div class="rel-w ok">${IC.check}$${amt.toLocaleString()} 在你的 $${THRESHOLD.quote.toLocaleString()} 额度内 —— 你确认即可发出。</div>`;})()}
+      </div>`:""}
+      ${x.bucket==="todo"?`<div class="rel-x quiet">
+        <div class="rel-q">${IC.mail}<b>${d.subj}</b></div>
+        <div class="mail-body" style="border:0;padding:0 0 8px">${d.body}</div>
+        <div class="rationale">${IC.bulb} <b>为什么这么写：</b>${d.why}</div></div>`:""}
+      ${x.bucket==="dead"&&d.err?`<div class="rel-w">${IC.warn}<b>失败原因：</b>${d.err}</div>`:""}`;
+  }
+  function reachBody(isCur){
+    const cid=scopeId, c=getCamp(cid);
+    /* 组合待批 → 下游不得消费。审批是业务闭环，不是视觉闭环。 */
+    if(pendingPlan&&!effectivePlan(cid)){
+      const pend=APPROVALS.find(a=>a.status==="pending"&&a.target&&a.target.kind==="plan"&&a.cid===cid);
+      return `<div class="empty" style="margin-top:20px">
         <div class="halo" style="background:var(--warn-bg);color:#B9820B;box-shadow:none">${IC.shield}</div>
         <h2>组合待批准 —— 尚未生效</h2>
-        <p>「${getCamp(scopeId).nm}」的组合方案已提交 <b>${roleById(pend?pend.to:"lead").label}</b> 审批（单号 ${pend?pend.id:"—"}）。<br>
+        <p>组合方案已提交 <b>${roleById(pend?pend.to:"lead").label}</b> 审批（单号 ${pend?pend.id:"—"}）。<br>
           <b>批准前不能起草或发送邀约</b> —— 否则审批就只是走过场。</p>
-        <div class="starter" style="margin-top:8px"><button data-camp="${scopeId}" data-stage-jump="3">
-          <span class="k" style="background:linear-gradient(135deg,#FFB547,#f59e0b)">${IC.shield}</span>查看待批组合</button></div></div>`);
+        <div class="starter" style="margin-top:8px"><button data-camp="${cid}" data-stage-jump="3">
+          <span class="k" style="background:linear-gradient(135deg,#FFB547,#f59e0b)">${IC.shield}</span>回到 ${STAGES[2].n} 查看待批组合</button></div></div>`;
     }
-    const REPLIES=S.replies||[];
-    /* GAP-007：草稿由【已生效组合的 roster】派生，不是固定 3 封 */
-    const EMAILS=draftsFor(scopeId);
-    const replies=REPLIES.map((r,i)=>{
-      const k=allKols().find(x=>x.id===r.kid);
-      const gate=r.done?`<button class="btn ok sm" style="flex:none">${IC.check} 条款已确认</button>`
-        :(!ownsGate("submit-quote")
-          /* 审批者 ≠ 发起者：营销负责人持 approve-quote，但对外发报价是 BD 的动作。
-             原守卫写成 (!submit-quote && !approve-quote) → 营销负责人直接拿到「确认报价并回信」，
-             等于自己发起自己批准，责任链短路。 */
-          ? `<span class="await">${IC.shield}条款由${gateOwner("submit-quote").label}提交${ownsGate("approve-quote")?"，超 $"+THRESHOLD.quote.toLocaleString()+" 才到你这批":""}</span>`
-          :(r.gate?(()=>{const amt=quoteAmount(r), over=amt>THRESHOLD.quote&&!ownsGate("approve-quote");
-            return `${over?`<span class="await" style="margin-right:8px">${IC.shield}$${amt.toLocaleString()} > 阈值 $${THRESHOLD.quote.toLocaleString()}</span>`:""}
-            <button class="btn primary sm" style="flex:none" data-gate="terms" data-ri="${i}" data-cid="${scopeId}">${IC.shield} ${over?`提交${gateOwner("approve-quote").label}审批`:r.gate.label}</button>`;})()
-        :`<button class="btn line sm" data-noop>采用草稿回信</button>`));
-      return `<div class="reply anim-in">
-        <div class="reply-top">
-          <div class="kol-av" style="background:linear-gradient(135deg,${AV[r.kid-1]},${AV[r.kid%6]})">${r.kol[0]}</div>
-          <div><div class="rn">${r.kol}</div><div class="rm">${k.pf} · ${r.when} 回复</div></div>
-          <span class="pill ${r.tone==='good'?'good':(r.tone==='warn'?'warn':'brand')}">${r.tl}</span></div>
-        <ul>${r.pts.map(p=>`<li>${p}</li>`).join("")}</ul>
-        <div class="next-box">${IC.bulb}<span><b>AI 下一步草案：</b>${r.next}</span></div>
-        <div class="reply-foot"><span class="owner">${IC.user.replace('class="ic"','class="ic" style="width:12px;height:12px"')}负责人 · ${r.owner}</span><div class="spacer"></div>${gate}</div></div>`;}).join("");
-    /* GAP-007/013：逐封独立状态（含退信/失败/重试），不再是全局布尔 */
-    const stTone={draft:"ghost",queued:"warn",sent:"good",delivered:"good",opened:"brand",replied:"brand",bounced:"bad",failed:"bad"};
-    const drafts=EMAILS.map((e,i)=>`<div class="draft anim-in" style="margin-bottom:16px">
-        <div class="draft-h">${IC.mail}<h4>致 ${e.kol}</h4>
-          <span class="pill ${stTone[e.status]}">${MAIL_STATUS[e.status]}${e.status==="bounced"?" ⚠":""}</span></div>
-        <div class="mail-body"><div class="subj">${e.subj}</div>${e.body}</div>
-        ${e.err?`<div class="rationale" style="background:var(--bad-bg);border-left-color:var(--bad)">${IC.warn} <b>失败原因：</b>${e.err}</div>`
-          :`<div class="rationale">${IC.bulb} <b>为什么这么写：</b>${e.why}</div>`}
-        <div class="draft-foot"><span class="hint">收件人 1 · 来源 知识库产品资料 + KOL 画像</span><div class="spacer"></div>
-          ${e.status==="draft"
-            ? (ownsGate("send")
-               ? `<button class="btn line sm" data-noop>编辑</button><button class="btn primary sm" style="flex:none" data-send-one="${scopeId}|${i}">发送</button>`
-               : `<span class="await">${IC.shield}待${gateOwner("send").label}发送</span>`)
-            : (e.status==="bounced"||e.status==="failed"
-               ? (ownsGate("send")?`<button class="btn line sm" style="flex:none" data-retry="${scopeId}|${i}">重试</button>`:"")
-               : `<span class="pill ${stTone[e.status]}">${IC.check} ${MAIL_STATUS[e.status]}</span>`)}</div></div>`).join("");
-    /* GAP-008：CRM 由信号推导，每条状态都能追溯到具体信号 */
-    const crmRows=EMAILS.map(e=>{const c=crmOf(scopeId,e.kol);
-      return `<div class="krow" style="grid-template-columns:1.2fr 96px 1fr auto">
-        <div class="kn">${e.kol}${SUPPRESS.has(e.kol)?' <span class="pill bad" style="font-size:9px">抑制名单</span>':""}</div>
-        <div><span class="pill ${crmTone(c.stage)}">${c.stage}</span></div>
-        <div class="dv" style="font-size:11px;color:var(--muted)">${c.evidence.length?c.evidence[c.evidence.length-1]:"—"}</div>
-        <div style="text-align:right;font-size:10.5px;color:var(--muted);font-weight:700">${c.by}</div></div>`;}).join("");
-
-    canvas.innerHTML=scopeBar(4)+`
-      <div class="draft" style="margin-bottom:18px">
-        <div class="draft-h">${IC.people}<h4>CRM · 信号驱动</h4>
-          <span class="partner">${IC.bolt.replace('class="ic"','class="ic" style="width:11px;height:11px"')}状态由<b>信号推导</b>，非人工打标</span>
-          <span class="pill brand" style="margin-left:auto">${EMAILS.filter(e=>crmOf(scopeId,e.kol).stage!=="未触达").length} / ${EMAILS.length} 已进入流程</span></div>
-        <div class="deliv" style="padding-top:10px">
-          <div class="krow khead" style="grid-template-columns:1.2fr 96px 1fr auto"><div>创作者</div><div>CRM 状态</div><div>最近信号（依据）</div><div>推导方式</div></div>
-          ${crmRows||'<div class="arc-item">尚无触达记录</div>'}</div>
-        <div class="draft-foot"><span class="hint">${IC.bulb}发送 → 送达 → 打开 → 回复 → 条款 → 签约：<b>每一步都由真实信号推进</b>；硬退信/退订自动进抑制名单，不再打扰。</span></div></div>
-
-      <div class="section-h" style="margin-top:6px"><h3>回复工作区</h3><span class="sub">AI 归纳重点 + 起草下一步 · 报价/合同由你确认</span><div class="spacer"></div><span class="pill brand">${REPLIES.filter(r=>!r.done).length} 条待处理</span></div>
-      ${replies}
-      <div class="section-h"><h3>邀约草稿</h3><span class="sub">每封按 KOL 画像个性化 · 审阅后再发</span><div class="spacer"></div>${emailsSent?'<span class="pill good">已发送 · 追踪中</span>':`<span class="pill warn">${EMAILS.length} 封待发</span>`}</div>
-      ${drafts}
-      ${(()=>{const pend=EMAILS.filter(e=>e.status==="draft").length;
-        if(!pend||!ownsGate("send")) return "";
-        const over=pend>THRESHOLD.bulkSend;
-        return `<div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:4px">
-          ${over?`<span class="await">${IC.shield}${pend} 封 > 阈值 ${THRESHOLD.bulkSend} 封 · 需${gateOwner("approve-quote").label}批</span>`:""}
-          <button class="btn primary" data-bulk="${scopeId}" style="flex:none;padding:12px 22px">
-            ${IC.mail} ${over?`提交批量发送审批（${pend} 封）`:`全部发送（${pend} 封）`}</button></div>`;})()}`;
+    const rels=relationsOf(cid);
+    if(!rels.length) return `<div class="empty" style="margin-top:20px">
+      <div class="halo" style="background:var(--surface-2);color:var(--muted);box-shadow:none">${IC.mail}</div>
+      <h2>组合还没生效 —— 没有可推进的关系</h2>
+      <p>邀约名单由 <b>${STAGES[2].n} 智能匹配</b>选定的组合派生。<b>先定组合，再谈人。</b></p></div>`;
+    const eff=(D(cid,"plans")||[]).find(x=>x.id===effectivePlan(cid));
+    const cnt=k=>rels.filter(x=>x.bucket===k).length;
+    const pendDraft=rels.filter(x=>x.bucket==="todo").length;
+    const bulk=(()=>{
+      if(!pendDraft||!ownsGate("send")||!isCur) return "";
+      const over=pendDraft>THRESHOLD.bulkSend;
+      return `<div class="rel-bulk">
+        ${over?`<span class="await">${IC.shield}${pendDraft} 封 > 阈值 ${THRESHOLD.bulkSend} 封 · 需${gateOwner("approve-quote").label}批</span>`:""}
+        <div class="spacer"></div>
+        <button class="btn primary" data-bulk="${cid}" style="flex:none;padding:11px 20px">
+          ${IC.mail} ${over?`提交批量发送审批（${pendDraft} 封）`:`全部发送（${pendDraft} 封）`}</button></div>`;})();
+    const groups=REL_BUCKET.map(b=>{
+      const list=rels.filter(x=>x.bucket===b.k);
+      if(!list.length) return "";
+      return `<div class="rel-g">
+        <div class="rel-gh"><span class="pill ${b.tone}">${b.t} · ${list.length}</span>
+          <span class="rel-gd">${b.d}</span></div>
+        ${list.map(x=>relRow(cid,x,isCur)).join("")}
+        ${b.k==="todo"?bulk:""}</div>`;}).join("");
+    const total=rels.length;
+    return `<div class="rel-hd">
+      <div class="rel-hl">
+        <div class="rel-ht">${eff?`组合「${eff.nm}」<b>${total} 位</b> · 已生效${planVia(cid)==="direct"?`（${roleById((ACTIVE_PLAN[cid]||{}).by||"lead").label}直接拍板 · 额度内无需审批）`:"（经审批生效）"}`:"组合未生效"}</div>
+        <div class="rel-hs">你的职责：<b>把每一段关系推到条款谈定</b> —— 状态由信号自动推进，你只在需要拍板时出现。</div></div>
+      <div class="rel-hr">
+        <div class="relbar">
+          ${REL_BUCKET.map(b=>{const w=cnt(b.k)/total*100; return w?`<i class="t-${b.tone}" style="width:${w}%" title="${b.t} ${cnt(b.k)}"></i>`:"";}).join("")}
+        </div>
+        <div class="rel-hn"><b>${cnt("me")+cnt("todo")}</b> 项该你动 · ${cnt("pending")} 项等审批 · ${cnt("wait")} 项等对方</div></div></div>
+      ${groups}`;
   }
 
   /* ================= Insight（效果复盘） ================= */
@@ -2462,29 +2550,8 @@
 
   /* ================= module router ================= */
   /* ⑤ 内容交付的跨项目工作台 —— 补上侧栏唯一缺失的环节（P0-3）*/
-  function renderDelivery(){
-    const S=D(scopeId)||{};
-    if(!S.deliv) return void(canvas.innerHTML=scopeEmpty(5,
-      getCamp(scopeId)&&getCamp(scopeId).stage<5?"本项目还没进入内容交付环节。":"本项目没有交付物。"));
-    const c=getCamp(scopeId);
-    const o=stageOwner(5);
-    const ownerTag=`<span class="owner" title="本环节负责人">${IC.user.replace('class="ic"','class="ic" style="width:12px;height:12px"')}负责人 · ${o.label} ${o.name}</span>`;
-    canvas.innerHTML=scopeBar(5)+keyPanel(c,c.stage===5)+missionPanel(c,c.stage===5)+`
-      <div class="draft anim-in">
-        <div class="draft-h">${IC.eye}<h4>版本与发布管理</h4><span class="pill ${c.stage===5?'brand':'good'}">${c.stage===5?'当前环节':'已完成'}</span>${ownerTag}</div>
-        <div class="deliv">${S.deliv.rows.map(r=>`<div class="drow">
-          <div><div class="dk">${r.kol}</div><div class="dv">负责人 ${r.owner} · ${r.date}</div></div>
-          <div class="di">${r.item}<div class="dv">${r.ver} · 每轮修改保留负责人与时间</div></div>
-          <div>${r.published?'<span class="pill good">已标记可发布 ✓</span>':`<span class="pill ${r.tone}">${r.status}</span>`}</div>
-          <div class="dact">${r.publishable&&!r.published&&c.stage===5
-            ? (ownsGate("mark-pub")?`<button class="btn line sm" style="flex:none" data-mark-pub="${c.id}">标记终稿可发布</button>`
-               :`<span class="await">${IC.shield}待${gateOwner("mark-pub").label}处理</span>`)
-            :""}</div></div>`).join("")}</div>
-        <div style="padding:2px 20px 6px;display:flex;gap:7px 16px;flex-wrap:wrap">
-          ${S.deliv.checks.map(x=>`<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-2)">${x[1]?IC.check:IC.warn}审核项 · ${x[0]}</span>`).join("")}</div>
-        <div class="risk-list"><div class="risk">${IC.warn}<span><b>风险项：</b>${S.deliv.risk}</span></div></div>
-        <div class="draft-foot"><span class="hint">${IC.bulb}内容发在创作者自己的频道 —— <b>我们发不了，只能标记「终稿可发布」</b>（内部状态，可撤销）。</span></div></div>`;
-  }
+  /* renderDelivery 已删 —— 它与 stagePanel(5) 是同一环节的两套 UI，
+     正是「工作流交叉」的来源：项目内看摘要、跳出去看实体、再靠锚点跳回来。 */
 
   function renderModule(mod){
     /* 权限守卫装在唯一入口，不是侧栏的一个 if —— 侧栏/data-goto/Agent 跳转全过这里 */
@@ -2497,11 +2564,9 @@
     setActive(mod);
     if(mod==="dashboard"){renderDashboard();return;}
     if(mod==="games"){currentGameId?renderGameDetail(currentGameId):renderGames();return;}
-    if(mod==="campaigns"){renderCampaigns();return;}
-    if(mod==="brief"){renderBrief();return;}
-    if(mod==="match"){renderMatch();return;}
-    if(mod==="reach"){renderReach();return;}
-    if(mod==="delivery"){renderDelivery();return;}
+    /* 侧栏「项目」永远回列表 —— 它问的是「我有哪些项目」。
+       回到某个项目内部走 data-camp / reStage / jumpStage，不经这里。 */
+    if(mod==="campaigns"){currentCampaignId=null;viewStage=null;renderCampaigns();return;}
     if(mod==="insight"){renderInsight();return;}
   }
 
@@ -2590,7 +2655,7 @@
     if(has("规模","10万","十万","扩到","数千","数百","太多")){
       libKey="m10";auditOpen=false;
       agentReply(`已把库规模模拟切到 <b>10 万</b>：这个项目匹配出 <b>812 位</b>相关候选（自动排除 683、优选池 129）。<br><b>但交互完全不用变</b> —— 因为决策单元本来就是「组合」不是「个体」：你还是选 1 个方案 + 判断少数例外，<b>决策次数不随库规模增长</b>。<br>真正变好的是<b>质量</b>：同样 14 人、同样预算，市场覆盖从 3/4 补到 4/4、受众重叠从 14% 降到 8%、平均可信度 79 → 87。<b>库越大 ≠ 选越多，而是选得越准。</b>`,
-        "库规模 → 10 万 · 交互不变、决策次数不变",()=>{setActive("match");renderMatch();setChips("afterMatch");},"match");
+        "库规模 → 10 万 · 交互不变、决策次数不变",()=>{jumpStage(3);setChips("afterMatch");},"match");
       return;
     }
     if(has("可信","假粉","受众","画像","评估","靠谱")){
@@ -2701,7 +2766,7 @@
     const d=draftsFor(cid)[i]; if(!d||d.status!=="draft") return;
     openGate("确认发送邀约",`即将通过 Resend 向 <b>${d.kol}</b> 发送邀约。<b>对外、不可撤销</b> —— 确认后立即发出。`,
       "确认发送",()=>{
-        d.status="queued"; renderReach();
+        d.status="queued"; reStage();
         setTimeout(()=>{
           /* 演示真实世界：并非每封都成功。所有状态变更走信号入口（GAP-008）*/
           if(/GachaQueen/.test(d.kol)){
@@ -2717,17 +2782,17 @@
                 setTimeout(()=>{
                   applySignal(scopeId,d.kol,"replied","对合作有兴趣，问排期与报价");
                   d.status="replied";
-                  if(activeModule==="reach")renderReach();
+                  if(activeModule==="campaigns"&&viewStage===4)reStage();
                   agentReply(`📨 <b>${d.kol} 回复了</b> —— CRM 已<b>自动</b>从「已读」推进到「洽谈中」（<b>不是你手动打的标</b>）。<br>
                     回复重点：对合作有兴趣，问排期与报价。<br>
                     <b>我的下一步建议：</b>起草回信 + 给报价区间 —— 但报价是对外承诺，超 $${THRESHOLD.quote.toLocaleString()} 要走审批。`,
                     "signal: replied → CRM 自动推进 · 已起草下一步",()=>setChips("afterReach"),"comms");
                 },reduce?10:1400);
               }
-              if(activeModule==="reach")renderReach();
+              if(activeModule==="campaigns"&&viewStage===4)reStage();
             },reduce?10:700);
           }
-          renderReach();
+          reStage();
           if(d.status==="bounced"){toast(`${d.kol} 退信`);
             agentReply(`<b>${d.kol}</b> 硬退信 —— 邮箱来源是<b>爬取推断</b>（非平台一方验证），已自动加入抑制名单，不会重复打扰。<br>这正是数据层缺口的产品后果：接入一方数据后此类退信会大幅下降。`,
               "send_email · 退信已归档 · 抑制名单已更新",null,"comms");}
@@ -2738,7 +2803,7 @@
       });}
   function doRetry(cid,i){
     const d=draftsFor(cid)[i]; if(!d) return;
-    d.status="draft"; d.err=null; renderReach();
+    d.status="draft"; d.err=null; reStage();
     toast(`${d.kol} 已重置为草稿`);
     agentReply(`<b>${d.kol}</b> 已重置为草稿。退信原因是邮箱来源不可靠 —— 建议先补一方邮箱再重发，否则大概率再次退信。`,
       "retry · 需先修复根因",null,"comms");}
@@ -2751,7 +2816,7 @@
         `「${getCamp(cid).nm}」组合内 ${pend.length} 位创作者的个性化邀约。超过批量阈值 ${THRESHOLD.bulkSend} 封。`,
         `${pend.length} 封`,{kind:"bulkSend",id:cid},()=>{pend.forEach(d=>{
           d.status="sent"; applySignal(cid,d.kol,"sent","批量发送 · 经审批"); applySignal(cid,d.kol,"delivered","批量发送 · 经审批");});});
-      renderReach();
+      reStage();
       agentReply(`<b>${pend.length} 封 > 批量阈值 ${THRESHOLD.bulkSend} 封</b> —— 已提交 <b>${gateOwner("approve-quote").label}</b> 审批（单号 ${a.id}）。<br><b>批准前一封都不会发出。</b>`,
         "submit-bulkSend · 阈值已执行 · 待批不发送",null,"comms");
       return;}
@@ -2767,7 +2832,7 @@
             d.status="sent"; applySignal(cid,d.kol,"sent","批量发送");
             applySignal(cid,d.kol,"delivered","批量发送");
           }});
-        renderReach();
+        reStage();
         const ok=pend.filter(d=>d.status==="sent").length, bad=pend.length-ok;
         toast(`${ok} 封已发送${bad?` · ${bad} 封退信`:""}`);
         agentReply(`批量发送完成：<b>${ok} 封已发出</b>${bad?`、<b>${bad} 封退信</b>（邮箱为爬取推断来源，已加入抑制名单）`:""}。<br><b>部分成功不是失败</b> —— 已发出的继续追踪，退信的单独列出可重试。`,
@@ -2791,12 +2856,12 @@
       const a=submitApproval("submit-quote",cid,`报价确认：${r.kol} $${amt.toLocaleString()}`,
         r.gate.desc.replace(/<[^>]+>/g,""),`$${amt.toLocaleString()}`,
         {kind:"quote",id:r.kol},()=>{r.done=true;});
-      renderReach();
+      reStage();
       agentReply(`<b>$${amt.toLocaleString()} 超过报价阈值 $${THRESHOLD.quote.toLocaleString()}</b> —— 已提交 <b>${gateOwner("approve-quote").label} ${gateOwner("approve-quote").name}</b> 审批（单号 ${a.id}）。<br>
         <b>批准前不会向 ${r.kol} 发出任何报价承诺</b> —— 报价是对外承诺，我不会替你拍。`,
         "submit-quote · 阈值已执行 · 待批不发出",null,"comms");
       return;}
-    openGate(r.gate.title,r.gate.desc,"确认条款并发出",()=>{r.done=true;DONE_TODAY.add("terms:"+r.kol);renderReach();toast("条款已确认 · 回信已发出");
+    openGate(r.gate.title,r.gate.desc,"确认条款并发出",()=>{r.done=true;DONE_TODAY.add("terms:"+r.kol);reStage();toast("条款已确认 · 回信已发出");
       agentReply(`已按确认条款回复 <b>${r.kol}</b>（$${amt.toLocaleString()}，在你的 $${THRESHOLD.quote.toLocaleString()} 额度内）。合同要点已归档到该创作者的经营档案。`,
         "条款闸门通过 · 已回信并归档",null,"comms");});}
   /* ===== P0-7 闸门预算重排 =====
@@ -2927,7 +2992,7 @@
   canvas.addEventListener("click",e=>{
     const say=e.target.closest("[data-say]"); if(say){submit(say.dataset.say);return;}
     const lb=e.target.closest("[data-lib]");
-    if(lb){const k=lb.dataset.lib; if(k===libKey)return; libKey=k; setActive("match"); renderMatch();
+    if(lb){const k=lb.dataset.lib; if(k===libKey)return; libKey=k; jumpStage(3);
       const L=LIBS[k], p=PLANS.find(x=>x.id===effectivePlan(scopeId));
       agentReply(`库规模切到 <b>${L.label}</b>：语义相关 <b>${L.relevant}</b> 位、自动排除 <b>${L.excluded}</b> 位、优选池 <b>${L.pool}</b> 位。<br><b>交互没变，决策次数还是 ${p?1+p.review:1} 次</b> —— 这就是决策单元升到「组合」的意义：<b>人的决策量不随库规模增长</b>。${k==="now"?"注意方案质量：当前库覆盖不到越南、平均可信度只有 79。":"库变大 ≠ 选更多人（人数由预算决定），而是<b>同样人数、质量更高</b>。"}`,
         "库规模 → "+L.label+" · 决策次数不变",null,"match");
@@ -2949,36 +3014,26 @@
         const a=submitApproval("submit-plan",cid,`组合方案：${p.nm}`,
           `${p.n} 位创作者 · 预估触达 ${q.reach} · 市场覆盖 ${q.mk} · 受众重叠 ${q.ov}% · 平均可信度 ${q.cred}`,
           p.budget,{kind:"plan",id},()=>{setActivePlan(cid,id,"approved");});
-        pendingPlan=id; renderMatch();
+        pendingPlan=id; reStage();
         agentReply(`已选 <b>${p.nm}</b>（${p.n} 位 · ${p.budget}）。<br>
           <b>${p.budget} 超过你的审批额度（$${THRESHOLD.planBudget.toLocaleString()}）</b> —— 已提交给 <b>${gateOwner("approve-plan").label} ${gateOwner("approve-plan").name}</b> 审批，单号 ${a.id}。<br>
           <b>组合在批准前不生效</b> —— 我没有替你批，Reach 也不会据此起草邮件。`,
           "submit-plan · 已交接 · 业务对象待批不生效",()=>setChips("afterMatch"),"match");
         return;}
       /* 阈值内 / owner 拍板 → 立即生效（用户决策：BD 对 $8,000 以下组合可直接生效） */
-      setActivePlan(scopeId,id,"direct"); renderMatch();
+      setActivePlan(scopeId,id,"direct"); reStage();
       agentReply(`已选 <b>${p.nm}</b>（${p.n} 位 · ${p.budget} · 预估触达 ${q.reach}）—— <b>组合已生效</b>${!ownsGate("plan")?`（${p.budget} 在你的 $${THRESHOLD.planBudget.toLocaleString()} 额度内，无需审批）`:""}，Reach 可以据此起草邀约。${ovTone(q.ov)!=="good"||mkTone(q.mk)!=="good"?`⚠️ 受众重叠 <b>${q.ov}%</b>（相当一部分触达是重复付费）、市场覆盖 <b>${q.mk}</b> —— 确定要这个方案吗？`:`市场覆盖 ${q.mk}、受众重叠仅 ${q.ov}%、平均可信度 ${q.cred}，组合成立。`}<br>其中 <b>${p.auto} 位</b>高置信已自动纳入（可抽样审计），<b>${p.review} 位</b>处于模糊地带需你判断。`,
         "select_portfolio · 1 次决策覆盖 "+p.n+" 位",null,"match");
       return;}
-    if(e.target.closest("[data-audit]")){auditOpen=!auditOpen;renderMatch();return;}
+    if(e.target.closest("[data-audit]")){auditOpen=!auditOpen;reStage();return;}
     /* IA 方案 C：跳到环节页时携带项目作用域 + 返回锚点 */
-    const go=e.target.closest("[data-goto]");
-    if(go){if(go.dataset.scope)scopeId=go.dataset.scope;
-      backTo=go.dataset.from||null;
-      renderModule(go.dataset.goto);return;}
-    const bk=e.target.closest("[data-backto]");
-    if(bk){const [cid,st]=bk.dataset.backto.split(":");backTo=null;
-      setActive("campaigns");renderCampaignDetail(cid,+st);return;}
-    const sp=e.target.closest("[data-setscope]");
-    /* RE-GAP-001：作用域切换是对象级入口里最隐蔽的一个 —— 它不渲染项目详情，
-       但会让所有环节页（match/reach/delivery）去读那个项目的数据。守卫必须同样下沉到这里。 */
-    if(sp){const t=sp.dataset.setscope;
-      if(!inScope(t)){toast(`「${(getCamp(t)||{nm:t}).nm}」不在你的负责范围`);return;}
-      scopeId=t;backTo=null;renderModule(activeModule);return;}
+    /* data-goto / data-backto 已删 —— 环节不再是可以「去」的地方，
+       返回锚点(data-from)本身就是这个设计缺陷的自白：心流本就在项目内，何必跳出去再跳回来。 */
+    /* data-setscope 已删：作用域不再是用户要操作的东西 —— 你在哪个项目里，作用域就是它。 */
     const gm=e.target.closest("[data-game]");
     if(gm){setActive("games");currentGameId=gm.dataset.game;renderGameDetail(currentGameId);return;}
     if(e.target.closest("[data-back-games]")){currentGameId=null;renderGames();return;}
-    if(e.target.closest("[data-toggle-org]")){orgOpen=!orgOpen;renderBrief();return;}
+    if(e.target.closest("[data-toggle-org]")){orgOpen=!orgOpen;reStage();return;}
     const camp=e.target.closest("[data-camp]");
     if(camp){const id=camp.dataset.camp, jump=camp.dataset.stageJump;
       setActive("campaigns"); renderCampaignDetail(id, jump?+jump:undefined); return;}
@@ -3066,7 +3121,7 @@
     if(e.target.closest("[data-noop]")){toast("原型中此操作为示意");return;}
   });
   function refreshKols(){
-    if(activeModule==="match")renderMatch();
+    if(activeModule==="campaigns"&&viewStage===2)reStage();   /* 候选池在 02 */
     else if(activeModule==="campaigns"&&currentCampaignId)renderCampaignDetail(currentCampaignId,viewStage);}
 
   /* ---------- 角色渲染 ---------- */

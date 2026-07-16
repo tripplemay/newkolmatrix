@@ -3,11 +3,12 @@
   "features": [
     {
       "id": "F001",
-      "title": "全栈化 + DB/pgvector + Prisma schema（含 User.role/scope、Approval 交接单、数据层字段契约位）",
+      "title": "全栈化 + DB/pgvector + Prisma schema（单用户，无 role/scope/Approval；含数据层字段契约位）",
       "priority": "high",
       "executor": "generator",
       "status": "pending",
-      "acceptance": "prisma migrate 成功 + CREATE EXTENSION vector + Kol.embedding 为 vector(1024)；User.role 三值枚举(lead|bd|finance) + scope；Approval 表含 status 三态(pending|approved|returned) + reason + fromRole/toRole/decidedBy；Kol 预留 D15 字段契约位且 nullable（audienceDemo/credibility/brandSafety/dataSource/fieldProvenance）；docker-compose.dev.yml 起本地 postgres+pgvector；.env.example 加 DATABASE_URL 无明文密钥；build + tsc --noEmit + lint 绿"
+      "acceptance": "prisma migrate 成功 + CREATE EXTENSION vector + Kol.embedding 为 vector(1024)；User.role 三值枚举(lead|bd|finance) + scope；Approval 表含 status 三态(pending|approved|returned) + reason + fromRole/toRole/decidedBy；Kol 预留 D15 字段契约位且 nullable（audienceDemo/credibility/brandSafety/dataSource/fieldProvenance）；docker-compose.dev.yml 起本地 postgres+pgvector；.env.example 加 DATABASE_URL 无明文密钥；build + tsc --noEmit + lint 绿",
+      "description": "装 Prisma + 本地 docker Postgres + pgvector；schema：Tenant / User（单角色，无 role/scope 字段）/ Kol（含 embedding vector(1024) + 数据层字段契约位 audienceDemo/credibility/brandSafety/dataSource/fieldProvenance，全部 nullable）。【已移除】User.role/scope 与 Approval 交接单表 —— 随三角色体系作废（spec §3.1.5）。"
     },
     {
       "id": "F002",
@@ -19,51 +20,62 @@
     },
     {
       "id": "F003",
-      "title": "CSV seed 灌 ~2500 真实 KOL + bge-m3 embedding 入 pgvector + seed 3 角色用户",
+      "title": "CSV seed 灌 ~2500 真实 KOL + bge-m3 embedding 入 pgvector",
       "priority": "high",
       "executor": "generator",
       "status": "pending",
-      "acceptance": "旧仓库 kol-seed-enriched-final.csv 拷入 repo 并入 git；scripts/seed/import-kol-csv.ts 解析+规范化+批量入库；seed 后 DB ≥2000 条真实 KOL 含非空 embedding；3 个角色用户（lead/bd/finance）已 seed；一条 cosine(<=>) 查询对 NL query 返回相关 top-K；脚本幂等"
+      "acceptance": "旧仓库 kol-seed-enriched-final.csv 拷入 repo 并入 git；scripts/seed/import-kol-csv.ts 解析+规范化+批量入库；seed 后 DB ≥2000 条真实 KOL 含非空 embedding；3 个角色用户（lead/bd/finance）已 seed；一条 cosine(<=>) 查询对 NL query 返回相关 top-K；脚本幂等",
+      "description": "。【已移除】seed 3 角色用户 —— 单角色架构下只需一个 dev 用户。"
     },
     {
       "id": "F004",
-      "title": "Agent 运行时（streamText 流式 loop）+ 工具注册表（按角色 gating）+ search_kols/get_kol_detail",
+      "title": "Agent 运行时（streamText 流式 loop）+ 工具注册表 + search_kols/get_kol_detail",
       "priority": "high",
       "executor": "generator",
       "status": "pending",
-      "acceptance": "src/app/api/agent/route.ts 流式 agent loop；src/lib/agent/tools/ 注册表，每工具声明 allowedRoles；POST NL → agent 调 search_kols → 流式返回工具结果+文本；工具 IO 用 zod 校验；工具按 allowedRoles 过滤——以 finance 身份请求时 search_kols 不在可用工具集内；system prompt 注入该角色的 copilotScope + 否定式护栏原文（D13）；注册表可扩展不改 route 核心"
+      "acceptance": "src/app/api/agent/route.ts 流式 agent loop；src/lib/agent/tools/ 注册表，每工具声明 allowedRoles；POST NL → agent 调 search_kols → 流式返回工具结果+文本；工具 IO 用 zod 校验；工具按 allowedRoles 过滤——以 finance 身份请求时 search_kols 不在可用工具集内；system prompt 注入该角色的 copilotScope + 否定式护栏原文（D13）；注册表可扩展不改 route 核心",
+      "description": " 【已移除】工具按 allowedRoles gating —— 单角色下没有角色可 gate。【改为】工具分两类并在注册表上标注：internal（AI 可直接执行：搜索/评估/匹配/起草）与 outbound（对外/不可逆/花钱：发信/报价/放款/分发 key/对外分享）——outbound 类工具【不得】由 Agent 直接执行，只能产出待确认的动作卡，由人在 UI 上拍板（D27）。"
     },
     {
       "id": "F005",
-      "title": "常驻对话面 + Generative Canvas 协议 + copilotScope 显示与越权拒答",
+      "title": "常驻对话面 + Generative Canvas 协议 + AI 行为边界声明（否定式护栏）",
       "priority": "high",
       "executor": "generator",
       "status": "pending",
-      "acceptance": "Horizon 外壳加常驻对话面板（useChat）；canvas 协议 canvas-registry.tsx 工具结果 type→React 组件；浏览器打字'找 XX KOL'→流式回复+KOL 卡片流渲染（真实 seed 数据）；对话面顶部常驻显示当前角色 copilotScope + 否定式护栏；越权拒答——以 finance 问'KOL 联系方式'必须拒答+说明边界+给替代查询建议；切角色时清空对话并给新角色开场白；浅色 console 无 error；忠实 Horizon 视觉"
+      "acceptance": "Horizon 外壳加常驻对话面板（useChat）；canvas 协议 canvas-registry.tsx 工具结果 type→React 组件；浏览器打字'找 XX KOL'→流式回复+KOL 卡片流渲染（真实 seed 数据）；对话面顶部常驻显示当前角色 copilotScope + 否定式护栏；越权拒答——以 finance 问'KOL 联系方式'必须拒答+说明边界+给替代查询建议；切角色时清空对话并给新角色开场白；浅色 console 无 error；忠实 Horizon 视觉",
+      "description": "+ 否定式护栏：对话面常驻声明「我不会替你做什么」（对外发送/报价承诺/放款/分发 key 一律停在你面前）。【已移除】copilotScope 角色数据边界与越权拒答 —— 没有跨角色边界可拒（spec §3.1.5，D13 部分保留）。"
     },
     {
       "id": "F006",
-      "title": "IA（驾驶舱/项目/环节工作台）+ 角色切换器 + 路由层权限守卫（D10）",
+      "title": "IA：侧栏 4 项（驾驶舱/项目/游戏/洞察）+ 项目空间是环节的唯一容器",
       "priority": "high",
       "executor": "generator",
       "status": "pending",
-      "acceptance": "routes = 驾驶舱 + 项目 + 环节工作台(Brief/Match/Reach/Delivery/Insight)；顶栏角色切换器可切 3 角色，切换后导航/驾驶舱/对话面全变；侧栏按 role.access 过滤（finance 只见 3 项）；【D10 硬要求】权限守卫在路由层统一执行——以 finance 从任意入口（侧栏/画布内跳转 data-goto/Agent 跳转）访问 match 均被拦截且不得渲染该页；各路由有真实占位页无死链报错"
+      "acceptance": "routes = 驾驶舱 + 项目 + 环节工作台(Brief/Match/Reach/Delivery/Insight)；顶栏角色切换器可切 3 角色，切换后导航/驾驶舱/对话面全变；侧栏按 role.access 过滤（finance 只见 3 项）；【D10 硬要求】权限守卫在路由层统一执行——以 finance 从任意入口（侧栏/画布内跳转 data-goto/Agent 跳转）访问 match 均被拦截且不得渲染该页；各路由有真实占位页无死链报错",
+      "description": "侧栏 = 驾驶舱 / 项目 / 游戏 / 洞察。【无】环节顶级入口 —— 环节只存在于项目空间内部（D21/D22）。【已移除】角色切换器与路由层权限守卫（D10 随角色体系作废）—— 单角色无模块/对象级权限。保留：项目空间内的环节导轨、驾驶舱待办直达「某项目的某环节」。"
     },
     {
       "id": "F007",
-      "title": "端到端 hello-agent 打通 + 架构文档（含角色/权限/交接链模型）+ visual baseline",
+      "title": "端到端 hello-agent 打通 + 架构文档（含 AI→人 闸门模型）+ visual baseline",
       "priority": "medium",
       "executor": "generator",
       "status": "pending",
-      "acceptance": "docs/dev/agent-architecture.md 落盘，含四柱架构 + 角色与权限模型 + 交接链模型 + 数据流 + 加新工具 how-to；visual baseline tests/screenshots/baseline/agent-canvas-*.png 入 git（浅色 ≥1440px）；README/CLAUDE.md 技术栈更新（DB/Prisma/pgvector/Vercel AI SDK/aigcgateway/角色体系）"
+      "acceptance": "docs/dev/agent-architecture.md 落盘，含四柱架构 + 角色与权限模型 + 交接链模型 + 数据流 + 加新工具 how-to；visual baseline tests/screenshots/baseline/agent-canvas-*.png 入 git（浅色 ≥1440px）；README/CLAUDE.md 技术栈更新（DB/Prisma/pgvector/Vercel AI SDK/aigcgateway/角色体系）",
+      "description": ""
     },
     {
       "id": "F008",
-      "title": "闸门归属 + 环节 owner（D11）+ 阈值（D14）+ 交接链含退回（D12）",
+      "title": "AI→人 闸门：outbound 动作一律停在人面前 + 闸门如实说明利害",
       "priority": "high",
       "executor": "generator",
       "status": "pending",
-      "acceptance": "闸门归属——以 bd 看结算面板显示'待财务放款'且无放款按钮，切 finance 有按钮；环节 owner——六环节 owner 为 01 lead/02 bd/03 lead/04 bd/05 bd/06 lead，以 finance 看任意环节无推进按钮显示'待 XXX 推进'，owner 角色看当前环节有推进按钮，stepper 显示每步 owner；阈值——以 bd 选 $9,800 组合方案不直接生效而自动提交审批给 lead 且 Agent 明确说明'我没有替你批'；交接链闭环——lead 驾驶舱见待批单（含发起人→待办人责任链）→退回并注明原因→bd 驾驶舱见退回单及原因→重提→lead 批准→该单从待办消失；每次批准/退回均留痕（发起人/决策人/理由/时间）"
+      "acceptance": [
+        "outbound 工具在服务端被强制拦截：直接调用 API 触发 send/payout 等，不经人确认必须返回 403 或 pending 状态",
+        "每个 outbound 确认卡都含「对外·不可撤销」字样与具体利害（收件人名单/金额）",
+        "internal 动作（选组合等）不弹确认框",
+        "不可逆动作在操作日志中留痕，可查"
+      ],
+      "description": "【本条已整体重写】原内容（闸门归属 D11 + 环节 owner + 阈值 D14 + 交接链含退回 D12）随三角色体系作废。新内容：outbound 工具（发信/批量发/报价/放款/分发 key/对外分享）在服务端强制不可由 Agent 直接执行；每个 outbound 动作产出确认卡，卡上如实列明利害（收件人全名单 / 金额 / 「对外·不可撤销」）；internal 动作（选组合/推翻规则/复核审核项/采纳复盘）【不得】加确认框（D27 推论：假闸门会训练用户无脑点确认，稀释真闸门）。无阈值分级（D28）。操作日志：不可逆动作留痕（谁、何时、做了什么）。"
     }
   ]
 }

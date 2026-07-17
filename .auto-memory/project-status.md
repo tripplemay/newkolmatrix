@@ -12,7 +12,7 @@ type: project
 - Horizon 高保真 · 单角色 · 多 Agent 编队（每环节专家 + 协同交接）· AI→人闸门
 - 6 页全实：今天/项目(+五环节纵推)/创作者库(+详情抽屉)/游戏知识(素材上传→AI解析)/洞察/Agent记录
 - Horizon 复用审计（2026-07-17）→ 已全量对齐 token/结构；`docs/product/interaction-prototype-v2-落地规范.md` = 手写件→真组件映射
-- 归档 role-first(三角色否决)+旧 interaction-prototype → `docs/archive/`；small-team(另一 agent 平行路径)留原处未动
+- **仓库已清理（2026-07-17）**：只留 v2 原型 + 落地规范 + smoke + 产品调研文档；role-first/small-team/旧 interaction-prototype/落地页/借鉴稿已删除
 
 ## 重构总方向（用户 2026-07-14 拍板）
 - 保功能、去 SaaS 化、改 AI native（AI 从副驾提到主驾）；单角色 + 多专家 Agent

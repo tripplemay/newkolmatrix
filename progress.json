@@ -10,6 +10,7 @@
   "reference_docs": [
     "docs/audits/KOLMatrix-interaction-prototype-review-2026-07-15.md",
     "docs/specs/AGENT-FOUNDATION-spec.md",
+    "docs/dev/architecture.md",
     "docs/product/interaction-prototype-v2.html",
     "docs/product/interaction-prototype-v2-落地规范.md",
     "scripts/test/v2-prototype-smoke.js",
@@ -27,7 +28,7 @@
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【交互原型 v2 定稿并入库】本会话主线是把交互原型迭代到位（非状态机批次；属 planning 上游设计探索）。轨迹：单角色骨架→Horizon 高保真复刻→加回常驻多 Agent Copilot（每环节专家 Agent＋协同可展开交接）→补齐 6 页（今天/项目+五环节纵推/创作者库+详情抽屉/游戏知识 素材上传→AI解析/洞察/Agent记录）→修 data-enter/data-env 属性冲突 bug。然后做 Horizon 复用审计（8-agent workflow，39 findings，26 CONFIRMED）→ 全量对齐 token/结构（阴影.08、标题navy-700、按钮扁平、侧栏浮卡、导航玻璃、进度条/环、平滑面积图，修 'x' 图标 bug）。产出落地规范 docs/product/interaction-prototype-v2-落地规范.md（手写件→真 Horizon 组件映射，两 agent 源码核验）。canonical=interaction-prototype-v2.html + v2-prototype-smoke.js(57断言)。归档 role-first(三角色否决)+旧 interaction-prototype→docs/archive/。small-team(另一 agent 平行路径)留原处未动；KOLMatrix-落地页-V7 / 有墨公考 未入库。status 仍 planning，building 暂停。下一步：可开 WORKBENCH-UI 前端落地批次（按落地规范用真组件+mock），或推进 AGENT-FOUNDATION 后端。 【仓库清理 2026-07-17】只保留 v2 原型 + 落地规范 + v2-smoke + 产品调研文档（ai-native-usage/competitive/gap-*/2 份 audits 保留）；删除 docs/archive（含 role-first/旧 interaction-prototype）、small-team、KOLMatrix-落地页-V7、有墨公考、.DS_Store。研究文档保留故 reference_docs 无需改。"
+    "Andy": "【交互原型 v2 定稿并入库】本会话主线是把交互原型迭代到位（非状态机批次；属 planning 上游设计探索）。轨迹：单角色骨架→Horizon 高保真复刻→加回常驻多 Agent Copilot（每环节专家 Agent＋协同可展开交接）→补齐 6 页（今天/项目+五环节纵推/创作者库+详情抽屉/游戏知识 素材上传→AI解析/洞察/Agent记录）→修 data-enter/data-env 属性冲突 bug。然后做 Horizon 复用审计（8-agent workflow，39 findings，26 CONFIRMED）→ 全量对齐 token/结构（阴影.08、标题navy-700、按钮扁平、侧栏浮卡、导航玻璃、进度条/环、平滑面积图，修 'x' 图标 bug）。产出落地规范 docs/product/interaction-prototype-v2-落地规范.md（手写件→真 Horizon 组件映射，两 agent 源码核验）。canonical=interaction-prototype-v2.html + v2-prototype-smoke.js(57断言)。归档 role-first(三角色否决)+旧 interaction-prototype→docs/archive/。small-team(另一 agent 平行路径)留原处未动；KOLMatrix-落地页-V7 / 有墨公考 未入库。status 仍 planning，building 暂停。下一步：可开 WORKBENCH-UI 前端落地批次（按落地规范用真组件+mock），或推进 AGENT-FOUNDATION 后端。 【仓库清理 2026-07-17】只保留 v2 原型 + 落地规范 + v2-smoke + 产品调研文档（ai-native-usage/competitive/gap-*/2 份 audits 保留）；删除 docs/archive（含 role-first/旧 interaction-prototype）、small-team、KOLMatrix-落地页-V7、有墨公考、.DS_Store。研究文档保留故 reference_docs 无需改。 【PRD+架构 2026-07-17】KOLMatrix-PRD.md v1.0（14-agent 工作流+稽核 17 条修毕）与 docs/dev/architecture.md v1.0（12-agent 起草+27 条跨章裁决+20 项残留扫描 PASS；合稿 agent 曾超 64k 输出上限，改为磁盘修补+机械拼装恢复）均已入库。闸门契约定稿=两步票据（confirm 签票→execute 消费）、PendingAction 7 态、harm 单一 zod、TS5=F002 前独立微批次（ADR-008）、工具白名单 6 名/语义 5 类。"
   },
   "features": []
 }

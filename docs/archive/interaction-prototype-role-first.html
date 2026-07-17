@@ -1,0 +1,1222 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KOLMatrix Role-first Workbench</title>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f6f8;
+      --surface: #ffffff;
+      --surface-2: #f8fafb;
+      --surface-3: #eef2f5;
+      --ink: #18212b;
+      --ink-2: #344054;
+      --muted: #667085;
+      --soft: #98a2b3;
+      --line: #e1e6eb;
+      --line-strong: #cbd3dc;
+      --accent: #2563eb;
+      --accent-soft: #eaf1ff;
+      --accent-ink: #1746a2;
+      --teal: #0f8b7d;
+      --teal-soft: #e7f6f3;
+      --amber: #b86109;
+      --amber-soft: #fff3df;
+      --red: #b83d4a;
+      --red-soft: #fff0f1;
+      --green: #18794e;
+      --green-soft: #eaf7f0;
+      --shadow: 0 16px 48px rgba(22, 31, 44, .12);
+      --sidebar-w: 224px;
+      --assistant-w: 336px;
+      --topbar-h: 58px;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); }
+    body[data-role="bd"] { --accent: #0f8b7d; --accent-soft: #e7f6f3; --accent-ink: #0a6259; }
+    body[data-role="ops"] { --accent: #b86109; --accent-soft: #fff3df; --accent-ink: #7a3e06; }
+    button, input, textarea, select { font: inherit; letter-spacing: 0; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { border: 0; }
+    a { color: inherit; text-decoration: none; }
+    .icon { width: 17px; height: 17px; stroke-width: 1.9; flex: 0 0 auto; }
+    .icon.sm { width: 14px; height: 14px; }
+
+    .app {
+      display: grid;
+      grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--assistant-w);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #17202a;
+      color: #e9eef4;
+      border-right: 1px solid #25313e;
+      z-index: 30;
+    }
+    .brand {
+      height: var(--topbar-h);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 18px;
+      border-bottom: 1px solid #2a3542;
+      font-weight: 760;
+      font-size: 14px;
+    }
+    .brand-mark {
+      width: 29px;
+      height: 29px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      background: #f8fafc;
+      color: #17202a;
+      font-size: 11px;
+      font-weight: 850;
+    }
+    .org {
+      margin: 14px 12px 8px;
+      padding: 10px;
+      border: 1px solid #344150;
+      border-radius: 6px;
+      background: #202b37;
+    }
+    .org small { display: block; color: #93a2b3; font-size: 10px; margin-bottom: 4px; }
+    .org b { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+    .nav-label {
+      margin: 13px 18px 6px;
+      color: #718094;
+      font-size: 10px;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+    .nav { display: grid; gap: 3px; padding: 0 9px; }
+    .nav-btn {
+      width: 100%;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      color: #b8c3cf;
+      background: transparent;
+      border-radius: 5px;
+      cursor: pointer;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 620;
+    }
+    .nav-btn:hover { background: #222e3b; color: #fff; }
+    .nav-btn.on { background: #f8fafc; color: #17202a; }
+    .nav-count {
+      margin-left: auto;
+      min-width: 20px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      background: #354353;
+      color: #dae2eb;
+      font-size: 10px;
+      text-align: center;
+    }
+    .nav-btn.on .nav-count { background: var(--accent-soft); color: var(--accent-ink); }
+    .sidebar-project {
+      margin: 14px 9px 0;
+      padding: 11px;
+      border-top: 1px solid #2d3946;
+      color: #bac5d0;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .sidebar-project b { display: block; color: #fff; margin: 4px 0; font-size: 12px; }
+    .sidebar-project .progress { margin-top: 8px; height: 3px; background: #354353; }
+    .sidebar-project .progress i { display: block; width: 58%; height: 100%; background: #56c2a8; }
+    .sidebar-foot {
+      margin-top: auto;
+      padding: 13px 14px;
+      border-top: 1px solid #2a3542;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+    .avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: var(--accent);
+      font-size: 11px;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+    .sidebar-foot b { display: block; font-size: 11px; }
+    .sidebar-foot small { color: #7f8fa2; font-size: 10px; }
+
+    .main { min-width: 0; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      height: var(--topbar-h);
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 22px;
+      background: rgba(255, 255, 255, .96);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(12px);
+    }
+    .crumb { min-width: 0; font-size: 12px; color: var(--muted); }
+    .crumb b { color: var(--ink); }
+    .top-spacer { flex: 1; }
+    .role-switch {
+      display: inline-grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      width: 328px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface-2);
+    }
+    .role-btn {
+      min-height: 31px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 0 7px;
+      border-radius: 4px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font-size: 10.5px;
+      font-weight: 680;
+      white-space: nowrap;
+    }
+    .role-btn.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 4px rgba(17, 24, 39, .1); }
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      color: var(--ink-2);
+      background: var(--surface);
+      cursor: pointer;
+    }
+    .icon-btn:hover { border-color: var(--line-strong); background: var(--surface-2); }
+    .mobile-only { display: none; }
+
+    .view { padding: 24px clamp(18px, 3vw, 38px) 56px; max-width: 1320px; margin: 0 auto; }
+    .page-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .page-head h1 { margin: 0 0 6px; font-size: 23px; line-height: 1.2; letter-spacing: 0; }
+    .page-head p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .page-actions { margin-left: auto; display: flex; gap: 8px; }
+    .btn {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 0 12px;
+      border-radius: 5px;
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      color: var(--ink-2);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn:hover { background: var(--surface-2); }
+    .btn.primary { color: #fff; background: var(--accent); border-color: var(--accent); }
+    .btn.primary:hover { filter: brightness(.95); }
+    .btn.danger { color: var(--red); background: var(--red-soft); border-color: #f1c8cd; }
+    .btn:disabled { opacity: .48; cursor: not-allowed; }
+    .btn.sm { min-height: 29px; padding: 0 9px; font-size: 10.5px; }
+
+    .role-charter {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(220px, .65fr);
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--accent);
+      background: var(--surface);
+      margin-bottom: 22px;
+    }
+    .charter-main { padding: 15px 17px; }
+    .charter-eyebrow { color: var(--accent-ink); font-size: 10px; font-weight: 800; text-transform: uppercase; margin-bottom: 5px; }
+    .charter-main strong { font-size: 14px; }
+    .charter-main p { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .charter-boundary {
+      padding: 14px 17px;
+      border-left: 1px solid var(--line);
+      background: var(--surface-2);
+      color: var(--ink-2);
+      font-size: 10.5px;
+      line-height: 1.55;
+    }
+    .charter-boundary b { display: block; color: var(--red); margin-bottom: 3px; }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(280px, .85fr);
+      gap: 24px;
+      align-items: start;
+    }
+    .section { min-width: 0; }
+    .section + .section { margin-top: 24px; }
+    .section-head {
+      min-height: 32px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    .section-head h2 { margin: 0; font-size: 13px; }
+    .section-head .meta { color: var(--muted); font-size: 10.5px; }
+    .section-head .grow { flex: 1; }
+
+    .task-list { border-top: 1px solid var(--line); }
+    .task-row {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 13px 3px;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+    .task-row:hover { background: #fafbfc; }
+    .task-ico {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      color: var(--accent-ink);
+      background: var(--accent-soft);
+    }
+    .task-row strong { display: block; margin-bottom: 4px; font-size: 12px; }
+    .task-row p { margin: 0; color: var(--muted); font-size: 10.5px; line-height: 1.45; }
+    .task-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+    .task-meta time { color: var(--red); font-size: 10px; font-weight: 700; }
+    .tag, .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 20px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: var(--surface-3);
+      color: var(--ink-2);
+      font-size: 9.5px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .status.good { color: var(--green); background: var(--green-soft); }
+    .status.warn { color: var(--amber); background: var(--amber-soft); }
+    .status.bad { color: var(--red); background: var(--red-soft); }
+    .status.accent { color: var(--accent-ink); background: var(--accent-soft); }
+
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+    .metric { padding: 13px 12px; border-right: 1px solid var(--line); }
+    .metric:last-child { border-right: 0; }
+    .metric b { display: block; font-size: 18px; margin-bottom: 3px; }
+    .metric span { color: var(--muted); font-size: 9.5px; }
+
+    .handoff-list { border: 1px solid var(--line); background: var(--surface); }
+    .handoff {
+      position: relative;
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr);
+      gap: 9px;
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .handoff:last-child { border-bottom: 0; }
+    .handoff-people { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 9px; margin-bottom: 4px; }
+    .mini-avatar {
+      width: 19px;
+      height: 19px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      background: #667085;
+      font-size: 7px;
+      font-weight: 800;
+    }
+    .handoff strong { display: block; font-size: 10.5px; line-height: 1.4; }
+    .handoff p { margin: 4px 0 0; color: var(--muted); font-size: 9.5px; line-height: 1.45; }
+
+    .data-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); }
+    .data-table th {
+      height: 34px;
+      padding: 0 11px;
+      color: var(--muted);
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--line);
+      font-size: 9.5px;
+      font-weight: 720;
+      text-align: left;
+    }
+    .data-table td { padding: 11px; border-bottom: 1px solid var(--line); font-size: 10.5px; vertical-align: middle; }
+    .data-table tr:last-child td { border-bottom: 0; }
+    .data-table tbody tr[data-project] { cursor: pointer; }
+    .data-table tbody tr[data-project]:hover { background: #fafbfc; }
+    .project-cell b { display: block; font-size: 11.5px; margin-bottom: 3px; }
+    .project-cell span { color: var(--muted); font-size: 9.5px; }
+    .health { display: flex; align-items: center; gap: 7px; }
+    .health-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+    .health-dot.warn { background: var(--amber); }
+    .health-dot.bad { background: var(--red); }
+
+    .project-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: start;
+      margin-bottom: 14px;
+    }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 10px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font-size: 10.5px;
+      padding: 0;
+    }
+    .project-title { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+    .project-title h1 { margin: 0; font-size: 21px; }
+    .project-sub { margin-top: 6px; color: var(--muted); font-size: 11px; }
+    .project-select { min-width: 184px; height: 34px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); padding: 0 30px 0 10px; color: var(--ink-2); font-size: 10.5px; }
+
+    .project-facts {
+      display: grid;
+      grid-template-columns: 1.4fr repeat(3, minmax(100px, .6fr));
+      border: 1px solid var(--line);
+      background: var(--surface);
+      margin-bottom: 12px;
+    }
+    .fact { padding: 11px 13px; border-right: 1px solid var(--line); }
+    .fact:last-child { border-right: 0; }
+    .fact span { display: block; color: var(--muted); font-size: 9px; margin-bottom: 4px; }
+    .fact b { font-size: 11px; line-height: 1.4; }
+
+    .tabs {
+      display: flex;
+      gap: 3px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 18px;
+    }
+    .tab {
+      flex: 0 0 auto;
+      min-height: 39px;
+      padding: 0 12px;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font-size: 10.5px;
+      font-weight: 700;
+    }
+    .tab.on { color: var(--accent-ink); border-bottom-color: var(--accent); }
+
+    .project-room {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 282px;
+      gap: 22px;
+      align-items: start;
+    }
+    .workspace { min-width: 0; }
+    .workspace-title {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .workspace-title .task-ico { width: 38px; height: 38px; }
+    .workspace-title h2 { margin: 0 0 4px; font-size: 15px; }
+    .workspace-title p { margin: 0; color: var(--muted); font-size: 10.5px; line-height: 1.45; }
+    .workspace-title .grow { flex: 1; }
+    .workspace-band {
+      padding: 13px 15px;
+      margin-bottom: 15px;
+      border-left: 3px solid var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+      font-size: 10.5px;
+      line-height: 1.55;
+    }
+    .workspace-band b { font-size: 11px; }
+
+    .panel { border: 1px solid var(--line); background: var(--surface); }
+    .panel + .panel { margin-top: 14px; }
+    .panel-head {
+      min-height: 43px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 13px;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-head h3 { margin: 0; font-size: 11.5px; }
+    .panel-head p { margin: 0; color: var(--muted); font-size: 9.5px; }
+    .panel-head .grow { flex: 1; }
+    .panel-body { padding: 13px; }
+
+    .decision-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); min-height: 420px; }
+    .decision-list { border-right: 1px solid var(--line); background: var(--surface-2); }
+    .decision-item { padding: 12px; border-bottom: 1px solid var(--line); }
+    .decision-item.on { background: var(--surface); box-shadow: inset 3px 0 var(--accent); }
+    .decision-item b { display: block; font-size: 10.5px; margin: 5px 0; }
+    .decision-item p { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.4; }
+    .decision-detail { padding: 16px; }
+    .decision-detail h3 { margin: 0 0 5px; font-size: 15px; }
+    .decision-detail > p { margin: 0 0 14px; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
+    .option-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .option { padding: 11px; border: 1px solid var(--line); border-radius: 5px; }
+    .option.recommended { border-color: var(--accent); background: var(--accent-soft); }
+    .option strong { display: block; font-size: 11px; margin-bottom: 8px; }
+    .option dl { display: grid; grid-template-columns: 1fr auto; gap: 5px 8px; margin: 0; }
+    .option dt, .option dd { margin: 0; font-size: 9.5px; }
+    .option dt { color: var(--muted); }
+    .option dd { font-weight: 700; }
+    .explain {
+      display: flex;
+      gap: 8px;
+      padding: 10px;
+      margin: 12px 0;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      color: var(--ink-2);
+      font-size: 9.5px;
+      line-height: 1.5;
+    }
+    .decision-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+    .workflow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+    .workflow-step { position: relative; padding: 12px 10px; border-right: 1px solid var(--line); }
+    .workflow-step:last-child { border-right: 0; }
+    .workflow-step b { display: block; font-size: 9.5px; margin-bottom: 4px; }
+    .workflow-step small { color: var(--muted); font-size: 8.5px; }
+    .workflow-step.done { background: var(--green-soft); }
+    .workflow-step.current { background: var(--accent-soft); box-shadow: inset 0 -3px var(--accent); }
+
+    .pipeline-board { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 8px; overflow-x: auto; }
+    .pipeline-col { min-width: 150px; border: 1px solid var(--line); background: var(--surface-2); }
+    .pipeline-col-head { display: flex; align-items: center; gap: 6px; padding: 9px; border-bottom: 1px solid var(--line); font-size: 9.5px; font-weight: 750; }
+    .pipeline-col-head span { margin-left: auto; color: var(--muted); }
+    .creator-card { margin: 7px; padding: 9px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); }
+    .creator-top { display: flex; align-items: center; gap: 7px; }
+    .creator-top b { font-size: 9.5px; }
+    .creator-card p { margin: 6px 0 0; color: var(--muted); font-size: 8.5px; line-height: 1.4; }
+
+    .split-work { display: grid; grid-template-columns: minmax(210px, .8fr) minmax(0, 1.2fr); min-height: 400px; }
+    .inbox { border-right: 1px solid var(--line); }
+    .inbox-row { padding: 11px; border-bottom: 1px solid var(--line); cursor: pointer; }
+    .inbox-row.on { background: var(--accent-soft); }
+    .inbox-row b { display: block; font-size: 10px; margin-bottom: 4px; }
+    .inbox-row p { margin: 0; color: var(--muted); font-size: 8.5px; line-height: 1.35; }
+    .conversation { padding: 15px; }
+    .message-line { max-width: 88%; padding: 9px 10px; margin-bottom: 8px; border-radius: 6px; background: var(--surface-3); font-size: 9.5px; line-height: 1.5; }
+    .message-line.out { margin-left: auto; background: var(--accent-soft); color: var(--accent-ink); }
+    .draft-box { margin-top: 13px; padding: 11px; border: 1px solid var(--line-strong); background: var(--surface); }
+    .draft-box textarea { width: 100%; min-height: 82px; border: 0; outline: 0; resize: vertical; color: var(--ink-2); background: transparent; font-size: 10px; line-height: 1.5; }
+    .draft-foot { display: flex; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+    .draft-foot span { color: var(--muted); font-size: 8.5px; }
+    .draft-foot .grow { flex: 1; }
+
+    .checklist { display: grid; gap: 7px; }
+    .check-row { display: grid; grid-template-columns: 25px minmax(0, 1fr) auto; gap: 9px; align-items: center; padding: 10px; border: 1px solid var(--line); background: var(--surface); }
+    .check-icon { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; color: var(--green); background: var(--green-soft); }
+    .check-icon.warn { color: var(--amber); background: var(--amber-soft); }
+    .check-row b { display: block; font-size: 10px; }
+    .check-row p { margin: 3px 0 0; color: var(--muted); font-size: 8.5px; }
+
+    .collab {
+      position: sticky;
+      top: calc(var(--topbar-h) + 18px);
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+    .collab-head { padding: 12px; border-bottom: 1px solid var(--line); }
+    .collab-head b { display: block; font-size: 11px; }
+    .collab-head p { margin: 4px 0 0; color: var(--muted); font-size: 9px; line-height: 1.4; }
+    .owner-list { padding: 7px 12px; }
+    .owner-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .owner-row:last-child { border-bottom: 0; }
+    .owner-row b { display: block; font-size: 9.5px; }
+    .owner-row span { color: var(--muted); font-size: 8px; }
+    .handoff-thread { border-top: 1px solid var(--line); padding: 11px 12px; }
+    .thread-item { position: relative; padding: 0 0 14px 18px; }
+    .thread-item:last-child { padding-bottom: 0; }
+    .thread-item::before { content: ""; position: absolute; left: 4px; top: 5px; bottom: -5px; width: 1px; background: var(--line-strong); }
+    .thread-item:last-child::before { display: none; }
+    .thread-item::after { content: ""; position: absolute; left: 1px; top: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--soft); }
+    .thread-item.current::after { background: var(--accent); }
+    .thread-item b { display: block; font-size: 9px; }
+    .thread-item p { margin: 3px 0 0; color: var(--muted); font-size: 8px; line-height: 1.4; }
+
+    .assistant {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border-left: 1px solid var(--line);
+      z-index: 35;
+    }
+    .assistant-head { min-height: var(--topbar-h); display: flex; align-items: center; gap: 9px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+    .agent-mark { width: 29px; height: 29px; display: grid; place-items: center; border-radius: 6px; color: var(--accent-ink); background: var(--accent-soft); }
+    .assistant-head b { display: block; font-size: 11px; }
+    .assistant-head small { color: var(--muted); font-size: 8.5px; }
+    .assistant-scope { display: flex; gap: 7px; padding: 9px 12px; color: var(--accent-ink); background: var(--accent-soft); border-bottom: 1px solid var(--line); font-size: 8.5px; line-height: 1.45; }
+    .messages { flex: 1; min-height: 0; overflow-y: auto; padding: 13px; }
+    .msg { display: flex; align-items: flex-start; gap: 7px; margin-bottom: 12px; }
+    .msg.user { justify-content: flex-end; }
+    .msg .mini-avatar { width: 22px; height: 22px; }
+    .bubble { max-width: 245px; padding: 9px 10px; border-radius: 6px; background: var(--surface-3); color: var(--ink-2); font-size: 9.5px; line-height: 1.55; }
+    .msg.user .bubble { background: var(--accent); color: #fff; }
+    .prompt-row { display: flex; gap: 5px; overflow-x: auto; padding: 8px 11px; border-top: 1px solid var(--line); }
+    .prompt-chip { flex: 0 0 auto; min-height: 26px; padding: 0 8px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); background: var(--surface); cursor: pointer; font-size: 8.5px; }
+    .composer { display: grid; grid-template-columns: minmax(0, 1fr) 32px; gap: 7px; padding: 10px; border-top: 1px solid var(--line); }
+    .composer input { min-width: 0; height: 34px; border: 1px solid var(--line-strong); border-radius: 5px; padding: 0 9px; outline: 0; font-size: 9.5px; }
+    .composer input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+    .composer button { width: 32px; height: 34px; display: grid; place-items: center; border-radius: 5px; color: #fff; background: var(--accent); cursor: pointer; }
+
+    .empty { padding: 48px 20px; text-align: center; color: var(--muted); }
+    .empty .task-ico { margin: 0 auto 10px; }
+    .empty h3 { margin: 0 0 6px; color: var(--ink); font-size: 13px; }
+    .empty p { margin: 0 auto 15px; max-width: 420px; font-size: 10px; line-height: 1.5; }
+
+    .modal-scrim {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(17, 24, 39, .46);
+    }
+    .modal-scrim.on { display: flex; }
+    .modal { width: min(460px, 100%); border: 1px solid var(--line-strong); border-radius: 7px; background: var(--surface); box-shadow: var(--shadow); }
+    .modal-head { display: flex; align-items: center; gap: 9px; padding: 14px 15px; border-bottom: 1px solid var(--line); }
+    .modal-head h3 { margin: 0; font-size: 13px; }
+    .modal-body { padding: 15px; color: var(--ink-2); font-size: 10.5px; line-height: 1.6; }
+    .modal-body textarea { width: 100%; min-height: 82px; margin-top: 10px; padding: 8px; border: 1px solid var(--line-strong); border-radius: 5px; resize: vertical; font-size: 10px; }
+    .modal-foot { display: flex; justify-content: flex-end; gap: 7px; padding: 11px 15px; border-top: 1px solid var(--line); }
+    .toast { position: fixed; left: 50%; bottom: 24px; z-index: 120; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; padding: 9px 12px; border-radius: 5px; color: #fff; background: #17202a; box-shadow: var(--shadow); font-size: 10.5px; transition: .2s ease; }
+    .toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 1180px) {
+      .app { grid-template-columns: var(--sidebar-w) minmax(0, 1fr); }
+      .assistant { position: fixed; right: 0; top: 0; width: min(var(--assistant-w), 92vw); transform: translateX(102%); box-shadow: var(--shadow); transition: transform .22s ease; }
+      .assistant.open { transform: translateX(0); }
+      .assistant-close { display: inline-grid; margin-left: auto; }
+      .assistant-toggle { display: inline-grid; }
+    }
+
+    @media (max-width: 860px) {
+      .app { display: block; }
+      .sidebar { position: fixed; left: 0; transform: translateX(-102%); width: min(var(--sidebar-w), 84vw); transition: transform .22s ease; box-shadow: var(--shadow); }
+      .sidebar.open { transform: translateX(0); }
+      .mobile-only { display: inline-grid; }
+      .topbar { padding: 0 12px; }
+      .role-switch { width: min(310px, 58vw); }
+      .role-btn span { display: none; }
+      .role-btn { gap: 0; }
+      .view { padding: 18px 14px 48px; }
+      .dashboard-grid, .project-room { grid-template-columns: 1fr; }
+      .collab { position: static; }
+      .project-facts { grid-template-columns: 1fr 1fr; }
+      .fact { border-bottom: 1px solid var(--line); }
+      .role-charter { grid-template-columns: 1fr; }
+      .charter-boundary { border-left: 0; border-top: 1px solid var(--line); }
+      .decision-layout, .split-work { grid-template-columns: 1fr; }
+      .decision-list, .inbox { border-right: 0; border-bottom: 1px solid var(--line); }
+      .decision-list { display: flex; overflow-x: auto; }
+      .decision-item { min-width: 180px; }
+      .workflow { min-width: 640px; }
+      .workflow-wrap { overflow-x: auto; }
+    }
+
+    @media (max-width: 560px) {
+      .crumb { display: none; }
+      .topbar { gap: 7px; }
+      .role-switch { width: auto; flex: 1; }
+      .page-head, .project-head { display: block; }
+      .page-actions { margin: 12px 0 0; }
+      .project-select { width: 100%; margin-top: 12px; }
+      .metric-strip { grid-template-columns: 1fr; }
+      .metric { border-right: 0; border-bottom: 1px solid var(--line); }
+      .metric:last-child { border-bottom: 0; }
+      .project-facts { grid-template-columns: 1fr; }
+      .fact { border-right: 0; }
+      .task-row { grid-template-columns: 34px minmax(0, 1fr); }
+      .task-meta { grid-column: 2; align-items: flex-start; flex-direction: row; }
+      .option-grid { grid-template-columns: 1fr; }
+      .decision-detail { padding: 12px; }
+    }
+  </style>
+</head>
+<body data-role="lead">
+  <div class="app">
+    <aside class="sidebar" id="sidebar" aria-label="主导航">
+      <div class="brand"><span class="brand-mark">KM</span><span>KOLMatrix</span></div>
+      <div class="org"><small>当前组织</small><b><i data-lucide="building-2" class="icon sm"></i>HoYoverse Global</b></div>
+      <div class="nav-label">工作空间</div>
+      <nav class="nav" id="nav"></nav>
+      <div class="sidebar-project" id="sidebar-project"></div>
+      <div class="sidebar-foot" id="sidebar-user"></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-btn mobile-only" id="menu-toggle" title="打开导航" aria-label="打开导航"><i data-lucide="menu" class="icon"></i></button>
+        <div class="crumb" id="crumb"></div>
+        <div class="top-spacer"></div>
+        <div class="role-switch" id="role-switch" aria-label="切换角色"></div>
+        <a class="icon-btn" href="./interaction-prototype.html" target="_blank" title="打开当前原型进行对比" aria-label="打开当前原型进行对比"><i data-lucide="external-link" class="icon"></i></a>
+        <button class="icon-btn assistant-toggle mobile-only" id="assistant-toggle" title="打开角色 Agent" aria-label="打开角色 Agent"><i data-lucide="sparkles" class="icon"></i></button>
+      </header>
+      <div class="view" id="view"></div>
+    </main>
+
+    <aside class="assistant" id="assistant" aria-label="角色 Agent">
+      <div class="assistant-head" id="assistant-head"></div>
+      <div class="assistant-scope" id="assistant-scope"></div>
+      <div class="messages" id="messages" aria-live="polite"></div>
+      <div class="prompt-row" id="prompt-row"></div>
+      <div class="composer">
+        <input id="agent-input" placeholder="描述目标或让 Agent 处理当前项目" aria-label="向 Agent 输入任务">
+        <button id="agent-send" title="发送" aria-label="发送"><i data-lucide="arrow-up" class="icon"></i></button>
+      </div>
+    </aside>
+  </div>
+
+  <div class="modal-scrim" id="modal-scrim" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal">
+      <div class="modal-head"><span class="task-ico"><i data-lucide="shield-check" class="icon"></i></span><h3 id="modal-title"></h3></div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-foot"><button class="btn" id="modal-cancel">取消</button><button class="btn primary" id="modal-confirm"></button></div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    const ROLES = {
+      lead: {
+        label: "营销负责人", short: "负责人", name: "Mia Chen", initials: "MC", icon: "circle-gauge",
+        mandate: "对项目增长结果、预算配置和关键决策负责",
+        owns: "定义目标 · 批准组合与预算例外 · 协调负责人 · 采纳复盘",
+        boundary: "不替 BD 联系创作者，不替商务运营签合同或放款。",
+        agent: "Campaign Director", scope: "可读取全部项目的目标、预算、组合与结果；不会替其他角色执行对外动作。",
+        nav: [
+          ["today", "circle-gauge", "今日驾驶舱", 3], ["projects", "folder-kanban", "项目", 4],
+          ["games", "gamepad-2", "游戏与知识", null], ["results", "chart-no-axes-combined", "结果与复盘", 2]
+        ],
+        prompts: ["总结今天要拍板的事", "这个项目最大的风险", "生成项目周报"]
+      },
+      bd: {
+        label: "创作者合作经理", short: "合作经理", name: "Kenji Wu", initials: "KW", icon: "users-round",
+        mandate: "对创作者供给、沟通谈判、交付质量和长期关系负责",
+        owns: "发现与筛选 · 个性化触达 · 谈判与跟进 · 内容交付 · 关系档案",
+        boundary: "不批准预算例外，不签合同，不操作托管或放款。",
+        agent: "Creator Partner Agent", scope: "只读取你负责的东南亚与全球项目；不会在确认前发信或作出价格承诺。",
+        nav: [
+          ["today", "circle-gauge", "今日驾驶舱", 4], ["projects", "folder-kanban", "我的项目", 3],
+          ["network", "contact-round", "创作者网络", null], ["conversations", "messages-square", "沟通收件箱", 3]
+        ],
+        prompts: ["先处理哪位创作者", "重排这批候选", "起草跟进回复"]
+      },
+      ops: {
+        label: "商务运营", short: "商务运营", name: "Iris Lin", initials: "IL", icon: "badge-dollar-sign",
+        mandate: "对合同、合规、托管、放款条件和审计完整性负责",
+        owns: "合同资料 · 税务与披露校验 · 托管状态 · 放款 · 审计留痕",
+        boundary: "不选择创作者，不参与内容判断，不读取私人联系方式。",
+        agent: "Commercial Control Agent", scope: "只读取合同、合规和交易字段；不会自动放款、改合同或联系创作者。",
+        nav: [
+          ["today", "circle-gauge", "今日驾驶舱", 3], ["projects", "folder-kanban", "项目台账", 4],
+          ["control", "shield-check", "商务控制", 5], ["audit", "scroll-text", "审计记录", null]
+        ],
+        prompts: ["哪些款项可以放", "缺哪些合同资料", "检查本项目合规"]
+      }
+    };
+
+    const PROJECTS = [
+      { id: "gsea", name: "原神 · 东南亚女性向 Q2", game: "原神", market: "东南亚", goal: "在 $10,000 内获得 180 万有效触达并验证女性向腰部创作者效率", phase: "合作执行", health: "注意", tone: "warn", budget: "$10,000", owner: "Mia", bd: "Kenji", ops: "Iris", next: { lead: "批准组合", bd: "处理 3 条回复", ops: "补齐 2 份合同" } },
+      { id: "hsr", name: "崩铁 · 日韩回流", game: "崩坏：星穹铁道", market: "日本 / 韩国", goal: "召回老玩家并完成 6 位剧情向创作者内容交付", phase: "内容交付", health: "正常", tone: "good", budget: "$15,000", owner: "Mia", bd: "Aiko", ops: "Iris", next: { lead: "查看风险", bd: "审核 2 条初稿", ops: "准备放款" } },
+      { id: "zzz", name: "绝区零 · 全球首曝", game: "绝区零", market: "全球", goal: "建立首发创作者池并覆盖动作、潮流两类人群", phase: "创作者发现", health: "正常", tone: "good", budget: "$20,000", owner: "Mia", bd: "Kenji", ops: "Iris", next: { lead: "确认受众", bd: "审阅候选池", ops: "暂无动作" } },
+      { id: "sky", name: "星穹 · 老带新", game: "星穹", market: "北美", goal: "通过老玩家社交关系获得 4,000 个有效邀请", phase: "结果复盘", health: "风险", tone: "bad", budget: "$8,000", owner: "Sarah", bd: "Noah", ops: "Iris", next: { lead: "采纳复盘", bd: "补关系记录", ops: "对账" } }
+    ];
+
+    const TASKS = {
+      lead: [
+        { icon: "users-round", project: "gsea", title: "批准 14 人创作者组合", desc: "Kenji 已提交稳健覆盖方案 · $9,800 · 需要你决定预算配置", due: "今天 11:00", tab: "decisions" },
+        { icon: "badge-dollar-sign", project: "gsea", title: "处理 $2,400 报价例外", desc: "เกมเมอร์มายด์ 高于 BD 授权上限 $2,000 · 可批准或退回", due: "已等待 25 分钟", tab: "exceptions" },
+        { icon: "triangle-alert", project: "hsr", title: "判断档期冲突是否影响目标", desc: "1 位直播创作者与竞品活动重叠 · BD 已给出两个替代方案", due: "今天", tab: "overview" }
+      ],
+      bd: [
+        { icon: "inbox", project: "gsea", title: "接收项目发现任务", desc: "Mia 已确认目标与预算 · 需要在 48 小时内提交创作者组合", due: "今天 10:30", tab: "pipeline" },
+        { icon: "messages-square", project: "gsea", title: "处理 3 条新回复", desc: "1 条报价例外、1 条排期问题、1 条可直接确认", due: "现在", tab: "communications" },
+        { icon: "scan-eye", project: "hsr", title: "审核 2 条初稿", desc: "检查游戏信息、表达质量与 #ad 披露计划", due: "今天 16:00", tab: "delivery" },
+        { icon: "user-round-check", project: "zzz", title: "审阅 Agent 候选池", desc: "22 位候选已完成可信度和竞品冲突筛查", due: "明天", tab: "pipeline" }
+      ],
+      ops: [
+        { icon: "file-warning", project: "gsea", title: "补齐 2 位创作者签约资料", desc: "缺税务居住地与收款主体 · 已定位责任人为 Kenji", due: "今天 14:00", tab: "contracts" },
+        { icon: "shield-alert", project: "hsr", title: "核对日韩披露要求", desc: "6 位创作者中 1 位缺少直播口播披露说明", due: "今天", tab: "contracts" },
+        { icon: "landmark", project: "hsr", title: "确认 $2,600 放款", desc: "合同、托管、内容审核和披露证据均已满足", due: "现在", tab: "payouts" }
+      ]
+    };
+
+    const HANDOFFS = [
+      { from: "lead", to: "bd", project: "gsea", title: "目标与预算已确认，开始创作者发现", note: "目标市场、受众和预算边界完整", status: "已接收" },
+      { from: "bd", to: "lead", project: "gsea", title: "14 人组合等待批准", note: "含 6 位人工判断对象和 1 个市场缺口", status: "待你处理" },
+      { from: "bd", to: "ops", project: "gsea", title: "首批 4 位创作者进入签约", note: "2 位资料完整，2 位待补", status: "处理中" }
+    ];
+
+    const CREATORS = [
+      ["AyuGaming", "YouTube", "印尼", "46.2 万", "可信 91", "洽谈中"],
+      ["เกมเมอร์มายด์", "TikTok", "泰国", "31.8 万", "可信 86", "报价审批"],
+      ["MayaPlays", "YouTube", "菲律宾", "28.4 万", "可信 89", "已确认"],
+      ["LinhGamer", "TikTok", "越南", "18.7 万", "可信 83", "待触达"]
+    ];
+
+    const state = {
+      role: "lead", route: "today", projectId: "gsea", tab: "overview",
+      planApproved: false, quoteApproved: false, batchSent: false,
+      deliveryApproved: false, requestedDocs: false, paid: false,
+      audit: ["09:20 Mia 确认项目目标与预算", "09:42 Kenji 接收创作者发现任务", "10:18 Agent 完成 2,481 位创作者筛查"],
+      messages: {}
+    };
+
+    const $ = (s) => document.querySelector(s);
+    const icon = (name, cls = "icon") => `<i data-lucide="${name}" class="${cls}"></i>`;
+    const project = (id = state.projectId) => PROJECTS.find(p => p.id === id) || PROJECTS[0];
+    const role = () => ROLES[state.role];
+    const roleLabel = (id) => ROLES[id].short;
+    const initials = (id) => ROLES[id].initials;
+    const currentTabs = () => ({
+      lead: [["overview", "项目总览"], ["decisions", "组合决策"], ["exceptions", "预算与例外"], ["results", "结果复盘"]],
+      bd: [["pipeline", "创作者管线"], ["communications", "沟通谈判"], ["delivery", "内容交付"], ["relations", "关系档案"]],
+      ops: [["contracts", "合同与合规"], ["payouts", "托管与放款"], ["audit", "审计记录"]]
+    })[state.role];
+    const defaultTab = () => ({ lead: "overview", bd: "pipeline", ops: "contracts" })[state.role];
+
+    function safeIcons() { if (window.lucide) window.lucide.createIcons(); }
+
+    function renderChrome() {
+      document.body.dataset.role = state.role;
+      $("#nav").innerHTML = role().nav.map(([id, ic, label, count]) => `
+        <button class="nav-btn ${state.route === id ? "on" : ""}" data-nav="${id}">${icon(ic)}<span>${label}</span>${count ? `<span class="nav-count">${count}</span>` : ""}</button>
+      `).join("");
+      $("#role-switch").innerHTML = Object.entries(ROLES).map(([id, r]) => `
+        <button class="role-btn ${state.role === id ? "on" : ""}" data-role="${id}" title="${r.label}">${icon(r.icon, "icon sm")}<span>${r.short}</span></button>
+      `).join("");
+      $("#sidebar-user").innerHTML = `<span class="avatar">${role().initials}</span><div><b>${role().name}</b><small>${role().label}</small></div>`;
+      const p = project();
+      $("#sidebar-project").innerHTML = `<span style="color:#718094">当前聚焦项目</span><b>${p.name}</b><span>${p.phase} · ${p.market}</span><div class="progress"><i></i></div>`;
+      $("#crumb").innerHTML = state.route === "project" ? `项目 / <b>${p.name}</b> / ${currentTabs().find(x => x[0] === state.tab)?.[1] || "工作台"}` : `工作空间 / <b>${role().label}</b>`;
+      renderAssistant();
+    }
+
+    function roleCharter() {
+      return `<div class="role-charter">
+        <div class="charter-main"><div class="charter-eyebrow">${role().label} · 责任声明</div><strong>${role().mandate}</strong><p><b>你拥有：</b>${role().owns}</p></div>
+        <div class="charter-boundary"><b>职责边界</b>${role().boundary}</div>
+      </div>`;
+    }
+
+    function pageHead(title, subtitle, action = "") {
+      return `<div class="page-head"><div><h1>${title}</h1><p>${subtitle}</p></div>${action ? `<div class="page-actions">${action}</div>` : ""}</div>`;
+    }
+
+    function renderToday() {
+      const date = "7 月 15 日 · 周三";
+      const metrics = {
+        lead: [["3", "待决策"], ["4", "进行中项目"], ["$53k", "在管预算"]],
+        bd: [["4", "现在要处理"], ["3", "新回复"], ["7", "本周待交付"]],
+        ops: [["3", "控制项"], ["$4.4k", "可放款"], ["2", "资料缺口"]]
+      }[state.role];
+      const taskHtml = TASKS[state.role].map((t) => {
+        const p = project(t.project);
+        return `<button class="task-row" data-open-project="${t.project}" data-tab="${t.tab}">
+          <span class="task-ico">${icon(t.icon)}</span>
+          <span><strong>${t.title}</strong><p>${p.name} · ${t.desc}</p></span>
+          <span class="task-meta"><time>${t.due}</time><span class="status ${p.tone}">${p.phase}</span></span>
+        </button>`;
+      }).join("");
+      const related = HANDOFFS.filter(h => h.to === state.role || h.from === state.role);
+      $("#view").innerHTML = `${pageHead(`今天 · ${role().short}`, `${date}。这里只出现属于你的决定、执行和交接。`, `<button class="btn primary" data-action="new-project">${icon("plus", "icon sm")}新建项目</button>`)}
+        ${roleCharter()}
+        <div class="dashboard-grid">
+          <div>
+            <section class="section"><div class="section-head"><h2>现在该做</h2><span class="meta">按阻塞程度和承诺时间排序</span><span class="grow"></span><span class="tag">${TASKS[state.role].length} 项</span></div><div class="task-list">${taskHtml}</div></section>
+            <section class="section"><div class="section-head"><h2>${state.role === "bd" ? "我负责的项目" : "项目责任视图"}</h2><span class="meta">下一动作按你的职责计算</span></div>${projectTable()}</section>
+          </div>
+          <div>
+            <section class="section"><div class="section-head"><h2>工作负荷</h2><span class="grow"></span><span class="meta">实时</span></div><div class="metric-strip">${metrics.map(m => `<div class="metric"><b>${m[0]}</b><span>${m[1]}</span></div>`).join("")}</div></section>
+            <section class="section"><div class="section-head"><h2>协作交接</h2><span class="meta">有发送人、接收人和完成条件</span></div><div class="handoff-list">${related.map(handoffCard).join("") || `<div class="empty"><h3>暂无交接</h3></div>`}</div></section>
+          </div>
+        </div>`;
+    }
+
+    function handoffCard(h) {
+      return `<div class="handoff"><span class="task-ico" style="width:26px;height:26px">${icon("arrow-right-left", "icon sm")}</span><div>
+        <div class="handoff-people"><span class="mini-avatar">${initials(h.from)}</span>${roleLabel(h.from)} ${icon("arrow-right", "icon sm")} <span class="mini-avatar">${initials(h.to)}</span>${roleLabel(h.to)}<span class="status ${h.status.includes("待") ? "warn" : "good"}" style="margin-left:auto">${h.status}</span></div>
+        <strong>${h.title}</strong><p>${project(h.project).name} · ${h.note}</p></div></div>`;
+    }
+
+    function projectTable() {
+      const list = state.role === "bd" ? PROJECTS.filter(p => p.bd === "Kenji") : PROJECTS;
+      return `<table class="data-table"><thead><tr><th>项目</th><th>健康度</th><th>当前责任人</th><th>你的下一动作</th><th></th></tr></thead><tbody>${list.map(p => `
+        <tr data-project="${p.id}"><td class="project-cell"><b>${p.name}</b><span>${p.market} · ${p.budget}</span></td>
+        <td><span class="health"><i class="health-dot ${p.tone === "good" ? "" : p.tone}"></i>${p.health}</span></td><td>${p.phase === "创作者发现" || p.phase === "内容交付" ? p.bd : p.phase === "合作执行" ? "Kenji / Iris" : p.owner}</td>
+        <td>${p.next[state.role]}</td><td>${icon("chevron-right", "icon sm")}</td></tr>`).join("")}</tbody></table>`;
+    }
+
+    function renderProjects() {
+      $("#view").innerHTML = `${pageHead(state.role === "bd" ? "我的项目" : "项目", state.role === "ops" ? "从合同、合规与资金责任查看项目，而不是进入创作者工作台。" : "选择一个项目进入完整上下文；不在跨项目环节页中混合执行。", `<button class="btn primary" data-action="new-project">${icon("plus", "icon sm")}新建项目</button>`)}
+        ${roleCharter()}<div class="section-head"><h2>${PROJECTS.length} 个项目</h2><span class="meta">点击进入单项目空间</span></div>${projectTable()}`;
+    }
+
+    function renderGames() {
+      const rows = [
+        ["原神", "3 个项目", "知识覆盖 78%", "美术素材解析中", "warn"],
+        ["崩坏：星穹铁道", "1 个项目", "知识覆盖 64%", "缺少美术素材包", "bad"],
+        ["绝区零", "1 个项目", "知识覆盖 52%", "首曝策略待补", "warn"]
+      ];
+      $("#view").innerHTML = `${pageHead("游戏与知识", "游戏是可跨项目复用的资产；项目只消费当前游戏和组织授权的知识。")}
+        <table class="data-table"><thead><tr><th>游戏</th><th>关联项目</th><th>知识状态</th><th>当前缺口</th><th></th></tr></thead><tbody>${rows.map(r => `<tr><td class="project-cell"><b>${r[0]}</b><span>游戏资产</span></td><td>${r[1]}</td><td>${r[2]}</td><td><span class="status ${r[4]}">${r[3]}</span></td><td>${icon("chevron-right", "icon sm")}</td></tr>`).join("")}</tbody></table>`;
+    }
+
+    function renderResults() {
+      $("#view").innerHTML = `${pageHead("结果与复盘", "从项目目标和实际证据生成结论；只有营销负责人可以采纳为组织经验。", `<button class="btn primary" data-action="generate-report">${icon("file-chart-column", "icon sm")}生成周报</button>`)}
+        <div class="metric-strip" style="margin-bottom:18px"><div class="metric"><b>3.4x</b><span>组合 ROI</span></div><div class="metric"><b>34.8%</b><span>有效回复率</span></div><div class="metric"><b>6</b><span>可复用创作者</span></div></div>
+        <div class="panel"><div class="panel-head"><h3>待采纳的项目结论</h3><span class="grow"></span><span class="status warn">2 项</span></div><div class="panel-body"><div class="checklist">
+          <div class="check-row"><span class="check-icon">${icon("chart-no-axes-combined", "icon sm")}</span><div><b>女性向腰部创作者的有效触达成本低 31%</b><p>原神 · 东南亚 Q2 · 由 4 个内容样本支持</p></div><button class="btn sm" data-action="adopt-learning">采纳</button></div>
+          <div class="check-row"><span class="check-icon warn">${icon("triangle-alert", "icon sm")}</span><div><b>TikTok 对转化的贡献证据不足</b><p>星穹 · 老带新 · 下一轮需补授权归因</p></div><button class="btn sm" data-action="view-evidence">查看证据</button></div>
+        </div></div></div>`;
+    }
+
+    function renderNetwork() {
+      $("#view").innerHTML = `${pageHead("创作者网络", "跨项目查看长期关系和可复用信号；具体执行仍需进入项目。", `<button class="btn primary" data-prompt="为 GSEA 找 5 位替补">${icon("sparkles", "icon sm")}让 Agent 找人</button>`)}
+        <table class="data-table"><thead><tr><th>创作者</th><th>平台</th><th>市场</th><th>规模</th><th>评估</th><th>当前关系</th></tr></thead><tbody>${CREATORS.map(c => `<tr><td class="project-cell"><b>${c[0]}</b><span>最近评估 2 天前</span></td>${c.slice(1).map((x, i) => `<td>${i === 4 ? `<span class="status accent">${x}</span>` : x}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    }
+
+    function renderConversations() {
+      $("#view").innerHTML = `${pageHead("沟通收件箱", "这里只做跨项目分流；回复、报价和承诺必须回到对应项目上下文。")}
+        <div class="panel"><div class="panel-head"><h3>需要处理</h3><span class="grow"></span><span class="status warn">3 条</span></div><div class="panel-body"><div class="checklist">
+          ${TASKS.bd.filter(t => t.tab === "communications").map(t => `<div class="check-row"><span class="check-icon warn">${icon("message-circle", "icon sm")}</span><div><b>${t.title}</b><p>${project(t.project).name} · ${t.desc}</p></div><button class="btn sm" data-open-project="${t.project}" data-tab="communications">进入项目</button></div>`).join("")}
+          <div class="check-row"><span class="check-icon">${icon("message-circle-check", "icon sm")}</span><div><b>MayaPlays 已确认排期</b><p>原神 · 东南亚女性向 Q2 · 可进入合同交接</p></div><button class="btn sm" data-open-project="gsea" data-tab="communications">查看</button></div>
+        </div></div></div>`;
+    }
+
+    function renderControl() {
+      $("#view").innerHTML = `${pageHead("商务控制", "按风险与到期时间聚合控制项；执行时进入单项目核对完整证据。")}
+        <div class="metric-strip" style="margin-bottom:18px"><div class="metric"><b>5</b><span>待处理控制项</span></div><div class="metric"><b>$4,400</b><span>已满足放款条件</span></div><div class="metric"><b>2</b><span>资料缺口</span></div></div>
+        <div class="panel"><div class="panel-head"><h3>控制队列</h3><span class="grow"></span><span class="tag">合同 · 合规 · 资金</span></div><div class="panel-body"><div class="checklist">${TASKS.ops.map(t => `<div class="check-row"><span class="check-icon ${t.tab === "contracts" ? "warn" : ""}">${icon(t.icon, "icon sm")}</span><div><b>${t.title}</b><p>${project(t.project).name} · ${t.desc}</p></div><button class="btn sm" data-open-project="${t.project}" data-tab="${t.tab}">核对</button></div>`).join("")}</div></div></div>`;
+    }
+
+    function renderAudit() {
+      $("#view").innerHTML = `${pageHead("审计记录", "查看谁在什么上下文中做了什么决定；不可逆动作保留外部执行结果。")}
+        <table class="data-table"><thead><tr><th>时间</th><th>项目</th><th>执行者</th><th>事件</th><th>结果</th></tr></thead><tbody>${state.audit.map((a, i) => `<tr><td>${a.slice(0, 5)}</td><td>${i > 1 ? project().name : "原神 · 东南亚 Q2"}</td><td>${a.split(" ")[1]}</td><td>${a.split(" ").slice(2).join(" ")}</td><td><span class="status good">已记录</span></td></tr>`).join("")}</tbody></table>`;
+    }
+
+    function projectHeader() {
+      const p = project();
+      return `<div class="project-head"><div><button class="back-link" data-nav="today">${icon("arrow-left", "icon sm")}返回今日驾驶舱</button><div class="project-title"><h1>${p.name}</h1><span class="status ${p.tone}">${p.health}</span><span class="status accent">${p.phase}</span></div><div class="project-sub">${p.game} · ${p.market} · 项目负责人 ${p.owner}</div></div>
+        <select class="project-select" id="project-select" aria-label="切换项目">${PROJECTS.map(x => `<option value="${x.id}" ${x.id === p.id ? "selected" : ""}>${x.name}</option>`).join("")}</select></div>
+        <div class="project-facts"><div class="fact"><span>项目目标</span><b>${p.goal}</b></div><div class="fact"><span>预算边界</span><b>${p.budget}</b></div><div class="fact"><span>创作者合作</span><b>4 已接受 · 3 洽谈</b></div><div class="fact"><span>最近活动</span><b>12 分钟前</b></div></div>
+        <div class="tabs">${currentTabs().map(([id, label]) => `<button class="tab ${state.tab === id ? "on" : ""}" data-tab="${id}">${label}</button>`).join("")}</div>`;
+    }
+
+    function collabPanel() {
+      return `<aside class="collab"><div class="collab-head"><b>项目协作</b><p>每个角色只拥有自己的结果和闸门，共享同一项目事实。</p></div>
+        <div class="owner-list">
+          <div class="owner-row"><span class="mini-avatar" style="background:#2563eb">MC</span><div><b>营销负责人</b><span>目标 · 组合 · 预算 · 复盘</span></div><span class="status ${state.role === "lead" ? "accent" : ""}">${state.role === "lead" ? "当前" : "Mia"}</span></div>
+          <div class="owner-row"><span class="mini-avatar" style="background:#0f8b7d">KW</span><div><b>创作者合作经理</b><span>发现 · 沟通 · 交付 · 关系</span></div><span class="status ${state.role === "bd" ? "accent" : ""}">${state.role === "bd" ? "当前" : "Kenji"}</span></div>
+          <div class="owner-row"><span class="mini-avatar" style="background:#b86109">IL</span><div><b>商务运营</b><span>合同 · 合规 · 托管 · 放款</span></div><span class="status ${state.role === "ops" ? "accent" : ""}">${state.role === "ops" ? "当前" : "Iris"}</span></div>
+        </div>
+        <div class="handoff-thread">
+          <div class="thread-item"><b>目标与预算已确认</b><p>Mia → Kenji · 已接收</p></div>
+          <div class="thread-item ${state.planApproved ? "" : "current"}"><b>组合方案${state.planApproved ? "已批准" : "待批准"}</b><p>Kenji → Mia · ${state.planApproved ? "已完成" : "等待决定"}</p></div>
+          <div class="thread-item ${state.planApproved && !state.requestedDocs ? "current" : ""}"><b>签约资料交接</b><p>Kenji → Iris · ${state.requestedDocs ? "缺口已退回" : "2 位待补"}</p></div>
+          <div class="thread-item ${state.deliveryApproved && !state.paid ? "current" : ""}"><b>交付完成后放款</b><p>Kenji → Iris · ${state.paid ? "已完成" : state.deliveryApproved ? "条件已满足" : "等待交付证据"}</p></div>
+        </div></aside>`;
+    }
+
+    function renderProject() {
+      if (!currentTabs().some(x => x[0] === state.tab)) state.tab = defaultTab();
+      const work = state.role === "lead" ? leadWorkspace() : state.role === "bd" ? bdWorkspace() : opsWorkspace();
+      $("#view").innerHTML = `${projectHeader()}<div class="project-room"><div class="workspace">${work}</div>${collabPanel()}</div>`;
+    }
+
+    function leadWorkspace() {
+      if (state.tab === "decisions") return decisionWorkspace();
+      if (state.tab === "exceptions") return exceptionsWorkspace();
+      if (state.tab === "results") return resultsWorkspace();
+      return `<div class="workspace-title"><span class="task-ico">${icon("circle-gauge")}</span><div><h2>项目指挥台</h2><p>围绕目标、预算和责任链判断项目是否在正确方向上。</p></div></div>
+        <div class="workspace-band"><b>你的当前职责：</b>${state.planApproved ? "组合已批准；等待 BD 完成沟通与商务运营补齐合同。" : "决定创作者组合是否值得投入 $9,800；批准后将任务交还给 Kenji 执行。"}</div>
+        <div class="workflow-wrap"><div class="workflow">
+          <div class="workflow-step done"><b>目标已确认</b><small>负责人 · Mia</small></div><div class="workflow-step done"><b>候选已筛查</b><small>合作经理 · Kenji</small></div>
+          <div class="workflow-step ${state.planApproved ? "done" : "current"}"><b>组合决策</b><small>负责人 · Mia</small></div><div class="workflow-step ${state.planApproved ? "current" : ""}"><b>合作执行</b><small>合作经理 · Kenji</small></div><div class="workflow-step"><b>结算与复盘</b><small>Iris → Mia</small></div>
+        </div></div>
+        <div class="panel" style="margin-top:14px"><div class="panel-head"><h3>目标健康度</h3><span class="grow"></span><span class="status warn">1 个决策阻塞</span></div><div class="panel-body"><div class="metric-strip"><div class="metric"><b>72%</b><span>预计有效触达</span></div><div class="metric"><b>98%</b><span>预算使用率</span></div><div class="metric"><b>3 / 4</b><span>市场覆盖</span></div></div><div class="explain">${icon("sparkles", "icon sm")}Agent 判断：当前风险不是候选数量，而是越南市场缺少合格对象。扩大库不会改变预算，建议保留替补名额。</div><div class="decision-actions"><button class="btn primary" data-tab="decisions">处理组合决策</button></div></div></div>`;
+    }
+
+    function decisionWorkspace() {
+      return `<div class="workspace-title"><span class="task-ico">${icon("users-round")}</span><div><h2>组合决策室</h2><p>只呈现需要营销负责人承担的投入判断，不混入发信和交付操作。</p></div><span class="grow"></span><span class="status ${state.planApproved ? "good" : "warn"}">${state.planApproved ? "已批准" : "等待决定"}</span></div>
+        <div class="panel"><div class="decision-layout"><div class="decision-list">
+          <div class="decision-item on"><span class="status warn">今天</span><b>14 人组合方案</b><p>Kenji 提交 · $9,800</p></div>
+          <div class="decision-item"><span class="status accent">随后</span><b>$2,400 报价例外</b><p>影响单个创作者</p></div>
+        </div><div class="decision-detail"><h3>选择覆盖效率，而不是逐个挑人</h3><p>Agent 将 2,481 位创作者筛成三个可执行组合。你决定预算如何配置，BD 决定如何联系和推进每个人。</p>
+          <div class="option-grid"><div class="option recommended"><span class="status accent">Agent 推荐</span><strong>稳健覆盖 · 14 人</strong><dl><dt>预算</dt><dd>$9,800</dd><dt>预计触达</dt><dd>180 万</dd><dt>市场覆盖</dt><dd>3 / 4</dd><dt>受众重叠</dt><dd>14%</dd></dl></div>
+          <div class="option"><span class="status">备选</span><strong>集中突破 · 8 人</strong><dl><dt>预算</dt><dd>$9,600</dd><dt>预计触达</dt><dd>164 万</dd><dt>市场覆盖</dt><dd>2 / 4</dd><dt>受众重叠</dt><dd>22%</dd></dl></div></div>
+          <div class="explain">${icon("shield-check", "icon sm")}依据：受众地域、近期内容、可信度与竞品冲突。6 位处于模糊区，Kenji 已完成人工审阅；完整证据可追溯。</div>
+          <div class="decision-actions"><button class="btn" data-action="return-plan">退回并说明原因</button><button class="btn primary" data-action="approve-plan" ${state.planApproved ? "disabled" : ""}>${state.planApproved ? "已批准并交回 BD" : "批准 $9,800 组合"}</button></div>
+        </div></div></div>`;
+    }
+
+    function exceptionsWorkspace() {
+      return `<div class="workspace-title"><span class="task-ico">${icon("badge-dollar-sign")}</span><div><h2>预算与例外</h2><p>这里只处理超出授权边界的商业决定；日常谈判仍归 BD。</p></div></div>
+        <div class="panel"><div class="panel-head"><h3>报价例外 · เกมเมอร์มายด์</h3><span class="grow"></span><span class="status ${state.quoteApproved ? "good" : "warn"}">${state.quoteApproved ? "已批准" : "待你处理"}</span></div><div class="panel-body">
+          <table class="data-table"><tbody><tr><th>BD 授权上限</th><td>$2,000</td><th>对方报价</th><td>$2,400</td></tr><tr><th>交付内容</th><td colspan="3">YouTube 长视频 + TikTok 短视频 · 含 30 天素材授权</td></tr><tr><th>替代方案</th><td colspan="3">NezukoTH · $1,850 · 触达预计低 18%</td></tr></tbody></table>
+          <div class="explain">${icon("sparkles", "icon sm")}Agent 建议批准：虽然高出授权上限 20%，但按有效触达成本仍低于组合均值 9%。这是预算判断，不是让你接管谈判。</div>
+          <div class="decision-actions"><button class="btn" data-action="return-quote">退回 BD</button><button class="btn primary" data-action="approve-quote" ${state.quoteApproved ? "disabled" : ""}>${state.quoteApproved ? "已批准" : "批准例外"}</button></div>
+        </div></div>`;
+    }
+
+    function resultsWorkspace() {
+      return `<div class="workspace-title"><span class="task-ico">${icon("chart-no-axes-combined")}</span><div><h2>项目结果与组织学习</h2><p>复盘围绕原目标，而不是独立看一组通用图表。</p></div></div>
+        <div class="metric-strip"><div class="metric"><b>243 万</b><span>有效观看</span></div><div class="metric"><b>3.4x</b><span>项目 ROI</span></div><div class="metric"><b>6</b><span>可复用关系</span></div></div>
+        <div class="panel" style="margin-top:14px"><div class="panel-head"><h3>Agent 复盘草案</h3><span class="grow"></span><span class="status warn">待采纳</span></div><div class="panel-body"><p style="font-size:10.5px;line-height:1.6;margin-top:0">女性向腰部创作者贡献了 68% 的有效观看，单位触达成本比头部低 31%。但越南市场缺少一方授权数据，不能把低转化直接归因于创作者。</p><div class="decision-actions"><button class="btn" data-action="edit-learning">编辑结论</button><button class="btn primary" data-action="adopt-learning">采纳并写入游戏知识</button></div></div></div>`;
+    }
+
+    function bdWorkspace() {
+      if (state.tab === "communications") return communicationsWorkspace();
+      if (state.tab === "delivery") return deliveryWorkspace();
+      if (state.tab === "relations") return relationsWorkspace();
+      return `<div class="workspace-title"><span class="task-ico">${icon("users-round")}</span><div><h2>创作者合作台</h2><p>从候选到长期关系的连续管线；当前只处理 ${project().name}。</p></div><span class="grow"></span><button class="btn primary" data-prompt="重排当前候选，优先越南女性向">${icon("sparkles", "icon sm")}让 Agent 重排</button></div>
+        <div class="workspace-band"><b>你的当前职责：</b>${state.planApproved ? "组合已经批准。审阅个性化草稿并推进 14 位创作者，超过 $2,000 的报价交给 Mia。" : "把候选收敛为可执行组合并提交给 Mia；不要在批准前对外承诺预算。"}</div>
+        <div class="pipeline-board">
+          <div class="pipeline-col"><div class="pipeline-col-head">Agent 候选<span>22</span></div>${creatorCard("LinhGamer", "越南 · 可信 83", "受众女性 61%")}${creatorCard("NanaPlay", "泰国 · 可信 80", "竞品冲突待审")}</div>
+          <div class="pipeline-col"><div class="pipeline-col-head">人工审阅<span>6</span></div>${creatorCard("AyuGaming", "印尼 · 可信 91", "证据完整")}${creatorCard("GachaQueen", "印尼 · 可信 58", "异常增长")}</div>
+          <div class="pipeline-col"><div class="pipeline-col-head">已纳入组合<span>${state.planApproved ? 14 : 0}</span></div>${state.planApproved ? creatorCard("MayaPlays", "菲律宾 · 已批准", "等待触达") + creatorCard("+ 13 位", "组合已生效", "进入沟通") : `<div class="empty"><p>等待营销负责人批准组合</p></div>`}</div>
+          <div class="pipeline-col"><div class="pipeline-col-head">替补池<span>4</span></div>${creatorCard("NezukoTH", "泰国 · $1,850", "报价替补")}</div>
+        </div>`;
+    }
+
+    function creatorCard(name, meta, note) {
+      return `<div class="creator-card"><div class="creator-top"><span class="mini-avatar" style="background:var(--accent)">${name.slice(0, 2)}</span><div><b>${name}</b><p style="margin:2px 0 0">${meta}</p></div></div><p>${note}</p></div>`;
+    }
+
+    function communicationsWorkspace() {
+      return `<div class="workspace-title"><span class="task-ico">${icon("messages-square")}</span><div><h2>沟通与谈判</h2><p>消息、承诺和下一动作都留在当前项目与创作者关系里。</p></div><span class="grow"></span><button class="btn primary" data-action="send-batch" ${!state.planApproved || state.batchSent ? "disabled" : ""}>${state.batchSent ? "14 封已发送" : "审阅并发送 14 封"}</button></div>
+        <div class="panel"><div class="split-work"><div class="inbox">
+          <div class="inbox-row on"><span class="status warn">报价例外</span><b>เกมเมอร์มายด์</b><p>希望 $2,400 打包两个内容</p></div>
+          <div class="inbox-row"><span class="status accent">新回复</span><b>AyuGaming</b><p>对合作有兴趣，询问排期</p></div>
+          <div class="inbox-row"><span class="status good">已确认</span><b>MayaPlays</b><p>接受 $1,500 与 7/22 排期</p></div>
+        </div><div class="conversation"><div class="message-line">两个平台一起做的话，我的报价是 $2,400，可以包含 30 天素材授权。</div><div class="message-line out">收到，我会确认预算与授权范围，今天给你明确回复。</div>
+          <div class="draft-box"><textarea>谢谢你的报价。我们认可双平台组合的价值，正在确认 $2,400 的预算例外。确认前这不是正式承诺，我会在今天 17:00 前回复。</textarea><div class="draft-foot"><span>Agent 草稿 · 已引用报价与授权范围</span><span class="grow"></span><button class="btn sm" data-action="edit-draft">编辑</button><button class="btn primary sm" data-action="send-one">确认发送</button></div></div>
+        </div></div></div>`;
+    }
+
+    function deliveryWorkspace() {
+      return `<div class="workspace-title"><span class="task-ico">${icon("scan-eye")}</span><div><h2>内容交付台</h2><p>BD 对内容质量、创作者沟通和发布准备负责；合规证据同步给商务运营。</p></div></div>
+        <div class="panel"><div class="panel-head"><h3>交付清单</h3><span class="grow"></span><span class="status ${state.deliveryApproved ? "good" : "warn"}">${state.deliveryApproved ? "首条已通过" : "2 条待审核"}</span></div><div class="panel-body"><div class="checklist">
+          <div class="check-row"><span class="check-icon">${icon("video", "icon sm")}</span><div><b>AyuGaming · 世界观解说长视频</b><p>终稿 v3 · 品牌信息通过 · #ad 已包含 · 发布 7/18</p></div><button class="btn sm" data-action="approve-delivery" ${state.deliveryApproved ? "disabled" : ""}>${state.deliveryApproved ? "已通过" : "通过并交接"}</button></div>
+          <div class="check-row"><span class="check-icon warn">${icon("video", "icon sm")}</span><div><b>เกมเมอร์มายด์ · TikTok 短视频</b><p>初稿 v2 · 需要弱化硬广口播 · 等待修改</p></div><button class="btn sm" data-action="view-comments">查看批注</button></div>
+        </div></div></div>`;
+    }
+
+    function relationsWorkspace() {
+      return `<div class="workspace-title"><span class="task-ico">${icon("contact-round")}</span><div><h2>关系档案</h2><p>记录可复用的合作偏好和履约事实，不把关系降级成一次项目状态。</p></div></div>
+        <table class="data-table"><thead><tr><th>创作者</th><th>合作偏好</th><th>履约表现</th><th>下一次建议</th></tr></thead><tbody>
+          <tr><td class="project-cell"><b>AyuGaming</b><span>已合作 2 次</span></td><td>喜欢提前 10 天确认脚本</td><td><span class="status good">准时 · 修改少</span></td><td>优先邀请剧情长视频</td></tr>
+          <tr><td class="project-cell"><b>เกมเมอร์มายด์</b><span>首次合作</span></td><td>倾向双平台打包</td><td><span class="status warn">谈判中</span></td><td>提前给授权预算</td></tr>
+        </tbody></table>`;
+    }
+
+    function opsWorkspace() {
+      if (state.tab === "payouts") return payoutsWorkspace();
+      if (state.tab === "audit") return projectAuditWorkspace();
+      return `<div class="workspace-title"><span class="task-ico">${icon("shield-check")}</span><div><h2>合同与合规控制台</h2><p>按创作者核对外部执行条件，不接管选择、谈判或内容判断。</p></div><span class="grow"></span><button class="btn" data-action="request-docs">${icon("send", "icon sm")}向 Kenji 退回缺口</button></div>
+        <div class="workspace-band"><b>你的当前职责：</b>确保每笔合作有可执行合同、正确收款主体、市场披露要求和托管证据。缺口必须回到责任人，不由你代填。</div>
+        <div class="panel"><div class="panel-head"><h3>签约准备度</h3><span class="grow"></span><span class="status warn">2 项缺口</span></div><div class="panel-body"><div class="checklist">
+          <div class="check-row"><span class="check-icon">${icon("circle-check", "icon sm")}</span><div><b>AyuGaming · 资料完整</b><p>主体、税务居住地、合同、收款账户、披露计划均通过</p></div><span class="status good">可签署</span></div>
+          <div class="check-row"><span class="check-icon warn">${icon("triangle-alert", "icon sm")}</span><div><b>เกมเมอร์มายด์ · 缺税务居住地</b><p>责任人 Kenji · 阻塞合同生成与托管</p></div><span class="status warn">待补</span></div>
+          <div class="check-row"><span class="check-icon warn">${icon("triangle-alert", "icon sm")}</span><div><b>MayaPlays · 收款主体不一致</b><p>合同为个人，收款账户为工作室</p></div><span class="status warn">待确认</span></div>
+        </div></div></div>`;
+    }
+
+    function payoutsWorkspace() {
+      const ready = state.deliveryApproved;
+      return `<div class="workspace-title"><span class="task-ico">${icon("landmark")}</span><div><h2>托管与放款</h2><p>每一笔款项独立核对合同、托管、交付与披露证据。</p></div></div>
+        <div class="panel"><div class="panel-head"><h3>放款队列</h3><span class="grow"></span><span class="tag">Partner 执行 · 人工确认</span></div><div class="panel-body"><table class="data-table"><thead><tr><th>创作者</th><th>金额</th><th>合同 / 托管</th><th>交付与披露</th><th></th></tr></thead><tbody>
+          <tr><td class="project-cell"><b>AyuGaming</b><span>PO-2026-0718</span></td><td>$1,800</td><td><span class="status good">已签署 · 已托管</span></td><td><span class="status ${ready ? "good" : "warn"}">${ready ? "证据完整" : "等待 BD 审核交付"}</span></td><td><button class="btn primary sm" data-action="payout" ${!ready || state.paid ? "disabled" : ""}>${state.paid ? "已放款" : "确认放款"}</button></td></tr>
+          <tr><td class="project-cell"><b>เกมเมอร์มายด์</b><span>资料缺口</span></td><td>$2,400</td><td><span class="status warn">待签署</span></td><td><span class="status">未交付</span></td><td><button class="btn sm" disabled>条件未满足</button></td></tr>
+        </tbody></table></div></div>`;
+    }
+
+    function projectAuditWorkspace() {
+      return `<div class="workspace-title"><span class="task-ico">${icon("scroll-text")}</span><div><h2>项目审计记录</h2><p>记录角色、上下文、输入证据和外部执行结果。</p></div></div>
+        <table class="data-table"><thead><tr><th>时间</th><th>角色</th><th>事件</th><th>证据</th></tr></thead><tbody>${state.audit.map(a => `<tr><td>${a.slice(0,5)}</td><td>${a.split(" ")[1]}</td><td>${a.split(" ").slice(2).join(" ")}</td><td><span class="status good">已留痕</span></td></tr>`).join("")}</tbody></table>`;
+    }
+
+    function renderAssistant() {
+      const r = role();
+      $("#assistant-head").innerHTML = `<span class="agent-mark">${icon("sparkles")}</span><div><b>${r.agent}</b><small>服务于 ${r.label} · ${state.route === "project" ? project().name : "今日工作"}</small></div><button class="icon-btn assistant-close mobile-only" id="assistant-close" title="关闭 Agent" aria-label="关闭 Agent">${icon("x")}</button>`;
+      $("#assistant-scope").innerHTML = `${icon("shield-check", "icon sm")}<span><b>本次数据边界：</b>${r.scope}</span>`;
+      if (!state.messages[state.role]) state.messages[state.role] = [{ type: "agent", text: assistantGreeting() }];
+      $("#messages").innerHTML = state.messages[state.role].map(m => `<div class="msg ${m.type === "user" ? "user" : ""}">${m.type === "agent" ? `<span class="mini-avatar" style="background:var(--accent)">AI</span>` : ""}<div class="bubble">${m.text}</div></div>`).join("");
+      $("#prompt-row").innerHTML = r.prompts.map(p => `<button class="prompt-chip" data-prompt="${p}">${p}</button>`).join("");
+      setTimeout(() => { const m = $("#messages"); m.scrollTop = m.scrollHeight; }, 0);
+    }
+
+    function assistantGreeting() {
+      if (state.route === "project") {
+        return ({ lead: "我已汇总当前项目的目标、预算和责任链。你有 2 个需要承担的决定，其余执行仍在 Kenji 和 Iris 手中。", bd: "我只在当前项目里工作。组合、回复和交付证据已关联到具体创作者，不会与其他项目混在一起。", ops: "我已核对当前项目的合同、合规与托管字段。缺口会退回责任人，不会代替他们补写。" })[state.role];
+      }
+      return ({ lead: "今天有 3 个需要你拍板的事项。我已按对目标的阻塞程度排序，不会把 BD 和商务运营的执行任务推给你。", bd: "今天有 4 个创作者合作任务。先处理 GSEA 的 3 条回复，再审核 HSR 初稿。", ops: "今天有 3 个商务控制项，其中 HSR 的 $2,600 已接近放款条件。" })[state.role];
+    }
+
+    function assistantReply(input) {
+      const lower = input.toLowerCase();
+      if (state.role === "ops" && /联系方式|邮箱|电话/.test(input)) return "我不能读取创作者联系方式。你可以让我查询合同状态、资料缺口、托管金额或待放款清单；需要联系创作者时，我会把缺口交给合作经理。";
+      if (/风险|最大/.test(input)) return `当前最大风险是越南市场没有满足可信度与女性受众要求的对象。它影响市场覆盖，但不阻塞其他 3 个市场执行。建议保留 2 个替补席并让 ${state.role === "lead" ? "Kenji" : "Mia"}确认取舍。`;
+      if (/周报|总结/.test(input)) return "我已按项目目标整理摘要：当前组合预计触达 180 万，预算使用率 98%，有 1 个市场覆盖缺口和 2 个签约资料缺口。需要对外分享前会再次请你确认。";
+      if (/重排|候选|替补/.test(input)) return "我会只重排当前项目候选：优先越南女性受众、可信度 ≥80、90 天无竞品合作。预计保留 5 位，并标注每位进入或淘汰的证据。";
+      if (/放款|款项/.test(input)) return state.deliveryApproved ? "AyuGaming 的 $1,800 已满足合同、托管、交付和披露条件，仍需你人工确认；其他款项不可放。" : "目前没有可放款项。AyuGaming 仍缺 BD 的交付审核证据；我不会绕过该条件。";
+      if (/合同|资料|合规/.test(input)) return "当前项目有 2 个资料缺口：税务居住地缺失、合同主体与收款主体不一致。责任人都是 Kenji，建议生成一张可退回的补充任务。";
+      if (/回复|起草|跟进/.test(input)) return "我已按每位创作者的内容和当前谈判状态生成草稿。正式发送前会逐封展示对象、承诺内容和不可撤销提示。";
+      return `我会在“${state.route === "project" ? project().name : role().label + "驾驶舱"}”的上下文中处理这件事，并只调用属于你职责的数据与动作。`;
+    }
+
+    function render() {
+      renderChrome();
+      if (state.route === "today") renderToday();
+      else if (state.route === "projects") renderProjects();
+      else if (state.route === "games") renderGames();
+      else if (state.route === "results") renderResults();
+      else if (state.route === "network") renderNetwork();
+      else if (state.route === "conversations") renderConversations();
+      else if (state.route === "control") renderControl();
+      else if (state.route === "audit") renderAudit();
+      else renderProject();
+      safeIcons();
+    }
+
+    let modalCallback = null;
+    function openModal(title, body, confirmText, callback) {
+      $("#modal-title").textContent = title;
+      $("#modal-body").innerHTML = body;
+      $("#modal-confirm").textContent = confirmText;
+      modalCallback = callback;
+      $("#modal-scrim").classList.add("on");
+      $("#modal-confirm").focus();
+      safeIcons();
+    }
+    function closeModal() { $("#modal-scrim").classList.remove("on"); modalCallback = null; }
+    let toastTimer;
+    function toast(text) { const el = $("#toast"); el.textContent = text; el.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("on"), 2600); }
+    function log(text) { state.audit.unshift(`${new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })} ${role().name.split(" ")[0]} ${text}`); }
+    function addAgent(text) { state.messages[state.role].push({ type: "agent", text }); renderAssistant(); safeIcons(); }
+
+    function handleAction(action) {
+      if (action === "new-project") return openModal("创建项目", `用一句话描述游戏、市场、目标和预算。<textarea id="new-project-input" placeholder="例如：为《鸣潮》做北美首发，预算 $12,000…"></textarea>`, "生成 Brief", () => { closeModal(); toast("项目 Brief 已生成到草稿"); addAgent("我已生成项目 Brief 草稿，并标出市场、目标和预算三个待确认字段。确认前不会创建正式项目。"); });
+      if (action === "approve-plan") return openModal("批准创作者组合", `你将批准 <b>$9,800 · 14 人稳健覆盖方案</b>。批准后组合成为当前项目的有效执行对象，并交还给 Kenji 进入沟通。<br><br>这不会发送邮件，也不会替 BD 作出任何对外承诺。`, "批准并交回 BD", () => { state.planApproved = true; log("批准 14 人创作者组合并交回 Kenji"); closeModal(); render(); toast("组合已批准 · Kenji 已收到交接"); addAgent("组合已经生效。我已把“审阅并触达 14 位创作者”交给 Kenji，你的下一项责任是报价例外。"); });
+      if (action === "return-plan") return openModal("退回组合方案", `退回原因会连同当前证据回到 Kenji 的驾驶舱。<textarea id="return-reason" placeholder="说明需要补充什么，避免只写“不通过”"></textarea>`, "退回给 Kenji", () => { const reason = $("#return-reason")?.value.trim(); if (!reason) return toast("请填写退回原因"); log(`退回组合方案：${reason}`); closeModal(); toast("已退回 · 原因已进入 Kenji 待办"); });
+      if (action === "approve-quote") return openModal("批准报价例外", `你将批准 <b>$2,400</b> 的预算例外。批准只扩大 Kenji 的谈判授权，不会自动向创作者发送承诺。`, "批准例外", () => { state.quoteApproved = true; log("批准 $2,400 报价例外"); closeModal(); render(); toast("例外已批准 · BD 可继续谈判"); });
+      if (action === "return-quote") return openModal("退回报价例外", `请选择 BD 下一步应采用的边界。<textarea id="return-reason" placeholder="例如：总价不超过 $2,200，或缩短素材授权期"></textarea>`, "退回 BD", () => { const reason = $("#return-reason")?.value.trim(); if (!reason) return toast("请填写谈判边界"); closeModal(); toast("已退回 · 新边界已发送给 BD"); });
+      if (action === "send-batch") return openModal("确认批量发送", `将向当前项目组合内 <b>14 位创作者</b>发送逐人个性化邀约。<br><br>对外、不可撤销。系统会逐封记录送达、退信与回复信号；超过 10 人的批量发送已按组织规则获得授权。`, "确认发送 14 封", () => { state.batchSent = true; log("发送 14 封项目邀约"); closeModal(); render(); toast("13 封已送达 · 1 封退信进入抑制名单"); });
+      if (action === "send-one") return openModal("确认发送回复", `这封回复会发给 <b>เกมเมอร์มายด์</b>，内容明确写明 $2,400 尚未批准，不构成正式承诺。`, "确认发送", () => { closeModal(); toast("回复已发送 · 关系状态已更新"); });
+      if (action === "approve-delivery") return openModal("通过内容交付", `你确认 AyuGaming 的终稿满足游戏信息、表达质量和 #ad 披露要求。通过后证据会交给商务运营，作为放款条件之一。`, "通过并交接 Iris", () => { state.deliveryApproved = true; log("通过 AyuGaming 终稿并交接放款证据"); closeModal(); render(); toast("交付已通过 · Iris 已收到证据"); });
+      if (action === "request-docs") return openModal("退回资料缺口", `将两个缺口合并成一张任务交给 Kenji：<br>1. เกมเมอร์มายด์ 税务居住地<br>2. MayaPlays 合同主体与收款主体确认<br><br>Iris 不会代替责任人补写资料。`, "交给 Kenji 补充", () => { state.requestedDocs = true; log("向 Kenji 退回 2 个签约资料缺口"); closeModal(); render(); toast("资料缺口已进入 Kenji 驾驶舱"); });
+      if (action === "payout") return openModal("确认放款", `向 <b>AyuGaming</b> 放款 <b>$1,800</b>。<br><br>合同已签署、资金已托管、交付审核通过、披露证据完整。确认后由支付 partner 执行，<b>不可撤销</b>。`, "确认放款 $1,800", () => { state.paid = true; log("确认向 AyuGaming 放款 $1,800"); closeModal(); render(); toast("放款指令已发送给 partner"); });
+      if (action === "generate-report") { toast("周报已生成到项目结果视图"); addAgent("周报已生成。我保留了数据范围、来源和两个证据缺口；生成对外链接前仍需你确认。"); return; }
+      if (action === "adopt-learning") { toast("结论已写入《原神》游戏知识"); log("采纳项目复盘并写入游戏知识"); return; }
+      if (action === "view-evidence") return openModal("归因证据", `当前只有 TikTok 点击和短链访问，没有平台授权的安装与付费事件。<br><br><b>结论：</b>可以确认内容带来访问，不能确认带来转化。下一轮需在项目开始前取得创作者授权并绑定归因链接。`, "知道了", () => { closeModal(); });
+      if (action === "edit-learning") return openModal("编辑项目结论", `人工修改会覆盖 Agent 草案，并保留原文、修改人和时间。<textarea id="learning-edit">女性向腰部创作者贡献了 68% 的有效观看，单位触达成本比头部低 31%；越南市场因证据不足暂不归因。</textarea>`, "保存修改", () => { closeModal(); toast("结论已保存 · 人工修改已留痕"); log("编辑项目复盘结论"); });
+      if (action === "edit-draft") { const draft = document.querySelector(".draft-box textarea"); if (draft) draft.focus(); toast("草稿已进入编辑状态"); return; }
+      if (action === "view-comments") return openModal("初稿批注", `<b>品牌表达：</b>00:08–00:16 的口播过于接近硬广，建议改为实际体验。<br><br><b>披露：</b>#ad 已在画面中出现，但需要同步加入发布文案。<br><br><b>责任人：</b>Kenji · 等待创作者回传 v3。`, "知道了", () => { closeModal(); });
+    }
+
+    document.addEventListener("click", (e) => {
+      const roleBtn = e.target.closest("#role-switch [data-role]");
+      if (roleBtn) { state.role = roleBtn.dataset.role; state.route = "today"; state.tab = defaultTab(); state.messages[state.role] = [{ type: "agent", text: assistantGreeting() }]; $("#sidebar").classList.remove("open"); render(); return; }
+      const navBtn = e.target.closest("[data-nav]");
+      if (navBtn) { state.route = navBtn.dataset.nav; $("#sidebar").classList.remove("open"); render(); return; }
+      const projectBtn = e.target.closest("[data-project], [data-open-project]");
+      if (projectBtn) { state.projectId = projectBtn.dataset.project || projectBtn.dataset.openProject; state.route = "project"; state.tab = projectBtn.dataset.tab || defaultTab(); render(); return; }
+      const tabBtn = e.target.closest("[data-tab]");
+      if (tabBtn) { state.tab = tabBtn.dataset.tab; state.route = "project"; render(); return; }
+      const promptBtn = e.target.closest("[data-prompt]");
+      if (promptBtn) { submitAgent(promptBtn.dataset.prompt); return; }
+      const actionBtn = e.target.closest("[data-action]");
+      if (actionBtn) { handleAction(actionBtn.dataset.action); return; }
+      if (e.target.closest("#menu-toggle")) { $("#sidebar").classList.toggle("open"); return; }
+      if (e.target.closest("#assistant-toggle")) { $("#assistant").classList.add("open"); return; }
+      if (e.target.closest("#assistant-close")) { $("#assistant").classList.remove("open"); return; }
+    });
+
+    document.addEventListener("change", (e) => { if (e.target.id === "project-select") { state.projectId = e.target.value; state.tab = defaultTab(); render(); } });
+    $("#modal-cancel").onclick = closeModal;
+    $("#modal-confirm").onclick = () => { if (modalCallback) modalCallback(); };
+    $("#modal-scrim").addEventListener("click", (e) => { if (e.target.id === "modal-scrim") closeModal(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeModal(); $("#assistant").classList.remove("open"); $("#sidebar").classList.remove("open"); } });
+
+    function submitAgent(value) {
+      const text = (value || $("#agent-input").value).trim();
+      if (!text) return;
+      if (!state.messages[state.role]) state.messages[state.role] = [];
+      state.messages[state.role].push({ type: "user", text });
+      state.messages[state.role].push({ type: "agent", text: assistantReply(text) });
+      $("#agent-input").value = "";
+      renderAssistant(); safeIcons();
+    }
+    $("#agent-send").onclick = () => submitAgent();
+    $("#agent-input").addEventListener("keydown", (e) => { if (e.key === "Enter") submitAgent(); });
+
+    render();
+  </script>
+</body>
+</html>

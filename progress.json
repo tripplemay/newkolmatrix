@@ -10,8 +10,9 @@
   "reference_docs": [
     "docs/audits/KOLMatrix-interaction-prototype-review-2026-07-15.md",
     "docs/specs/AGENT-FOUNDATION-spec.md",
-    "docs/product/interaction-prototype.html",
-    "scripts/test/prototype-smoke.js",
+    "docs/product/interaction-prototype-v2.html",
+    "docs/product/interaction-prototype-v2-落地规范.md",
+    "scripts/test/v2-prototype-smoke.js",
     "docs/product/ai-native-usage.md",
     "docs/product/gap-product-layer.md",
     "framework/patterns/web-runtime-patterns.md"
@@ -26,7 +27,7 @@
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【三角色架构已拆除 → 单角色推进全流程。等用户实测】\n用户裁决：定位=服务中小团队的 AI 驱动营销工具，多角色决策是错的。**错在我。**\n\n角色体系是从有墨公考（业务工作台）借来的，不是从本产品定位推导的。借鉴的前提是两个产品用户结构相似——我从没验证过。中小团队没有三张桌子。\n更难堪：原始需求第一句就是「避免过于像传统 SaaS，重构为 AI-native」，而「提交→审批→退回→重提」恰恰是传统 SaaS 最典型的特征。**我往需求的反方向走了一程**，还围着它建了 spec 六条决策、F008 整条、和上一轮刚做的角色化驾驶舱。\n\n**这轮最有价值的区分**（已落 D27）：角色体系里混着两种形式相似、本质相反的东西——\n  人→人 审批 = 组织层级的产物 = 传统 SaaS → 删\n  AI→人 闸门 = AI 不替人做不可逆的对外承诺 = AI-native 的信任基础 → 留\n拆掉角色后闸门反而更纯粹：「提交营销负责人审批」→「这是对外不可撤销的，你确认吗」。\n推论也写进去了：内部可撤销的动作不该有闸门——假闸门训练用户无脑点确认，稀释真闸门。\n\n用户否了我的阈值建议（我想改成「确认的重量」，他要直接删）。我遵办，但保留闸门如实说明利害（列全部 14 位收件人、标金额与不可撤销）——那不是分级，那只是不撒谎。\n\n**拆迁炸出的真 bug**：删「退回并注明原因」时把它的校验留在了所有闸门共用的 handler 里，`if($(\"#return-reason\")){if(!v){return;}}` 在测试桩里掐死了每一个闸门的回调。smoke 抓到了。\n\n**两条我自己的测试教训（已按 D20 记录）**：\n① 重写 E2E 用行切片，把刚加的 4 条断言一起切掉了，**测试因此更绿**。断言数 139→103 我看见了，还自我安慰说是删角色断言。**绿色不是证据。**\n② 「六环节无待他人占位」扫了 4 项目×6 环节看着很周全，但 reset 后没有生效的组合，关系行根本不渲染——**它从没走到自己声称覆盖的代码**。已改为先让组合生效再扫，且自检。\n两条修完都做了变异测试，4/4 抓住。107 断言全绿，E2E 单角色 ①→⑩ 走通。\n\nspec：D11/D12/D14/D18/D23/D24 作废；D13 部分保留（护栏升级为 AI 行为边界）；新增 D26-D29。\nfeatures：F001 去 role/scope/Approval；F004 改 internal/outbound 工具二分（outbound 不得由 Agent 直接执行）；F005 去 copilotScope 拒答；F006 去角色切换器与权限守卫；F008 整条重写。\n\n**未做**：其余 5 环节（01/02/03/05/06）仍未按「单角色 + AI 驱动」重新设计——上一轮只做了 IA 收敛。复审 §9 的 P1/P2 共 13 项；真实浏览器截图（本环境无 Browser，硬缺口）。\nstatus 仍 planning，building 仍暂停。"
+    "Andy": "【交互原型 v2 定稿并入库】本会话主线是把交互原型迭代到位（非状态机批次；属 planning 上游设计探索）。轨迹：单角色骨架→Horizon 高保真复刻→加回常驻多 Agent Copilot（每环节专家 Agent＋协同可展开交接）→补齐 6 页（今天/项目+五环节纵推/创作者库+详情抽屉/游戏知识 素材上传→AI解析/洞察/Agent记录）→修 data-enter/data-env 属性冲突 bug。然后做 Horizon 复用审计（8-agent workflow，39 findings，26 CONFIRMED）→ 全量对齐 token/结构（阴影.08、标题navy-700、按钮扁平、侧栏浮卡、导航玻璃、进度条/环、平滑面积图，修 'x' 图标 bug）。产出落地规范 docs/product/interaction-prototype-v2-落地规范.md（手写件→真 Horizon 组件映射，两 agent 源码核验）。canonical=interaction-prototype-v2.html + v2-prototype-smoke.js(57断言)。归档 role-first(三角色否决)+旧 interaction-prototype→docs/archive/。small-team(另一 agent 平行路径)留原处未动；KOLMatrix-落地页-V7 / 有墨公考 未入库。status 仍 planning，building 暂停。下一步：可开 WORKBENCH-UI 前端落地批次（按落地规范用真组件+mock），或推进 AGENT-FOUNDATION 后端。"
   },
   "features": []
 }

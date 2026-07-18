@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "typeRoots": ["node_modules/@types", "src/types"],
-    "target": "es2016",
-    "lib": ["dom", "dom.iterable", "esnext", "es2015.iterable"],
+    "target": "ES2020",
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -10,14 +10,19 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "preserve",
-    "noImplicitAny": false,
-    "noImplicitThis": true,
+    // strict:true (below) with a documented exemption list (AGENT-FOUNDATION F001).
+    // The two null-family checks stay OFF: enabling them surfaces 43 pre-existing errors
+    // in the Horizon UI Pro vendor-wrapper scaffold (not our code). Every OTHER strict
+    // member is on (noImplicitAny, strictFunctionTypes, strictBindCallApply,
+    // useUnknownInCatchVariables, alwaysStrict, ...). Tighten null-safety per-directory
+    // for net-new src/lib/** in later foundation work; don't rebuild vendor typing now.
     "strictNullChecks": false,
+    "strictPropertyInitialization": false,
     "downlevelIteration": true,
     "baseUrl": "src",
     "paths": {
@@ -29,7 +34,7 @@
         "name": "next"
       }
     ],
-    "strict": false
+    "strict": true
   },
   "exclude": [
     "node_modules",

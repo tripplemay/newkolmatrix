@@ -7,6 +7,8 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 # .npmrc 含 legacy-peer-deps=true（React 19 RC peer 冲突）
 COPY package.json package-lock.json .npmrc ./
+# prisma schema 必须先于 npm ci —— postinstall 会跑 `prisma generate`，需读 prisma/schema.prisma（F002）
+COPY prisma ./prisma
 RUN npm ci
 
 # ---- build: 编译 standalone 产物 ----

@@ -25,7 +25,45 @@
     "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": [],
+  "evaluator_feedback": [
+    {
+      "feature": "F001",
+      "verdict": "PASS",
+      "clauses": [
+        {
+          "criterion": "typescript 升到 5.x（主版本为 5）",
+          "result": "PASS",
+          "evidence": "node_modules/typescript=5.9.3, package.json=5.9.3(exact 硬锁无^), package-lock root deps=5.9.3, lock node_modules/typescript=5.9.3, npx tsc --version=5.9.3；四处一致，主版本=5"
+        },
+        {
+          "criterion": "tsconfig 现代化：target ≥ES2020；strict 打开或列豁免清单",
+          "result": "PASS",
+          "evidence": "tsc --showConfig: target=es2020, strict=true, 除 strictNullChecks/strictPropertyInitialization 两项豁免外 noImplicitAny/strictFunctionTypes/strictBindCallApply/useUnknownInCatchVariables/alwaysStrict/noImplicitThis 全 true；豁免在 tsconfig 注释+commit+session_notes 有文档。自洽性抽查(命令行覆盖开启)暴露 42 error 全部落在 Horizon vendor scaffold(Links/NavbarAuth/navigation.ts 等)无一在 F001 改动文件，豁免正当"
+        },
+        {
+          "criterion": "修复 Horizon scaffold 因升级产生的类型错误（无遗留类型错）",
+          "result": "PASS",
+          "evidence": "npx tsc --noEmit(先删 tsbuildinfo)退出码 0 零错误；noImplicitAny 暴露的唯一错(AppWrappers _NoSSR children 隐式 any)以 import ReactNode + {children:ReactNode} 正规修复，非 any 抑制非 @ts-ignore"
+        },
+        {
+          "criterion": "next/react/typescript 版本锁定并提交 lockfile",
+          "result": "PASS",
+          "evidence": "next 15.5.20 / react·react-dom 19.2.7 / typescript 5.9.3 三处(package.json/lock/node_modules)一致且 exact 硬锁；package-lock.json 已在 d4cd942 提交(--stat 含之)；@types/node 幽灵 deps(^12)已清"
+        },
+        {
+          "criterion": "tsc --noEmit + build + lint 全绿",
+          "result": "PASS",
+          "evidence": "tsc --noEmit 退出码 0(无缓存)；next lint 退出码 0 ✔No ESLint warnings or errors；next build 退出码 0 ✓Compiled successfully + ✓Generating static pages(10/10)，无 error/Failed"
+        },
+        {
+          "criterion": "F001 必须先于 F003（顺序约束，AI SDK 未引入属正常）",
+          "result": "PASS",
+          "evidence": "F001 交付物自身成立(升级+锁定+构建门全绿)；dependencies 无 ai/@ai-sdk/vercel-ai(F003 未开工正确)；moduleResolution:bundler 为 F003 前置准备当前不破坏构建"
+        }
+      ],
+      "notes": "总判定 PASS，6/6 子条 PASS，构建门(spec §6)在 F001 通过。唯一非阻断提示(记录不打回)：tsconfig 注释/commit 声称 strictNullChecks 暴露 43 个既有错误，实测 42(off-by-one 文档误差)，不影响判定。报告：docs/test-reports/AGENT-FOUNDATION-F001-verify-2026-07-18.md。验收人 Andy/evaluator-subagent"
+    }
+  ],
   "generator_handoff": null,
   "session_notes": {
     "Andy": "【F001 实现完成 · CI 绿 · 进入隔离验收】F001(TS5 迁移)已 commit d4cd942 并 push，CI(lint+tsc)=success。改动: typescript 4.9.5->5.9.3(硬锁) · tsconfig target es2016->ES2020 + moduleResolution node->bundler(前置 F003 exports-only ESM) · strict:false->true + 2 项豁免(strictNullChecks/strictPropertyInitialization，因 Horizon vendor 层 43 既有 null 错，非本批代码；其余 strict 全开) · 修 AppWrappers _NoSSR children any · 版本锁 next15.5.20/react19.2.7/ts5.9.3 · 清 @types/node 幽灵^12。自测绿三件套 tsc0/lint0/build success。当前 status=verifying，已启隔离 evaluator subagent 验 F001(按 features.json F001 acceptance)，待其结论原样呈用户拍板。逐 feature 闸门(spec §5): PASS→F001 done 开工 F002(全栈+Prisma+pgvector)；FAIL→fixing。遗留(与本批无关): architecture 文档重组未入 git(docs/dev/architecture.md 删 + architecture_f5/kimi.md + docs/audits/integrated 稿未 track)，待用户单独理。★原批次上下文备查: r3.2 spec-lock，10 features 串行 F001→F010（内容/依赖/acceptance 见 features.json + spec §4/§5）。决策速查：单角色(D26-D29，无 role/scope/审批) · 四柱 + 成品级多 Agent 编排框架(F006：registry 7 人格 + persona router + handoff + orchestrator 骨架，§3.2 D-ORCH「接口焊死·业务语义留 EXTENSION POINT」) · 对外互操作薄地基(§3.3 D-INTEROP：GEO + 外部 agent 友好只留插座，本体→M4/M5) · AI→人闸门(F009，§3.1 工具二分 + harm zod + 变异测试 D20)。仓库从零：TS4.9.4/es2016/strict:false，无 prisma/，src/lib 空。★验收编排（用户 2026-07-17 定，见 spec §5）：逐 feature 验收闸门——每完成一个 feature 停下→隔离 evaluator subagent 按该 feature acceptance 独立验收(无自评铁律)→编排者原样呈现结论+成果→用户拍板 PASS 才开工下一个；FAIL/打回则该 feature fixing→reverifying。F001-F005 多为命令行/脚本证据形态，F006 起有浏览器 UI。▶新会话开工指引：git pull → 读 progress(building) + spec §5 → Generator 开工 F001(TS4.9→5 迁移 + tsconfig 现代化 + 修 scaffold 类型错 + 锁 lockfile，须先于 F003) → 自测 tsc/build/lint 绿 + commit(tag feat(AGENT-FOUNDATION-F001)) → **切隔离 evaluator subagent 验 F001** → 呈现给用户拍板 → 继续 F002。遗留（与本批无关，待用户单独理）：architecture 文档重组未入 git(docs/dev/architecture.md 已删 + architecture_f5/kimi.md + docs/audits/integrated 架构稿未 track)。蓝图 Artifact：https://claude.ai/code/artifact/2a163f58（施工蓝图，含逐 feature 验收标注；dashboard_url 字段的 922046a5 是另一个 progress 看板）。"

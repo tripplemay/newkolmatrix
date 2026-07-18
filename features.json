@@ -15,7 +15,7 @@
       "title": "全栈化 + DB/pgvector + Prisma schema（单角色）+ 运行时表（闸门 + 交接）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "verifying",
       "acceptance": "prisma migrate 成功；pgvector 经自定义 SQL migration `CREATE EXTENSION IF NOT EXISTS vector`（不依赖 Prisma postgresqlExtensions 预览开关，架构稿 D3）；Kol.embedding 为 vector(1024)；schema 含 Tenant / User（单 dev 用户，无 role/scope/权限字段）/ Kol（核心字段 + D15 字段契约位 audienceDemo/credibility/brandSafety/dataSource/fieldProvenance 全部 nullable）；业务实体带 owner 标记（String? = Leo/Ada/Kai，D29 分工不是权限，非枚举非权限）；新增三张运行时表：PendingAction（最小态 pending|confirmed|executed + kind/toolName/payloadHash/harmJson/confirmationTokenHash/expiresAt）为 F009 闸门落点、OperationLog（append-only：只 INSERT，kind 枚举 auto|gate|block|irrev）为留痕落点、Handoff（id/tenantId/projectId/fromAgent/toAgent/artifactType/artifactRef/summary/messagesJson/createdAt，架构稿 §5.4）为 F006 编排框架的交接落点；docker-compose.dev.yml 起本地 postgres+pgvector；.env.example 加 DATABASE_URL 无明文密钥；build + tsc --noEmit + lint 绿",
       "description": "对齐架构稿 §7.2 运行时实体与 PRD §11。【去三角色】删除 User.role/scope 与 Approval 交接单表。【新增】PendingAction + OperationLog + Handoff 三张运行时表（Handoff 为多 Agent 编排框架预建交接落点）。OutboundAttempt / reconciliation / PendingAction 完整 7 态明确分期到 M3。"
     },

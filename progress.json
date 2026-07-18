@@ -62,6 +62,73 @@
         }
       ],
       "notes": "总判定 PASS，6/6 子条 PASS，构建门(spec §6)在 F001 通过。唯一非阻断提示(记录不打回)：tsconfig 注释/commit 声称 strictNullChecks 暴露 43 个既有错误，实测 42(off-by-one 文档误差)，不影响判定。报告：docs/test-reports/AGENT-FOUNDATION-F001-verify-2026-07-18.md。验收人 Andy/evaluator-subagent"
+    },
+    {
+      "feature": "F002",
+      "verdict": "PASS",
+      "clauses": [
+        {
+          "criterion": "C1 prisma migrate 成功",
+          "result": "PASS",
+          "evidence": "migrate deploy 退出码0，'No pending migrations to apply'(幂等成立)；_prisma_migrations: 20260718000000_init finished=2026-07-18 07:48:26+00 rolled_back=NULL applied_steps=1(干净应用无回滚)"
+        },
+        {
+          "criterion": "C2 pgvector 经自定义 SQL CREATE EXTENSION vector(D3，不用预览开关)",
+          "result": "PASS",
+          "evidence": "migration.sql:4 CREATE EXTENSION IF NOT EXISTS vector(建表前)；schema.prisma 无 previewFeatures/postgresqlExtensions/datasource extensions；DB 实测 pg_extension vector 0.8.5 已装"
+        },
+        {
+          "criterion": "C3 Kol.embedding 为 vector(1024)",
+          "result": "PASS",
+          "evidence": "format_type on pg_attribute(Kol.embedding)=vector(1024)(取自 DB 实列非 schema 推断)"
+        },
+        {
+          "criterion": "C4 schema 含 Tenant/User(无 role/scope/权限字段)",
+          "result": "PASS",
+          "evidence": "User 实列=id/tenantId/email/name/createdAt 无 role 无 scope；全库 information_schema.columns 无任何列含 role/scope；Tenant 占位表存在"
+        },
+        {
+          "criterion": "C5 Kol D15 五契约位全部 nullable",
+          "result": "PASS",
+          "evidence": "DB 实测 audienceDemo(jsonb)/credibility(jsonb)/brandSafety(jsonb)/dataSource(text)/fieldProvenance(jsonb) 全 nullable=YES；smoke 断言 kolA.audienceDemo===null && fieldProvenance===null 通过"
+        },
+        {
+          "criterion": "C6 业务实体带 owner 标记(String? Leo/Ada/Kai，D29 非权限非枚举)",
+          "result": "PASS",
+          "evidence": "Kol.owner/Project.owner/Game.owner 均 text 非 enum；smoke 实写 owner='Leo'/'Ada' 并断言 kolA.owner==='Leo' 通过"
+        },
+        {
+          "criterion": "C7 三运行时表 PendingAction(三态)/OperationLog(append-only)/Handoff",
+          "result": "PASS",
+          "evidence": "PendingAction 列全含 kind/toolName/payloadHash/harmJson(JSONB NOT NULL)/status/confirmationTokenHash/expiresAt，enum status=pending|confirmed|executed；OperationLog 列=id/tenantId/kind/actor/summary/ref/createdAt 无 updatedAt(append-only 成立)，enum kind=auto|gate|block|irrev；Handoff 列含 fromAgent/toAgent/artifactType/artifactRef/summary/messagesJson/projectId(§5.4 信封齐全)"
+        },
+        {
+          "criterion": "C8 docker-compose.dev.yml 起本地 postgres+pgvector",
+          "result": "PASS",
+          "evidence": "镜像 pgvector/pgvector:pg16 容器 newkolmatrix-dev-db host5434->5432 含 healthcheck；docker inspect Health.Status=healthy 实测在跑"
+        },
+        {
+          "criterion": "C9 .env.example 加 DATABASE_URL 无明文密钥",
+          "result": "PASS",
+          "evidence": ".env.example:14 有 DATABASE_URL；kol_dev_password 为本机 dev throwaway 仅对 localhost:5434 有效非生产 secret(文件注释明示真实生产走部署注入)；.env git check-ignore exit0 且未 track；全仓 sk-/AKIA/PRIVATE KEY/Bearer 扫描零命中"
+        },
+        {
+          "criterion": "C10 build + tsc --noEmit + lint 绿",
+          "result": "PASS",
+          "evidence": "删 tsbuildinfo + prisma generate 后 tsc --noEmit 退出0；next lint 退出0(No ESLint warnings or errors)；next build 退出0(Compiled successfully + 10/10 static pages)"
+        },
+        {
+          "criterion": "S1(spec) 无 Approval 表",
+          "result": "PASS",
+          "evidence": "pg_tables 无任何表名含 approval"
+        },
+        {
+          "criterion": "S2(spec D-INTEROP) 核心实体带稳定对外标识 publicId/slug",
+          "result": "PASS",
+          "evidence": "Tenant/Project/Game 有 publicId(unique)+slug(unique)；Kol 有 publicId(unique)Kol_publicId_key；唯一索引齐全。观察(非缺陷)：Kol 无 slug 但以 publicId 满足稳定对外标识+canonicalHandle 锚点，acceptance 措辞 public id/slug 择一即可"
+        }
+      ],
+      "notes": "总判定 PASS，10/10 acceptance + 2/2 spec 增补项(无 Approval/D-INTEROP) 全 PASS，首轮 fix_rounds=0。四门(spec §6)全过：数据门(migrate 幂等+自定义 CREATE EXTENSION+vector(1024)+D15 全 nullable+三运行时表+db:smoke 9/9 exit0 真实向量 round-trip cosine+级联清理无残留 counts 归0)/构建门(tsc0 lint0 build0 10/10)/密钥门(.env gitignored+未 track，.env.example 仅 dev throwaway 非生产 secret，无硬编码真实密钥)/互操作门(publicId·slug 就位+EXTENSION POINT 注释 4 处 schema.prisma:11/102/118/182+仅留插座无 JSON-LD/GEO 本体实装)。RLS 门不在 F002 范围(D4 单租户，RLS 留 M5，非缺陷)。被验提交 a2e8715+21d4d11，改动全在 F002 scope。报告：docs/test-reports/AGENT-FOUNDATION-F002-verify-2026-07-18.md。验收人 Andy/evaluator-subagent"
     }
   ],
   "generator_handoff": null,

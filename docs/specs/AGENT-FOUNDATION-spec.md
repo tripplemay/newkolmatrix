@@ -244,13 +244,28 @@ outbound 工具服务端门控（PRD §10.4）：运行时执行前检查 `class
 
 ---
 
-## 5. 车道与编排
-- **车道：** 快车道（单机 Andy 单会话）
-- **building：** **串行**（F001→…→F010；严格依赖链 + 共享 scaffold）。依赖：F001(TS5) → F002(schema+闸门/交接表) → F003(gateway) → F004(seed，需 F002+F003) → F005(runtime 本体，需 F002+F003) → F006(编排框架，需 F005+F002 Handoff 表) → F007(对话面，需 F006) → F008(IA 外壳) → F009(闸门，需 F002 表+F005 执行入口) → F010(整合)
-- **verifying：** **单个隔离 evaluator subagent**（fresh context，基于实物：DB 实查 + 脚本输出 + 浏览器实截 + 直调 API 验闸门 + 变异测试实跑）
-- **fixing ⟷ reverifying：** 标准循环
+## 5. 车道与编排（⭐ 逐 feature 验收，2026-07-17 用户定）
+
+- **车道：** 快车道（单机 Andy）。
+- **building：** **串行**（F001→…→F010；严格依赖链 + 共享 scaffold）。依赖：F001(TS5) → F002(schema+闸门/交接表) → F003(gateway) → F004(seed，需 F002+F003) → F005(runtime 本体，需 F002+F003) → F006(编排框架，需 F005+F002 Handoff 表) → F007(对话面，需 F006) → F008(IA 外壳) → F009(闸门，需 F002 表+F005 执行入口) → F010(整合)。
+
+- **⭐ 逐 feature 验收闸门（本批核心编排，取代批次末一次性 verifying）：** 每完成一个 feature 就停下走一个小循环，**通过才开工下一个**：
+  1. **Generator（主上下文）** 实现该 feature + 自测能跑 + `commit`（该条 `features.json.status` 置 building→（待验））
+  2. **隔离 evaluator subagent** 按**该 feature 的 acceptance** 独立验收（fresh context，只看代码 + 运行输出 + 浏览器实测/脚本，不听实现叙述；无自评铁律），逐条评 PASS/FAIL + 出证据，**结论原样落盘**（编排者不得改写/软化）
+  3. **编排者** 把 evaluator 结论 + 可见成果（命令行输出 / 截图 / 浏览器 demo）呈现给用户
+  4. **用户拍板：** evaluator PASS 且用户确认 → 该条 `status: done`，开工下一 feature；evaluator FAIL 或用户打回 → 当前 feature `fixing` → 该 feature `reverifying`，通过才继续
+  5. 循环至 F010
+
+- **验收形态预期（用户已知悉）：** F001–F005 多为命令行/脚本证据（F001=`tsc/build/lint` 绿；F002=`migrate`+表结构；F003=网关 smoke；F004=数据+向量查询；F005=`curl` API）；**F006 起才有浏览器可交互成果**。
+
+- **批次末整体回归：** F010 通过后，隔离 evaluator 再做一次全链路回归（e2e + §6 全部门），出批次 signoff 落 `docs/test-reports/`。
+
+- **progress.json 状态：** 顶层 `status` 在 building（Generator 主导）与 verifying/fixing（当前 feature 隔离验收/修复）间按**当前 feature** 流转；`features.json` 逐条 `status` 追踪进度。**每个 feature 的实现与其隔离验收不得在同一上下文**（无自评铁律）。
 
 ## 6. 验收总纲（Evaluator 参考）
+
+> **逐 feature 验收（§5）：** 以下各门**分散到相关 feature 的验收时按其 acceptance 检查**（如构建门每个 feature 都过；数据门在 F002/F004；AI 门在 F003；Agent/编排门在 F005/F006；交互门在 F007；闸门/互操作门在 F009/F002/F005）；F010 通过后做一次**整体回归**把全部门再过一遍，出 signoff。
+
 - **构建门：** `npm install` → `build` → `tsc --noEmit` → `lint` 全过（TS5）
 - **数据门：** docker postgres+pgvector 起；`prisma migrate` + 自定义 `CREATE EXTENSION vector`；seed → DB ≥2000 KOL 含非空 embedding + 1 dev 用户；cosine 查询返回相关结果；幂等
 - **AI 门：** smoke 脚本经 aigcgateway 完成 chat(tool-call) + bge-m3 embedding

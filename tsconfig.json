@@ -16,7 +16,7 @@
     "noEmit": true,
     "jsx": "preserve",
     // strict:true (below) with a documented exemption list (AGENT-FOUNDATION F001).
-    // The two null-family checks stay OFF: enabling them surfaces 43 pre-existing errors
+    // The two null-family checks stay OFF: enabling them surfaces ~42 pre-existing errors
     // in the Horizon UI Pro vendor-wrapper scaffold (not our code). Every OTHER strict
     // member is on (noImplicitAny, strictFunctionTypes, strictBindCallApply,
     // useUnknownInCatchVariables, alwaysStrict, ...). Tighten null-safety per-directory

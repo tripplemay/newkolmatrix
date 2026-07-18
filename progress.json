@@ -1,16 +1,16 @@
 {
-  "status": "planning",
-  "user_goal": "旧 kolmatrix 功能逐步重构进新系统：保留功能，去传统 SaaS 化，改造为 AI native（Agent 驱动一切）。本批 AGENT-FOUNDATION = Phase 0 架构地基：全栈化 + Agent 驱动四柱（工具层/Agent 运行时/常驻对话面/generative canvas）+ hello-agent 端到端闭环",
-  "total_features": 8,
+  "status": "building",
+  "user_goal": "旧 kolmatrix 全面重构：保功能、去传统 SaaS 化、改 AI native（Agent 从副驾提到主驾）。单角色 + 多专家 Agent 编队 + AI→人闸门。本批 AGENT-FOUNDATION = Phase 0 架构地基：TS5 前置 + 全栈化 + Agent 驱动四柱 + 成品级多 Agent 编排框架（registry/persona router/handoff/orchestrator，接口焊死·业务语义留扩展点）+ AI→人闸门地基 + 对外机器友好契约薄地基（D-INTEROP：GEO / 外部 agent 友好留插座不实装）+ hello-agent（多 Agent 编排）端到端闭环。2026-07-17 r3.2：三角色清除 + 编排框架前置 + 对外互操作地基，feature 10 条，spec-lock 完成翻 building。",
+  "total_features": 10,
   "completed_features": 0,
   "fix_rounds": 0,
   "current_sprint": "AGENT-FOUNDATION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-15T10:00",
+  "last_updated": "2026-07-17T20:30",
   "reference_docs": [
-    "docs/audits/KOLMatrix-interaction-prototype-review-2026-07-15.md",
+    "docs/product/KOLMatrix-PRD.md",
+    "docs/audits/KOLMatrix-integrated-architecture-design-2026-07-17.md",
     "docs/specs/AGENT-FOUNDATION-spec.md",
-    "docs/dev/architecture.md",
     "docs/product/interaction-prototype-v2.html",
     "docs/product/interaction-prototype-v2-落地规范.md",
     "scripts/test/v2-prototype-smoke.js",
@@ -28,7 +28,6 @@
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【交互原型 v2 定稿并入库】本会话主线是把交互原型迭代到位（非状态机批次；属 planning 上游设计探索）。轨迹：单角色骨架→Horizon 高保真复刻→加回常驻多 Agent Copilot（每环节专家 Agent＋协同可展开交接）→补齐 6 页（今天/项目+五环节纵推/创作者库+详情抽屉/游戏知识 素材上传→AI解析/洞察/Agent记录）→修 data-enter/data-env 属性冲突 bug。然后做 Horizon 复用审计（8-agent workflow，39 findings，26 CONFIRMED）→ 全量对齐 token/结构（阴影.08、标题navy-700、按钮扁平、侧栏浮卡、导航玻璃、进度条/环、平滑面积图，修 'x' 图标 bug）。产出落地规范 docs/product/interaction-prototype-v2-落地规范.md（手写件→真 Horizon 组件映射，两 agent 源码核验）。canonical=interaction-prototype-v2.html + v2-prototype-smoke.js(57断言)。归档 role-first(三角色否决)+旧 interaction-prototype→docs/archive/。small-team(另一 agent 平行路径)留原处未动；KOLMatrix-落地页-V7 / 有墨公考 未入库。status 仍 planning，building 暂停。下一步：可开 WORKBENCH-UI 前端落地批次（按落地规范用真组件+mock），或推进 AGENT-FOUNDATION 后端。 【仓库清理 2026-07-17】只保留 v2 原型 + 落地规范 + v2-smoke + 产品调研文档（ai-native-usage/competitive/gap-*/2 份 audits 保留）；删除 docs/archive（含 role-first/旧 interaction-prototype）、small-team、KOLMatrix-落地页-V7、有墨公考、.DS_Store。研究文档保留故 reference_docs 无需改。 【PRD+架构 2026-07-17】KOLMatrix-PRD.md v1.0（14-agent 工作流+稽核 17 条修毕）与 docs/dev/architecture.md v1.0（12-agent 起草+27 条跨章裁决+20 项残留扫描 PASS；合稿 agent 曾超 64k 输出上限，改为磁盘修补+机械拼装恢复）均已入库。闸门契约定稿=两步票据（confirm 签票→execute 消费）、PendingAction 7 态、harm 单一 zod、TS5=F002 前独立微批次（ADR-008）、工具白名单 6 名/语义 5 类。"
-  },
-  "features": []
+    "Andy": "【2026-07-17 r3.1 单角色重拆+编排框架前置】起点：用户读综合架构合并稿后要求基于架构稿+PRD整体规划。诊断核心张力：AGENT-FOUNDATION spec§4+features.json仍三角色原文，只贴作废批注；PRD v1.0已全单角色(D26-D29)。用户授权自行决定→**重拆**。核实仓库TS4.9.4/es2016/strict:false,无prisma/,src/lib空,地基从零。经多轮澄清：(a)用户确认路线=M0水平分层/M1+垂直切片(每里程碑竖切一环节E2E);(b)用户问多Agent编排层M0是否涉及→查PRD§12.6权威:编队运行时是四柱之上调度视图·非独立第五柱·落点在柱二内以人格路由+工具子集实现;(c)**用户拍板立意:M0搭成品级多Agent架构框架,子agent/工具/MCP后期按需扩展**。我给出并经用户确认的边界纪律§3.2 D-ORCH:接口/机制/信封格式焊死,业务语义(handoff载荷/orchestrator聚合规则/人格职责精度/compliance调用点)留EXTENSION POINT不焊死——防两次IA反转+三角色作废式零验证过度设计(ADR-001)。MCP按'预留source抽象·不实装client'(无真实需求)。已落盘10条:F001 TS5→F002 DB+pgvector+PendingAction/OperationLog/**Handoff**三表→F003 gateway→F004 seed(1dev)→F005 runtime本体+工具二分+source(native/mcp)抽象→**F006 多Agent编排框架:registry(7人格)+persona router+handoff协议+orchestrator骨架,最小验证≥2人格路由+1次handoff**→F007 对话面+canvas+多人格切换+协同交接可视化→F008 IA侧栏4项→F009 闸门+harm+变异测试→F010 hello-agent(多Agent编排)+文档+baseline。串行/快车道/隔离evaluator。蓝图Artifact已随各轮更新(url in dashboard_url? 实际另一url:2a163f58)。。【r3.2 对外互操作地基】用户追加需求:地基层支持GEO+对外部agent友好。澄清:GEO=生成式引擎优化(AI可见性,非地理);外部友好=只预留接口不实装暴露。判定二者M0收敛为同一层「对外机器友好契约」:核心实体稳定标识+领域/传输解耦+复用provenance作对外可信层。确立§3.3 D-INTEROP:只留薄地基(插座),本体(MCP server对外暴露→M5;GEO内容优化→M4/M5)留后期,守焊死/扩展点纪律。**不新增feature**,加强F002(实体稳定标识)+F005(executeTool与传输解耦)约束+新增互操作门+§7下游落点。feature仍10条。**用户确认「可以,请落盘」→已落盘spec r3.2+progress,status翻building(spec-lock完成),待commit。下一步:开工F001 TS5迁移(Generator角色);实现前建议先确认是否本会话立即开工。**"
+  }
 }

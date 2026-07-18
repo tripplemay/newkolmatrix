@@ -1,0 +1,197 @@
+// AGENT-FOUNDATION F002 — 核心 schema（单角色）+ 运行时表（闸门 + 交接）
+//
+// 设计契约（权威：docs/specs/AGENT-FOUNDATION-spec.md §F002 + PRD §11 + 架构稿 §7.2）：
+// - 单租户（D4）：Tenant 占位，硬编码 dev tenant；真实认证 / 多租户 RLS 留 M5（本批不建 RLS policy）
+// - 单角色（D26）：User 无 role / scope / 权限字段
+// - D29：业务实体带 owner 标记（String? = Leo/Ada/Kai）——是分工不是权限，非枚举非权限
+// - D15：Kol 预留数据层字段契约位（audienceDemo/credibility/brandSafety/dataSource/fieldProvenance），本批 nullable 不填充
+// - D3：pgvector 经自定义 SQL migration（CREATE EXTENSION IF NOT EXISTS vector），不用 Prisma postgresqlExtensions 预览开关；
+//       Kol.embedding = Unsupported("vector(1024)")（Prisma 无原生 vector 类型，向量读写走 raw SQL，F004/F005）
+// - D-INTEROP（§3.3）：核心实体（Kol/Project/Game/Tenant）带稳定对外标识 publicId/slug——为 GEO / 外部 agent 友好留插座；
+//       fieldProvenance/dataSource 兼作对外可信层（provenance）。JSON-LD / GEO 具体字段 = EXTENSION POINT，本批不实装、不猜字段。
+// - 三运行时表：PendingAction（F009 闸门落点）/ OperationLog（留痕）/ Handoff（F006 编排交接落点，架构稿 §5.4）
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────── 租户 / 用户（单租户 · 单角色）─────────────────────────
+
+/// 租户占位表。本批单租户（硬编码 dev tenant），真实多租户 / RLS → M5。
+model Tenant {
+  id        String   @id @default(cuid())
+  publicId  String   @unique @default(cuid()) // D-INTEROP 稳定对外标识
+  slug      String?  @unique // D-INTEROP 人类可读稳定标识
+  name      String?
+  createdAt DateTime @default(now())
+
+  users    User[]
+  kols     Kol[]
+  projects Project[]
+  games    Game[]
+}
+
+/// 单 dev 用户。D26：无 role / scope / 权限字段（三角色作废）。
+model User {
+  id        String   @id @default(cuid())
+  tenantId  String
+  email     String?  @unique
+  name      String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+// ───────────────────────── 核心业务实体 ─────────────────────────
+
+/// KOL 核心实体。含向量列 + D15 字段契约位（nullable）+ D29 owner + D-INTEROP 稳定标识。
+model Kol {
+  id       String @id @default(cuid())
+  publicId String @unique @default(cuid()) // D-INTEROP 稳定对外标识（未来 MCP / GEO 引用锚点）
+  tenantId String
+
+  /// F004 幂等 upsert 键：规范化后的唯一 handle
+  canonicalHandle String
+
+  // 核心字段（F004 CSV seed 填充；多数 nullable 以容忍 CSV 差异）
+  displayName    String?
+  platform       String? // youtube / twitch / tiktok / instagram
+  handle         String?
+  profileUrl     String?
+  avatarUrl      String?
+  country        String?
+  language       String?
+  followers      Int?
+  avgViews       Int?
+  engagementRate Float?
+  categories     String[] @default([])
+  bio            String?
+
+  /// pgvector 向量列（bge-m3 1024 维，D3）。Unsupported → 读写走 raw SQL（F004 灌向量 / F005 cosine 检索）。
+  embedding Unsupported("vector(1024)")?
+
+  // ── D15 数据层字段契约位（本批 nullable 不填充；让数据层与应用层解耦）──
+  // 兼作 D-INTEROP provenance 对外可信层（GEO 时代 AI 引擎最看重「有出处、可信」）。
+  audienceDemo    Json?   // 受众画像
+  credibility     Json?   // 可信度评估（结构留扩展点，第三方评估 API → M5）
+  brandSafety     Json?   // 品牌安全评估
+  dataSource      String? // 数据来源（架构稿 §7.5：按真实证据填写）
+  fieldProvenance Json?   // 逐字段出处（provenance）
+
+  /// D29 分工标记（Leo/Ada/Kai）——是分工不是权限，非枚举非权限。
+  owner String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, canonicalHandle]) // F004 幂等 upsert
+  @@index([tenantId])
+  @@index([platform])
+}
+
+/// 项目：五环节的唯一容器（D22）。本批最小占位——领域字段（环节 / 组合态 / 交付）→ M1-M4。
+/// EXTENSION POINT：随业务真实形态充实，本批不预测焊死。
+model Project {
+  id        String   @id @default(cuid())
+  publicId  String   @unique @default(cuid()) // D-INTEROP 稳定对外标识
+  slug      String?  @unique
+  tenantId  String
+  name      String
+  owner     String? // D29 分工标记
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+/// 游戏 / 知识库实体。本批最小占位——素材上传 / AI 解析抽取 → M1。
+/// EXTENSION POINT：知识库领域字段本批不实装。
+model Game {
+  id        String   @id @default(cuid())
+  publicId  String   @unique @default(cuid()) // D-INTEROP 稳定对外标识
+  slug      String?  @unique
+  tenantId  String
+  name      String
+  owner     String? // D29 分工标记
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+// ───────────────────────── 运行时表（闸门 / 留痕 / 交接）─────────────────────────
+
+enum PendingActionStatus {
+  pending
+  confirmed
+  executed
+}
+
+/// AI→人闸门落点（F009）。最小三态；outbound 动作停在确认前的待办。
+/// 完整 7 态 + OutboundAttempt / reconciliation → M3。
+model PendingAction {
+  id                    String              @id @default(cuid())
+  tenantId              String
+  kind                  String
+  toolName              String
+  payloadHash           String
+  harmJson              Json // harm 结构体（F009 单一 zod：动作/对象/金额/不可逆/证据/过期）
+  status                PendingActionStatus @default(pending)
+  confirmationTokenHash String? // 只存 hash（F009）
+  expiresAt             DateTime?
+  createdAt             DateTime            @default(now())
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+enum OperationLogKind {
+  auto
+  gate
+  block
+  irrev
+}
+
+/// 留痕落点（append-only：只 INSERT，无 updatedAt）。闸门确认 / 拒绝 / 不可逆执行均追加一条（F009）。
+model OperationLog {
+  id        String           @id @default(cuid())
+  tenantId  String
+  kind      OperationLogKind
+  actor     String?
+  summary   String?
+  ref       String?
+  createdAt DateTime         @default(now())
+
+  @@index([tenantId])
+  @@index([kind])
+}
+
+/// 多 Agent 编排交接落点（F006，架构稿 §5.4 信封格式）。
+/// 接收方按自身 scope 重读数据、不信任发送方携带的结论（F006 语义）。
+/// EXTENSION POINT：具体载荷（messagesJson 结构）随 M1-M4 真实 handoff 链充实。
+model Handoff {
+  id           String   @id @default(cuid())
+  tenantId     String
+  projectId    String? // 交接归属的项目（软引用，projectId 索引；单租户下不强 FK）
+  fromAgent    String
+  toAgent      String
+  artifactType String?
+  artifactRef  String?
+  summary      String?
+  messagesJson Json?
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([projectId])
+}

@@ -1,0 +1,36 @@
+# AGENT-FOUNDATION F002 — 本地开发数据库（Postgres 16 + pgvector）
+#
+# 用途：本机 dev 的 Postgres + pgvector，供 Prisma migrate / seed / Agent 运行时使用。
+# 生产部署改造留后期（spec out-of-scope，→ M5）。旧 kolmatrix 与 prod 各自独立，本文件只起本机 dev 容器。
+#
+# 起停：
+#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml down          # 停（保留数据卷）
+#   docker compose -f docker-compose.dev.yml down -v       # 停并清空数据卷
+#
+# 端口：host 5434 → 容器 5432（5432/5433 本机已被 ssh 隧道占用，故用 5434）。
+# 凭据：走 env（.env / shell），未设时用本地 dev 默认值。这是本机 throwaway 口令，
+#       只对 localhost 容器有效，不是生产 secret；真实生产凭据永不入 git。
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: newkolmatrix-dev-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kol}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kol_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-kolmatrix}
+    ports:
+      - '127.0.0.1:5434:5432'
+    volumes:
+      - newkolmatrix-dev-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-kol} -d ${POSTGRES_DB:-kolmatrix}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  newkolmatrix-dev-pgdata:
+    name: newkolmatrix-dev-pgdata

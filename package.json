@@ -9,7 +9,12 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test:visual": "playwright test",
-    "test:visual:update": "playwright test --update-snapshots"
+    "test:visual:update": "playwright test --update-snapshots",
+    "postinstall": "prisma generate",
+    "db:up": "docker compose -f docker-compose.dev.yml up -d",
+    "db:down": "docker compose -f docker-compose.dev.yml down",
+    "db:migrate": "prisma migrate deploy",
+    "db:smoke": "node --env-file=.env --import tsx scripts/test/db-smoke.ts"
   },
   "dependencies": {
     "@babel/traverse": "^7.24.6",
@@ -29,6 +34,7 @@
     "@fullcalendar/daygrid": "^5.11.3",
     "@fullcalendar/interaction": "^5.11.3",
     "@fullcalendar/react": "^5.11.3",
+    "@prisma/client": "6.19.3",
     "@tanstack/react-table": "^8.7.9",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.3.0",
@@ -88,7 +94,9 @@
     "postcss": "^8.4.30",
     "prettier": "^2.8.3",
     "prettier-plugin-tailwindcss": "^0.2.1",
-    "tailwindcss": "^3.3.3"
+    "prisma": "6.19.3",
+    "tailwindcss": "^3.3.3",
+    "tsx": "4.23.1"
   },
   "resolutions": {
     "react-error-overlay": "6.0.9",

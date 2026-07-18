@@ -6,7 +6,7 @@
       "title": "TypeScript 5 微批迁移 + 运行时版本锁定（AI SDK v5 前置）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "verifying",
       "acceptance": "typescript 升到 5.x；tsconfig 现代化（target 提到 ES2020+、strict 打开或列出豁免清单）；修复 Horizon scaffold 因升级产生的类型错误；next/react/typescript 版本锁定并提交 lockfile；tsc --noEmit + build + lint 全绿。此 feature 必须先于 F003（引入 AI SDK v5）完成——不在旧编译器上并行新类型能力（架构稿 D2/ADR-008）",
       "description": "现仓库为 TS 4.9.4 / target es2016 / strict:false 的 Horizon scaffold。作为地基批次第一串行步先做 TS5 迁移，风险隔离在最前。若 building 时发现迁移量超预期，可临时拆出独立微批 TS5-MIGRATION。"
     },

@@ -24,7 +24,7 @@
       "title": "aigcgateway ⇄ Vercel AI SDK provider 封装（chat tool-calling + embeddings 双链路）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "verifying",
       "acceptance": "src/lib/ai/gateway.ts 用自定义 baseURL 指向 aigcgateway OpenAI 兼容端点；scripts/test/ai-gateway-smoke.ts 经网关完成 1 次 chat（含 tool-call 触发）+ 1 次 bge-m3 embedding；密钥走 env（AIGCGATEWAY_BASE_URL / AIGCGATEWAY_API_KEY）无硬编码；失败有清晰错误不静默吞；成本/错误处理骨架就位",
       "description": "无三角色污染，从旧 F002 平移。依赖 F001 完成 TS5（AI SDK v5 需 TS5）。"
     },

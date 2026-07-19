@@ -15,7 +15,8 @@
     "db:down": "docker compose -f docker-compose.dev.yml down",
     "db:migrate": "prisma migrate deploy",
     "db:smoke": "node --env-file=.env --import tsx scripts/test/db-smoke.ts",
-    "ai:smoke": "node --env-file=.env --import tsx scripts/test/ai-gateway-smoke.ts"
+    "ai:smoke": "node --env-file=.env --import tsx scripts/test/ai-gateway-smoke.ts",
+    "seed:kol": "node --env-file=.env --import tsx scripts/seed/import-kol-csv.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.16",
@@ -46,6 +47,7 @@
     "@types/react-dom": "^18.0.6",
     "ai": "7.0.31",
     "apexcharts": "3.35.5",
+    "csv-parse": "7.0.1",
     "framer-motion": "^7.10.2",
     "ieee754": "^1.2.1",
     "mapbox-gl": "^2.10.0",

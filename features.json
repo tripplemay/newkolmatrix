@@ -33,7 +33,7 @@
       "title": "CSV seed 灌 ~2500 真实 KOL + bge-m3 embedding 入 pgvector（单 dev 用户）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "verifying",
       "acceptance": "旧仓库 kol-seed-enriched-final.csv 拷入 repo 并入 git（可复现）；scripts/seed/import-kol-csv.ts 解析（处理 BOM/列名别名/空值/货币格式）+ 规范化 + 批量入库；用 F003 链路生成 bge-m3 向量入 pgvector；seed 后 DB ≥2000 条真实 KOL 含非空 embedding；seed 1 个 dev 用户；一条 cosine（<=>）查询对 NL query 返回相关 top-K；脚本幂等（(tenantId, canonicalHandle) upsert）；脏 CSV 校验失败返回非零退出码",
       "description": "【去三角色】旧「seed 3 个角色用户」改为「seed 1 个 dev 用户」。dataSource 字段按真实证据填写（架构稿 §7.5）。"
     },

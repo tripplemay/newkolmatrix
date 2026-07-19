@@ -16,7 +16,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:smoke": "node --env-file=.env --import tsx scripts/test/db-smoke.ts",
     "ai:smoke": "node --env-file=.env --import tsx scripts/test/ai-gateway-smoke.ts",
-    "seed:kol": "node --env-file=.env --import tsx scripts/seed/import-kol-csv.ts"
+    "seed:kol": "node --env-file=.env --import tsx scripts/seed/import-kol-csv.ts",
+    "agent:smoke": "node --env-file=.env --import tsx scripts/test/agent-tools-smoke.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.16",

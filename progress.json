@@ -6,7 +6,7 @@
   "fix_rounds": 0,
   "current_sprint": "AGENT-FOUNDATION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-19T02:06",
+  "last_updated": "2026-07-19",
   "reference_docs": [
     "docs/product/KOLMatrix-PRD.md",
     "docs/audits/KOLMatrix-integrated-architecture-design-2026-07-17.md",
@@ -129,6 +129,28 @@
         }
       ],
       "notes": "总判定 PASS，10/10 acceptance + 2/2 spec 增补项(无 Approval/D-INTEROP) 全 PASS，首轮 fix_rounds=0。四门(spec §6)全过：数据门(migrate 幂等+自定义 CREATE EXTENSION+vector(1024)+D15 全 nullable+三运行时表+db:smoke 9/9 exit0 真实向量 round-trip cosine+级联清理无残留 counts 归0)/构建门(tsc0 lint0 build0 10/10)/密钥门(.env gitignored+未 track，.env.example 仅 dev throwaway 非生产 secret，无硬编码真实密钥)/互操作门(publicId·slug 就位+EXTENSION POINT 注释 4 处 schema.prisma:11/102/118/182+仅留插座无 JSON-LD/GEO 本体实装)。RLS 门不在 F002 范围(D4 单租户，RLS 留 M5，非缺陷)。被验提交 a2e8715+21d4d11，改动全在 F002 scope。报告：docs/test-reports/AGENT-FOUNDATION-F002-verify-2026-07-18.md。验收人 Andy/evaluator-subagent"
+    },
+    {
+      "feature": "F003",
+      "verdict": "PASS",
+      "clauses": [
+        {
+          "criterion": "A1 smoke 经网关完成 1 次 chat(含 tool-call 触发) + 1 次 bge-m3 embedding",
+          "result": "PASS",
+          "evidence": "npm run ai:smoke 退出码0。真实网关(usage in=368 out=58 total=426 真实计量非mock, 真实计费~$0.000118)。chat: finishReason=tool-calls + 命中 get_kol_count + 参数{platform:youtube}(模型真实发 tool-call)。embedding: bge-m3 length===1024 断言过, 全为有限数值, 匹配 Kol.embedding vector(1024)。tool 不带 execute 单步停证明 tool-calling 触发(scripts/test/ai-gateway-smoke.ts:44-53), 完整往返分期 F005"
+        },
+        {
+          "criterion": "A2 密钥走 env(AIGCGATEWAY_BASE_URL/AIGCGATEWAY_API_KEY)无硬编码",
+          "result": "PASS",
+          "evidence": "gateway.ts:34-54 requireEnv 从 process.env 读, getGateway 用 env baseURL+apiKey 建 createOpenAI, 代码内无字面量端点/密钥(guangai 仅注释)。grep -rnE pk_/sk-/Bearer 于 src/ scripts/ exit=1 零命中。.env.example 仅 placeholder(AIGCGATEWAY_API_KEY=pk_your_key_here, BASE_URL 为端点URL非机密)。.env git check-ignore exit0 且 git ls-files 空(未track), 本机真实key前缀 pk_099**** 不入git"
+        },
+        {
+          "criterion": "A3 失败有清晰错误(不静默吞) + 成本/错误处理骨架就位",
+          "result": "PASS",
+          "evidence": "不加载 env 直跑(未改任何文件/代码)→ exit=1 + 清晰中文错误 '缺少必需环境变量 AIGCGATEWAY_BASE_URL' + 完整堆栈(requireEnv->getGateway->chatModel), 经 describeGatewayError 打印后 process.exit(1) 非静默。骨架: describeGatewayError(gateway.ts:109-118)归一化Error/携带cause; logUsage(88-103)按MODEL_PRICE估算成本实测输出 est=~$0.000118; 真实成本持久化标注 EXTENSION POINT(ai-action-contract §4.7)。env 懒校验在工厂内非顶层, 构建门无 secret 不崩"
+        }
+      ],
+      "notes": "总判定 PASS, 3/3 acceptance + AI门/密钥门/构建门(spec §6, F003 检查点)全绿。构建门(删 tsconfig.tsbuildinfo+.next/cache 后): tsc --noEmit exit0 / next lint exit0(No ESLint warnings or errors) / next build exit0(Compiled successfully 5.4s + 10/10 static pages, 懒校验使无secret构建不崩)。D2: createOpenAI 自定义 baseURL 指 aigcgateway OpenAI 兼容端点(env注入), 用 .chat() 走 /chat/completions 非默认 Responses API(网关不支持), embedding 用 textEmbeddingModel。版本(非阻断): 实装 ai@7.0.31+@ai-sdk/openai@4.0.16, spec 写v5为planning版本标签, acceptance 为功能性(双链路)非版本锁, 功能达成记符合。备注: bge-m3 usage total=0(网关未回传embedding token+未登记单价), 不影响维度/链路验证, 成本骨架无usage时正确跳过。被验提交 52adead。报告: docs/test-reports/AGENT-FOUNDATION-F003-verify-2026-07-19.md。验收人 Andy/evaluator-subagent"
     }
   ],
   "generator_handoff": null,

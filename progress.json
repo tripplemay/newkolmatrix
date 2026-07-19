@@ -151,6 +151,58 @@
         }
       ],
       "notes": "总判定 PASS, 3/3 acceptance + AI门/密钥门/构建门(spec §6, F003 检查点)全绿。构建门(删 tsconfig.tsbuildinfo+.next/cache 后): tsc --noEmit exit0 / next lint exit0(No ESLint warnings or errors) / next build exit0(Compiled successfully 5.4s + 10/10 static pages, 懒校验使无secret构建不崩)。D2: createOpenAI 自定义 baseURL 指 aigcgateway OpenAI 兼容端点(env注入), 用 .chat() 走 /chat/completions 非默认 Responses API(网关不支持), embedding 用 textEmbeddingModel。版本(非阻断): 实装 ai@7.0.31+@ai-sdk/openai@4.0.16, spec 写v5为planning版本标签, acceptance 为功能性(双链路)非版本锁, 功能达成记符合。备注: bge-m3 usage total=0(网关未回传embedding token+未登记单价), 不影响维度/链路验证, 成本骨架无usage时正确跳过。被验提交 52adead。报告: docs/test-reports/AGENT-FOUNDATION-F003-verify-2026-07-19.md。验收人 Andy/evaluator-subagent"
+    },
+    {
+      "feature": "F004",
+      "verdict": "PASS",
+      "clauses": [
+        {
+          "criterion": "C1 旧仓库 CSV 拷入 repo 并入 git(可复现)",
+          "result": "PASS",
+          "evidence": "git ls-files scripts/seed/data/ = kol-seed-enriched-final.csv(已track); git show HEAD:...csv|wc -l=2525(1表头+2524数据行); commit 6cfe621 --stat 含该 CSV 2525 行"
+        },
+        {
+          "criterion": "C2 解析(BOM/列名别名/空值/数字格式)+规范化+批量入库(真 RFC4180 parser 非 naive split)",
+          "result": "PASS",
+          "evidence": "读码: csv-parse@7.0.1 parse()(import-kol-csv.ts:16,278); stripBom 整文件+每表头单元格双剥(:54,276,281); COLUMN_ALIASES 中主英兜底大小写不敏感(:28-37,63); parseFollowers 去逗号+万/w/k/m/亿(:76-89)。RFC4180 硬案例实测(决定性): CSV 950 行含引号字段/comma分布923行12token+22行13+至16(表头11列)naive split会散架; 行1690 \"Harrison, the Mana Dork\"(逗号落第3列displayName内)→DB实测解析为单一 displayName='Harrison, the Mana Dork' country=加拿大 followers=7750 列对齐正确"
+        },
+        {
+          "criterion": "C3 用 F003 链路生成 bge-m3 向量入 pgvector",
+          "result": "PASS",
+          "evidence": "embeddingModel() 取自 src/lib/ai/gateway(F003), embedMany 分100/批→raw SQL UPDATE embedding=$1::vector(:234,239)。DB实测 format_type=vector(1024); array_length(embedding::real[],1)=1024; 抽样值真实浮点非全零[-0.018714843,...]"
+        },
+        {
+          "criterion": "C4 seed 后 DB ≥2000 条真实 KOL 含非空 embedding",
+          "result": "PASS",
+          "evidence": "dev tenant KOL 总数=2524≥2000; 含非空 embedding=2524≥2000(WHERE embedding IS NOT NULL)。抽样真实 KOL(MR.PZ FF/SHENRON Gaming, platform=youtube, dataSource=csv-seed:kol-seed-enriched-final.csv=D15 provenance 按真实证据填, categories 含 gaming)"
+        },
+        {
+          "criterion": "C5 seed 1 个 dev 用户",
+          "result": "PASS",
+          "evidence": "User 表 1 行 dev@newkolmatrix.local/Dev User(seedDevTenantUser upsert :154-166)"
+        },
+        {
+          "criterion": "C6 cosine(<=>)查询对 NL query 返回相关 top-K(Evaluator 独立出题)",
+          "result": "PASS",
+          "evidence": "Evaluator 用 F003 gateway 现场 embed 3 条自出 NL query(非实现者内置WoT)跑 cosine top-5 全语义命中: 'FPS gameplay commentary'→FPSProdigy/OneShotRich… 全FPS/gaming dist0.35-0.42; 'Minecraft sandbox building'→JDP Build's/VaderDad Builds… 沙盒/gaming dist0.39-0.49; '手机休闲益智小游戏 儿童'→Vkids Educational Games For Children/Fun Videos for Kids… kids/casual dist0.39-0.42(中文query命中英文频道名证 bge-m3 多语言)。内置 WoT sanity top-5 dist0.31-0.45 亦命中"
+        },
+        {
+          "criterion": "C7 脚本幂等((tenantId,canonicalHandle) upsert)",
+          "result": "PASS",
+          "evidence": "唯一索引 Kol_tenantId_canonicalHandle_key ON(tenantId,canonicalHandle) 实测存在与 upsert where 键一致(:184)。npm run seed:kol re-run exit=0; KOL 总数 2524→2524 不变; 日志 '所有 KOL 已有 embedding，跳过(幂等)'+本次新 embed 0(embedMissing 仅对 embedding IS NULL 行调 bge-m3 :222)"
+        },
+        {
+          "criterion": "C8 脏 CSV 校验失败返回非零退出码(≥2种)",
+          "result": "PASS",
+          "evidence": "Evaluator 自造 3 种脏 CSV(临时目录未入repo)均 exit1: (1)表头缺 url 列→'脏 CSV：表头缺必需列 [url]'(resolveColumns :66-72); (2)行缺必需字段(platform 空/name+url 均空)→'2 行校验失败'好行放行坏行拦截 process.exit(1)(:293-297); (3)表头存在无数据行→'脏 CSV：无数据行'(:279)"
+        },
+        {
+          "criterion": "构建门(spec §6): tsc --noEmit + lint + build 全绿",
+          "result": "PASS",
+          "evidence": "删 tsconfig.tsbuildinfo+.next/cache 后: npx tsc --noEmit TSC_EXIT=0; npx next lint LINT_EXIT=0(✔No ESLint warnings or errors); npx next build BUILD_EXIT=0(✓Compiled successfully+Generating static pages 10/10)"
+        }
+      ],
+      "notes": "总判定 PASS，8/8 acceptance + 数据门 + 构建门(spec §6)全绿，首轮 fix_rounds=0。数据门: docker db healthy/embedding vector(1024)/2524 KOL 全含非空 embedding+1 dev 用户/cosine(Evaluator 独立 3 query + 内置 1 query)语义命中/幂等 re-run exit0 不重复 embed。密钥门(顺带): .env git-ignored, 脚本密钥走 gateway env 懒校验无硬编码。非阻断观察(记录不打回): (1)CSV 无货币列,'货币格式'在本数据集体现为粉丝数数字容错(逗号+万/w/k/m/亿),符合意图; (2)幂等 re-run 仍全量 upsert 刷字段但 key 不产生新行不重复 embed,幂等成立; (3)脚本已在本机真实 docker DB+真实 aigcgateway 端到端跑通(非 mock),满足 database-patterns §7 硬要求。被验提交 6cfe621,改动仅 scripts/seed/**+package.json/lock 加 csv-parse,全在 F004 scope。仅验 F004(F005-F010 未实现属正常)。报告: docs/test-reports/AGENT-FOUNDATION-F004-verify-2026-07-19.md。验收人 Andy/evaluator-subagent"
     }
   ],
   "generator_handoff": null,

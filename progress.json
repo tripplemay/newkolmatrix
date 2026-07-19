@@ -203,6 +203,53 @@
         }
       ],
       "notes": "总判定 PASS，8/8 acceptance + 数据门 + 构建门(spec §6)全绿，首轮 fix_rounds=0。数据门: docker db healthy/embedding vector(1024)/2524 KOL 全含非空 embedding+1 dev 用户/cosine(Evaluator 独立 3 query + 内置 1 query)语义命中/幂等 re-run exit0 不重复 embed。密钥门(顺带): .env git-ignored, 脚本密钥走 gateway env 懒校验无硬编码。非阻断观察(记录不打回): (1)CSV 无货币列,'货币格式'在本数据集体现为粉丝数数字容错(逗号+万/w/k/m/亿),符合意图; (2)幂等 re-run 仍全量 upsert 刷字段但 key 不产生新行不重复 embed,幂等成立; (3)脚本已在本机真实 docker DB+真实 aigcgateway 端到端跑通(非 mock),满足 database-patterns §7 硬要求。被验提交 6cfe621,改动仅 scripts/seed/**+package.json/lock 加 csv-parse,全在 F004 scope。仅验 F004(F005-F010 未实现属正常)。报告: docs/test-reports/AGENT-FOUNDATION-F004-verify-2026-07-19.md。验收人 Andy/evaluator-subagent"
+    },
+    {
+      "feature": "F005",
+      "verdict": "PASS",
+      "clauses": [
+        {
+          "criterion": "C1 POST NL 到 /api/agent 调 search_kols 流式返回工具结果+文本(Agent门)",
+          "result": "PASS",
+          "evidence": "prod(next start)3 条不同 NL query 均完整 2 步流式 loop,首请求即成功。Q1 '帮我找几个坦克世界解说 YouTuber': start->text-delta(415)->tool-input-start(search_kols)->tool-input-delta(30,拼 query+platform:youtube)->tool-output-available(10 条真实 seed KOL 按 similarity 降序: SKIFler @SKIFler_WOT 乌克兰 f=4270 sim=0.6456 / The_Viper_UA @TheViperUA sim=0.5947 / PWN-G @PWN-G ... 降至 0.5488)->2 步文本忠实复述真实结果无编造。Q2 Minecraft->JDP Build's/MineMigg(cats=沙盒,gaming)语义相关; Q3 english tech gadget->Tools and Gadgets sim=0.6733 语义相关; Q4 多工具链 3 步 search_kols->get_kol_detail(id 取自 search 结果 cmrrlq78l...)链式无 error。真实性: handle/similarity 均来自 F004 seed 2524 KOL 非编造"
+        },
+        {
+          "criterion": "C2 工具 IO 用 zod 校验",
+          "result": "PASS",
+          "evidence": "入参 zod 两道边界均生效: executeTool safeParse(execute.ts:33)+AI SDK 桥接 inputSchema(to-ai-sdk-tools.ts:23);两工具各 z.object(search-kols:11/get-kol-detail:9)。agent:smoke 实测空 query 被 zod 拦截抛错。观察 O1(非阻断): 输出仅 TS 类型无 zod outputSchema(架构稿 §5.2 参照含 outputSchema);入参不可信模型边界已全覆盖,输出源自内部 DB 无下游消费,建议 F009 harm schema 落地时补"
+        },
+        {
+          "criterion": "C3 注册表声明 class+source;执行入口按 class 分流(outbound 拦截 F009 落地)",
+          "result": "PASS",
+          "evidence": "ToolClass internal|outbound + ToolSource native|mcp(types.ts:10-11),两工具均 class:internal+source:native。executeTool zod 后按 class 分流,outbound 执行副作用前抛 OutboundGateError(execute.ts:42-45,标 EXTENSION POINT F009)。唯一入口铁律: grep runTool 仅命中注释,仅一处 export executeTool(execute.ts:22)无双语义(架构稿 §5.2)。agent:smoke: 临时 outbound 工具抛 OutboundGateError 且 sideEffect===false(门控在 execute 前)"
+        },
+        {
+          "criterion": "C4 注册表可扩展(加工具不改 route 核心;MCP 桥接扩展点就位不实装)",
+          "result": "PASS",
+          "evidence": "registry.ts register(重名抛错)/get/list;装配集中 tools/index.ts NATIVE_TOOLS+getNativeToolNames。route.ts 不硬编码接线: toAiSdkTools(getNativeToolNames(),ctx)(route:60),工具名仅在 SYSTEM_PROMPT 引导文本非结构耦合,加工具=NATIVE_TOOLS 加一条。MCP: source:'mcp' 类型就位+tools/index.ts 注释'未来在此从 MCP client 拉取 register,本批不实装',结构支持 client 未实装(符合 §3.2)"
+        },
+        {
+          "criterion": "C5 (D-INTEROP)executeTool 与传输入口解耦",
+          "result": "PASS",
+          "evidence": "executeTool(name,rawInput,ctx) 签名传输无关(execute.ts:22);ToolContext={tenantId}(types.ts:19)由 buildToolContext(context.ts:28)构造,HTTP route 调它。注释明示未来 MCP server/agent API 适配层调同一 buildToolContext/executeTool(context.ts:5,types.ts:15-17),工具 execute(input,ctx) 不假设调用方是 useChat//api/agent。本批不实装任何对外暴露(符合 D-INTEROP 只留插座),EXTENSION POINT 注释 types.ts:17/context.ts:27"
+        },
+        {
+          "criterion": "构建门(spec §6): tsc --noEmit + lint + build 全绿",
+          "result": "PASS",
+          "evidence": "删 tsconfig.tsbuildinfo+.next/cache 后: npx tsc --noEmit TSC_EXIT=0; npx next lint LINT_EXIT=0(No ESLint warnings or errors); npx next build 成功(Compiled successfully 5.3s+Generating static pages 11/11, /api/agent 注册为 ƒ Dynamic)"
+        },
+        {
+          "criterion": "密钥门(顺带): 无硬编码密钥走 env",
+          "result": "PASS",
+          "evidence": "gateway.ts 全程 requireEnv(AIGCGATEWAY_BASE_URL/AIGCGATEWAY_API_KEY)从 process.env 读;embedText 用 env baseURL+apiKey 直连 /embeddings;代码内无字面量端点/密钥。F005 新增代码未引入硬编码(F003 已详验密钥门)"
+        },
+        {
+          "criterion": "工具层 smoke(agent:smoke)",
+          "result": "PASS",
+          "evidence": "npm run agent:smoke exit 0,11 条断言全绿: native 工具已注册/search_kols class=internal/source=native/返回 5 条/按 similarity 降序/get_kol_detail 命中/空 query zod 抛错/未知工具抛错/outbound 门控 OutboundGateError/副作用未执行"
+        }
+      ],
+      "notes": "总判定 PASS,8/8 acceptance 子条(C1-C5 功能+构建门+密钥门+agent:smoke)全绿,首轮 fix_rounds=0。Agent门(spec §6): POST NL 流式 loop->search_kols 触发->真实 seed KOL(含 similarity)+文本答复,工具 class 二分生效,均实测。柱一(工具层)+柱二(Agent 运行时)本体成立: 唯一 executeTool 无 runTool 双语义(架构稿 §5.2)/class internal|outbound + source native|mcp/outbound 门控挂载点(OutboundGateError,F009 落地)/注册表可扩展(加工具不改 route)/MCP 扩展点就位不实装/D-INTEROP executeTool 传输无关。非阻断观察(记录不打回): O1 输出无 zod outputSchema(架构稿 §5.2 参照含之,建议 F009 补,入参边界已全覆盖); O2 ~9 请求中 1 次瞬时网关 SocketError,经流式 error part 清晰抵达非静默吞(满足错误不静默),随后 7/7 成功,属网关侧抖动非代码缺陷; O3 next.config output:standalone 来自其他批次(CICD-VPS 非 F005)致 next start 告警,但路由实测正常服务,生产应用 node .next/standalone/server.js,超出 F005 scope; O4 ToolContext 仅 {tenantId}(D4 单租户),actor/agentId/token 按 EXTENSION POINT 分期 F006/F009,符合本批预期。被验提交 0f882cc,改动全在 src/lib/agent/**+src/app/api/agent/route.ts+gateway.ts 兼容加固+agent:smoke,均在 F005 scope。验收未改任何产品代码。仅验 F005(F006-F010 未实现属正常)。报告: docs/test-reports/AGENT-FOUNDATION-F005-verify-2026-07-19.md。验收人 Andy/evaluator-subagent"
     }
   ],
   "generator_handoff": null,

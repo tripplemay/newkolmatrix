@@ -14,9 +14,11 @@
     "db:up": "docker compose -f docker-compose.dev.yml up -d",
     "db:down": "docker compose -f docker-compose.dev.yml down",
     "db:migrate": "prisma migrate deploy",
-    "db:smoke": "node --env-file=.env --import tsx scripts/test/db-smoke.ts"
+    "db:smoke": "node --env-file=.env --import tsx scripts/test/db-smoke.ts",
+    "ai:smoke": "node --env-file=.env --import tsx scripts/test/ai-gateway-smoke.ts"
   },
   "dependencies": {
+    "@ai-sdk/openai": "4.0.16",
     "@babel/traverse": "^7.24.6",
     "@chakra-ui/accordion": "^2.1.4",
     "@chakra-ui/hooks": "^2.1.4",
@@ -42,6 +44,7 @@
     "@types/jest": "^25.2.3",
     "@types/react": "^18.0.15",
     "@types/react-dom": "^18.0.6",
+    "ai": "7.0.31",
     "apexcharts": "3.35.5",
     "framer-motion": "^7.10.2",
     "ieee754": "^1.2.1",
@@ -70,7 +73,8 @@
     "stylis-plugin-rtl": "2.0.2",
     "tailwindcss-rtl": "^0.9.0",
     "typescript": "5.9.3",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@babel/cli": "^7.24.6",

@@ -102,7 +102,7 @@
       "title": "端到端 hello-agent（多 Agent 编排）打通 + 架构文档 + visual baseline",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "done",
       "acceptance": "串起 F001-F009 的 e2e：浏览器 NL →/api/agent 流式 loop → search_kols → KOL 卡片流在画布渲染，闭环无 error；并演示多 Agent 编排最小闭环（≥2 人格按 route 切换 + 一次可视化 handoff）；docs/dev/agent-architecture.md 落盘，含四柱架构 + 多 Agent 编排框架（registry/persona router/handoff/orchestrator + 框架焊死 vs 语义扩展点边界）+ AI→人闸门模型 + 数据流 + 「如何加一个新专家人格/新工具/新 canvas 组件」how-to；visual baseline tests/screenshots/baseline/agent-canvas-*.png 入 git（浅色 ≥1440px，CI/linux 重生）；README/CLAUDE.md 技术栈更新（DB/Prisma/pgvector/Vercel AI SDK/aigcgateway/单角色+多 Agent 编排+AI→人闸门）",
       "description": "整合收尾。e2e 从「单 agent hello」升级为「多 Agent 编排最小闭环」demo；架构文档含编排框架 how-to（加专家人格的标准姿势）。"
     }

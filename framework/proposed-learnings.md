@@ -109,3 +109,15 @@
      看板：templates/dashboard.template.html + templates/claude/skills/dashboard/SKILL.md + progress.init.json(dashboard_url) + bootstrap chmod + harness-rules §四 + templates/CLAUDE.md。
      CHANGELOG v1.0.3。归档：archive/proposed-learnings-archive-v1.0.3.md。
      注：harness-fit 分析（P0-P2）不在本次确认范围，仍保留待确认。 -->
+
+---
+
+## [2026-07-20] Andy/Generator — 来源：KOLMatrix AGENT-FOUNDATION F008→F009 视觉基线漂移
+
+**类型：** 新坑
+
+**内容：** IA 重构改路由（重定向旧路由）会让**既有视觉回归测试**静默失效：测试的 `page.goto(旧路由)` 被重定向到新页，其 `waitFor(旧页元素)` 超时。危险点是**延迟暴露**——F008 改 dashboard→today 时其自身 CI 侥幸过了 visual job，直到 F009 一次无关 push 才红，误导排查方向。既有 v1.0.0「IA refactor redirect scope」learning 只覆盖死链清单，未覆盖视觉测试的 route/selector 漂移。IA 重构类批次的 redirect 清单评估应**同时扫 `tests/visual/*.spec.ts` 里引用旧路由/旧页元素的用例**，并在同批内重指 + 重生基线，不留给后续批次的 CI 撞见。
+
+**建议写入：** `memory/role-context/generator.md` §"IA refactor redirect scope 评估"（补一条：redirect 清单须含视觉测试 route/selector）+ `memory/role-context/planner.md` §"IA refactor 类批次 redirect 清单评估" 呼应。
+
+**状态：** 待确认

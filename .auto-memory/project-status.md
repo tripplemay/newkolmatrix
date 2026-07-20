@@ -4,26 +4,28 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **AGENT-FOUNDATION（Phase 0）：`planning`（building 暂停）** — 后端/Agent 四柱地基，8 features 全 pending，未落地
-- 会话主线转向**交互原型 v2**（前端设计探索，喂给 spec）：已定稿并入库
+- **AGENT-FOUNDATION（Phase 0）done ✅（2026-07-20）** — F001–F010 全绿，逐 feature 隔离验收 + 批次末全链路回归通过
+- signoff：`docs/test-reports/AGENT-FOUNDATION-signoff-Andy-evaluator-subagent.md`；下一批次待用户定（backlog.json 空）
+
+## AGENT-FOUNDATION 交付（Agent 驱动地基）
+- 四柱：工具层(唯一注册表+executeTool+internal/outbound 二分)·运行时(streamText loop, /api/agent)·对话面(useChat CopilotPanel)·generative canvas(工具名→组件)
+- 多 Agent 编排框架：registry(7 人格)+persona router+handoff(§5.4 信封)+orchestrator；框架焊死 vs 语义扩展点边界
+- AI→人闸门：outbound 服务端强制 pending+harm，模型拿不到令牌，token 只存 hash/TTL/单次/绑 payloadHash，D20 变异测试
+- 全栈：Prisma6+Postgres16+pgvector(1024)·Vercel AI SDK v7⇄aigcgateway(deepseek-v3/bge-m3)·2524 KOL seed
+- 架构文档：`docs/dev/agent-architecture.md`；e2e：`npm run f010:e2e`（hello-agent 闭环）
 
 ## 交互原型（canonical）
-- `docs/product/interaction-prototype-v2.html` + `scripts/test/v2-prototype-smoke.js`（57 断言）
-- Horizon 高保真 · 单角色 · 多 Agent 编队（每环节专家 + 协同交接）· AI→人闸门
-- 6 页全实：今天/项目(+五环节纵推)/创作者库(+详情抽屉)/游戏知识(素材上传→AI解析)/洞察/Agent记录
-- Horizon 复用审计（2026-07-17）→ 已全量对齐 token/结构；`docs/product/interaction-prototype-v2-落地规范.md` = 手写件→真组件映射
-- **仓库已清理（2026-07-17）**：只留 v2 原型 + 落地规范 + smoke + 产品调研文档；role-first/small-team/旧 interaction-prototype/落地页/借鉴稿已删除
+- `docs/product/interaction-prototype-v2.html`（Horizon 高保真，喂 spec）+ 落地规范
 
 ## 重构总方向（用户 2026-07-14 拍板）
-- 保功能、去 SaaS 化、改 AI native（AI 从副驾提到主驾）；单角色 + 多专家 Agent
-- 后端全新重建 · Vercel AI SDK→aigcgateway · CSV seed；路线 P0 地基→P1..P5
+- 保功能、去 SaaS 化、AI native（AI 主驾）；单角色 + 多专家 Agent；路线 P0 地基→P1..P5
 
 ## 已完成批次
-- **CICD-VPS done ✅**（剩 go-live，用户授权首次部署前确认）· **DS-FOUNDATION done ✅**（Horizon 地基）
+- CICD-VPS done ✅（剩 go-live）· DS-FOUNDATION done ✅ · **AGENT-FOUNDATION done ✅**
 
-## 关键技术决策
-- Next 15 · React 19 · TS · Tailwind(主设计系统) · 浅色默认 · Horizon 紫 #422AFB · `body.dark` 深色
-- 本批新增全栈：Prisma+pgvector · Vercel AI SDK · aigcgateway
+## 关键技术坑（本批实战）
+- 网关 SSE 流污染 undici 连接池 → resilientFetch(keepalive:false+空400重试)；JSONB 重排 → stableStringify 抗序
+- 视觉基线随 IA 路由重定向漂移（F008 改 dashboard→today，F009 CI 才暴露）
 
 ## 已知下游（不在本批）
-- Apify 采集管道 · 真实认证/多租户 RLS · 全栈 prod 部署 · CICD-VPS go-live
+- 各专家领域工具 M1-M4 · MCP 实装 · 真实认证/多租户 RLS(M5) · 真实 outbound 投递 · prod 部署 · CICD-VPS go-live

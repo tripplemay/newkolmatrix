@@ -6,7 +6,7 @@
       "title": "全栈 prod compose：pgvector Postgres + env 注入 + healthcheck 修复",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "done",
       "acceptance": "docker-compose.prod.yml 重写为全栈：加 db 服务（pgvector/pg16 + named volume + pg_isready healthcheck）+ app 服务加 env_file（DATABASE_URL 指向 db + AIGCGATEWAY_*）+ depends_on db healthy，独立容器名/volume 不碰旧 kolmatrix；修 app healthcheck 至返回 200 的端点（新增 src/app/api/health/route.ts 返回 {ok:true} 200, runtime=nodejs），不再命中 307 的 /admin/dashboards/default；本地 docker compose -f docker-compose.prod.yml up（本地 build 或 latest 镜像 + 临时 .env）app+db 起来、app healthcheck 变 healthy、能连 db（/api/health 200、Prisma 路由不因缺 DB 500）；密钥只走 env_file，.env 不入 git（.env.example 仅占位）",
       "description": "现 prod compose 标注『前端-only，无 DB/redis』。补 pgvector Postgres 容器 + env 注入 + healthcheck 修复（D-GL1/D-GL2/D-GL5）。纯基建，/api/health 为唯一新增 route handler（返回 200，非产品逻辑）。"
     },

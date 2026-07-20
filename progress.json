@@ -59,6 +59,39 @@
       "db_host_port_exposed": false,
       "teardown_clean": true,
       "notes": "隔离 fresh context 首轮独立验收，未参与实现。亲跑 docker：从 HEAD 6ec384d 重建镜像(2b04261ef6b5，消除 ghcr latest=26ee34b 不含 /api/health 的来源歧义)→ up -d → 实测 → down -v 清理，旧 kolmatrix(Up 6 days)未受影响。整体 4/4 clause PASS。两条观察项 O1(env_file 机制措辞，供 Planner 裁决措辞对齐)/O2(Prisma 缺表属 F002 依赖)均如实记录，不构成 F001 FAIL/PARTIAL。报告：docs/test-reports/GO-LIVE-F001-verify-Andy-evaluator-subagent.md"
+    },
+    {
+      "feature": "F002",
+      "verdict": "PASS",
+      "evaluator": "Andy/evaluator-subagent",
+      "round": "verifying",
+      "commit": "98a13b1",
+      "clauses": [
+        {
+          "clause": "本地全栈跑 migrate/seed one-shot：全表 + pgvector 扩展建好（\\dx 见 vector、Kol 表在）",
+          "verdict": "PASS",
+          "evidence": "docker compose up -d 编排实测：db Healthy→migrate Exited(ExitCode=0)→app Started。migrate 日志 2 migrations applied(init+pendingaction_input)+All migrations successfully applied。独立 DB 取证(不依赖 seed 日志)：pg_extension vector 0.8.5、public 9 表(Game/Handoff/Kol/OperationLog/PendingAction/Project/Tenant/User/_prisma_migrations)、_prisma_migrations 两条均 finished。CREATE EXTENSION vector 在 init migration 首行(先于 Kol.embedding vector(1024))。"
+        },
+        {
+          "clause": "seed 幂等：连跑两次第二次不重复灌/不报错；灌后 Kol≈2500 且 embedding 非空",
+          "verdict": "PASS",
+          "evidence": "首跑 Kol 空→解析 2524 行去重 2524→upsert 2524/2524→26 批真实 bge-m3 embedding 累计 2524/2524→KOL 总数=2524 含非空 embedding=2524。二跑 docker compose run --rm migrate：'No pending migrations to apply'+'Kol 已有 2524 条→跳过 seed(幂等,不重复灌)'+✅seed 跳过，run --rm 正常完成。二跑后独立计数 total=2524 with_embedding=2524(未增未重灌无报错)、vector_dims=1024。≈2500 达标。"
+        },
+        {
+          "clause": "prod 镜像栈内 search_kols 有结果（向量检索通）",
+          "verdict": "PASS",
+          "evidence": "两路独立证据(均 prod tools/app+pgvector 栈内)：(1)seed cosine sanity 真实链路 NL→bge-m3→top-K，query='World of Tanks 坦克世界 游戏解说 replay'→top-5 语义相关(The Best Replays WoT d=0.3095…)返回非空；(2)Evaluator 独立自相似向量检索 embedding<=>query::vector ORDER BY LIMIT 5：自身 0.0000、其后 PWN-G|WoT Replays 0.0616/__X__ 0.1064/The_Viper_UA 0.1420/SKIFler 0.2564，排序单调语义连贯。search-kols.ts 存于镜像；app /api/handoffs 返 200 佐证可连库查询。"
+        },
+        {
+          "clause": "tools 镜像/服务与 app runner 分离（runner 仍最小，不含 prisma CLI/脚本/CSV）",
+          "verdict": "PASS",
+          "evidence": "runner 内实测：scripts/deploy/migrate-seed.sh、scripts/seed/、*.csv、prisma/、node_modules/.bin/prisma、node_modules/.bin/tsx 全 No such file，which prisma 空，根目录仅 node_modules/package.json/public/server.js。tools 内实测：migrate-seed.sh(-rwxr-xr-x)、import-kol-csv.ts、CSV 380569B、schema+两 migrations、prisma 6.19.3、tsx 全齐。Dockerfile：tools=FROM build(含全量 source+devDeps)、runner=独立 FROM node:20-alpine 仅 COPY standalone/static/public。体积 runner 380MB vs tools 2.28GB。备注：runner 虽无 prisma CLI 但 @prisma/client 运行时随 standalone 打包→/api/handoffs 200(缺表会 500,现正常),最小化未破坏运行时 DB 访问。"
+        }
+      ],
+      "db_isolation_verified": true,
+      "db_host_port_exposed": false,
+      "teardown_clean": true,
+      "notes": "隔离 fresh context 首轮独立验收，未参与实现。独立重建 runner(默认)+tools(--target tools)两镜像均成功→docker compose --env-file(scratchpad repo 外,真实 AIGCGATEWAY key 注入不落 repo、验收后 shred)up -d 全栈实测(含真实 bge-m3 embed 2524 KOL,~90s)→独立 DB/向量检索取证→幂等复跑→down -v 清理。旧 kolmatrix/invoce(Up 6 days)+既有 newkolmatrix-dev-pgdata 卷均未受扰动,本次仅移除 newkolmatrix-pgdata。整体 4/4 clause PASS,首轮 verifying 即通过,无 FAIL/PARTIAL。1 条观察项 O1(二跑幂等走 migrate-seed.sh count-guard 快路径,import-kol-csv 内层 upsert 级幂等未独立触发;acceptance 按 one-shot 层已满足,内层为双保险,代码可见其设计,非缺陷)如实记录不扣分。报告：docs/test-reports/GO-LIVE-F002-verify-Andy-evaluator-subagent.md。本 subagent 不改 status/completed_features/features.json/产品代码,判定转呈用户拍板。"
     }
   ],
   "generator_handoff": null,

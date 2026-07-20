@@ -6,7 +6,13 @@
 // 【框架焊死】context key 格式、selectPersona 机制、工具子集收窄机制稳定。
 // 【EXTENSION POINT】defaultAgentForRoute 的 route→agent 映射精度随 IA（F008）真实路由充实。
 
-import { DEFAULT_AGENT_ID, getPersona, isAgentId, type AgentId, type AgentPersona } from './registry';
+import {
+  DEFAULT_AGENT_ID,
+  getPersona,
+  isAgentId,
+  type AgentId,
+  type AgentPersona,
+} from './registry';
 
 export type CopilotEnv = 'default' | 'sandbox' | 'production';
 
@@ -30,11 +36,15 @@ const ENVS: CopilotEnv[] = ['default', 'sandbox', 'production'];
 export function parseContextKey(key: CopilotContextKey): CopilotContext {
   const parts = key.split(':');
   if (parts.length !== 4) {
-    throw new Error(`[persona-router] 非法 context key（需 route:projectId:env:agentId）: ${key}`);
+    throw new Error(
+      `[persona-router] 非法 context key（需 route:projectId:env:agentId）: ${key}`,
+    );
   }
   const [route, projectId, env, agentId] = parts;
-  if (!ENVS.includes(env as CopilotEnv)) throw new Error(`[persona-router] 非法 env: ${env}`);
-  if (!isAgentId(agentId)) throw new Error(`[persona-router] 非法 agentId: ${agentId}`);
+  if (!ENVS.includes(env as CopilotEnv))
+    throw new Error(`[persona-router] 非法 env: ${env}`);
+  if (!isAgentId(agentId))
+    throw new Error(`[persona-router] 非法 agentId: ${agentId}`);
   return {
     route,
     projectId: projectId === '-' ? null : projectId,
@@ -48,11 +58,15 @@ export function parseContextKey(key: CopilotContextKey): CopilotContext {
  * EXTENSION POINT：本批给最小映射，覆盖最小跑通验证需要的路由。
  */
 export function defaultAgentForRoute(route: string): AgentId {
-  if (route.includes('/creators') || route.includes('/discovery') || route.includes('/match')) return 'match';
-  if (route.includes('/knowledge') || route.includes('/brief') || route.includes('/strategy')) return 'strategy';
-  if (route.includes('/reach')) return 'reach';
-  if (route.includes('/delivery')) return 'delivery';
-  if (route.includes('/insight')) return 'insight';
+  // 用末段关键词匹配（避免子串坑：'outreach' 曾误配 orchestrator，因 '/reach' 不是 '/admin/outreach' 的子串）。
+  const seg = route.split('?')[0].split('/').filter(Boolean).pop() ?? '';
+  const has = (...keys: string[]) =>
+    keys.some((k) => seg === k || seg.includes(k));
+  if (has('creators', 'discovery', 'match')) return 'match';
+  if (has('knowledge', 'brief', 'strategy')) return 'strategy';
+  if (has('reach', 'outreach')) return 'reach';
+  if (has('delivery')) return 'delivery';
+  if (has('insight')) return 'insight';
   return DEFAULT_AGENT_ID; // 工作区层 → orchestrator
 }
 

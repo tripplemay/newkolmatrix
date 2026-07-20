@@ -51,8 +51,10 @@ try {
   // ── 3) 多人格切换：/admin/outreach → 触达 Agent（对话清空 + 新专家）──
   await page.goto(`${BASE}/admin/outreach`, { waitUntil: 'networkidle', timeout: 60000 });
   await page.waitForTimeout(1500);
+  // 只取专家头（ExpertScope = aside 内 border-l-4 卡）文本，与 HandoffCollab 的「触达 Agent」文案隔离，避免假阳性。
+  const scopeText = await page.locator('aside div.border-l-4').first().innerText().catch(() => '');
+  ok(scopeText.includes('触达 Agent'), '切 /admin/outreach → 专家头(ExpertScope)变触达 Agent（多人格切换可见，独立选择器取样）');
   const reachText = await page.textContent('body');
-  ok(reachText.includes('触达 Agent'), '切 /admin/outreach → 专家头变触达 Agent（多人格切换可见）');
   ok(!/\d+% 匹配/.test(reachText), 'context key 变化 → 对话清空（上个环节的 KOL 卡片不再显示）');
 
   // ── 4) 协同交接可视化（demo handoff match→reach）──

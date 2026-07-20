@@ -70,6 +70,15 @@ async function main(): Promise<void> {
     strategyCtx.agentId === 'strategy',
     'route /admin/knowledge → strategy 人格',
   );
+  // 回归（F007 fix-round-1）：/admin/outreach 曾因 '/reach' 子串不匹配误配 orchestrator，现须为 reach。
+  assert(
+    defaultAgentForRoute('/admin/outreach') === 'reach',
+    'route /admin/outreach → reach 人格（回归：修子串误配）',
+  );
+  assert(
+    defaultAgentForRoute('/admin/project/x/reach') === 'reach',
+    'route .../reach 环节 → reach 人格',
+  );
 
   const matchPersona = selectPersona(matchCtx);
   const strategyPersona = selectPersona(strategyCtx);

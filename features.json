@@ -15,7 +15,7 @@
       "title": "迁移 + seed 装配（one-shot tools 服务，含 pgvector 扩展 + 幂等 seed）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "done",
       "acceptance": "新增 migrate+seed 机制（D-GL3）：Dockerfile 加 tools/migrate 目标（或复用 build 产物）含 prisma CLI + prisma/(schema+migrations) + scripts/seed/(脚本+CSV) + tsx；prod compose 加 one-shot 服务跑 prisma migrate deploy（建全表 + CREATE EXTENSION vector D3 迁移）+ 幂等 seed；本地全栈跑 one-shot：全表 + pgvector 扩展建好（\\dx 见 vector、Kol 表在），seed 连跑两次幂等（第二次不重复灌/不报错），灌后 Kol≈2500 且 embedding 非空，prod 镜像栈内 search_kols 有结果；tools 镜像/服务与 app runner 分离（runner 仍最小不含 prisma CLI/脚本/CSV）",
       "description": "runner 是最小 standalone（无 prisma CLI/migrations/seed/CSV），跑不了 migrate/seed → 需独立 one-shot tools 服务。CSV 仅 372K 易随镜像。seed 需 bge-m3 算 ~2500 embedding（一次性网关开销）。须确保/加固 import-kol-csv seed 幂等。"
     },

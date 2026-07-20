@@ -2,7 +2,7 @@
   "status": "building",
   "user_goal": "AGENT-FOUNDATION（P0 地基）收官后把本阶段全栈产物部署上线供用户确认。GO-LIVE 批次 = 补全全栈部署基建（prod compose 加 pgvector Postgres + env + migrate/seed 装配 + 修 healthcheck + 全栈化 deploy-prod/runbook），使首次全栈 go-live 可成；部署触发与一次性 VPS 设置留人类闸门。",
   "total_features": 3,
-  "completed_features": 1,
+  "completed_features": 2,
   "fix_rounds": 0,
   "current_sprint": "GO-LIVE",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",

@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "FE-REFACTOR 前端地基整改：消化 FE-AUDIT 的 11 条 backlog（P0×2+P1×7+P2×2，留 BL-FE-12）——公共组件抽取（Badge/ChatBubble/DefinitionRow/PageHeader/SectionLabel/PanelHeader/HandoffCard/SurfaceCard）、卡片表面语言统一（hover:shadow-xl 拍板）、术语统一（职责/边界 拍板）、token 层微排版刻度命名化+gray-600、admin/ port 约定落地（逐个 port 保留模板结构 拍板）+dead 登记、视觉基线单次重生+CI 盲区 route mock。在 ARCH-LOCK+M0.5 前把地基整净。",
   "total_features": 7,
-  "completed_features": 0,
+  "completed_features": 1,
   "fix_rounds": 0,
   "current_sprint": "FE-REFACTOR",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-20T19:10",
+  "last_updated": "2026-07-20T19:40",
   "reference_docs": [
     "docs/product/KOLMatrix-PRD.md",
     "docs/audits/KOLMatrix-integrated-architecture-design-2026-07-17.md",

@@ -6,7 +6,7 @@
       "title": "common 抽取 A：Badge / ChatBubble / DefinitionRow + 术语统一「职责/边界」",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "新增 common/Badge（variant soft|solid / size xs|sm / shape rounded|pill）收敛 6 处含 campaigns:21 漂移修复；common/ChatBubble（role user|agent, muted?）收敛 6 处（CopilotPanel:77/78/148/161 + preview:62/67）；common/DefinitionRow（label, children, tone?）收敛 4 处并同 commit 统一术语文案为「职责」「边界」；lint+tsc 绿；改动处视觉等价（基线重生留 F007）。详见 spec §2 F001",
       "description": "消化 BL-FE-03/04/09。依据 FE-AUDIT F002 报告 §5 R2/R3/R5。"
     },

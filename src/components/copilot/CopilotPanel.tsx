@@ -21,6 +21,7 @@ import {
 } from 'lib/agent/persona-router';
 import { personaBoundary, DEFAULT_AGENT_ID } from 'lib/agent/registry';
 import { STAGE_AGENT, isStage } from 'lib/agent/stage-routing';
+import ChatBubble from 'components/common/ChatBubble';
 import ExpertScope from './ExpertScope';
 import HandoffCollab from './HandoffCollab';
 import { hasCanvasRenderer, renderToolResult } from './canvas/canvas-registry';
@@ -67,20 +68,9 @@ function MessageParts({
         };
         if (part.type === 'text' && part.text) {
           return (
-            <div
-              key={i}
-              className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={
-                  isUser
-                    ? 'max-w-[85%] rounded-2xl rounded-br-md bg-gradient-to-br from-brand-400 to-brand-600 px-3.5 py-2.5 text-[13px] leading-relaxed text-white'
-                    : 'max-w-[90%] rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13px] leading-relaxed text-navy-700 shadow-sm dark:bg-navy-700 dark:text-white'
-                }
-              >
-                {part.text}
-              </div>
-            </div>
+            <ChatBubble key={i} role={isUser ? 'user' : 'agent'}>
+              {part.text}
+            </ChatBubble>
           );
         }
         // 工具 part：静态工具 type=`tool-<name>`（传给 streamText 的工具），动态工具 type='dynamic-tool'。
@@ -144,11 +134,9 @@ function CopilotChat({ context }: { context: CopilotContext }) {
       <div className="flex-1 space-y-3 overflow-y-auto bg-gray-50 px-3 py-2 dark:bg-navy-900">
         {messages.length === 0 && persona && (
           // 新专家开场白（context key 变化后 remount → 空消息 → 开场）
-          <div className="flex justify-start">
-            <div className="max-w-[90%] rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13px] leading-relaxed text-navy-700 shadow-sm dark:bg-navy-700 dark:text-white">
-              我是{persona.name}，负责{persona.duty}。有什么可以帮你的？
-            </div>
-          </div>
+          <ChatBubble role="agent">
+            我是{persona.name}，负责{persona.duty}。有什么可以帮你的？
+          </ChatBubble>
         )}
         {messages.map((m) => (
           <MessageParts
@@ -157,11 +145,9 @@ function CopilotChat({ context }: { context: CopilotContext }) {
           />
         ))}
         {busy && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13px] text-gray-400 shadow-sm dark:bg-navy-700">
-              {persona?.name ?? '专家'}正在思考…
-            </div>
-          </div>
+          <ChatBubble role="agent" muted>
+            {persona?.name ?? '专家'}正在思考…
+          </ChatBubble>
         )}
         <HandoffCollab />
       </div>

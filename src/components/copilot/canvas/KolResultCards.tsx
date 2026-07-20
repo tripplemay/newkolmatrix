@@ -5,6 +5,7 @@
 'use client';
 
 import { MdVerified, MdOpenInNew } from 'react-icons/md';
+import Badge from 'components/common/Badge';
 
 export interface KolHit {
   id: string;
@@ -39,17 +40,20 @@ function KolCard({ kol }: { kol: KolHit }) {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 font-bold text-navy-700 dark:text-white">
-            <span className="truncate">{kol.displayName ?? kol.handle ?? '(无名)'}</span>
+            <span className="truncate">
+              {kol.displayName ?? kol.handle ?? '(无名)'}
+            </span>
             <MdVerified className="shrink-0 text-brand-500" size={14} />
           </div>
           <div className="mt-0.5 truncate text-xs text-gray-500">
-            {kol.platform ?? '—'} · {kol.country ?? '—'} · {fmtFollowers(kol.followers)} 粉丝
+            {kol.platform ?? '—'} · {kol.country ?? '—'} ·{' '}
+            {fmtFollowers(kol.followers)} 粉丝
           </div>
         </div>
         {/* 匹配度半环替代：数值徽标（generative canvas 最小实现，EXTENSION POINT：→ 半环仪表） */}
-        <span className="shrink-0 rounded-full bg-brand-50 px-2 py-1 text-xs font-bold text-brand-600 dark:bg-brand-400/10">
+        <Badge size="sm" shape="pill" className="shrink-0">
           {pct}% 匹配
-        </span>
+        </Badge>
       </div>
       {kol.categories.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
@@ -77,9 +81,17 @@ function KolCard({ kol }: { kol: KolHit }) {
   );
 }
 
-export default function KolResultCards({ output }: { output: SearchKolsOutput }) {
+export default function KolResultCards({
+  output,
+}: {
+  output: SearchKolsOutput;
+}) {
   if (!output.kols || output.kols.length === 0) {
-    return <div className="text-xs text-gray-500">「{output.query}」没有找到相关 KOL。</div>;
+    return (
+      <div className="text-xs text-gray-500">
+        「{output.query}」没有找到相关 KOL。
+      </div>
+    );
   }
   return (
     <div className="flex flex-col gap-2">

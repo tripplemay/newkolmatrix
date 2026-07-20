@@ -1,134 +1,35 @@
 {
-  "status": "done",
-  "user_goal": "AGENT-FOUNDATION（P0 地基）收官后把本阶段全栈产物部署上线供用户确认。GO-LIVE 批次 = 补全全栈部署基建（prod compose 加 pgvector Postgres + env + migrate/seed 装配 + 修 healthcheck + 全栈化 deploy-prod/runbook），使首次全栈 go-live 可成；部署触发与一次性 VPS 设置留人类闸门。",
-  "total_features": 3,
-  "completed_features": 3,
+  "status": "verifying",
+  "user_goal": "在 ARCH-LOCK+M0.5 之前插入 FE-AUDIT 前端地基全面审计批次（Evaluator-only）：对照 Horizon UI Pro 3.0.0 模板原件审计当前上线版本——模板还原严格性、模板已提供但手写重复实现、公共组件抽取完备性、设计系统 tokens 一致性；产出分级（P0/P1/P2）整改 backlog 候选，为 M0.5 六页工作台开发打好地基。审计不修改产品代码。",
+  "total_features": 4,
+  "completed_features": 0,
   "fix_rounds": 0,
-  "current_sprint": "GO-LIVE",
+  "current_sprint": "FE-AUDIT",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-20T16:30",
+  "last_updated": "2026-07-20T17:00",
   "reference_docs": [
     "docs/product/KOLMatrix-PRD.md",
     "docs/audits/KOLMatrix-integrated-architecture-design-2026-07-17.md",
     "docs/specs/AGENT-FOUNDATION-spec.md",
     "docs/product/interaction-prototype-v2.html",
     "docs/product/interaction-prototype-v2-落地规范.md",
-    "scripts/test/v2-prototype-smoke.js",
     "docs/product/ai-native-usage.md",
     "docs/product/gap-product-layer.md",
     "framework/patterns/web-runtime-patterns.md",
-    "docs/specs/GO-LIVE-spec.md"
+    "docs/specs/GO-LIVE-spec.md",
+    "docs/specs/FE-AUDIT-spec.md",
+    "design-draft/horizon-tokens.md"
   ],
   "docs": {
-    "spec": "specs/GO-LIVE-spec.md",
+    "spec": "specs/FE-AUDIT-spec.md",
     "test_cases": null,
-    "signoff": "test-reports/GO-LIVE-signoff-Andy-evaluator-subagent.md",
-    "framework_reviewed": true
+    "signoff": null,
+    "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": [
-    {
-      "feature": "F001",
-      "verdict": "PASS",
-      "evaluator": "Andy/evaluator-subagent",
-      "round": "verifying",
-      "commit": "6ec384d",
-      "clauses": [
-        {
-          "clause": "compose 含 db(pgvector)+app、app 注入 DATABASE_URL/AIGCGATEWAY_*、depends_on db healthy、独立容器名/volume 不碰旧 kolmatrix",
-          "verdict": "PASS",
-          "evidence": "db=pgvector/pgvector:pg16(L11)+app(L27)；depends_on service_healthy(L40-42)实测生效(db healthy 后 app 才起)；容器名 newkolmatrix-db/app、volume newkolmatrix-pgdata、网络 newkolmatrix_default 与旧 kolmatrix-postgres/redis 全隔离，起栈无冲突、旧栈未受扰动。观察项 O1：实现用 compose 变量插值(同目录 .env/--env-file)注入密钥并由 POSTGRES_PASSWORD 单一来源派生 DATABASE_URL(L37)，spec/acceptance 字面写 env_file 注入——机制不同但容器内 DATABASE_URL/AIGCGATEWAY_* 终态正确(printenv 已验)，安全属性保持且避免密码重复，判 PASS；建议 Planner 视需要对齐 spec 措辞。"
-        },
-        {
-          "clause": "app healthcheck 命中 200 端点 /api/health，不再 307 重定向路由",
-          "verdict": "PASS",
-          "evidence": "compose healthcheck 命中 http://127.0.0.1:3000/api/health(L43-51)非 /admin/dashboards/default；curl /api/health → 200 {\"ok\":true}；route.ts runtime=nodejs(L8)+GET 返 200(L11-13)；实测容器翻 healthy。"
-        },
-        {
-          "clause": "本地 up：app+db 起、app healthy、能连 db(/api/health 200、Prisma 路由不因缺 DB 500)",
-          "verdict": "PASS",
-          "evidence": "db healthy、app healthy、/api/health 200、app→db:5432 TCP 通、容器内 DATABASE_URL 正确。观察项 O2：Prisma /api/agent 仍 500 但错误为 'public.Tenant does not exist'(缺表，F002 迁移未跑)非缺 DB 连接——Prisma 已连上 db 才收到表不存在；按 spec §5 依赖链归 F002，不判 F001 FAIL。"
-        },
-        {
-          "clause": "密钥只走 env，.env 不入 git(.env.example 仅占位)",
-          "verdict": "PASS",
-          "evidence": "git check-ignore .env exit 0 且未 tracked；.env.example 生产段(L33-42)仅占位符；末次 commit diff 无真实密钥硬编码；POSTGRES_PASSWORD/AIGCGATEWAY_API_KEY 用 :? 必填(L16/L39)缺 .env 时 fail-fast。"
-        }
-      ],
-      "db_isolation_verified": true,
-      "db_host_port_exposed": false,
-      "teardown_clean": true,
-      "notes": "隔离 fresh context 首轮独立验收，未参与实现。亲跑 docker：从 HEAD 6ec384d 重建镜像(2b04261ef6b5，消除 ghcr latest=26ee34b 不含 /api/health 的来源歧义)→ up -d → 实测 → down -v 清理，旧 kolmatrix(Up 6 days)未受影响。整体 4/4 clause PASS。两条观察项 O1(env_file 机制措辞，供 Planner 裁决措辞对齐)/O2(Prisma 缺表属 F002 依赖)均如实记录，不构成 F001 FAIL/PARTIAL。报告：docs/test-reports/GO-LIVE-F001-verify-Andy-evaluator-subagent.md"
-    },
-    {
-      "feature": "F002",
-      "verdict": "PASS",
-      "evaluator": "Andy/evaluator-subagent",
-      "round": "verifying",
-      "commit": "98a13b1",
-      "clauses": [
-        {
-          "clause": "本地全栈跑 migrate/seed one-shot：全表 + pgvector 扩展建好（\\dx 见 vector、Kol 表在）",
-          "verdict": "PASS",
-          "evidence": "docker compose up -d 编排实测：db Healthy→migrate Exited(ExitCode=0)→app Started。migrate 日志 2 migrations applied(init+pendingaction_input)+All migrations successfully applied。独立 DB 取证(不依赖 seed 日志)：pg_extension vector 0.8.5、public 9 表(Game/Handoff/Kol/OperationLog/PendingAction/Project/Tenant/User/_prisma_migrations)、_prisma_migrations 两条均 finished。CREATE EXTENSION vector 在 init migration 首行(先于 Kol.embedding vector(1024))。"
-        },
-        {
-          "clause": "seed 幂等：连跑两次第二次不重复灌/不报错；灌后 Kol≈2500 且 embedding 非空",
-          "verdict": "PASS",
-          "evidence": "首跑 Kol 空→解析 2524 行去重 2524→upsert 2524/2524→26 批真实 bge-m3 embedding 累计 2524/2524→KOL 总数=2524 含非空 embedding=2524。二跑 docker compose run --rm migrate：'No pending migrations to apply'+'Kol 已有 2524 条→跳过 seed(幂等,不重复灌)'+✅seed 跳过，run --rm 正常完成。二跑后独立计数 total=2524 with_embedding=2524(未增未重灌无报错)、vector_dims=1024。≈2500 达标。"
-        },
-        {
-          "clause": "prod 镜像栈内 search_kols 有结果（向量检索通）",
-          "verdict": "PASS",
-          "evidence": "两路独立证据(均 prod tools/app+pgvector 栈内)：(1)seed cosine sanity 真实链路 NL→bge-m3→top-K，query='World of Tanks 坦克世界 游戏解说 replay'→top-5 语义相关(The Best Replays WoT d=0.3095…)返回非空；(2)Evaluator 独立自相似向量检索 embedding<=>query::vector ORDER BY LIMIT 5：自身 0.0000、其后 PWN-G|WoT Replays 0.0616/__X__ 0.1064/The_Viper_UA 0.1420/SKIFler 0.2564，排序单调语义连贯。search-kols.ts 存于镜像；app /api/handoffs 返 200 佐证可连库查询。"
-        },
-        {
-          "clause": "tools 镜像/服务与 app runner 分离（runner 仍最小，不含 prisma CLI/脚本/CSV）",
-          "verdict": "PASS",
-          "evidence": "runner 内实测：scripts/deploy/migrate-seed.sh、scripts/seed/、*.csv、prisma/、node_modules/.bin/prisma、node_modules/.bin/tsx 全 No such file，which prisma 空，根目录仅 node_modules/package.json/public/server.js。tools 内实测：migrate-seed.sh(-rwxr-xr-x)、import-kol-csv.ts、CSV 380569B、schema+两 migrations、prisma 6.19.3、tsx 全齐。Dockerfile：tools=FROM build(含全量 source+devDeps)、runner=独立 FROM node:20-alpine 仅 COPY standalone/static/public。体积 runner 380MB vs tools 2.28GB。备注：runner 虽无 prisma CLI 但 @prisma/client 运行时随 standalone 打包→/api/handoffs 200(缺表会 500,现正常),最小化未破坏运行时 DB 访问。"
-        }
-      ],
-      "db_isolation_verified": true,
-      "db_host_port_exposed": false,
-      "teardown_clean": true,
-      "notes": "隔离 fresh context 首轮独立验收，未参与实现。独立重建 runner(默认)+tools(--target tools)两镜像均成功→docker compose --env-file(scratchpad repo 外,真实 AIGCGATEWAY key 注入不落 repo、验收后 shred)up -d 全栈实测(含真实 bge-m3 embed 2524 KOL,~90s)→独立 DB/向量检索取证→幂等复跑→down -v 清理。旧 kolmatrix/invoce(Up 6 days)+既有 newkolmatrix-dev-pgdata 卷均未受扰动,本次仅移除 newkolmatrix-pgdata。整体 4/4 clause PASS,首轮 verifying 即通过,无 FAIL/PARTIAL。1 条观察项 O1(二跑幂等走 migrate-seed.sh count-guard 快路径,import-kol-csv 内层 upsert 级幂等未独立触发;acceptance 按 one-shot 层已满足,内层为双保险,代码可见其设计,非缺陷)如实记录不扣分。报告：docs/test-reports/GO-LIVE-F002-verify-Andy-evaluator-subagent.md。本 subagent 不改 status/completed_features/features.json/产品代码,判定转呈用户拍板。"
-    },
-    {
-      "feature": "F003",
-      "verdict": "PASS",
-      "evaluator": "Andy/evaluator-subagent",
-      "round": "verifying",
-      "commit": "2200a99",
-      "clauses": [
-        {
-          "clause": "deploy-prod.yml 含 migrate（+首次 seed）步骤，顺序正确（migrate→app up→健康检查），仍仅手动 workflow_dispatch",
-          "verdict": "PASS",
-          "evidence": "on: workflow_dispatch 仅手动(无 push);step2/3 `up -d --wait --wait-timeout 600` 经 compose depends_on(app.depends_on.migrate=service_completed_successfully + migrate.depends_on.db=service_healthy)保证 db healthy→migrate one-shot(prisma migrate deploy+首次/幂等 seed)exit0→app 起;实测 up.log 顺序 db Healthy→migrate Started→migrate Exited→app Started→app Healthy 与设计一致;失败 surface migrate 日志(`if ! up; then $COMPOSE logs --tail 80 migrate`);step3/3 healthcheck 命中 curl /api/health(非 307 的 /admin/dashboards/default)。观察项 O1(不扣分):migrate 以 depends_on 声明式编排触发(单条 up --wait)而非 workflow 内独立 compose run migrate,效果满足顺序 acceptance 且 --wait 对 exit0 one-shot 处理正常(up 退出码0),机制非缺陷。"
-        },
-        {
-          "clause": "docs/dev/deploy.md 覆盖全栈首次 go-live 每一步（一次性人工清单 DNS/Secrets/ghcr public/server compose+env_file/nginx/cert + 日常部署 + 回滚），environment.md 一致",
-          "verdict": "PASS",
-          "evidence": "逐项核对(非看标题):一次性 setup 六项全覆盖 ①DNS(Cloudflare A newkol) ②Secrets(PROD_HOST/USER/SSH_KEY) ③ghcr 两个包都 public(newkolmatrix 和 newkolmatrix-tools 明确点名) ④VPS 目录+compose+.env(POSTGRES_PASSWORD+AIGCGATEWAY_API_KEY,chmod600,DATABASE_URL 派生不手写) ⑤nginx(先 -t 不 reload) ⑥certbot;日常部署(push→ci+build-push 两镜像→手动 deploy-prod→up --wait 先 migrate 后 app→/api/health);回滚(image_tag 填上一 good SHA)。environment.md 与之一致(拓扑/两镜像命名/.env 键/up --wait 先 migrate 后 app/旧 kolmatrix 共存不碰)。"
-        },
-        {
-          "clause": "本地 prod-stack 全链路验证：prod 镜像+全栈 compose(app+db+seed)起栈跑 hello-agent 闭环通(NL→search_kols→卡片流)，闭环无 error",
-          "verdict": "PASS",
-          "evidence": "亲起 prod 栈(复刻 deploy-prod 同款 up -d --wait --wait-timeout 600,退出码0):db healthy→migrate exited(0)→app healthy。migrate 26 批真实 bge-m3 embed 2524/2524;独立直连 db count=2524 with_embedding=2524 vector 0.8.5;cosine sanity top-5 语义相关(search_kols 通);灌 demo-handoff→Handoff 表 1 条 match->reach;curl /api/health HTTP200 {ok:true};E2E_BASE=http://127.0.0.1:3300 node scripts/test/f010-e2e-check.mjs = 6/6(match 人格→NL→search_kols→15 张 KOL 卡片流→reach 人格切换→协同交接 handoff 可视化→0 console error)。E2E_BASE 覆盖(F003 引入,L12)本次指向 prod 栈生效。"
-        },
-        {
-          "clause": "全程只涉 newkolmatrix 资源，隔离旧 kolmatrix/其他 app（runbook 显式声明）",
-          "verdict": "PASS",
-          "evidence": "起栈前基线仅 newkolmatrix-dev-pgdata 卷(dev,不动);全程只操作 compose 定义的 newkolmatrix-app/db/migrate+卷 newkolmatrix-pgdata+网络 newkolmatrix_default;down -v 移除 prod 三容器+prod 卷+网络,dev 卷 newkolmatrix-dev-pgdata 保留(只删 prod);旧 kolmatrix-postgres/redis+invoce-postgres/redis 全程 Up 6 days healthy 未受扰;runbook(deploy.md 拓扑+安全 §)与 environment.md 均显式声明隔离。"
-        }
-      ],
-      "db_isolation_verified": true,
-      "db_host_port_exposed": false,
-      "teardown_clean": true,
-      "notes": "隔离 fresh context 首轮独立验收，未参与实现。复用本地 F002 构建的 latest 镜像(runner 含 /api/health F001 产物、tools 含 migrate-seed.sh+migrations+CSV380569B+demo-handoff F002 产物;F003 commit 未改产品代码 git show --stat 2200a99=5文件 workflows/docs/e2e-script/env-memory,复用无来源歧义)→真实 AIGCGATEWAY key 从 repo .env 取入 repo 外 scratchpad 临时 env(不打印/验收后 shred)→复刻 deploy-prod up -d --wait 全栈实测(migrate+2524 KOL 真实 embed)→灌 demo-handoff→E2E_BASE 指向 prod 栈 f010:e2e 6/6→down -v 拆栈。整体 4/4 clause PASS,首轮 verifying 即通过,无 FAIL/PARTIAL。1 条观察项 O1(migrate 经 compose depends_on 声明式编排触发而非 workflow 独立 run 步骤,效果满足顺序 acceptance,机制非缺陷)如实记录不扣分。报告：docs/test-reports/GO-LIVE-F003-verify-Andy-evaluator-subagent.md。批次末就绪回归全绿+signoff:docs/test-reports/GO-LIVE-signoff-Andy-evaluator-subagent.md。安全:key 不落 repo/日志、验收后 shred、repo 无 .env 泄漏。本 subagent 不改 status/completed_features/features.json/产品代码,判定转呈用户拍板;首次真实 go-live(部署触发+一次性 VPS 设置)留人类闸门。"
-    }
-  ],
+  "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "GO-LIVE done 收尾完成(2026-07-20 Planner)：线上实测 /api/health+/admin/today 均 200；proposed-learnings 处理完毕——[2026-07-20] IA redirect 探针/测试漂移 learning 用户确认采纳,写入 v1.0.5(四份 role-context 副本同 commit,铁律 7)+CHANGELOG+归档；harness-fit P0-P2 共 9 条用户裁决继续挂起；F001 观察项 O1(spec env_file 措辞 vs compose 变量插值实现)裁决不回改历史 spec,以验收记录为准。framework_reviewed=true。工作区有用户本地未提交的架构文档重写(architecture.md 已删,architecture_f5.md v1.0 草案 3260 行 + architecture_kimi.md v1.1 全站版·定稿候选 1013 行,CLAUDE.md 指向失效,audits 设计文档被 reference_docs 引用但未入 git)——用户裁决:开文档定稿批次作为下一批次 feature 处理,agent 不动这些文件。下一批次方向:用户要求 Planner 给出顺序建议后讨论(候选:按 v1.1 全站架构开 P1 / 专家领域工具 M1 / 认证+RLS),讨论中,尚未 spec lock。"
+    "Andy": "GO-LIVE done 收尾完成(v1.0.5 沉淀+framework_reviewed,commit 8fbfd24)后，用户插入 FE-AUDIT 批次(plan mode 批准=spec lock,2026-07-20)：Evaluator-only 4 features 全 executor:evaluator,跳过 building 直入 verifying。对照基线=Horizon UI Pro 3.0.0 原件(~/project/db4rDjuaSCqaEFW9XcFo_horizon-tailwind-react-nextjs-pro-3.0.0/horizon-tailwind-react-nextjs-pro-main/,只读)+design-draft/horizon-tokens.md。审计对象=main HEAD(src/ 自 6ec384d 后无产品变更,与线上一致)。编排:F001-F003 三路并行隔离 evaluator subagent fan-out+F004 串行汇总。用户本地未提交架构文档(architecture.md 删+f5/kimi 两版)不碰,留 ARCH-LOCK 批次处理。FE-AUDIT done 后回到 ARCH-LOCK+M0.5 顺序讨论(审计 P0 债多则先插 FE-REFACTOR)。harness-fit 9 条提案继续挂起。"
   }
 }

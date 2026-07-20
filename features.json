@@ -60,7 +60,7 @@
       "title": "视觉基线单次重生 + CI 视觉盲区修复（必须最后）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "tests/visual 给 /api/handoffs 加 route mock 固定夹具（本地与 CI 一致，HandoffCollab 填充态入基线）；F001-F005 全合入后单次重生全部基线 PNG（linux 经 CI）一个 commit；npm run test:visual 本地全绿 + CI visual job 绿；基线 diff 逐张对账仅含拍板改动。详见 spec §2 F007",
       "description": "消化 BL-FE-11。决策：route mock 而非 seeded DB（确定性/零种子维护）。串行约束：必须在 F001-F005 全部合入后执行。"
     }

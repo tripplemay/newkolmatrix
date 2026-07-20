@@ -25,7 +25,7 @@
 ## 2. 关键设计决策（用户 2026-07-20 确认）
 
 - **D-GL1 · DB 自带容器**：prod compose 内置 **pgvector Postgres 容器**（pg16 + pgvector）+ VPS named volume 持久化。自包含，沿用旧 kolmatrix 同机隔离模式，不引入外部托管库；与旧 kolmatrix、其他 VPS app 全隔离（独立容器名/volume/网络）。
-- **D-GL2 · 密钥走 server 端 env_file**：`/opt/apps/newkolmatrix/.env`（人工创建，**绝不入 git**）经 compose `env_file` 注入 `DATABASE_URL`（含库密码）+ `AIGCGATEWAY_BASE_URL/API_KEY` 等。repo 只放 `.env.example` 占位。
+- **D-GL2 · 密钥走 server 端 `.env`（compose 插值 + 单一来源派生）**：`/opt/apps/newkolmatrix/.env`（人工创建，**绝不入 git**）经 compose 同目录 `.env` 变量插值注入 `POSTGRES_PASSWORD` + `AIGCGATEWAY_BASE_URL/API_KEY` 等；`DATABASE_URL` 不手写，由 `POSTGRES_*` **单一来源派生**指向容器网内 `db:5432`（避免密码在两处重复）。repo 只放 `.env.example` 占位。〔F001 实现落定：措辞由早期「env_file 注入 DATABASE_URL」对齐为此，容器内 env 终态与安全属性一致，evaluator O1 记录。〕
 - **D-GL3 · migrate/seed 独立 one-shot**：app runner 镜像保持最小（不塞 prisma CLI/脚本/CSV）。新增 **tools 镜像目标 / one-shot compose 服务**（含 prisma CLI + migrations + schema + seed 脚本 + CSV + tsx）跑 `prisma migrate deploy` +（首次）seed。migrate 每次 deploy 幂等；seed 幂等（重复跑不炸、不重复灌）。
 - **D-GL4 · 纯基建 + 人类闸门**：不改产品代码；`deploy-prod` 仅手动 workflow_dispatch（harness 铁律：deploy/prod 永留人类闸门）。
 - **D-GL5 · healthcheck 修正**：app healthcheck 路由 `/admin/dashboards/default`（307）→ 改为返回 200 的稳定端点（`/admin/today` 或新增轻量 `/api/health`）。选 `/api/health`（不依赖页面渲染、最省，纯基建加一个 route handler 返回 200——判定为基建非产品逻辑）。

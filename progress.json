@@ -26,7 +26,41 @@
     "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": [],
+  "evaluator_feedback": [
+    {
+      "feature": "F001",
+      "verdict": "PASS",
+      "evaluator": "Andy/evaluator-subagent",
+      "round": "verifying",
+      "commit": "6ec384d",
+      "clauses": [
+        {
+          "clause": "compose 含 db(pgvector)+app、app 注入 DATABASE_URL/AIGCGATEWAY_*、depends_on db healthy、独立容器名/volume 不碰旧 kolmatrix",
+          "verdict": "PASS",
+          "evidence": "db=pgvector/pgvector:pg16(L11)+app(L27)；depends_on service_healthy(L40-42)实测生效(db healthy 后 app 才起)；容器名 newkolmatrix-db/app、volume newkolmatrix-pgdata、网络 newkolmatrix_default 与旧 kolmatrix-postgres/redis 全隔离，起栈无冲突、旧栈未受扰动。观察项 O1：实现用 compose 变量插值(同目录 .env/--env-file)注入密钥并由 POSTGRES_PASSWORD 单一来源派生 DATABASE_URL(L37)，spec/acceptance 字面写 env_file 注入——机制不同但容器内 DATABASE_URL/AIGCGATEWAY_* 终态正确(printenv 已验)，安全属性保持且避免密码重复，判 PASS；建议 Planner 视需要对齐 spec 措辞。"
+        },
+        {
+          "clause": "app healthcheck 命中 200 端点 /api/health，不再 307 重定向路由",
+          "verdict": "PASS",
+          "evidence": "compose healthcheck 命中 http://127.0.0.1:3000/api/health(L43-51)非 /admin/dashboards/default；curl /api/health → 200 {\"ok\":true}；route.ts runtime=nodejs(L8)+GET 返 200(L11-13)；实测容器翻 healthy。"
+        },
+        {
+          "clause": "本地 up：app+db 起、app healthy、能连 db(/api/health 200、Prisma 路由不因缺 DB 500)",
+          "verdict": "PASS",
+          "evidence": "db healthy、app healthy、/api/health 200、app→db:5432 TCP 通、容器内 DATABASE_URL 正确。观察项 O2：Prisma /api/agent 仍 500 但错误为 'public.Tenant does not exist'(缺表，F002 迁移未跑)非缺 DB 连接——Prisma 已连上 db 才收到表不存在；按 spec §5 依赖链归 F002，不判 F001 FAIL。"
+        },
+        {
+          "clause": "密钥只走 env，.env 不入 git(.env.example 仅占位)",
+          "verdict": "PASS",
+          "evidence": "git check-ignore .env exit 0 且未 tracked；.env.example 生产段(L33-42)仅占位符；末次 commit diff 无真实密钥硬编码；POSTGRES_PASSWORD/AIGCGATEWAY_API_KEY 用 :? 必填(L16/L39)缺 .env 时 fail-fast。"
+        }
+      ],
+      "db_isolation_verified": true,
+      "db_host_port_exposed": false,
+      "teardown_clean": true,
+      "notes": "隔离 fresh context 首轮独立验收，未参与实现。亲跑 docker：从 HEAD 6ec384d 重建镜像(2b04261ef6b5，消除 ghcr latest=26ee34b 不含 /api/health 的来源歧义)→ up -d → 实测 → down -v 清理，旧 kolmatrix(Up 6 days)未受影响。整体 4/4 clause PASS。两条观察项 O1(env_file 机制措辞，供 Planner 裁决措辞对齐)/O2(Prisma 缺表属 F002 依赖)均如实记录，不构成 F001 FAIL/PARTIAL。报告：docs/test-reports/GO-LIVE-F001-verify-Andy-evaluator-subagent.md"
+    }
+  ],
   "generator_handoff": null,
   "session_notes": {
     "Andy": "AGENT-FOUNDATION 批次收官（F001–F010 全 done，2026-07-20）。本会话续接：(1) 修 F008 IA 重构引入的视觉回归漂移（dashboard→today，重指 /admin/today + 重生 en-today 基线，CI 转绿）；(2) F009 AI→人闸门隔离验收 PASS(7/7)，用户裁决 done；(3) F010 capstone：e2e hello-agent(f010:e2e 6/6，实测 15 卡)+架构文档 docs/dev/agent-architecture.md+agent-canvas 视觉基线(/preview/agent-canvas)+README/CLAUDE 技术栈；隔离验收 PASS(4/4)+批次末全链路回归全绿+signoff；(4) 修 evaluator 报的 README env 变量名散文漂移(S1, OPENAI_*→AIGCGATEWAY_*)。视觉基线双平台机制：本地 darwin + CI update-visual-baselines workflow 重生 linux；改视觉/加基线后须 dispatch 该 workflow 再 dispatch ci.yml 确认绿。下一批次待用户定（backlog 空，proposed-learnings 新增1条视觉IA漂移待确认）。"

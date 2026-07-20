@@ -51,7 +51,7 @@
       "title": "admin/ port 约定文档 + dead 组件登记表（纯文档）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "新建 docs/dev/template-port-guide.md（逐个 port 保留模板结构的约定+适配检查清单+用户拍板记录）与 docs/dev/template-inventory.md（65 dead 组件四分类登记：RTL 13/认证储备 6/M0.5 候选 ~25/demo 专用 ~34 附处置建议）；本批不删任何组件；不改产品代码。详见 spec §2 F006",
       "description": "消化 BL-FE-01（决策落地）+ BL-FE-08。依据 FE-AUDIT F001 报告 §6。"
     },

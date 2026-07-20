@@ -250,6 +250,48 @@
         }
       ],
       "notes": "总判定 PASS,8/8 acceptance 子条(C1-C5 功能+构建门+密钥门+agent:smoke)全绿,首轮 fix_rounds=0。Agent门(spec §6): POST NL 流式 loop->search_kols 触发->真实 seed KOL(含 similarity)+文本答复,工具 class 二分生效,均实测。柱一(工具层)+柱二(Agent 运行时)本体成立: 唯一 executeTool 无 runTool 双语义(架构稿 §5.2)/class internal|outbound + source native|mcp/outbound 门控挂载点(OutboundGateError,F009 落地)/注册表可扩展(加工具不改 route)/MCP 扩展点就位不实装/D-INTEROP executeTool 传输无关。非阻断观察(记录不打回): O1 输出无 zod outputSchema(架构稿 §5.2 参照含之,建议 F009 补,入参边界已全覆盖); O2 ~9 请求中 1 次瞬时网关 SocketError,经流式 error part 清晰抵达非静默吞(满足错误不静默),随后 7/7 成功,属网关侧抖动非代码缺陷; O3 next.config output:standalone 来自其他批次(CICD-VPS 非 F005)致 next start 告警,但路由实测正常服务,生产应用 node .next/standalone/server.js,超出 F005 scope; O4 ToolContext 仅 {tenantId}(D4 单租户),actor/agentId/token 按 EXTENSION POINT 分期 F006/F009,符合本批预期。被验提交 0f882cc,改动全在 src/lib/agent/**+src/app/api/agent/route.ts+gateway.ts 兼容加固+agent:smoke,均在 F005 scope。验收未改任何产品代码。仅验 F005(F006-F010 未实现属正常)。报告: docs/test-reports/AGENT-FOUNDATION-F005-verify-2026-07-19.md。验收人 Andy/evaluator-subagent"
+    },
+    {
+      "feature": "F006",
+      "verdict": "PASS",
+      "clauses": [
+        {
+          "criterion": "A1 registry 7 AgentId 权威=PRD §9.2,每人格 system prompt+duty+否定式护栏+工具子集+界面语法;加 agent=加一条不改 route 核心",
+          "result": "PASS",
+          "evidence": "registry.ts AgentId 联合类型恰 7 个(orchestrator/strategy/match/reach/delivery/insight/compliance)=features.json+PRD §9.2 权威;逐人格 name/stage/duty/isolation/uiSyntax 与 PRD §9.2 表(line491-497)逐格吻合(strategy 仪表/match 对比矩阵/reach 对话收件箱...)。AgentPersona 五要素齐: systemPrompt(buildSystemPrompt 由 duty+iso 注入)+duty+isolation(否定式护栏 D13)+tools+uiSyntax。orch:smoke ✓每人格含 system prompt+duty+护栏。人格集中 PERSONA_SEED,route.ts 不硬编码人格(经 selectPersona/personaToolSubset 消费),加人格=加一条。live 实测 4 人格切换。"
+        },
+        {
+          "criterion": "A2 persona router 按 context(route+env+agentId) 选人格+收窄工具子集,注入 F005 streamText,单一 /api/agent 不起独立进程",
+          "result": "PASS",
+          "evidence": "persona-router.ts CopilotContext{route,projectId,env,agentId}+buildContextKey/parseContextKey(架构稿 §4.3);orch:smoke ✓context key 往返(/admin/creators:-:default:match)。route.ts resolveContext->selectPersona->personaToolSubset->toAiSdkTools->streamText。★live curl 实测(非仅数据结构): match@/admin/creators 头 X-Agent-Id:match/X-Agent-Tools:search_kols,get_kol_detail 且 stream 真调 search_kols 返真实 KOL(@TheBestReplaysWorldofTanks sim0.6837/@SKIFler_WOT0.6793/@PWN-G0.6714); strategy@/admin/knowledge(同 prompt) 头 X-Agent-Id:strategy/X-Agent-Tools:get_kol_detail 且 stream 0 次 search_kols(工具子集在 streamText 层真收窄)。单一 /api/agent 承载全部专家换人格不换端点。route→agent 派生实测: /admin/creators→match、/admin/project/p1/reach→reach、/admin→orchestrator(空工具)。"
+        },
+        {
+          "criterion": "A3 handoff §5.4 信封 create/传递/receive;接收方按自身 scope 重读不信任发送方 summary 结论;落 F002 Handoff 表",
+          "result": "PASS",
+          "evidence": "handoff.ts HandoffEnvelope 字段=架构稿 §5.4(projectId/fromAgent/toAgent/artifactType/artifactRef/summary/messages);Handoff 表 psql 实测结构齐。★Evaluator 独立探针(非仅实现脚本自证): 跑真实 createHandoff 后清理前 psql 直连确认行真在表(id=cmrsuy4s7.../fromAgent=match/toAgent=reach/artifactType=match_plan,1 row),验后清理归0。★§5.4 硬验: 故意植入 FAKE 权威式 summary'金额$99999、状态=已批准',receiveHandoff 返 mustRereadBy=reach+rereadRef 指向 artifactRef 非 summary(REREAD_POINTS_TO_ARTIFACT=true/REREAD_NOT_SUMMARY=true),summary 仅非权威审计文本。防串扰: toAgent 不匹配抛错,orch:smoke ✓delivery 接收 reach 的 handoff 被拒。"
+        },
+        {
+          "criterion": "A4 orchestrator 环节路由(enter:/pick:/env:)→某项目某环节 + pending 聚合接口(不改写/软化专家结论)",
+          "result": "PASS",
+          "evidence": "orchestrator.ts routeToStage(projectId,stage)→StageTarget(目标 copilot context,agentId 按 STAGE_AGENT)+parseOrchestratorDirective(enter:<proj>:<stage> 完整实装;pick:/env: 识别但最小处理标 EXTENSION POINT)。orch:smoke ✓路由某项目某环节(match)+✓enter:<proj>:reach→reach 环节。aggregatePending 读 F002 PendingAction(status=pending),harm:r.harmJson 原样透传(orchestrator.ts:96 注释'原样透传不改写'),无排序软化/结论改写;orch:smoke 插 harm{action:send_outreach,irreversible:true,count:12} 断言聚合后三字段值逐一原样返回 ✓(独立性铁则编排侧)。"
+        },
+        {
+          "criterion": "A5 框架焊死/语义留扩展点边界(§3.2 核心纪律,两向都守)",
+          "result": "PASS",
+          "evidence": "焊死项均标【框架焊死】: registry 结构(registry.ts:7)/router 机制+context key+工具收窄(persona-router.ts:6)/handoff 信封+create/receive(handoff.ts:7)/orchestrator 环节路由+聚合签名(orchestrator.ts:9)。EXTENSION POINT 逐项标注: handoff 载荷+artifactType+按 scope 重读实读(handoff.ts:8,16,63)/聚合排序(orchestrator.ts:83)/人格职责精度+tools+uiSyntax→canvas(registry.ts:8,34,57)/compliance 调用点(orchestrator.ts:10)/route→agent 映射(persona-router.ts:7,48)/F009 令牌(execute.ts:43,types.ts:18)。★防过度设计两向守住: 不该焊死的没焊死(MCP 仅类型+注释无 client 实装/compliance 仅 registry 一条无跨环节调用逻辑/tools 最小分配未预测未来/defaultAgentForRoute 最小匹配);该焊死的已焊死(AgentPersona 字段形态/CopilotContext+key/HandoffEnvelope/StageTarget+聚合签名 4 稳定接口)。"
+        },
+        {
+          "criterion": "A6 最小跑通验证(≥2 人格 route 切换工具子集不同 + 一次 handoff 信封创建→接收方重读落表 + orchestrator 路由某项目某环节) + MCP 抽象就位不实装",
+          "result": "PASS",
+          "evidence": "orch:smoke 18/18 exit0 覆盖三项(≥2 人格切换工具子集不同+handoff 落表重读+环节路由)+live curl 补强(4 人格切换/match 真调 search_kols/strategy 无/handoff psql 独立确认/enter 指令路由)。MCP: types.ts:12 ToolSource='native'|'mcp' 抽象就位+tools/index.ts:4 注释未来从 MCP client 拉取本批不实装,全仓 F006 无 MCP client 调用。"
+        },
+        {
+          "criterion": "编排门+构建门(spec §6)",
+          "result": "PASS",
+          "evidence": "编排门(硬性): registry 7 人格+router 按 route 切人格(实测4可见)+收窄工具子集+一次 handoff 落 Handoff 表(psql 独立确认)+orchestrator 路由某项目某环节+焊死/EXTENSION POINT 注释抽查+MCP 就位未实装,全 ✓。构建门(删 tsbuildinfo+.next/cache 后): tsc --noEmit exit0/next lint exit0(No ESLint warnings or errors)/next build exit0(Compiled successfully 5.7s+11/11 static pages,/api/agent=ƒ Dynamic)。密钥门(顺带): F006 新增代码无硬编码密钥,gateway 走 env(F003 已详验)。"
+        }
+      ],
+      "notes": "总判定 PASS,6/6 acceptance 子条+编排门+构建门(spec §6)全绿,首轮 fix_rounds=0。§3.2 焊死/语义留扩展点纪律两向守住(该焊死的焊死、不该焊死的留扩展点,防 ADR-001 过度设计)。★关键实测: orch:smoke 18/18 exit0;live curl 4 人格经 /api/agent 切换(match 真调 search_kols 返真实 seed KOL/strategy stream 0 次 search_kols 证工具子集在 streamText 层真收窄);Evaluator 独立探针+psql 直连确认 createHandoff 真落 Handoff 表且 receiveHandoff 重读指针指 artifactRef 非(我植入的 FAKE)summary,§5.4 语义成立。非阻断观察(记录不打回): O1 工作树未提交 dep @ai-sdk/react@4.0.34+lock(非 F006 引入-191eeec 未含、无源码引用、属 F007 useChat 预备残留、非 Evaluator 引入,构建门在含此 dep 树上仍全绿,建议 Generator F007 提交时纳入或先 revert); O2 strategy 被授 get_kol_detail 与其 duty 关联偏弱但属 §3.2 EXTENSION POINT 允许的最小实现且不破坏工具子集不同验收,待 M1 校准; O3 架构稿 §5.1 用旧标签 brief,registry 正确采 acceptance 权威 strategy; O4 next.config standalone 致 next start 告警(CICD 批次非 F006)但路由实测正常服务 4 人格全200。被验提交 191eeec,改动全在 F006 scope(registry/persona-router/handoff/orchestrator/route.ts/context.ts/types.ts/orch:smoke)。验收未改任何产品代码(仅临时增删 scripts/test 探针已清理),真实 key 已 mask,已 kill 起的服务释放3000。仅验 F006(F007-F010 未实现属正常)。报告: docs/test-reports/AGENT-FOUNDATION-F006-verify-2026-07-19.md。验收人 Andy/evaluator-subagent"
     }
   ],
   "generator_handoff": null,

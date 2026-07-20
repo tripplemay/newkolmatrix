@@ -24,7 +24,7 @@
       "title": "deploy-prod 全栈化 + runbook 更新 + 本地 prod-stack 全链路验证",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "done",
       "acceptance": "deploy-prod.yml 加 migrate（+首次 seed）步骤，顺序 migrate→app up→健康检查，仍仅手动 workflow_dispatch；docs/dev/deploy.md 改写覆盖全栈首次 go-live 每一步（一次性人工设置清单 DNS/Secrets/ghcr public/server compose+env_file/nginx/cert + 日常部署 + 回滚），.auto-memory/environment.md 与之一致；本地 prod-stack 全链路验证：prod 镜像 + 全栈 compose（app+db+seed）起栈跑 hello-agent 闭环通（NL→search_kols→卡片流，或 f010:e2e 指向该栈），闭环无 error；全程只涉 newkolmatrix 资源，runbook 显式声明隔离旧 kolmatrix/其他 app",
       "description": "把 deploy-prod 与 runbook 全栈化并做本地 prod-stack 全链路验证，作为首次真实 go-live（人类闸门）前的最后就绪证明。部署触发本身不在本批。"
     }

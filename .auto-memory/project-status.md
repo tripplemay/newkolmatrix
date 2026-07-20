@@ -4,8 +4,9 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **AGENT-FOUNDATION（Phase 0）done ✅（2026-07-20）** — F001–F010 全绿，逐 feature 隔离验收 + 批次末全链路回归通过
-- signoff：`docs/test-reports/AGENT-FOUNDATION-signoff-Andy-evaluator-subagent.md`；下一批次待用户定（backlog.json 空）
+- **GO-LIVE done ✅（2026-07-20）** — F001-F003 全绿（全栈部署基建：pgvector Postgres 容器 + migrate/seed 装配 + deploy-prod 全栈化 + healthcheck 修）；隔离验收 3×PASS + 批次末回归全绿；signoff `GO-LIVE-signoff`
+- **AGENT-FOUNDATION（P0）done ✅** — F001-F010，signoff `AGENT-FOUNDATION-signoff`
+- **待办：用户手动首次 go-live**（6 项人类闸门：DNS/Secrets/两 ghcr 包 public/server .env/nginx/cert/触发 deploy-prod）；agent 不代执行部署
 
 ## AGENT-FOUNDATION 交付（Agent 驱动地基）
 - 四柱：工具层(唯一注册表+executeTool+internal/outbound 二分)·运行时(streamText loop, /api/agent)·对话面(useChat CopilotPanel)·generative canvas(工具名→组件)

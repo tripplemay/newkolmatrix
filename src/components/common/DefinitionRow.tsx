@@ -22,7 +22,7 @@ export default function DefinitionRow({
       <span
         className={
           tone === 'muted'
-            ? 'text-gray-500 dark:text-gray-400'
+            ? 'text-gray-600 dark:text-gray-400'
             : 'text-gray-700 dark:text-gray-200'
         }
       >

@@ -20,7 +20,7 @@ function badgeClasses(
   size: BadgeSize,
   shape: BadgeShape,
 ): string {
-  const font = size === 'xs' ? 'text-[10px] font-semibold' : 'text-xs font-bold';
+  const font = size === 'xs' ? 'text-mini font-semibold' : 'text-xs font-bold';
   const pad =
     size === 'xs'
       ? 'px-1.5 py-0.5'

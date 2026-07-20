@@ -70,7 +70,7 @@ export default function HandoffCard({
           <div className="text-xs text-gray-600 dark:text-gray-300">
             {summary ?? '（无摘要）'}
           </div>
-          <div className="mt-2 flex items-center gap-1 text-[11px] text-gray-500">
+          <div className="mt-2 flex items-center gap-1 text-micro text-gray-600">
             <MdBolt size={13} className="text-brand-500" />
             交接物：{artifactType ?? '—'}（{artifactRef ?? '—'}）
           </div>

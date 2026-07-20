@@ -16,7 +16,7 @@ export default function SectionLabel({
 }: SectionLabelProps) {
   return (
     <div
-      className={`flex items-center gap-1.5 font-semibold text-gray-500 ${
+      className={`flex items-center gap-1.5 font-semibold text-gray-600 ${
         size === 'sm' ? 'text-sm' : 'text-xs'
       }${className ? ` ${className}` : ''}`}
     >

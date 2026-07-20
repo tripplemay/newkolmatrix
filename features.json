@@ -42,7 +42,7 @@
       "title": "设计 token 层：微排版刻度命名化 + gray-600 统一",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "tailwind.config.js 定义命名字号刻度覆盖 10/11/13px 三档并替换 13 处 text-[Npx]（跨 9 文件）；11 处 text-gray-500→gray-600；commit message 明示 tailwind.config 首次有意偏离模板逐字节同及理由；horizon-tokens.md 同 commit 补命名刻度表；lint+tsc 绿。详见 spec §2 F005",
       "description": "消化 BL-FE-07/10。依据 FE-AUDIT F003 报告 §4.5/§4.6（判据：模板 <15px 0 次、gray-600:gray-500=408:7）。"
     },

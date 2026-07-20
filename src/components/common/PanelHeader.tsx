@@ -20,7 +20,7 @@ export default function PanelHeader({
         {title}
       </div>
       {subtitle != null && (
-        <div className="text-[11px] text-gray-400">{subtitle}</div>
+        <div className="text-micro text-gray-400">{subtitle}</div>
       )}
     </div>
   );

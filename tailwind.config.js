@@ -10,6 +10,14 @@ module.exports = {
   ],
   theme: {
     extend: {
+      // FE-REFACTOR F005：微排版命名刻度（BL-FE-07）。项目自建 UI 的 <15px 微字号统一经此表，
+      // 禁止再散落 text-[10px] 等 arbitrary 值（模板全域 <15px 出现 0 次，此为项目首次有意扩展底座）。
+      // 仅设 font-size（字符串形式），不绑 line-height——与被替换的 arbitrary 值像素等价。
+      fontSize: {
+        mini: '10px', // 徽标 xs / 分类 chip
+        micro: '11px', // 面板副标题 / 工具行 / 交接物行
+        compact: '13px', // 对话气泡正文
+      },
       width: {
         '1p': '1%',
         '2p': '2%',

@@ -57,7 +57,7 @@ function TodoRow({ projectId, project, stage, note }: (typeof TODOS)[number]) {
               {STAGE_LABEL[stage]} 环节 · {persona.name}
             </Badge>
           </div>
-          <div className="mt-0.5 truncate text-xs text-gray-500">{note}</div>
+          <div className="mt-0.5 truncate text-xs text-gray-600">{note}</div>
         </div>
         <MdChevronRight className="shrink-0 text-gray-300" size={20} />
       </SurfaceCard>

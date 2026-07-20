@@ -79,6 +79,18 @@ Tailwind `brand.*` 映射到 CSS 变量 `--color-*`，默认值在 `AppWrappers.
 
 写组件时用 `X dark:Y` 双写保证深色回归（如 `bg-white dark:bg-navy-800`）。
 
+## 7. 微排版命名刻度（FE-REFACTOR F005 新增，项目扩展）
+
+模板全域最小 arbitrary 字号为 `text-[15px]`（<15px 出现 0 次）；项目自建 UI 需要更小的微字号，统一经 `tailwind.config.js` 的 `fontSize` 命名刻度，**禁止散落 `text-[10px]` 等 arbitrary 值**：
+
+| Token | 值 | 用途 |
+|---|---|---|
+| `text-mini` | 10px | 徽标 xs（`common/Badge`）/ 分类 chip |
+| `text-micro` | 11px | 面板副标题（`common/PanelHeader`）/ 工具行 / 交接物行 |
+| `text-compact` | 13px | 对话气泡正文（`common/ChatBubble`） |
+
+仅设 font-size（不绑 line-height），与被替换的 arbitrary 值像素等价。这是 `tailwind.config.js` 首次有意偏离「与模板逐字节相同」（FE-AUDIT F001 正面项 → 有意扩展，理由记录于 FE-REFACTOR spec §2 F005）。
+
 ---
 
 _修订：改静态色/断点/阴影 → `tailwind.config.js`；改品牌运行时色阶 → `AppWrappers.tsx` + `Configurator.tsx`；改字体 → `index.css` + `Fonts.tsx`。_

@@ -46,7 +46,7 @@ function KolCard({ kol }: { kol: KolHit }) {
             </span>
             <MdVerified className="shrink-0 text-brand-500" size={14} />
           </div>
-          <div className="mt-0.5 truncate text-xs text-gray-500">
+          <div className="mt-0.5 truncate text-xs text-gray-600">
             {kol.platform ?? '—'} · {kol.country ?? '—'} ·{' '}
             {fmtFollowers(kol.followers)} 粉丝
           </div>
@@ -61,7 +61,7 @@ function KolCard({ kol }: { kol: KolHit }) {
           {kol.categories.slice(0, 4).map((c) => (
             <span
               key={c}
-              className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-white/5 dark:text-gray-300"
+              className="rounded-md bg-gray-100 px-1.5 py-0.5 text-mini font-medium text-gray-600 dark:bg-white/5 dark:text-gray-300"
             >
               {c}
             </span>
@@ -89,14 +89,14 @@ export default function KolResultCards({
 }) {
   if (!output.kols || output.kols.length === 0) {
     return (
-      <div className="text-xs text-gray-500">
+      <div className="text-xs text-gray-600">
         「{output.query}」没有找到相关 KOL。
       </div>
     );
   }
   return (
     <div className="flex flex-col gap-2">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+      <div className="text-micro font-semibold uppercase tracking-wide text-gray-400">
         {output.count} 位候选 · 「{output.query}」
       </div>
       {output.kols.map((k) => (

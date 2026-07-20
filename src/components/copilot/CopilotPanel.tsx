@@ -94,7 +94,7 @@ function MessageParts({
               ? `工具 ${toolName} 出错`
               : `调用工具 ${toolName}…`;
           return (
-            <div key={i} className="text-[11px] italic text-gray-400">
+            <div key={i} className="text-micro italic text-gray-400">
               {label}
             </div>
           );

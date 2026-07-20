@@ -24,7 +24,7 @@ export default function PageHeader({
         {title}
       </h1>
       {subtitle != null && (
-        <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
+        <p className="mt-1 text-sm text-gray-600">{subtitle}</p>
       )}
     </div>
   );

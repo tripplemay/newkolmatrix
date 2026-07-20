@@ -24,7 +24,7 @@
       "title": "HandoffCard 容器/呈现拆分（P0：恢复视觉回归保护）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "新增 common/HandoffCard 纯呈现组件（fromName/toName/summary/artifactType/artifactRef/defaultOpen?/collapsible?）；HandoffCollab 改容器（fetch→props，空态逻辑保留）；preview/agent-canvas 删 StaticHandoffCard 手抄体改 import 真实呈现组件+夹具 props；生产与预览共用同一呈现层，dark: 变体一致；lint+tsc 绿。详见 spec §2 F003",
       "description": "消化 BL-FE-02（P0）。依据 F004 报告 §2.2 专项复核：生产 HandoffCollab 视觉回归覆盖当前为零。"
     },

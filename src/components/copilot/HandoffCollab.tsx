@@ -2,11 +2,13 @@
 //
 // 以「A→B」呈现 F006 的 handoff：可展开看交接对 / 摘要 / 交接物（FR-9.5）。
 // 数据来自 GET /api/handoffs（落 F002 Handoff 表的真实交接）。
+// FE-REFACTOR F003：容器/呈现拆分——本组件只负责取数与列表编排，单卡呈现在 common/HandoffCard。
 
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MdGroups, MdExpandMore, MdBolt } from 'react-icons/md';
+import { MdGroups } from 'react-icons/md';
+import HandoffCard from 'components/common/HandoffCard';
 import SectionLabel from 'components/common/SectionLabel';
 import { personaBoundary } from 'lib/agent/registry';
 
@@ -22,42 +24,6 @@ interface HandoffRow {
 
 function agentName(id: string): string {
   return personaBoundary(id)?.name ?? id;
-}
-
-function HandoffItem({ h }: { h: HandoffRow }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white dark:border-white/10 dark:bg-navy-700">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
-      >
-        <span className="flex items-center gap-1.5 text-xs font-semibold text-navy-700 dark:text-white">
-          <span className="text-brand-600">{agentName(h.fromAgent)}</span>
-          <span className="text-gray-400">→</span>
-          <span className="text-brand-600">{agentName(h.toAgent)}</span>
-        </span>
-        <MdExpandMore
-          size={16}
-          className={`shrink-0 text-gray-400 transition ${
-            open ? 'rotate-180' : ''
-          }`}
-        />
-      </button>
-      {open && (
-        <div className="border-t border-gray-100 px-3 py-2 dark:border-white/5">
-          <div className="text-xs text-gray-600 dark:text-gray-300">
-            {h.summary ?? '（无摘要）'}
-          </div>
-          <div className="mt-2 flex items-center gap-1 text-[11px] text-gray-500">
-            <MdBolt size={13} className="text-brand-500" />
-            交接物：{h.artifactType ?? '—'}（{h.artifactRef ?? '—'}）
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 export default function HandoffCollab() {
@@ -88,7 +54,14 @@ export default function HandoffCollab() {
       </SectionLabel>
       <div className="flex flex-col gap-1.5">
         {handoffs.slice(0, 5).map((h) => (
-          <HandoffItem key={h.id} h={h} />
+          <HandoffCard
+            key={h.id}
+            fromName={agentName(h.fromAgent)}
+            toName={agentName(h.toAgent)}
+            summary={h.summary}
+            artifactType={h.artifactType}
+            artifactRef={h.artifactRef}
+          />
         ))}
       </div>
     </div>

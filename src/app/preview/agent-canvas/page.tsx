@@ -7,8 +7,9 @@
 
 'use client';
 
-import { MdGroups, MdBolt } from 'react-icons/md';
+import { MdGroups } from 'react-icons/md';
 import ChatBubble from 'components/common/ChatBubble';
+import HandoffCard from 'components/common/HandoffCard';
 import PanelHeader from 'components/common/PanelHeader';
 import SectionLabel from 'components/common/SectionLabel';
 import ExpertScope from 'components/copilot/ExpertScope';
@@ -16,6 +17,8 @@ import KolResultCards from 'components/copilot/canvas/KolResultCards';
 import { personaBoundary } from 'lib/agent/registry';
 import { CANVAS_FIXTURE, HANDOFF_FIXTURE } from './fixture';
 
+// FE-REFACTOR F003：删除手抄克隆体，改用生产同一呈现组件 common/HandoffCard + 夹具 props
+//（collapsible=false + defaultOpen 保持静态展开形态，像素确定）。
 function StaticHandoffCard() {
   const from =
     personaBoundary(HANDOFF_FIXTURE.fromAgent)?.name ??
@@ -28,23 +31,15 @@ function StaticHandoffCard() {
         <MdGroups size={15} className="text-brand-500" />
         协同交接 · 多 Agent 联动 · 点开看交接
       </SectionLabel>
-      <div className="rounded-xl border border-gray-200 bg-white">
-        <div className="flex w-full items-center justify-between gap-2 px-3 py-2">
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-navy-700">
-            <span className="text-brand-600">{from}</span>
-            <span className="text-gray-400">→</span>
-            <span className="text-brand-600">{to}</span>
-          </span>
-        </div>
-        <div className="border-t border-gray-100 px-3 py-2">
-          <div className="text-xs text-gray-600">{HANDOFF_FIXTURE.summary}</div>
-          <div className="mt-2 flex items-center gap-1 text-[11px] text-gray-500">
-            <MdBolt size={13} className="text-brand-500" />
-            交接物：{HANDOFF_FIXTURE.artifactType}（
-            {HANDOFF_FIXTURE.artifactRef}）
-          </div>
-        </div>
-      </div>
+      <HandoffCard
+        fromName={from}
+        toName={to}
+        summary={HANDOFF_FIXTURE.summary}
+        artifactType={HANDOFF_FIXTURE.artifactType}
+        artifactRef={HANDOFF_FIXTURE.artifactRef}
+        collapsible={false}
+        defaultOpen
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@
 //   source: native（本批实装）| mcp（已规划扩展点：注册表结构支持 MCP 桥接，本批不实装 MCP client）
 
 import type { z } from 'zod';
+import type { AgentId } from '../registry';
 
 export type ToolClass = 'internal' | 'outbound';
 export type ToolSource = 'native' | 'mcp';
@@ -14,10 +15,16 @@ export type ToolSource = 'native' | 'mcp';
  * 工具执行上下文——传输无关（D-INTEROP）。
  * 由调用方（HTTP route / 未来 MCP server / agent API 适配层）构造后传给 executeTool，
  * 工具本身不假设调用方是内部 useChat//api/agent。
- * EXTENSION POINT：actor / requestId / persona scope / 确认令牌 随 F006/F009 充实。
+ * EXTENSION POINT：actor / requestId / 确认令牌 随 F009 充实。
  */
 export interface ToolContext {
   tenantId: string;
+  /** 当前人格身份（F006 persona router 注入；架构稿 §5.2 ToolContext.agentId）。 */
+  agentId: AgentId;
+  /** 当前项目（单角色单租户下可空；架构稿 §4.3）。 */
+  projectId?: string | null;
+  /** 运行环境（架构稿 §4.3）。 */
+  env?: 'default' | 'sandbox' | 'production';
 }
 
 export interface ToolDefinition<TInput = unknown, TOutput = unknown> {

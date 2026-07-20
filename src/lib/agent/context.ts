@@ -5,6 +5,7 @@
 // 未来 MCP server / agent API 适配层同样调它（D-INTEROP：executeTool 不假设调用方）。
 
 import { prisma } from 'lib/db/prisma';
+import { DEFAULT_AGENT_ID, type AgentId } from './registry';
 import type { ToolContext } from './tools/types';
 
 export const DEV_TENANT_SLUG = 'dev';
@@ -14,7 +15,9 @@ let _devTenantId: string | null = null;
 /** 解析并缓存 dev tenant id（F004 已 seed slug='dev'）。 */
 export async function getDevTenantId(): Promise<string> {
   if (_devTenantId) return _devTenantId;
-  const tenant = await prisma.tenant.findUnique({ where: { slug: DEV_TENANT_SLUG } });
+  const tenant = await prisma.tenant.findUnique({
+    where: { slug: DEV_TENANT_SLUG },
+  });
   if (!tenant) {
     throw new Error(
       `[agent] 未找到 dev tenant（slug=${DEV_TENANT_SLUG}）。请先跑 npm run seed:kol 灌数据（F004）。`,
@@ -25,7 +28,20 @@ export async function getDevTenantId(): Promise<string> {
 }
 
 /** 构造工具执行上下文。EXTENSION POINT：M5 起从认证会话解析真实 tenant/actor。 */
-export async function buildToolContext(): Promise<ToolContext> {
+export interface BuildContextOpts {
+  agentId?: AgentId;
+  projectId?: string | null;
+  env?: 'default' | 'sandbox' | 'production';
+}
+
+export async function buildToolContext(
+  opts: BuildContextOpts = {},
+): Promise<ToolContext> {
   const tenantId = await getDevTenantId();
-  return { tenantId };
+  return {
+    tenantId,
+    agentId: opts.agentId ?? DEFAULT_AGENT_ID,
+    projectId: opts.projectId ?? null,
+    env: opts.env ?? 'default',
+  };
 }

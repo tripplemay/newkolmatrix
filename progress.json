@@ -1,12 +1,12 @@
 {
-  "status": "done",
-  "user_goal": "在 ARCH-LOCK+M0.5 之前插入 FE-AUDIT 前端地基全面审计批次（Evaluator-only）：对照 Horizon UI Pro 3.0.0 模板原件审计当前上线版本——模板还原严格性、模板已提供但手写重复实现、公共组件抽取完备性、设计系统 tokens 一致性；产出分级（P0/P1/P2）整改 backlog 候选，为 M0.5 六页工作台开发打好地基。审计不修改产品代码。",
-  "total_features": 4,
-  "completed_features": 4,
+  "status": "building",
+  "user_goal": "FE-REFACTOR 前端地基整改：消化 FE-AUDIT 的 11 条 backlog（P0×2+P1×7+P2×2，留 BL-FE-12）——公共组件抽取（Badge/ChatBubble/DefinitionRow/PageHeader/SectionLabel/PanelHeader/HandoffCard/SurfaceCard）、卡片表面语言统一（hover:shadow-xl 拍板）、术语统一（职责/边界 拍板）、token 层微排版刻度命名化+gray-600、admin/ port 约定落地（逐个 port 保留模板结构 拍板）+dead 登记、视觉基线单次重生+CI 盲区 route mock。在 ARCH-LOCK+M0.5 前把地基整净。",
+  "total_features": 7,
+  "completed_features": 0,
   "fix_rounds": 0,
-  "current_sprint": "FE-AUDIT",
+  "current_sprint": "FE-REFACTOR",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-20T18:45",
+  "last_updated": "2026-07-20T19:10",
   "reference_docs": [
     "docs/product/KOLMatrix-PRD.md",
     "docs/audits/KOLMatrix-integrated-architecture-design-2026-07-17.md",
@@ -18,47 +18,19 @@
     "framework/patterns/web-runtime-patterns.md",
     "docs/specs/FE-AUDIT-spec.md",
     "design-draft/horizon-tokens.md",
-    "docs/test-reports/FE-AUDIT-report-Andy-evaluator-subagent.md"
+    "docs/test-reports/FE-AUDIT-report-Andy-evaluator-subagent.md",
+    "docs/specs/FE-REFACTOR-spec.md"
   ],
   "docs": {
-    "spec": "specs/FE-AUDIT-spec.md",
+    "spec": "specs/FE-REFACTOR-spec.md",
     "test_cases": null,
-    "signoff": "test-reports/FE-AUDIT-signoff-Andy-evaluator-subagent.md",
-    "framework_reviewed": true
+    "signoff": null,
+    "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": [
-    {
-      "feature": "F001",
-      "verdict": "PASS",
-      "evaluator": "Andy/evaluator-subagent",
-      "round": "verifying",
-      "notes": "6/6 clause 达成。模板组件×项目使用状态矩阵全覆盖：模板 215 tsx / 项目 99 tsx，used-as-is 10 / forked 2 / dead-in-repo 78 / never-ported 124 / removed 1 / self-built 9，双向对账闭合（215/99）。方法学：从 src/app/** 出发的 import 图传递可达性分析（在用 12 个，朴素 grep 会误判 19，7 个为被死代码引用的伪存活）。finding 5 条：P0×1（F001-01 模板 admin/ 124 组件 port/自写策略未决，阻塞 M0.5，决策门槛非既有缺陷）/ P1×3（78 dead 未登记、Card 已提供却 7 处手写卡片表面、Button 采纳率 1/4）/ P2×1（预览页手工复刻 HandoffCollab）。正面项：tailwind.config.js 与模板逐字节相同；navbar/sidebar 两处 fork 偏离全部有记录且合理。独立复核了 HEAD==线上前提。F004 抽查 5 项全证实。脚本：scripts/test/fe-audit-component-matrix.mjs。报告：docs/test-reports/FE-AUDIT-F001-Andy-evaluator-subagent.md"
-    },
-    {
-      "feature": "F002",
-      "verdict": "PASS",
-      "evaluator": "Andy/evaluator-subagent",
-      "round": "verifying",
-      "notes": "5/5 clause 达成。27 文件入扫、10 组结构性 class 指纹，识别 8 条 ≥2 次重复模式 / 30 处；建议抽取 8 个公共组件（R1-R8，含 TS props 签名与落位）；按 复用次数×改造成本 排序含 Top3。关键范围事实：15 页中仅 4 页有真实 UI（约 760 行自建面），重复绝对量小但 M0.5 前抽取成本极低、之后按页数线性放大。阈值纪律：=1 次不计 finding 仅列前瞻。健康面：Card 容器与 Button 原语复用正确，缺口集中在展示型小组件层。F004 复核：D3/D1 等抽查属实；§7.1『未出现手写卡片外框』一处非 acceptance 分句被 F004 推翻（与 F001-03/F003 §4.4 冲突），债已由 BL-FE-05 记账无遗漏；D1 视觉盲区结论经 F004 双路径追查维持并加强。脚本：scripts/test/fe-audit-dup-scan.sh。报告：docs/test-reports/FE-AUDIT-F002-Andy-evaluator-subagent.md"
-    },
-    {
-      "feature": "F003",
-      "verdict": "PASS",
-      "evaluator": "Andy/evaluator-subagent",
-      "round": "verifying",
-      "notes": "8/8 clause 达成。先按模板原件逐字节分类（identical 115 不计债 / forked 9 仅审新增行 / new 50 全审），再扫描：hardcoded hex 0 处、字体偏离 0 处、dark: 完整性无缺口（双方法交叉验证 + 负控证明检查器有效）、shadow/radius 偏离 10 处（radius 合规，集中在 shadow）。34 findings（P0 0 / P1 23 / P2 11）全为一致性漂移非 token 体系破损，核心=卡片视觉语言分叉。方法学亮点：模板词表校准撤回约 60+ 处会虚报的 finding（rounded-2xl 实为模板词表 44 次、模板 text-gray-600 本就不配 dark:）。结论：设计系统地基健康，无阻塞 M0.5 项。F004 复核：34 findings 精确复现、撤回判据逐条属实。脚本：scripts/test/fe-audit-token-scan.mjs（可复跑，含 --all --json）。报告：docs/test-reports/FE-AUDIT-F003-Andy-evaluator-subagent.md"
-    },
-    {
-      "feature": "F004",
-      "verdict": "PASS",
-      "evaluator": "Andy/evaluator-subagent",
-      "round": "verifying",
-      "notes": "4/4 clause 达成。抽查复核 15 项（每报告 ≥2 条，回原件重跑非复述）：F001 5 项全证实、F002 4 证实/1 修正/1 分句推翻、F003 复现精确。新增 1 条三份报告均未覆盖的发现：CI visual job 无 DB 致 HandoffCollab 恒渲染 null，en-today.png 基线静默编码空区域（BL-FE-11）。跨报告去重 5 组（17 条原始 finding → 12 条 backlog）。统一分级并声明与 F002 的口径差异（R2/R3 按 spec 字面定义 P0→P1，保留其排期意图，防 P0 通胀）。产出 backlog JSON 草案 12 条（P0 2 / P1 7 / P2 3，合计 4.25-5.25 人日），3 条决策项（BL-FE-01 port 策略 / BL-FE-05 hover 语言 / BL-FE-09 术语）标注需 Planner/用户拍板不代决。整批判定 PASS。报告：docs/test-reports/FE-AUDIT-report-Andy-evaluator-subagent.md；signoff：docs/test-reports/FE-AUDIT-signoff-Andy-evaluator-subagent.md"
-    }
-  ],
+  "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "FE-AUDIT 批次全程完成(2026-07-20 单会话)：planning(plan mode spec lock)→verifying(F001-F003 三路并行隔离 evaluator subagent + F004 串行汇总对抗复核)→done(整批 PASS 4/4)。核心结论:地基健康(hex 0/字体偏离 0/dark: 无缺口/tailwind.config 与模板逐字节同),债轻且集中展示型小组件层;真风险=模板 admin/ 124 组件消费策略未决(BL-FE-01,阻塞 M0.5)。12 条整改已并入 backlog.json(P0 2/P1 7/P2 3,约 4.25-5.25 人日),3 条决策项待用户拍板(BL-FE-01 port 策略/BL-FE-05 hover/BL-FE-09 术语)。下一批次待定:FE-REFACTOR(P0+P1 整改)先行 vs 并入 ARCH-LOCK+M0.5;用户本地架构文档(f5/kimi 两版)定稿仍留 ARCH-LOCK 处理。GO-LIVE 收官时 v1.0.5 已沉淀;本批新提案 1 条(审计类批次方法学三件套)已入 proposed-learnings 待确认。harness-fit 9 条继续挂起。"
+    "Andy": "FE-AUDIT done(4/4 PASS,12 条 backlog,commit 5d25945)后用户四项拍板:FE-REFACTOR 先行/admin/ 逐个 port 保留模板结构/hover=shadow-xl/术语=职责·边界。FE-REFACTOR planning 完成(plan mode 批准=spec lock):7 features 全 generator,消化 BL-FE-01..11(留 BL-FE-12 在池)。关键约束:D1 基线只在 F007 单次重生(F001-F005 期间 test:visual 预期红,lint/tsc 必须绿);D3 building 串行(copilot 域文件重叠);F007 必须最后。FE-AUDIT 的 evaluator_feedback 全文在 git history(5d25945)与 docs/test-reports/FE-AUDIT-*.md。下一步:building F001→F007 串行。done 后回 ARCH-LOCK+M0.5(架构文档 f5/kimi 两版定稿留该批,用户工作区未提交文件不碰)。审计方法学提案在 proposed-learnings 待确认;harness-fit 9 条挂起。"
   }
 }

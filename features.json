@@ -1,41 +1,68 @@
 {
-  "sprint": "FE-AUDIT",
+  "sprint": "FE-REFACTOR",
   "features": [
     {
       "id": "F001",
-      "title": "模板组件对照审计（手写重复实现清单）",
+      "title": "common 抽取 A：Badge / ChatBubble / DefinitionRow + 术语统一「职责/边界」",
       "priority": "high",
-      "executor": "evaluator",
-      "status": "done",
-      "acceptance": "产出模板组件×项目使用状态矩阵（used-as-is / forked-modified / re-implemented / unused，覆盖模板 src/components/ 全目录）；每个「模板已提供但项目手写重复实现」项给出 文件:行 + 模板对应组件路径 + 替换建议与风险；forked 组件附相对模板原件的偏离说明（diff 摘要）；所有结论附可复核证据（diff/grep）；白名单（spec §4 D6）项不计 finding；报告落 docs/test-reports/FE-AUDIT-F001-Andy-evaluator-subagent.md",
-      "description": "对照 Horizon UI Pro 3.0.0 模板原件（~/project/db4rDjuaSCqaEFW9XcFo_horizon-tailwind-react-nextjs-pro-3.0.0/horizon-tailwind-react-nextjs-pro-main/，只读）审计项目 src/components/ 与页面 inline 实现。重点区：模板 components/admin/（页面级组件主仓，项目无对应目录）。"
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "新增 common/Badge（variant soft|solid / size xs|sm / shape rounded|pill）收敛 6 处含 campaigns:21 漂移修复；common/ChatBubble（role user|agent, muted?）收敛 6 处（CopilotPanel:77/78/148/161 + preview:62/67）；common/DefinitionRow（label, children, tone?）收敛 4 处并同 commit 统一术语文案为「职责」「边界」；lint+tsc 绿；改动处视觉等价（基线重生留 F007）。详见 spec §2 F001",
+      "description": "消化 BL-FE-03/04/09。依据 FE-AUDIT F002 报告 §5 R2/R3/R5。"
     },
     {
       "id": "F002",
-      "title": "公共组件抽取完备性审计",
+      "title": "common 抽取 B：PageHeader / SectionLabel / PanelHeader + Button icon variant",
       "priority": "high",
-      "executor": "evaluator",
-      "status": "done",
-      "acceptance": "扫描 15 个页面 + 自建组件（copilot/project/canvas 等）中出现 ≥2 次的重复 UI 模式（card 头、stat 卡、表格、tab、badge、空态、loading、分页等），逐条列出现位置 文件:行；产出建议抽取的公共组件清单（命名 + 落位 src/components/common/ + props 签名建议）；按 复用次数×改造成本 排优先级；报告落 docs/test-reports/FE-AUDIT-F002-Andy-evaluator-subagent.md",
-      "description": "现状 src/components/common/ 仅 Button + ComingSoon 两个抽取组件，疑似大量重复 UI 模式未抽取。为 M0.5 六页工作台前打好复用地基。"
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "新增 common/PageHeader（align?, actions?）收敛 4 处；common/SectionLabel 收敛 3 处；common/PanelHeader 收敛 2 处；common/Button 补圆形纯图标 variant 并收敛 CopilotPanel:181 发送按钮；不改 HandoffCollab:30 / ProjectDetail:67（语义不同控件，豁免）；lint+tsc 绿。详见 spec §2 F002",
+      "description": "消化 BL-FE-06。依据 FE-AUDIT F002 报告 §5 R4/R6/R8 + F001-04。"
     },
     {
       "id": "F003",
-      "title": "设计系统一致性审计（tokens/样式偏离）",
+      "title": "HandoffCard 容器/呈现拆分（P0：恢复视觉回归保护）",
       "priority": "high",
-      "executor": "evaluator",
-      "status": "done",
-      "acceptance": "对照 design-draft/horizon-tokens.md + tailwind.config.js + src/app/AppWrappers.tsx：扫 hardcoded hex/非 token 色、字体偏离（DM Sans/Poppins 之外）、shadow/radius 偏离、dark: 类完整性；逐项偏离给 文件:行 + 应使用的 token；扫描方法可复跑（脚本落 scripts/test/，报告附使用说明）；报告落 docs/test-reports/FE-AUDIT-F003-Andy-evaluator-subagent.md",
-      "description": "设计系统 = Tailwind 色板 + AppWrappers.tsx 运行时 CSS 变量色阶（非 Chakra theme）。品牌主色 brand-500 #422AFB。默认浅色为既定决策（白名单）。"
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "新增 common/HandoffCard 纯呈现组件（fromName/toName/summary/artifactType/artifactRef/defaultOpen?/collapsible?）；HandoffCollab 改容器（fetch→props，空态逻辑保留）；preview/agent-canvas 删 StaticHandoffCard 手抄体改 import 真实呈现组件+夹具 props；生产与预览共用同一呈现层，dark: 变体一致；lint+tsc 绿。详见 spec §2 F003",
+      "description": "消化 BL-FE-02（P0）。依据 F004 报告 §2.2 专项复核：生产 HandoffCollab 视觉回归覆盖当前为零。"
     },
     {
       "id": "F004",
-      "title": "汇总报告 + 整改 backlog 候选",
+      "title": "卡片表面语言统一（SurfaceCard + hover:shadow-xl）",
       "priority": "high",
-      "executor": "evaluator",
-      "status": "done",
-      "acceptance": "汇总 F001-F003 并对关键 finding 抽查复核（防并行误报）；P0（阻塞后续开发）/P1（累积技术债）/P2（锦上添花）分级；产出可直接并入 backlog.json 的整改条目 JSON 草案（含工时估算）；报告落 docs/test-reports/FE-AUDIT-report-Andy-evaluator-subagent.md；依赖 F001-F003 报告，串行执行",
-      "description": "三路审计的汇总与对抗复核层。整改候选由 Planner 在 done 阶段并入 backlog.json（evaluator 不写状态机 JSON），作为后续 FE-REFACTOR 批次输入。"
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "新增 common/SurfaceCard 轻量表面；收敛 5 处自写卡片（today:25/KolResultCards:38/preview:20/HandoffCollab:83/ExpertScope:14）；豁免 HandoffCollab:29 与 preview:25（手风琴内层，记录在案）；可点卡片 hover 统一 hover:shadow-xl；清除 shadow-sm/md 10 处（含 Button.tsx:27×2）；lint+tsc 绿。详见 spec §2 F004",
+      "description": "消化 BL-FE-05（F001-03+F003 §4.4+F002 R7 合并条目）。hover=shadow-xl 为用户拍板。"
+    },
+    {
+      "id": "F005",
+      "title": "设计 token 层：微排版刻度命名化 + gray-600 统一",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "tailwind.config.js 定义命名字号刻度覆盖 10/11/13px 三档并替换 13 处 text-[Npx]（跨 9 文件）；11 处 text-gray-500→gray-600；commit message 明示 tailwind.config 首次有意偏离模板逐字节同及理由；horizon-tokens.md 同 commit 补命名刻度表；lint+tsc 绿。详见 spec §2 F005",
+      "description": "消化 BL-FE-07/10。依据 FE-AUDIT F003 报告 §4.5/§4.6（判据：模板 <15px 0 次、gray-600:gray-500=408:7）。"
+    },
+    {
+      "id": "F006",
+      "title": "admin/ port 约定文档 + dead 组件登记表（纯文档）",
+      "priority": "medium",
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "新建 docs/dev/template-port-guide.md（逐个 port 保留模板结构的约定+适配检查清单+用户拍板记录）与 docs/dev/template-inventory.md（65 dead 组件四分类登记：RTL 13/认证储备 6/M0.5 候选 ~25/demo 专用 ~34 附处置建议）；本批不删任何组件；不改产品代码。详见 spec §2 F006",
+      "description": "消化 BL-FE-01（决策落地）+ BL-FE-08。依据 FE-AUDIT F001 报告 §6。"
+    },
+    {
+      "id": "F007",
+      "title": "视觉基线单次重生 + CI 视觉盲区修复（必须最后）",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "tests/visual 给 /api/handoffs 加 route mock 固定夹具（本地与 CI 一致，HandoffCollab 填充态入基线）；F001-F005 全合入后单次重生全部基线 PNG（linux 经 CI）一个 commit；npm run test:visual 本地全绿 + CI visual job 绿；基线 diff 逐张对账仅含拍板改动。详见 spec §2 F007",
+      "description": "消化 BL-FE-11。决策：route mock 而非 seeded DB（确定性/零种子维护）。串行约束：必须在 F001-F005 全部合入后执行。"
     }
   ]
 }

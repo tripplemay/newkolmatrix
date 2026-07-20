@@ -386,6 +386,48 @@
         }
       ],
       "notes": "总判定 PASS,9/9 acceptance 子条(C1-C8 功能+构建门)全绿,首轮 fix_rounds=0。IA 门(spec §6)成立: 侧栏 6 项(裁决落实,非 spec §D21 的 4 项)+五环节在项目空间内部(D22,页内 tab 非路由)+stagePanel 唯一渲染入口+无角色切换器/权限守卫+无死链(含修 /admin/dashboards 404)。★三套证据一致: 独立 Evaluator Playwright(自写,独立选择器,不复用 Generator 脚本)16/16 PASS + Generator f008:browser 12/12 + f007:browser 10/10(F007 无回归) + orch:smoke 全绿。★关键独立取证: 侧栏用精确 href 锚点取样(非全 body 文本);404 用可见文本判定(避 RSC payload 假阳性);专家头用 aside div.border-l-4 独立选择器隔离;五环节 tab 切换验 pathname 不变仅 ?stage= 变(证页内 tab 非路由);StagePanel grep 唯一 import 证唯一渲染入口。非阻断观察(记录不打回): O1『今天』页实装待办雷达(核心 acceptance 达成)未含 PRD §8.1/J1 完整驾驶舱(4-KPI strip+Agent今日完成 feed),StagePanel/demo-projects 静态占位(领域→M1-M4),与 spec §7 下游分期+acceptance『真实占位页』一致非简化违规; O2 ComingSoon『返回 Dashboard』按钮指向 /admin/dashboards/default(现重定向到 today)落点正确但多一跳+标签略陈旧,建议后续改指 /admin/today; O3 redirect 页 next dev 下 HTTP 返 200(RSC/客户端跳转形态)浏览器最终落点正确无 404,prod build 下为静态; O4 next.config output:standalone(CICD 批非 F008)致 next start 告警,本验收按要求用 next dev 路由全正常。被验提交 dd85b6b,改动全在 F008 scope(routes.tsx/admin 各页/components/project/**/stage-routing.ts/CopilotPanel/orchestrator re-export/f008-f007 browser scripts)。验收未改任何产品代码(仅临时增删 scratchpad 探针 indep-f008.mjs 已删),真实 key 已 mask,已 kill dev 释放3000+关 Playwright。仅验 F008(F009/F010 未实现属正常)。报告: docs/test-reports/AGENT-FOUNDATION-F008-verify-2026-07-20.md。验收人 Andy/evaluator-subagent"
+    },
+    {
+      "feature": "F009",
+      "verdict": "PASS",
+      "clauses": [
+        {
+          "criterion": "1 outbound 服务端强制门控（唯一执行入口检查 class；无令牌→不执行副作用+pending+harm；模型 loop 永远拿不到令牌无法自我放行）",
+          "result": "PASS",
+          "evidence": "唯一入口 executeTool(execute.ts:16)；outbound 门控 execute.ts:36 if(tool.class==='outbound' && !ctx.confirmationToken)→返回 pending 信封不走 line47 tool.execute 副作用不发生。模型路径 route.ts:84 buildToolContext(context.ts:37-47 从不设 confirmationToken)→to-ai-sdk-tools.ts:25 executeTool(ctx 无 token)→pending。令牌仅 confirmPendingAction(gate.ts:127 randomBytes32)签发，只由 /api/gate/confirm(人)触达。pending 信封(harm.ts:38)只含 status/pendingActionId/toolName/harm 无 token 字段。gate:smoke G1(exit0)+独立探针 P2 实证 pending 阶段 DB confirmationTokenHash==NULL、信封/harm 无 token。门控在 executeTool 与 agentId 无关(F006 全人格一视同仁)。观察(非阻断)：403 以 in-band pending 信封(HTTP200 SSE)实现非 HTTP403 状态码，核心保证完全达成"
+        },
+        {
+          "criterion": "2 harm 单一 zod schema 如实披露(动作/对象/金额或数量/不可逆/证据/过期+批量列全名单不折叠+红标)",
+          "result": "PASS",
+          "evidence": "单一 harmSchema(harm.ts:11-33) 字段全覆盖: action/summary/targets[]/amount+currency/quantity/scope/irreversible/evidence/expiresAt/label(z.literal 对外·不可撤销)。send-outreach.ts:27 targets=input.recipients 全名单。★独立探针 P1 以 120 位收件人实测: harm.targets.length===120、首尾如实、Set.size===120 无省略占位、quantity===120、irreversible===true、红标强制、evidence 非空、expiresAt 由 gate 以 ~15min TTL 覆盖。红标强制 gate.ts:67-71 label=HARM_LABEL 覆盖后经 harmSchema 二次 parse 绕不过。gate:smoke G2 另验 3 位全名单。观察(非阻断,合批次范围): 本批仅 send_outreach 一个 outbound 工具，报价/放款(金额/授权范围/收款方)由 harmSchema amount/currency/scope 字段覆盖但未接工具，M3 补"
+        },
+        {
+          "criterion": "3 无阈值分级 D28($100 与 $10000 走完全相同确认)",
+          "result": "PASS",
+          "evidence": "grep -nE amount|threshold|>[0-9] 于 execute.ts+gate.ts=NONE，门控分支只读 class 与 confirmationToken 与金额无关，结构上无阈值旁路。gate:smoke G4: 50 位批量与 3 位走完全相同 pending 流程。$100 vs $10000 因无金额分支必然同流程"
+        },
+        {
+          "criterion": "4 internal 动作不弹确认框 D27(反假闸门)",
+          "result": "PASS",
+          "evidence": "executeTool 只门控 outbound；internal(search_kols/get_kol_detail)直落 tool.execute。gate:smoke G3: search_kols 非 pending。独立探针 P6: internal 执行前后 PendingAction.count 零新增"
+        },
+        {
+          "criterion": "5 令牌只存 hash+短 TTL+单次+绑 payloadHash；确认与拒绝均追加 OperationLog",
+          "result": "PASS",
+          "evidence": "只存 hash: token=randomBytes(32).hex(gate.ts:127)→落库 confirmationTokenHash=sha256(token)(:128,:140)无明文(G5 正则 ^[a-f0-9]{64}$；P2 pending 阶段 NULL)。短 TTL: expiresAt=now+15min(TOKEN_TTL_MS :25,:65)+confirm 校验过期(:113)，P1 实测 harm.expiresAt ~15min 未来。单次: status pending→executed(:111 校验+:140)，G5 重复确认被拒。绑 payloadHash: payloadHashOf sha256(:43-51)+confirm 对重读 inputJson 二次校验(:120-124)，stableStringify(:28-40)递归排序 key 抗 JSONB 重排——独立探针 P3(key 乱序同 hash/内容变 hash 变)+P4(篡改 DB inputJson→confirm 抛 payloadHash 不匹配且副作用未执行)+P5(未篡改经 JSONB 往返 confirm 成功)。确认/拒绝留痕: confirm→irrev(:142)/reject→block(:174)/拦截→gate(:85)"
+        },
+        {
+          "criterion": "6 不可逆执行后写 OperationLog kind:irrev(闸门确认与留痕同事务，可按类型筛)",
+          "result": "PASS",
+          "evidence": "confirmPendingAction prisma.$transaction([update status=executed, operationLog.create kind:irrev])(gate.ts:137-151)原子同事务。gate:smoke G5: kind:irrev 计数===1 可按 kind 筛(schema @@index([kind]))。观察(非阻断): tool.execute 副作用在事务前执行(:131)故 mock 副作用不与 executed+irrev 同事务，acceptance 只要求确认(executed)与留痕(irrev)同事务已满足，真实幂等投递分期 M3"
+        },
+        {
+          "criterion": "7 变异测试 D20 硬性(退回拦截原状→G1 无副作用断言必变红；验行为非源码关键字)",
+          "result": "PASS",
+          "evidence": "gate-smoke.ts:93-102 变异=直调 tool.execute 绕过 executeTool 门控，等价于删 execute.ts:36-45 后落 line47 tool.execute(即拦截退回原状允许 Agent 直接执行 outbound 的等价物)。变异使 SENT 标记 OperationLog 发生(afterMut>beforeMut)；G1 断言键为 countSent===before，变异恰移动 G1 所校验的量→G1 必红，证 G1 验可观测副作用(SENT 留痕)非源码关键字。Evaluator 独立判断: 有效变异非走过场——变异触碰的正是 G1 观测量，若 G1 改源码断言则变异无法触发。观察(非阻断): D20 以等价论证呈现(变异翻转 G1 所测量)而非程序化切断门控重跑 G1 字面断言，论证成立可后续加强为 toggle-and-rerun"
+        }
+      ],
+      "notes": "总判定 PASS，7/7 acceptance 子条全 PASS，首轮 fix_rounds=0。★独立取证(不采信实现叙述): npm run gate:smoke exit0(18 断言 G1-G5+拒绝+D20 变异)；自写 scripts/test/_gate-indep-probe-tmp.ts(验后已删)exit0(19 检查: 120 位 harm 不折叠+payloadHash 抗 JSONB 重排 P3+防篡改 P4+JSONB 往返 confirm 成功 P5+pending 阶段 DB 令牌 NULL P2+internal 不落 PendingAction P6)；npx tsc --noEmit TSC_EXIT=0；DB psql 实证 PendingAction.inputJson jsonb 迁移已落(20260720000000)。★服务端强制门控在唯一执行入口 executeTool 落地(execute.ts:36)、模型 loop 结构上拿不到令牌(context.ts buildToolContext 从不设 confirmationToken + pending 信封无 token 字段)、harm 单一 zod 如实披露不折叠(120 位实测)、无阈值(grep 门控分支零金额条件)、internal 不加闸门、令牌四安全属性齐全(hash/TTL/单次/绑 payloadHash)、确认与 irrev 留痕同事务($transaction)、D20 变异有效——均以实测+源码行号+DB 事实独立验证。★CI: F009 push(fc6c5f6)Lint/Typecheck/Build 全 success 唯 Visual regression failure(根因 F008 IA 重构致驾驶舱基线漂移，F009 无 UI 面)，经 baseline 重生后 HEAD=bbe21c3 workflow_dispatch(run 29746679000)四 job 全 success；visual baseline 属 F010 acceptance 非 F009 判据。非阻断观察(记录不打回): O1 403 以 in-band pending 信封(HTTP200 SSE)实现非 HTTP403 状态码(gate/confirm|reject 错误路径用 409)，核心保证完全达成，403/pending 为斜杠择一接入模型 loop 的正是 pending 形态; O2 本批仅 send_outreach 一个 outbound 工具(合批次范围: 本批无真实 outbound 工具，F009 造至少一个)，报价/放款由 harmSchema amount/currency/scope 字段覆盖但未接工具 M3 补; O3 副作用 tool.execute 在 executed+irrev 事务之前执行故 mock 副作用不与状态更新同事务，acceptance 要求的确认与留痕同事务已满足，真实幂等投递 M3; O4 D20 以等价论证呈现，成立且非空洞，可后续强化为 toggle-and-rerun。被验提交 fc6c5f6(改动全在 F009 scope: execute.ts/gate/gate.ts/gate/harm.ts/tools/send-outreach.ts/tools/types.ts/api/gate/*/schema.prisma inputJson/gate-smoke.ts/registry.ts+tools/index.ts 装配)。验收未改任何产品代码(仅临时增删 scripts/test/_gate-indep-probe-tmp.ts 探针已删)，真实 key 未泄露。仅验 F009(F010 未实现属正常)。报告: docs/test-reports/AGENT-FOUNDATION-F009-verify-Andy-evaluator-subagent.md。验收人 Andy/evaluator-subagent"
     }
   ],
   "generator_handoff": null,

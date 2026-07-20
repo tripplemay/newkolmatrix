@@ -6,11 +6,13 @@
 import { getTool, registerTool } from './registry';
 import { searchKolsTool } from './search-kols';
 import { getKolDetailTool } from './get-kol-detail';
+import { sendOutreachTool } from './send-outreach';
 import type { ToolDefinition } from './types';
 
 const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
   searchKolsTool as unknown as ToolDefinition<never, unknown>,
   getKolDetailTool as unknown as ToolDefinition<never, unknown>,
+  sendOutreachTool as unknown as ToolDefinition<never, unknown>, // outbound（F009 闸门）
 ];
 
 let registered = false;

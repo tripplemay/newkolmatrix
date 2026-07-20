@@ -7,6 +7,7 @@
 
 import type { z } from 'zod';
 import type { AgentId } from '../registry';
+import type { Harm } from '../gate/harm';
 
 export type ToolClass = 'internal' | 'outbound';
 export type ToolSource = 'native' | 'mcp';
@@ -15,7 +16,7 @@ export type ToolSource = 'native' | 'mcp';
  * 工具执行上下文——传输无关（D-INTEROP）。
  * 由调用方（HTTP route / 未来 MCP server / agent API 适配层）构造后传给 executeTool，
  * 工具本身不假设调用方是内部 useChat//api/agent。
- * EXTENSION POINT：actor / requestId / 确认令牌 随 F009 充实。
+ * EXTENSION POINT：actor / requestId 随后续充实。
  */
 export interface ToolContext {
   tenantId: string;
@@ -25,6 +26,11 @@ export interface ToolContext {
   projectId?: string | null;
   /** 运行环境（架构稿 §4.3）。 */
   env?: 'default' | 'sandbox' | 'production';
+  /**
+   * 服务端签发的确认令牌（F009）。**只由 gate.confirmPendingAction 在人确认后注入**——
+   * 模型自主 loop 的 ctx 永远没有此字段，故 outbound 只能停在 pending，无法自我放行。
+   */
+  confirmationToken?: string;
 }
 
 export interface ToolDefinition<TInput = unknown, TOutput = unknown> {
@@ -36,6 +42,11 @@ export interface ToolDefinition<TInput = unknown, TOutput = unknown> {
   source: ToolSource;
   /** 入参 zod schema（executeTool 与 AI SDK 均用它校验）。 */
   inputSchema: z.ZodType<TInput>;
+  /**
+   * outbound 工具必须提供：由入参构造 harm 利害结构（F009 闸门如实披露）。
+   * internal 工具无需（不过闸门）。
+   */
+  buildHarm?: (input: TInput, ctx: ToolContext) => Harm;
   /** 唯一执行体。只应经 executeTool 调用，不得被其它路径直接触发（架构稿 §5.2）。 */
   execute: (input: TInput, ctx: ToolContext) => Promise<TOutput>;
 }

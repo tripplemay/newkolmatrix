@@ -6,7 +6,8 @@
 // 运行：npm run agent:smoke  （= node --env-file=.env --import tsx scripts/test/agent-tools-smoke.ts）
 // 退出码：0 = 全部断言通过；1 = 任一失败。
 
-import { executeTool, OutboundGateError } from '../../src/lib/agent/execute';
+import { executeTool } from '../../src/lib/agent/execute';
+import { isPendingEnvelope } from '../../src/lib/agent/gate/harm';
 import { registerTool, getTool } from '../../src/lib/agent/tools/registry';
 import { buildToolContext } from '../../src/lib/agent/context';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
@@ -24,23 +25,52 @@ async function main(): Promise<void> {
 
   // 注册表 + 二分
   const names = getNativeToolNames();
-  assert(names.includes('search_kols') && names.includes('get_kol_detail'), 'native 工具已注册');
-  assert(getTool('search_kols')?.class === 'internal', 'search_kols class=internal');
-  assert(getTool('search_kols')?.source === 'native', 'search_kols source=native');
+  assert(
+    names.includes('search_kols') && names.includes('get_kol_detail'),
+    'native 工具已注册',
+  );
+  assert(
+    getTool('search_kols')?.class === 'internal',
+    'search_kols class=internal',
+  );
+  assert(
+    getTool('search_kols')?.source === 'native',
+    'search_kols source=native',
+  );
 
   // search_kols
-  const search = (await executeTool('search_kols', { query: '坦克世界 World of Tanks 游戏解说', topK: 5 }, ctx))
-    .output as { count: number; kols: Array<{ id: string; displayName: string | null; similarity: number }> };
-  assert(search.count > 0 && search.kols.length === search.count, `search_kols 返回 ${search.count} 条`);
+  const search = (
+    await executeTool(
+      'search_kols',
+      { query: '坦克世界 World of Tanks 游戏解说', topK: 5 },
+      ctx,
+    )
+  ).output as {
+    count: number;
+    kols: Array<{ id: string; displayName: string | null; similarity: number }>;
+  };
   assert(
-    search.kols.every((k, i) => i === 0 || search.kols[i - 1].similarity >= k.similarity),
+    search.count > 0 && search.kols.length === search.count,
+    `search_kols 返回 ${search.count} 条`,
+  );
+  assert(
+    search.kols.every(
+      (k, i) => i === 0 || search.kols[i - 1].similarity >= k.similarity,
+    ),
     'search_kols 按 similarity 降序',
   );
-  console.log(`  · top1: ${search.kols[0].displayName} (sim=${search.kols[0].similarity})`);
+  console.log(
+    `  · top1: ${search.kols[0].displayName} (sim=${search.kols[0].similarity})`,
+  );
 
   // get_kol_detail
-  const detail = (await executeTool('get_kol_detail', { idOrPublicId: search.kols[0].id }, ctx))
-    .output as { found: boolean };
+  const detail = (
+    await executeTool(
+      'get_kol_detail',
+      { idOrPublicId: search.kols[0].id },
+      ctx,
+    )
+  ).output as { found: boolean };
   assert(detail.found === true, 'get_kol_detail 命中 search 结果的 id');
 
   // zod 校验：空 query 应被拦
@@ -61,7 +91,7 @@ async function main(): Promise<void> {
   }
   assert(unknownErr, 'executeTool 对未知工具抛错');
 
-  // outbound 门控：临时注册一个 outbound 工具，executeTool 应在执行副作用前抛 OutboundGateError
+  // outbound 门控（F009）：临时注册 outbound 工具，executeTool 无令牌时返回 pending 信封、不执行副作用。
   let sideEffect = false;
   registerTool({
     name: '__smoke_outbound__',
@@ -69,19 +99,29 @@ async function main(): Promise<void> {
     class: 'outbound',
     source: 'native',
     inputSchema: z.object({}),
+    buildHarm: () => ({
+      action: '__smoke__',
+      summary: 'smoke 临时 outbound',
+      targets: ['x'],
+      irreversible: true,
+      evidence: 'smoke',
+      expiresAt: '',
+      label: '对外·不可撤销',
+    }),
     execute: async () => {
       sideEffect = true;
       return {};
     },
   });
-  let gated = false;
-  try {
-    await executeTool('__smoke_outbound__', {}, ctx);
-  } catch (e) {
-    gated = e instanceof OutboundGateError;
-  }
-  assert(gated, 'outbound 工具经 executeTool 被门控（抛 OutboundGateError）');
-  assert(sideEffect === false, 'outbound 工具的副作用未被执行（门控在 execute 前）');
+  const gatedRes = await executeTool('__smoke_outbound__', {}, ctx);
+  assert(
+    isPendingEnvelope(gatedRes.output),
+    'outbound 无令牌经 executeTool 返回 pending 信封（不抛错，含 harm）',
+  );
+  assert(
+    sideEffect === false,
+    'outbound 工具的副作用未被执行（门控在 execute 前）',
+  );
 
   console.log('[agent-smoke] ✅ 全部断言通过');
 }
@@ -92,7 +132,10 @@ main()
     process.exit(0);
   })
   .catch(async (err) => {
-    console.error('[agent-smoke] ❌ 失败：', err instanceof Error ? (err.stack ?? err.message) : err);
+    console.error(
+      '[agent-smoke] ❌ 失败：',
+      err instanceof Error ? err.stack ?? err.message : err,
+    );
     await prisma.$disconnect();
     process.exit(1);
   });

@@ -146,6 +146,7 @@ model PendingAction {
   kind                  String
   toolName              String
   payloadHash           String
+  inputJson             Json? // 工具入参（F009：人确认后据此执行；payloadHash 绑定防篡改）
   harmJson              Json // harm 结构体（F009 单一 zod：动作/对象/金额/不可逆/证据/过期）
   status                PendingActionStatus @default(pending)
   confirmationTokenHash String? // 只存 hash（F009）

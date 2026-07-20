@@ -90,7 +90,7 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     duty: '邀约起草·逐人谈判·回复跟进·报价建议',
     isolation: '不批预算、不放款；报价与发送需你确认',
     uiSyntax: '对话收件箱',
-    tools: ['get_kol_detail'],
+    tools: ['get_kol_detail', 'send_outreach'], // send_outreach 是 outbound（F009 闸门，发送需人确认）
   },
   {
     id: 'delivery',

@@ -1,5 +1,5 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "旧 kolmatrix 全面重构：保功能、去传统 SaaS 化、改 AI native（Agent 从副驾提到主驾）。单角色 + 多专家 Agent 编队 + AI→人闸门。本批 AGENT-FOUNDATION = Phase 0 架构地基：TS5 前置 + 全栈化 + Agent 驱动四柱 + 成品级多 Agent 编排框架（registry/persona router/handoff/orchestrator，接口焊死·业务语义留扩展点）+ AI→人闸门地基 + 对外机器友好契约薄地基（D-INTEROP：GEO / 外部 agent 友好留插座不实装）+ hello-agent（多 Agent 编排）端到端闭环。逐 feature 验收编排（用户定，见 spec §5）。",
   "total_features": 10,
   "completed_features": 9,

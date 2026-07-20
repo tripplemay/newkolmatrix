@@ -70,7 +70,7 @@
 
 ## v1.0.1 — 2026-07-12（patterns/deploy §7 不可逆生产迁移剧本）
 
-**来源：** aigcgateway BL-PROD-MIGRATE-DEPLOYSVR（生产从 GCP 原生 PM2 `34.180.93.185` 迁到 deploysvr `194.238.26.173` 容器化，用户手工验收通过）。
+**来源：** aigcgateway BL-PROD-MIGRATE-DEPLOYSVR（生产从 GCP 原生 PM2 host 迁到 deploysvr 容器化；具体 host/IP 走 secret manager，不入 git，用户手工验收通过）。
 
 **变更：**
 - `patterns/deploy-patterns.md` 新增 §7「不可逆生产迁移（换机 / 换部署模型）」：

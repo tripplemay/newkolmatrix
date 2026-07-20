@@ -6,7 +6,7 @@
       "title": "模板组件对照审计（手写重复实现清单）",
       "priority": "high",
       "executor": "evaluator",
-      "status": "pending",
+      "status": "done",
       "acceptance": "产出模板组件×项目使用状态矩阵（used-as-is / forked-modified / re-implemented / unused，覆盖模板 src/components/ 全目录）；每个「模板已提供但项目手写重复实现」项给出 文件:行 + 模板对应组件路径 + 替换建议与风险；forked 组件附相对模板原件的偏离说明（diff 摘要）；所有结论附可复核证据（diff/grep）；白名单（spec §4 D6）项不计 finding；报告落 docs/test-reports/FE-AUDIT-F001-Andy-evaluator-subagent.md",
       "description": "对照 Horizon UI Pro 3.0.0 模板原件（~/project/db4rDjuaSCqaEFW9XcFo_horizon-tailwind-react-nextjs-pro-3.0.0/horizon-tailwind-react-nextjs-pro-main/，只读）审计项目 src/components/ 与页面 inline 实现。重点区：模板 components/admin/（页面级组件主仓，项目无对应目录）。"
     },
@@ -15,7 +15,7 @@
       "title": "公共组件抽取完备性审计",
       "priority": "high",
       "executor": "evaluator",
-      "status": "pending",
+      "status": "done",
       "acceptance": "扫描 15 个页面 + 自建组件（copilot/project/canvas 等）中出现 ≥2 次的重复 UI 模式（card 头、stat 卡、表格、tab、badge、空态、loading、分页等），逐条列出现位置 文件:行；产出建议抽取的公共组件清单（命名 + 落位 src/components/common/ + props 签名建议）；按 复用次数×改造成本 排优先级；报告落 docs/test-reports/FE-AUDIT-F002-Andy-evaluator-subagent.md",
       "description": "现状 src/components/common/ 仅 Button + ComingSoon 两个抽取组件，疑似大量重复 UI 模式未抽取。为 M0.5 六页工作台前打好复用地基。"
     },
@@ -24,7 +24,7 @@
       "title": "设计系统一致性审计（tokens/样式偏离）",
       "priority": "high",
       "executor": "evaluator",
-      "status": "pending",
+      "status": "done",
       "acceptance": "对照 design-draft/horizon-tokens.md + tailwind.config.js + src/app/AppWrappers.tsx：扫 hardcoded hex/非 token 色、字体偏离（DM Sans/Poppins 之外）、shadow/radius 偏离、dark: 类完整性；逐项偏离给 文件:行 + 应使用的 token；扫描方法可复跑（脚本落 scripts/test/，报告附使用说明）；报告落 docs/test-reports/FE-AUDIT-F003-Andy-evaluator-subagent.md",
       "description": "设计系统 = Tailwind 色板 + AppWrappers.tsx 运行时 CSS 变量色阶（非 Chakra theme）。品牌主色 brand-500 #422AFB。默认浅色为既定决策（白名单）。"
     },
@@ -33,7 +33,7 @@
       "title": "汇总报告 + 整改 backlog 候选",
       "priority": "high",
       "executor": "evaluator",
-      "status": "pending",
+      "status": "done",
       "acceptance": "汇总 F001-F003 并对关键 finding 抽查复核（防并行误报）；P0（阻塞后续开发）/P1（累积技术债）/P2（锦上添花）分级；产出可直接并入 backlog.json 的整改条目 JSON 草案（含工时估算）；报告落 docs/test-reports/FE-AUDIT-report-Andy-evaluator-subagent.md；依赖 F001-F003 报告，串行执行",
       "description": "三路审计的汇总与对抗复核层。整改候选由 Planner 在 done 阶段并入 backlog.json（evaluator 不写状态机 JSON），作为后续 FE-REFACTOR 批次输入。"
     }

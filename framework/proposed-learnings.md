@@ -114,3 +114,15 @@
 
 <!-- 2026-07-20: v1.0.5 沉淀完成（1 条 learning 来源 AGENT-FOUNDATION F008→F009 视觉基线漂移 + GO-LIVE healthcheck 307），已写入 framework/memory/role-context/{generator,planner}.md + 项目侧 .auto-memory/role-context/ 两份副本（铁律 7）+ CHANGELOG v1.0.5。用户 2026-07-20 确认。归档：framework/archive/proposed-learnings-archive-v1.0.5.md。
      注：harness-fit 分析（P0-3 / P1-1~P1-3 / P2-1~P2-5）用户 2026-07-20 裁决继续挂起，仍保留待确认。 -->
+
+---
+
+## [2026-07-20] Andy/Planner — 来源：FE-AUDIT 批次（Evaluator-only 三路 fan-out + 汇总对抗复核首次实跑）
+
+**类型：** 新规律（审计类批次方法学三件套）
+
+**内容：** FE-AUDIT 首次完整实跑「并行 finder + 串行对抗复核层」形态，沉淀三条可复用方法学：(1) **基线词表校准防误报** —— 对照类审计（tokens/组件/样式）必须先对基线实物（模板原件）做词表/逐字节分类，再扫项目侧；F003 借此撤回约 60+ 处会虚报的 finding（如 rounded-2xl 实为模板自己的词表 44 次）。(2) **import 图传递可达性防伪存活** —— 「组件是否在用」不能朴素 grep import（19 个），必须从 app 入口做传递可达性分析（实际 12 个，7 个为被死代码引用的伪存活）。(3) **汇总层必须是对抗复核层而非转述层** —— 给汇总 subagent 明确抽查配额（每份报告 ≥2 条、回原件重跑），实跑推翻了 1 处正面分句、修正 1 处推论机制、并新增 1 条三份并行报告全部漏掉的盲区（CI 无 DB 致视觉基线静默编码空区域）。
+
+**建议写入：** `framework/harness/orchestration-patterns.md` §5（旁路 audit / fan-out 段补「审计类批次方法学」小节）或新建 `framework/patterns/audit-methodology.md`
+
+**状态：** 待确认

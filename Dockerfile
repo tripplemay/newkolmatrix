@@ -19,7 +19,16 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# ---- runner: 最小运行镜像 ----
+# ---- tools: 一次性 migrate + seed（含 prisma CLI + migrations + seed 脚本 + CSV + tsx）----
+# GO-LIVE F002 — app runner 保持最小（不含这些）；迁移/seed 由本目标的 one-shot 容器承担（D-GL3）。
+# 复用 build 阶段：已有全量 source（prisma/ scripts/ src/）+ node_modules（prisma CLI + tsx devDeps）。
+FROM build AS tools
+WORKDIR /app
+RUN chmod +x scripts/deploy/migrate-seed.sh
+# env（DATABASE_URL / AIGCGATEWAY_*）由 compose migrate 服务注入。默认跑迁移+条件 seed。
+CMD ["sh", "scripts/deploy/migrate-seed.sh"]
+
+# ---- runner: 最小运行镜像（默认目标）----
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production

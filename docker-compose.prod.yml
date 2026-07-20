@@ -24,6 +24,20 @@ services:
       timeout: 5s
       retries: 10
 
+  # 一次性迁移 + 条件 seed（GO-LIVE F002，D-GL3）。db healthy 后跑，跑完退出；app 等它成功再起。
+  # tools 镜像含 prisma CLI + migrations + seed 脚本 + CSV（app runner 不含，保持最小）。
+  migrate:
+    image: ghcr.io/tripplemay/newkolmatrix-tools:${IMAGE_TAG:-latest}
+    container_name: newkolmatrix-migrate
+    restart: 'no'
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-kol}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-kolmatrix}?schema=public
+      - AIGCGATEWAY_BASE_URL=${AIGCGATEWAY_BASE_URL:-https://aigc.guangai.ai/v1}
+      - AIGCGATEWAY_API_KEY=${AIGCGATEWAY_API_KEY:?AIGCGATEWAY_API_KEY 必填（放 /opt/apps/newkolmatrix/.env）}
+    depends_on:
+      db:
+        condition: service_healthy
+
   app:
     image: ghcr.io/tripplemay/newkolmatrix:${IMAGE_TAG:-latest}
     container_name: newkolmatrix-app
@@ -40,6 +54,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       # 命中轻量 200 存活端点（F001 新增 /api/health）；不再命中 F008 后 307 重定向的 /admin/dashboards/default（D-GL5）。
       test:

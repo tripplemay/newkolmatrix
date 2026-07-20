@@ -67,7 +67,7 @@
       "title": "常驻对话面（useChat）+ Generative Canvas 协议 + 多人格切换 + 协同交接可视化",
       "priority": "high",
       "executor": "generator",
-      "status": "verifying",
+      "status": "reverifying",
       "acceptance": "Horizon 外壳加常驻对话面板（useChat 接 /api/agent）；canvas 协议 canvas-registry.tsx：工具结果 type → React 组件；浏览器打字「找 XX KOL」→ 流式回复 + KOL 卡片流渲染（真实 seed 数据）；对话面顶部常驻显示当前专家 Agent 的 duty + 否定式护栏原文（AI 行为边界，D13 升级版）；消费 F006 编排框架：进不同 route 自动切专家人格（≥2 人格可见切换）+ 上下文 key（route+env+agentId）变化时对话清空 + 新专家开场白（FR-12.4）；协同交接区可视化框架：能以「A→B」呈现一次 handoff（可展开看交接对/摘要/交接物，FR-9.5，本批至少渲染 F006 演示的那次 handoff）；canvas 可扩展——新结果类型只需注册一个组件不改 route；浅色 console 无 error；忠实 Horizon 视觉",
       "description": "柱三（对话面）+ 柱四（canvas）。升级：消费 F006 编排框架，前端呈现多人格切换 + 协同交接区（原 F006 的否定式护栏保留并扩展为多人格版）。"
     },

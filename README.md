@@ -26,7 +26,7 @@ npm run seed:demo-handoff
 next dev                 # http://localhost:3000
 ```
 
-需 `.env`（`DATABASE_URL` + aigcgateway 凭据 `OPENAI_API_KEY` / `OPENAI_BASE_URL`）。`.env` 已 gitignore，绝不入库。
+需 `.env`（`DATABASE_URL` + aigcgateway 凭据 `AIGCGATEWAY_API_KEY` / `AIGCGATEWAY_BASE_URL`，见 `.env.example`）。`.env` 已 gitignore，绝不入库。
 
 ## 验证
 

@@ -20,7 +20,8 @@
     "agent:smoke": "node --env-file=.env --import tsx scripts/test/agent-tools-smoke.ts",
     "orch:smoke": "node --env-file=.env --import tsx scripts/test/orchestration-smoke.ts",
     "seed:demo-handoff": "node --env-file=.env --import tsx scripts/seed/demo-handoff.ts",
-    "f007:browser": "node scripts/test/f007-browser-check.mjs"
+    "f007:browser": "node scripts/test/f007-browser-check.mjs",
+    "f008:browser": "node scripts/test/f008-browser-check.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.16",

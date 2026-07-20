@@ -9,8 +9,8 @@
 
 'use client';
 
-import { useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { MdSend } from 'react-icons/md';
@@ -19,18 +19,32 @@ import {
   defaultAgentForRoute,
   type CopilotContext,
 } from 'lib/agent/persona-router';
-import { personaBoundary } from 'lib/agent/registry';
+import { personaBoundary, DEFAULT_AGENT_ID } from 'lib/agent/registry';
+import { STAGE_AGENT, isStage } from 'lib/agent/stage-routing';
 import ExpertScope from './ExpertScope';
 import HandoffCollab from './HandoffCollab';
 import { hasCanvasRenderer, renderToolResult } from './canvas/canvas-registry';
 
-function deriveContext(pathname: string): CopilotContext {
-  // EXTENSION POINT：project route → projectId 解析、env query → env，随 F008 IA 真实路由充实。
+function deriveContext(
+  pathname: string,
+  stageParam: string | null,
+): CopilotContext {
+  const route = pathname || '/admin';
+  // 项目详情 /admin/campaigns/[id]：projectId 从路径解析；?stage= 指定环节 → 切该环节专家（F008 五环节唯一容器）。
+  const projMatch = route.match(/^\/admin\/campaigns\/([^/]+)$/);
+  if (projMatch && projMatch[1] !== undefined) {
+    const projectId = projMatch[1];
+    const agentId =
+      stageParam && isStage(stageParam)
+        ? STAGE_AGENT[stageParam]
+        : DEFAULT_AGENT_ID;
+    return { route, projectId, env: 'default', agentId };
+  }
   return {
-    route: pathname || '/admin',
+    route,
     projectId: null,
     env: 'default',
-    agentId: defaultAgentForRoute(pathname || '/admin'),
+    agentId: defaultAgentForRoute(route),
   };
 }
 
@@ -178,11 +192,20 @@ function CopilotChat({ context }: { context: CopilotContext }) {
   );
 }
 
-export default function CopilotPanel() {
+// 用 useSearchParams 读 ?stage=（项目详情切环节专家）——须 Suspense 包裹（Next 15）。
+function CopilotPanelInner() {
   const pathname = usePathname();
-  const context = deriveContext(pathname ?? '/admin');
+  const searchParams = useSearchParams();
+  const context = deriveContext(
+    pathname ?? '/admin',
+    searchParams.get('stage'),
+  );
   const contextKey = buildContextKey(context);
-  // key=contextKey：route/env/agentId 变化 → 整个 chat remount（对话清空 + 新专家开场白，FR-12.4）
+  // key=contextKey（含 agentId，随 route/env/stage-专家 变化）→ 整个 chat remount（对话清空 + 新专家开场白，FR-12.4）
+  return <CopilotChat key={contextKey} context={context} />;
+}
+
+export default function CopilotPanel() {
   return (
     <aside className="fixed right-0 top-0 z-40 hidden h-screen w-[360px] flex-col border-l border-gray-200 bg-white dark:border-white/10 dark:bg-navy-800 xl:flex">
       <div className="shrink-0 border-b border-gray-200 px-4 py-3 dark:border-white/10">
@@ -194,7 +217,13 @@ export default function CopilotPanel() {
         </div>
       </div>
       <div className="min-h-0 flex-1">
-        <CopilotChat key={contextKey} context={context} />
+        <Suspense
+          fallback={
+            <div className="p-4 text-sm text-gray-400">加载 Copilot…</div>
+          }
+        >
+          <CopilotPanelInner />
+        </Suspense>
       </div>
     </aside>
   );

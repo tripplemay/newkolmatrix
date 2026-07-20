@@ -27,12 +27,12 @@ page.on('console', (msg) => {
 page.on('pageerror', (e) => consoleErrors.push(String(e)));
 
 try {
-  // ── 1) match 环节：/admin/discovery → 匹配 Agent ──
-  await page.goto(`${BASE}/admin/discovery`, { waitUntil: 'networkidle', timeout: 60000 });
+  // ── 1) match：/admin/creators → 匹配 Agent（F008 新 IA） ──
+  await page.goto(`${BASE}/admin/creators`, { waitUntil: 'networkidle', timeout: 60000 });
   await page.waitForTimeout(1500);
   const panelText = await page.textContent('body');
   ok(panelText.includes('多 Agent 编队'), 'CopilotPanel 常驻渲染（多 Agent 编队）');
-  ok(panelText.includes('匹配 Agent'), '专家头显示当前人格=匹配 Agent（/discovery→match）');
+  ok(panelText.includes('匹配 Agent'), '专家头显示当前人格=匹配 Agent（/creators→match）');
   ok(panelText.includes('职责') && panelText.includes('隔离'), '专家头常驻显示 职责 + 隔离（否定式护栏）');
 
   // ── 2) 发消息 → search_kols → KOL 卡片流 ──
@@ -48,12 +48,12 @@ try {
   ok(/\d+% 匹配/.test(afterSend), '发消息后 canvas 渲染 KOL 卡片流（含 % 匹配徽标，真实 seed 数据）');
   ok(afterSend.includes('位候选'), 'KOL 卡片流含候选计数');
 
-  // ── 3) 多人格切换：/admin/outreach → 触达 Agent（对话清空 + 新专家）──
-  await page.goto(`${BASE}/admin/outreach`, { waitUntil: 'networkidle', timeout: 60000 });
+  // ── 3) 多人格切换：项目 Reach 环节（/admin/campaigns/[id]?stage=reach）→ 触达 Agent（对话清空 + 新专家）──
+  await page.goto(`${BASE}/admin/campaigns/starlight-protocol?stage=reach`, { waitUntil: 'networkidle', timeout: 60000 });
   await page.waitForTimeout(1500);
   // 只取专家头（ExpertScope = aside 内 border-l-4 卡）文本，与 HandoffCollab 的「触达 Agent」文案隔离，避免假阳性。
   const scopeText = await page.locator('aside div.border-l-4').first().innerText().catch(() => '');
-  ok(scopeText.includes('触达 Agent'), '切 /admin/outreach → 专家头(ExpertScope)变触达 Agent（多人格切换可见，独立选择器取样）');
+  ok(scopeText.includes('触达 Agent'), '切 Reach 环节 → 专家头(ExpertScope)变触达 Agent（多人格切换可见，独立选择器取样）');
   const reachText = await page.textContent('body');
   ok(!/\d+% 匹配/.test(reachText), 'context key 变化 → 对话清空（上个环节的 KOL 卡片不再显示）');
 

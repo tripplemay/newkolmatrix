@@ -165,8 +165,9 @@ async function main(): Promise<void> {
   const target = routeToStage(projectId, 'match');
   assert(
     target.agentId === 'match' &&
-      target.route.includes(`/project/${projectId}/match`),
-    'orchestrator 路由到「某项目某环节」（match）→ 目标 context 正确',
+      target.stage === 'match' &&
+      target.route === `/admin/campaigns/${projectId}`,
+    'orchestrator 路由到「某项目某环节」（match）→ 目标 context 正确（route=/admin/campaigns/[id] + stage/agent=match）',
   );
   const dir = parseOrchestratorDirective(`enter:${projectId}:reach`);
   assert(

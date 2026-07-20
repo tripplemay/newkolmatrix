@@ -1,45 +1,52 @@
 import {
-  MdHome,
-  MdPersonSearch,
-  MdStorage,
+  MdOutlineToday,
   MdCampaign,
-  MdOutlineMail,
+  MdPersonSearch,
+  MdVideogameAsset,
+  MdInsights,
+  MdHistory,
 } from 'react-icons/md';
 import { IRoute } from 'types/navigation';
 
-// KOLMatrix 最小 IA（DS-FOUNDATION F003）
-// Dashboard 已实装占位（F001/F006）；Discovery / Database / Campaigns / Outreach 为占位页
-// （Coming soon，非幽灵项：点击会导航到真实占位页），由后续业务批次填充。
+// AGENT-FOUNDATION F008 — IA 侧栏 6 项（用户 2026-07-20 裁决按 PRD §7 / 落地规范 §3）。
+// 项目详情（/admin/campaigns/[id]）不进侧栏，由项目列表卡 router.push 进入；
+// 五环节（Brief/Match/Reach/Delivery/Insight）只在项目详情空间内部（页内 tab，非路由，D22）。
 const routes: IRoute[] = [
   {
-    name: 'Dashboard',
+    name: '今天',
     layout: '/admin',
-    path: '/dashboards/default',
-    icon: <MdHome className="text-inherit h-5 w-5" />,
+    path: '/today',
+    icon: <MdOutlineToday className="text-inherit h-5 w-5" />,
   },
   {
-    name: 'Discovery',
-    layout: '/admin',
-    path: '/discovery',
-    icon: <MdPersonSearch className="text-inherit h-5 w-5" />,
-  },
-  {
-    name: 'Database',
-    layout: '/admin',
-    path: '/database',
-    icon: <MdStorage className="text-inherit h-5 w-5" />,
-  },
-  {
-    name: 'Campaigns',
+    name: '项目',
     layout: '/admin',
     path: '/campaigns',
     icon: <MdCampaign className="text-inherit h-5 w-5" />,
   },
   {
-    name: 'Outreach',
+    name: '创作者库',
     layout: '/admin',
-    path: '/outreach',
-    icon: <MdOutlineMail className="text-inherit h-5 w-5" />,
+    path: '/creators',
+    icon: <MdPersonSearch className="text-inherit h-5 w-5" />,
+  },
+  {
+    name: '游戏知识',
+    layout: '/admin',
+    path: '/knowledge',
+    icon: <MdVideogameAsset className="text-inherit h-5 w-5" />,
+  },
+  {
+    name: '洞察',
+    layout: '/admin',
+    path: '/insight',
+    icon: <MdInsights className="text-inherit h-5 w-5" />,
+  },
+  {
+    name: 'Agent 记录',
+    layout: '/admin',
+    path: '/runs',
+    icon: <MdHistory className="text-inherit h-5 w-5" />,
   },
 ];
 

@@ -32,7 +32,9 @@ KOLMatrix — AI 驱动的 KOL 营销管理平台：跨平台（YouTube / Twitch
 
 > 本项目是旧项目 `kolmatrix` 的全面重构：旧项目已实现 MVP，但（1）前端样式需替换为 Horizon UI Pro 付费模板风格，框架差异过大无法原地替换；（2）旧项目偏传统 SaaS 的交互与流程，与"AI 驱动"产品定位差异大，需重构用户体验与使用流程。
 
-**Tech Stack:** Next.js 15（App Router）· React 19 · TypeScript · **Tailwind CSS**（主设计系统：`tailwind.config.js` 色板 + `AppWrappers.tsx` 运行时 CSS 变量色阶）· Chakra UI（仅零散原语 Drawer / Modal / Tooltip / Popover / Accordion）· ApexCharts · DM Sans + Poppins（基于 Horizon UI Pro 模板 scaffold，前端优先，暂无后端 / DB）
+**Tech Stack:** Next.js 15（App Router）· React 19 · TypeScript · **Tailwind CSS**（主设计系统：`tailwind.config.js` 色板 + `AppWrappers.tsx` 运行时 CSS 变量色阶）· Chakra UI（仅零散原语 Drawer / Modal / Tooltip / Popover / Accordion）· ApexCharts · DM Sans + Poppins（基于 Horizon UI Pro 模板 scaffold）
+
+> **全栈层（AGENT-FOUNDATION 批次立起）：** **Prisma 6 + Postgres 16 + pgvector**（`vector(1024)`，D3 自定义扩展迁移；单租户 dev tenant，D4）· **Vercel AI SDK v7**（`streamText` agent loop + `useChat`）⇄ **aigcgateway**（OpenAI 兼容网关，默认 chat=deepseek-v3 / embedding=bge-m3）· **单角色（营销操盘手）+ 多 Agent 编排框架**（registry / persona router / handoff / orchestrator，7 人格共享单一 `/api/agent`）· **AI→人闸门**（outbound 动作服务端强制拦在人确认前，F009）。架构详情 → `docs/dev/agent-architecture.md`（四柱 + 编排框架 + 闸门 + 数据流 + how-to）。
 
 > 注意：模板**无** `src/theme/` / `ChakraProvider` / `extendTheme` —— 设计系统由 Tailwind + CSS 变量驱动，不是 Chakra theme。品牌主色 `--color-500 #422AFB`（Horizon 紫）。默认浅色（已去除模板的 `<body className="dark">`）。
 
@@ -46,15 +48,22 @@ next dev                  # http://localhost:3000
 next build
 next start                # 生产模式启动
 
-# Database（如有）
-# 暂无 — 当前前端优先，无数据库
+# Database（Prisma + Postgres 16 + pgvector）
+npm run db:up             # docker compose 起本地 Postgres
+npm run db:migrate        # prisma migrate deploy
+npm run seed:kol          # 灌 ~2500 真实 KOL + embedding（F004）
+npm run seed:demo-handoff # 灌一条 demo handoff 供协同交接可视化
 
 # Lint & Type Check
 next lint
 tsc --noEmit
 
-# Test
-# 待配置 — 建议 vitest + @testing-library/react（Horizon 模板未预置 test runner）
+# Test（smoke / e2e / 视觉回归）
+npm run agent:smoke       # 柱一 executeTool 直调
+npm run orch:smoke        # 多 Agent 编排框架
+npm run gate:smoke        # AI→人闸门（G1-G5 + D20 变异测试）
+npm run f010:e2e          # hello-agent 端到端浏览器实测（需 dev server + 网关）
+npm run test:visual       # Playwright 视觉回归（dashboard/today + agent-canvas）
 ```
 
 ## Reference Documents（按需阅读）

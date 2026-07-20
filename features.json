@@ -73,12 +73,12 @@
     },
     {
       "id": "F008",
-      "title": "IA：侧栏 4 项（驾驶舱/项目/游戏/洞察）+ 项目空间是五环节的唯一容器",
+      "title": "IA：侧栏 6 项（今天/项目/创作者库/游戏知识/洞察/Agent记录）+ 项目空间是五环节的唯一容器",
       "priority": "high",
       "executor": "generator",
       "status": "pending",
-      "acceptance": "路由 = 驾驶舱 + 项目 + 游戏 + 洞察（侧栏 4 项，D21）；五环节工作台（Brief/Match/Reach/Delivery/Insight）只存在于项目空间内部，无跨项目环节顶级入口（D22）；stagePanel 是环节唯一渲染入口；驾驶舱待办可直达「某项目的某环节」（复用 F006 orchestrator 环节路由）；各路由有真实占位页无死链报错；无角色切换器、无路由层权限守卫（随三角色作废）",
-      "description": "【去三角色】删角色切换器/role.access 过滤/权限守卫。保留 D21/D22。驾驶舱待办直达复用 F006 orchestrator 的环节路由骨架。"
+      "acceptance": "侧栏 6 项（今天/项目/创作者库/游戏知识/洞察/Agent记录，用户 2026-07-20 裁决按 PRD §7/落地规范 §3 实装，覆盖 spec §D21 的 4 项——PRD 权威顺序高于 spec）；路由 today/campaigns/creators/knowledge/insight/runs；五环节工作台（Brief/Match/Reach/Delivery/Insight）只存在于项目详情空间内部（/admin/campaigns/[id] 页内 tab，非路由，无跨项目环节顶级入口，D22）；stagePanel 是环节唯一渲染入口；今天(驾驶舱)待办可直达「某项目的某环节」（复用 F006 orchestrator routeToStage 环节路由）；各路由有真实占位页无死链报错（含修 /admin/dashboards 404）；无角色切换器、无路由层权限守卫（随三角色作废）",
+      "description": "【去三角色】删角色切换器/role.access 过滤/权限守卫。保留 D22（五环节在项目内）。今天待办直达复用 F006 orchestrator 的环节路由骨架。【pre-impl 裁决 2026-07-20】spec §D21 说 4 项、PRD/落地规范说 6 项源冲突；用户裁决按 6 项（PRD 权威）实装，acceptance 已回填。"
     },
     {
       "id": "F009",

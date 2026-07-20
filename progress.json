@@ -21,7 +21,7 @@
   "docs": {
     "spec": "specs/AGENT-FOUNDATION-spec.md",
     "test_cases": null,
-    "signoff": null,
+    "signoff": "test-reports/AGENT-FOUNDATION-signoff-Andy-evaluator-subagent.md",
     "framework_reviewed": false
   },
   "role_assignments": null,
@@ -428,6 +428,33 @@
         }
       ],
       "notes": "总判定 PASS，7/7 acceptance 子条全 PASS，首轮 fix_rounds=0。★独立取证(不采信实现叙述): npm run gate:smoke exit0(18 断言 G1-G5+拒绝+D20 变异)；自写 scripts/test/_gate-indep-probe-tmp.ts(验后已删)exit0(19 检查: 120 位 harm 不折叠+payloadHash 抗 JSONB 重排 P3+防篡改 P4+JSONB 往返 confirm 成功 P5+pending 阶段 DB 令牌 NULL P2+internal 不落 PendingAction P6)；npx tsc --noEmit TSC_EXIT=0；DB psql 实证 PendingAction.inputJson jsonb 迁移已落(20260720000000)。★服务端强制门控在唯一执行入口 executeTool 落地(execute.ts:36)、模型 loop 结构上拿不到令牌(context.ts buildToolContext 从不设 confirmationToken + pending 信封无 token 字段)、harm 单一 zod 如实披露不折叠(120 位实测)、无阈值(grep 门控分支零金额条件)、internal 不加闸门、令牌四安全属性齐全(hash/TTL/单次/绑 payloadHash)、确认与 irrev 留痕同事务($transaction)、D20 变异有效——均以实测+源码行号+DB 事实独立验证。★CI: F009 push(fc6c5f6)Lint/Typecheck/Build 全 success 唯 Visual regression failure(根因 F008 IA 重构致驾驶舱基线漂移，F009 无 UI 面)，经 baseline 重生后 HEAD=bbe21c3 workflow_dispatch(run 29746679000)四 job 全 success；visual baseline 属 F010 acceptance 非 F009 判据。非阻断观察(记录不打回): O1 403 以 in-band pending 信封(HTTP200 SSE)实现非 HTTP403 状态码(gate/confirm|reject 错误路径用 409)，核心保证完全达成，403/pending 为斜杠择一接入模型 loop 的正是 pending 形态; O2 本批仅 send_outreach 一个 outbound 工具(合批次范围: 本批无真实 outbound 工具，F009 造至少一个)，报价/放款由 harmSchema amount/currency/scope 字段覆盖但未接工具 M3 补; O3 副作用 tool.execute 在 executed+irrev 事务之前执行故 mock 副作用不与状态更新同事务，acceptance 要求的确认与留痕同事务已满足，真实幂等投递 M3; O4 D20 以等价论证呈现，成立且非空洞，可后续强化为 toggle-and-rerun。被验提交 fc6c5f6(改动全在 F009 scope: execute.ts/gate/gate.ts/gate/harm.ts/tools/send-outreach.ts/tools/types.ts/api/gate/*/schema.prisma inputJson/gate-smoke.ts/registry.ts+tools/index.ts 装配)。验收未改任何产品代码(仅临时增删 scripts/test/_gate-indep-probe-tmp.ts 探针已删)，真实 key 未泄露。仅验 F009(F010 未实现属正常)。报告: docs/test-reports/AGENT-FOUNDATION-F009-verify-Andy-evaluator-subagent.md。验收人 Andy/evaluator-subagent"
+    },
+    {
+      "feature": "F010",
+      "verdict": "PASS",
+      "clauses": [
+        {
+          "criterion": "1 e2e 闭环(浏览器 NL→/api/agent 流式→search_kols→KOL 卡片流在画布渲染,无 error)+多 Agent 编排最小闭环(≥2 人格按 route 切换+一次可视化 handoff)",
+          "result": "PASS",
+          "evidence": "npm run f010:e2e(先幂等 seed:demo-handoff,再 Playwright chromium 接活网关浏览器实测 viewport1600x1000)6/6 通过/0 失败。Part A: match 环节专家头显示「匹配 Agent」(route→人格);浏览器输入『帮我从创作者库找《坦克世界》题材的游戏解说 KOL 候选』→POST /api/agent 流式 loop→模型自主调 search_kols→柱四 canvas KolResultCards 渲染 15 张真实 seed KOL 候选卡片(闭环)。Part B: reach 环节专家头切为「触达 Agent」(≠匹配 Agent,人格随 route 可见切换)。Part C: HandoffCollab 从 /api/handoffs 拉真实交接,可视化一次 handoff(匹配 Agent→触达 Agent,来自 F002 Handoff 表)。闭环 console error=0(过滤 favicon/DevTools/hydration 后)。卡片/handoff 均真实 DB 数据非编造。"
+        },
+        {
+          "criterion": "2 docs/dev/agent-architecture.md 落盘,含四柱+多 Agent 编排框架(registry/router/handoff/orchestrator+焊死vs扩展点边界)+AI→人闸门+数据流+how-to(加新人格/新工具/新 canvas 组件)",
+          "result": "PASS",
+          "evidence": "读全文 203 行逐项核对(非看标题): §1 四柱(柱一工具层 registry+executeTool 唯一入口+internal/outbound 二分/柱二 streamText 运行时/柱三 useChat 对话面/柱四 canvas-registry)全含; §2 编排框架四接口 2.1 registry(7 AgentId)+2.2 persona router(CopilotContext+buildContextKey+defaultAgentForRoute+selectPersona/personaToolSubset)+2.3 handoff(§5.4 信封+接收方按 scope 重读不信任发送方)+2.4 orchestrator(routeToStage+aggregatePending 原样不改写); §3 焊死vs扩展点二栏对照表(D-ORCH/ADR-001); §4 AI→人闸门(服务端强制+harm 单一 zod+令牌四安全属性+无阈值 D28+internal 不加闸门 D27+变异 D20); §5 hello-agent 完整数据流 ASCII 图+持久层; §6 how-to 三件(6.1 加新专家人格/6.2 加新工具/6.3 加新 canvas 组件各含步骤)。要求各项全覆盖。"
+        },
+        {
+          "criterion": "3 visual baseline tests/screenshots/baseline/agent-canvas-*.png 入 git(浅色 ≥1440px,CI/linux 重生)",
+          "result": "PASS",
+          "evidence": "git ls-files 确认 agent-canvas-darwin.png(115KB)+agent-canvas-linux.png(117KB)均入 git。浅色: 亲自 Read 基线 PNG 确认白底+Horizon 紫强调,内容含专家头(匹配 Agent+duty+否定式护栏「只做发现与匹配,不发起触达、不谈价」)+3 张 KOL 卡片(带 % 匹配 badge)+一次协同交接(匹配 Agent→触达 Agent,match_plan 交接物),忠实 Horizon。≥1440px: playwright.config viewport=1512x982(宽 1512≥1440)。CI/linux 重生: linux 基线由 12e304b「update linux baselines」提交,CI(linux)Visual regression job 在 workflow_dispatch run 29749985679(headSha=12e304b)success。本机 npm run test:visual 对 darwin 基线 2 passed(agent-canvas+today)。"
+        },
+        {
+          "criterion": "4 README/CLAUDE.md 技术栈更新(DB/Prisma/pgvector/Vercel AI SDK/aigcgateway/单角色+多 Agent 编排+AI→人闸门)",
+          "result": "PASS",
+          "evidence": "字面 acceptance『技术栈更新』已满足: README.md L12-14 列 Prisma6+Postgres16+pgvector vector(1024)/Vercel AI SDK v7⇄aigcgateway(chat=deepseek-v3/embedding=bge-m3)/四柱+多 Agent 编排框架(registry/router/handoff/orchestrator,7 人格)+AI→人闸门;CLAUDE.md L37 同套技术栈全列并指向 agent-architecture.md。★非阻断文档缺陷(如实记录不软化): README.md:29 setup 散文写『.env 需 OPENAI_API_KEY/OPENAI_BASE_URL』,但实际环境变量名是 AIGCGATEWAY_API_KEY/AIGCGATEWAY_BASE_URL(gateway.ts:125-126,162-163 requireEnv('AIGCGATEWAY_*');.env 实键;权威 setup 源 .env.example:24-25 均 AIGCGATEWAY_*)。判非阻断(PASS 而非 PARTIAL): 该错落在 README setup 散文句非 acceptance 枚举的技术栈列表项(字面已达成);权威源.env.example+代码+CLAUDE.md 均正确唯 README 一行散文漂移(命名漂移,evaluator.md §13);无功能/安全影响(无密钥泄漏,实测全绿)。兜底: 建议 Generator 后续 chore 单行修正 README:29 OPENAI_*→AIGCGATEWAY_*(Evaluator 不改产品文档基线),已入 signoff Soft-watch S1 记账。"
+        }
+      ],
+      "notes": "总判定 PASS，4/4 acceptance 全 PASS，首轮 fix_rounds=0。★批次末全链路回归(spec §5/§6,Evaluator 亲跑真实输出): 构建门 tsc0/lint0(No ESLint warnings or errors)/build0(21/21 static pages,全路由就位)；数据门 db:smoke 全断言过(kol=2524≥2000 含非空 embedding+user=1 dev+pgvector0.8.5+vector(1024)+cosine 正确)；AI 门 ai:smoke 双链路(chat finishReason=tool-calls 命中 get_kol_count+bge-m3 维度=1024)；Agent 门 agent:smoke 10 断言全过；编排门 orch:smoke 全过(7 人格+route 切换+工具子集不同+handoff 落 Handoff 表+orchestrator 路由+聚合不改写)；交互门 f010:e2e 6/6；视觉门 test:visual 2 passed；闸门门 gate:smoke 全过含 D20 变异；密钥门.env gitignored+gateway env+无硬编码。★CI: F010 feat 提交 26ee34b push 的 CI 失败唯一失败 job=Visual regression(缺 linux 基线的跨平台像素差,非产品缺陷),12e304b 补 linux 基线后 workflow_dispatch run 29749985679(headSha=12e304b)四 job(Typecheck/Lint/Build/Visual regression)全 success;git diff --name-only 12e304b..HEAD 仅 progress.json(paths-ignore),HEAD 产品代码≡12e304b 等价四 job 全绿,SHA mismatch 不阻断(evaluator.md §12)。★互操作门/IA 门承继 F002/F005/F008(代码未变,build 21/21 无死链)。★被验产品代码 SHA=12e304b(F010 feat 26ee34b+linux 基线 12e304b),改动全在 F010 scope(README/CLAUDE.md/agent-architecture.md/package.json 脚本/f010-e2e-check.mjs/preview/agent-canvas/agent-canvas.spec.ts+基线 PNG)。验收未改任何产品代码。仅 1 项非阻断 README 散文命名漂移(见条款4,已入 signoff Soft-watch S1,有明文兜底)。整体批次 F001-F010 全 PASS 无阻断。报告: docs/test-reports/AGENT-FOUNDATION-F010-verify-Andy-evaluator-subagent.md + signoff docs/test-reports/AGENT-FOUNDATION-signoff-Andy-evaluator-subagent.md。验收人 Andy/evaluator-subagent"
     }
   ],
   "generator_handoff": null,

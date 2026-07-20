@@ -1,8 +1,9 @@
 name: Deploy to Production (deploysvr)
 
-# CICD-VPS F006 — 容器化部署到 deploysvr。SSH → docker compose pull → up -d → 健康检查。
-# 镜像由 build-push.yml 预构建推 GHCR；本 workflow 只 pull 不 build。
-# 仅手动触发（harness 铁律：deploy/prod 永留人类闸门）。
+# CICD-VPS F006 / GO-LIVE F003 — 全栈容器化部署到 deploysvr。SSH → compose pull → up -d → 健康检查。
+# 镜像由 build-push.yml 预构建推 GHCR（app + tools 两个）；本 workflow 只 pull 不 build。
+# 全栈：`up -d` 经 compose depends_on 先跑 migrate one-shot（migrate deploy + 首次/幂等 seed）→ 再起 app。
+# 仅手动触发（harness 铁律：deploy/prod 永留人类闸门）。首次上线前置见 docs/dev/deploy.md（一次性人工设置清单）。
 #
 # 依赖 GitHub repo secrets（值来自 deploysvr 部署密钥）：
 #     PROD_HOST    = 194.238.26.173
@@ -48,15 +49,20 @@ jobs:
             export IMAGE_TAG
             COMPOSE="docker compose -f docker-compose.prod.yml"
 
-            echo "── 1/3 docker compose pull (IMAGE_TAG=${IMAGE_TAG})"
+            echo "── 1/3 docker compose pull (IMAGE_TAG=${IMAGE_TAG}；app + tools 镜像)"
             $COMPOSE pull
 
-            echo "── 2/3 up -d"
-            $COMPOSE up -d
+            echo "── 2/3 up -d（compose depends_on 先跑 migrate one-shot：migrate deploy + 首次/幂等 seed → 再起 app）"
+            # 首次 seed 会对 ~2500 KOL 算 embedding，可能数分钟；--wait 等 app healthy（含 migrate 完成）。
+            if ! $COMPOSE up -d --wait --wait-timeout 600; then
+              echo "❌ up 失败——migrate 日志："; $COMPOSE logs --tail 80 migrate
+              echo "app 日志："; $COMPOSE logs --tail 40 app
+              exit 1
+            fi
 
-            echo "── 3/3 healthcheck (127.0.0.1:3300, 10×3s 重试)"
+            echo "── 3/3 healthcheck (127.0.0.1:3300/api/health, 10×3s 重试)"
             for i in $(seq 1 10); do
-              if curl -sf http://127.0.0.1:3300/admin/dashboards/default >/dev/null 2>&1; then
+              if curl -sf http://127.0.0.1:3300/api/health >/dev/null 2>&1; then
                 echo "✅ Deploy healthy: IMAGE_TAG=${IMAGE_TAG}"
                 exit 0
               fi

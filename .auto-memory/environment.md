@@ -10,10 +10,10 @@ type: reference
 |---|---|
 | 域名 | `https://newkol.guangai.ai`（HTTPS） |
 | VPS | `deploysvr`（共享多应用机；host/user/key 存 GitHub Secrets `PROD_HOST/PROD_USER/PROD_SSH_KEY`，不入 git） |
-| 运行 | Docker：容器 `newkolmatrix-app`，`127.0.0.1:3300` → 容器 `:3000`，nginx 反代 |
-| 部署目录 | `/opt/apps/newkolmatrix` |
-| 镜像 | `ghcr.io/tripplemay/newkolmatrix:{sha\|latest}` |
-| 部署方式 | 手动 `deploy-prod` workflow_dispatch（人类闸门）；详见 `docs/dev/deploy.md` |
+| 运行 | Docker 全栈：`newkolmatrix-app`(`127.0.0.1:3300`→`:3000`,nginx 反代) + `newkolmatrix-db`(pgvector/pg16,卷 `newkolmatrix-pgdata`,不暴露端口) + `newkolmatrix-migrate`(一次性 migrate+seed) |
+| 部署目录 | `/opt/apps/newkolmatrix`（放 `docker-compose.prod.yml` + `.env`：`POSTGRES_PASSWORD`+`AIGCGATEWAY_API_KEY`，不入 git） |
+| 镜像 | app `ghcr.io/tripplemay/newkolmatrix:{sha\|latest}`（runner 最小）+ tools `...-tools:{sha\|latest}`（migrate/seed） |
+| 部署方式 | 手动 `deploy-prod` workflow_dispatch（人类闸门）；`up -d --wait` 先 migrate 后 app；详见 `docs/dev/deploy.md` |
 
 ## 旧 kolmatrix（共存，不碰）
 

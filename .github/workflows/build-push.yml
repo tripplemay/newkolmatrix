@@ -1,7 +1,8 @@
 name: Build & Push image
 
-# CICD-VPS F005 — CI 构建 Docker 镜像推 GHCR，deploysvr 只 pull（不在共享机上 build）。
-# 每次 main push 按 github.sha 打不可变 tag + latest。前端-only 单镜像（无 migrate）。
+# CICD-VPS F005 / GO-LIVE F003 — CI 构建 Docker 镜像推 GHCR，deploysvr 只 pull（不在共享机上 build）。
+# 每次 main push 按 github.sha 打不可变 tag + latest。
+# 全栈：推两个镜像 —— app（runner，最小运行）+ tools（migrate/seed 一次性，含 prisma CLI + seed + CSV）。
 on:
   push:
     branches: [main]
@@ -44,7 +45,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & push app image
+      - name: Build & push app image (runner，最小运行镜像)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -53,5 +54,17 @@ jobs:
           tags: |
             ${{ env.IMAGE_BASE }}:${{ github.sha }}
             ${{ env.IMAGE_BASE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push tools image (migrate/seed 一次性)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: tools
+          push: true
+          tags: |
+            ${{ env.IMAGE_BASE }}-tools:${{ github.sha }}
+            ${{ env.IMAGE_BASE }}-tools:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max

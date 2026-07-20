@@ -8,7 +8,8 @@
 
 import { chromium } from 'playwright';
 
-const BASE = 'http://localhost:3000';
+// GO-LIVE F003：E2E_BASE 可覆盖，供本地 prod-stack（127.0.0.1:3300）复用同一 e2e。默认 dev :3000。
+const BASE = process.env.E2E_BASE || 'http://localhost:3000';
 const PROJECT = 'starlight-protocol';
 let pass = 0,
   fail = 0;

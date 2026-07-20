@@ -1,12 +1,12 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "FE-REFACTOR 前端地基整改：消化 FE-AUDIT 的 11 条 backlog（P0×2+P1×7+P2×2，留 BL-FE-12）——公共组件抽取（Badge/ChatBubble/DefinitionRow/PageHeader/SectionLabel/PanelHeader/HandoffCard/SurfaceCard）、卡片表面语言统一（hover:shadow-xl 拍板）、术语统一（职责/边界 拍板）、token 层微排版刻度命名化+gray-600、admin/ port 约定落地（逐个 port 保留模板结构 拍板）+dead 登记、视觉基线单次重生+CI 盲区 route mock。在 ARCH-LOCK+M0.5 前把地基整净。",
   "total_features": 7,
   "completed_features": 7,
   "fix_rounds": 0,
   "current_sprint": "FE-REFACTOR",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-20T22:15",
+  "last_updated": "2026-07-20T22:50",
   "reference_docs": [
     "docs/product/KOLMatrix-PRD.md",
     "docs/audits/KOLMatrix-integrated-architecture-design-2026-07-17.md",
@@ -31,6 +31,6 @@
   "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "FE-AUDIT done(4/4 PASS,12 条 backlog,commit 5d25945)后用户四项拍板:FE-REFACTOR 先行/admin/ 逐个 port 保留模板结构/hover=shadow-xl/术语=职责·边界。FE-REFACTOR planning 完成(plan mode 批准=spec lock):7 features 全 generator,消化 BL-FE-01..11(留 BL-FE-12 在池)。关键约束:D1 基线只在 F007 单次重生(F001-F005 期间 test:visual 预期红,lint/tsc 必须绿);D3 building 串行(copilot 域文件重叠);F007 必须最后。FE-AUDIT 的 evaluator_feedback 全文在 git history(5d25945)与 docs/test-reports/FE-AUDIT-*.md。下一步:building F001→F007 串行。done 后回 ARCH-LOCK+M0.5(架构文档 f5/kimi 两版定稿留该批,用户工作区未提交文件不碰)。审计方法学提案在 proposed-learnings 待确认;harness-fit 9 条挂起。"
+    "Andy": "FE-REFACTOR building 完成(7/7,2026-07-20 单会话串行)：F001 Badge/ChatBubble/DefinitionRow+术语职责·边界(f7fc3cf);F002 PageHeader/SectionLabel/PanelHeader+Button iconOnly(5341d7e);F003 HandoffCard 容器/呈现拆分(6625935);F004 SurfaceCard+hover:shadow-xl+shadow-sm/md 清零(a76a324);F005 fontSize mini/micro/compact+gray-600(bafd917,tailwind.config 首次有意偏离模板逐字节同);F006 port-guide+inventory 78 组件四分类(652ea1d);F007 route mock 消 CI 盲区+darwin 基线(9df773e)+update-snapshots=all 修 workflow 静默跳过(42d7d75)+linux 基线 bot commit(7d34d00)。全程 CI 绿(视觉 job 因 2% 容忍在中间 commit 未红;最终对新基线验证 run 29772314482 全绿)。踩坑:Playwright --update-snapshots 默认 changed 模式在容忍内静默不改写→重生 workflow 空转,已改 =all。进入 verifying:fan-out 3 路(A=F001+F002 组件抽取;B=F003+F004+F007 视觉链;C=F005+F006 token+文档)+汇总 signoff;evaluator 复跑 fe-audit 三脚本对账(dup 归零/token 清零/矩阵变化符合预期)。"
   }
 }

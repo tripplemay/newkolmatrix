@@ -51,7 +51,7 @@
       "title": "多 Agent 编排框架：registry + persona router + handoff 协议 + orchestrator 调度骨架",
       "priority": "high",
       "executor": "generator",
-      "status": "verifying",
+      "status": "done",
       "acceptance": [
         "Agent registry（src/lib/agent/registry.ts）：以 PRD §9.2 编队名册为权威，声明 7 个 AgentId（orchestrator/strategy/match/reach/delivery/insight/compliance）的人格定义——system prompt 人格 + duty + iso 否定式护栏 + 绑定的工具子集 + 界面语法；加一个 agent = 往 registry 加一条，不改 route 核心（FR-12.12）",
         "Persona router：按 copilot context（route + env + agentId）选人格并收窄工具子集，注入 F005 的 streamText runtime（单一 /api/agent 承载所有专家，不起独立进程，FR-12.1/§12.6 落点在柱二内）",

@@ -292,6 +292,48 @@
         }
       ],
       "notes": "总判定 PASS,6/6 acceptance 子条+编排门+构建门(spec §6)全绿,首轮 fix_rounds=0。§3.2 焊死/语义留扩展点纪律两向守住(该焊死的焊死、不该焊死的留扩展点,防 ADR-001 过度设计)。★关键实测: orch:smoke 18/18 exit0;live curl 4 人格经 /api/agent 切换(match 真调 search_kols 返真实 seed KOL/strategy stream 0 次 search_kols 证工具子集在 streamText 层真收窄);Evaluator 独立探针+psql 直连确认 createHandoff 真落 Handoff 表且 receiveHandoff 重读指针指 artifactRef 非(我植入的 FAKE)summary,§5.4 语义成立。非阻断观察(记录不打回): O1 工作树未提交 dep @ai-sdk/react@4.0.34+lock(非 F006 引入-191eeec 未含、无源码引用、属 F007 useChat 预备残留、非 Evaluator 引入,构建门在含此 dep 树上仍全绿,建议 Generator F007 提交时纳入或先 revert); O2 strategy 被授 get_kol_detail 与其 duty 关联偏弱但属 §3.2 EXTENSION POINT 允许的最小实现且不破坏工具子集不同验收,待 M1 校准; O3 架构稿 §5.1 用旧标签 brief,registry 正确采 acceptance 权威 strategy; O4 next.config standalone 致 next start 告警(CICD 批次非 F006)但路由实测正常服务 4 人格全200。被验提交 191eeec,改动全在 F006 scope(registry/persona-router/handoff/orchestrator/route.ts/context.ts/types.ts/orch:smoke)。验收未改任何产品代码(仅临时增删 scripts/test 探针已清理),真实 key 已 mask,已 kill 起的服务释放3000。仅验 F006(F007-F010 未实现属正常)。报告: docs/test-reports/AGENT-FOUNDATION-F006-verify-2026-07-19.md。验收人 Andy/evaluator-subagent"
+    },
+    {
+      "feature": "F007",
+      "verdict": "PASS",
+      "clauses": [
+        {
+          "criterion": "C1 浏览器对话面打字「找 XX KOL」→ 流式回复 + KOL 卡片流渲染(真实 seed 数据)",
+          "result": "PASS",
+          "evidence": "CopilotPanel 常驻渲染(1600x1000,hidden xl:flex 满足,copilotPresent=true/asideVisible=true),useChat 接 /api/agent(CopilotPanel.tsx:104-109 DefaultChatTransport)。打字『帮我找几个坦克世界解说 YouTuber』→ 流式文本气泡+KOL 卡片流。★真实 seed psql 交叉验证: canvas 展示 SKIFler/The_Viper_UA/The Best Replays World of Tanks/PWN-G|WoT Replays,DB 回查全命中真实行 @SKIFler_WOT/@TheViperUA/@TheBestReplaysWorldofTanks/@PWN-G platform=youtube country=乌克兰(与 query 语义吻合非编造)。% 匹配徽标 65/59/59/59/58/56%,候选计数『10 位候选』。截图 02-kolcards.png"
+        },
+        {
+          "criterion": "C2 canvas 协议: 新结果类型加一个组件即可渲染",
+          "result": "PASS",
+          "evidence": "canvas-registry.tsx CANVAS_REGISTRY Record<toolName,ComponentType>(工具名→组件)+hasCanvasRenderer+renderToolResult;当前 search_kols→KolResultCards。扩展铁律成立: 新结果类型=往 CANVAS_REGISTRY 加一条不改对话面核心,EXTENSION POINT 注释标 get_kol_detail 详情卡等后续。对话面 MessageParts 检测 part.type=tool-<name>(静态工具)或 dynamic-tool,output-available 时委托 registry 渲染(CopilotPanel.tsx:72-85),route 核心不感知具体工具"
+        },
+        {
+          "criterion": "C3 对话面顶部常驻显示当前专家 duty + 否定式护栏(AI 行为边界 D13 升级版)",
+          "result": "PASS",
+          "evidence": "ExpertScope 顶部常驻(CopilotPanel.tsx:125-127 shrink-0 头),消费 F006 personaBoundary(client-safe 无 prisma)。实测(discovery)专家头(独立选择器 aside div.border-l-4 隔离): 匹配 Agent | 对比矩阵(uiSyntax) | 职责 创作者筛查·组合生成·受众匹配·可信度核验 | 隔离 只做发现与匹配,不发起触达、不谈价。否定式护栏原文如实展示于隔离行,忠实还原原型 .cop-scope"
+        },
+        {
+          "criterion": "C4 多人格切换(≥2 可见) + context key 变化→对话清空+新专家开场白(FR-12.4 非切角色清空)",
+          "result": "PASS",
+          "evidence": "字面四要素全实测过: (1)≥2 人格可见切换—discovery→专家头『匹配 Agent』(match)/outreach·dashboard→『编排 Agent』(orchestrator),2 个不同人格随 route 自动切(独立 ExpertScope 选择器实测); (2)对话清空—切 outreach 后 KOL 卡片消失(outreach_kolClearedFromCanvas=true),机制=CopilotChat key=contextKey remount(CopilotPanel.tsx:184-197); (3)新专家开场白—每人格 remount 空消息→『我是{name},负责{duty}。有什么可以帮你的?』实测 discovery『我是匹配 Agent…』/outreach『我是编排 Agent…』; (4)context key=route:projectId:env:agentId(persona-router.ts:24-26)变化即 remount。★非阻断缺陷(记录不打回,不失字面 acceptance): /admin/outreach 实映射 orchestrator 而非 reach,根因 defaultAgentForRoute 用 route.includes('/reach')(persona-router.ts:53)但 /admin/outreach 无 /reach 子串,且 admin 现有 5 路由无一含 /reach→reach 人格经路由不可达。后果: Generator commit『match↔reach』不准确(实为 match↔orchestrator);Generator smoke:55『outreach→触达 Agent』断言假阳性(reachText.includes 触达 Agent 为真仅因 HandoffCollab 渲染『匹配 Agent→触达 Agent』文案,非专家头切 reach,我用 ExpertScope 独立选择器证专家头实为编排 Agent)。判定: 字面只要求≥2 可见切换(match↔orchestrator 满足)+清空+开场白(均满足),route→agent 精度是 §3.2 声明 EXTENSION POINT(persona-router.ts:7 随 F008 IA 充实)→C4 判 PASS。建议 F008 修 /outreach→reach 并修 smoke 断言分离取样消假阳性"
+        },
+        {
+          "criterion": "C5 协同交接可视化: 以 A→B 呈现 handoff,可展开看交接对/摘要/交接物(FR-9.5)",
+          "result": "PASS",
+          "evidence": "数据源真实: HandoffCollab fetch /api/handoffs→GET 读 F002 Handoff 表(route.ts),DB 实测 1 行 match→reach artifactType=match_plan artifactRef=match_plan:demo-starlight-protocol summary=为《星轨协议》筛出 3 位坦克世界解说候选…。实测: 区块头『协同交接·多 Agent 联动·点开看交接』(MdGroups);交接对 A→B collab_pairText=『匹配 Agent → 触达 Agent』(personaBoundary 映射);可展开 collab_hasArtifact/hasSummary=true;交接物『match_plan(match_plan:demo-starlight-protocol)』(MdBolt);摘要=星轨协议交接文案。截图 04-collab-expanded.png,忠实还原原型 .collab。次要观察(非缺陷): 原型 cl-detail 另含 ho-turn(messagesJson 对话轮),实现未渲染(API 未 select),acceptance 只要交接对/摘要/交接物三项均已呈现故不扣分"
+        },
+        {
+          "criterion": "C6 浅色 + console 无 error + 忠实 Horizon 视觉",
+          "result": "PASS",
+          "evidence": "浅色: 截图确认白/浅灰底(默认 light,模板 body.dark 已去除)。console 无 error: 独立测跨 discovery/发消息/outreach/dashboard/collab 展开全程 consoleErrors_raw=[]/consoleErrors_real=[](0 条),Generator smoke 亦 0。忠实 Horizon: brand 紫 #422AFB(渐变气泡/徽标/border-l)+圆角卡 rounded-2xl+DM Sans+侧栏图标+卡片阴影/hover,用 Tailwind+Horizon 原语拼(落地规范 §6 新建 CopilotPanel/ExpertAgentHeader),忠实还原 .cop-scope/.cmsg/.collab。注: visual baseline PNG 是 F010 acceptance 非 F007 判据本轮不要求"
+        },
+        {
+          "criterion": "构建门(spec §6): tsc --noEmit + lint + build 全绿",
+          "result": "PASS",
+          "evidence": "删 tsconfig.tsbuildinfo+prisma generate 后: npx tsc --noEmit TSC_EXIT=0; npx next lint LINT_EXIT=0(No ESLint warnings or errors); npx next build BUILD_EXIT=0(Compiled successfully+Generating static pages 12/12,/api/agent·/api/handoffs=ƒ Dynamic,/admin/discovery·/admin/outreach 等静态页正常)"
+        }
+      ],
+      "notes": "总判定 PASS,6/6 acceptance 子条+构建门(spec §6)全绿,首轮 fix_rounds=0。交互门(spec §6)成立: 浏览器对话面打字→KOL 卡片流真实 seed 渲染(psql 交叉验证)+≥2 人格可见切换(match↔orchestrator,独立 ExpertScope 选择器实测)+协同交接区可展开(A→B/摘要/交接物),console 0 error,浅色,忠实 Horizon 还原原型 .cop-scope/.cmsg/.collab。★独立取证: 亲写独立 Playwright(专家头用 aside div.border-l-4 独立选择器与 HandoffCollab 文案隔离,避开 Generator smoke 假阳性)+psql 直连回查 4 个 KOL 名真实 seed+构建门亲跑。★非阻断缺陷(记录不打回,不失字面 acceptance): /admin/outreach 映射 orchestrator 而非 reach(defaultAgentForRoute route.includes('/reach') 不匹配 outreach,admin 现有路由无一含 /reach→reach 经路由不可达),致 Generator commit『match↔reach』不准确+smoke:55『outreach→触达 Agent』假阳性(触达 Agent 文案实由 HandoffCollab 带出非专家头切换);C4 字面 acceptance『≥2 人格可见切换』由 match↔orchestrator 满足,route→agent 精度属 §3.2 EXTENSION POINT(随 F008 IA 充实),故判 PASS,建议 F008 修映射+修 smoke 断言分离取样。次要观察: HandoffCollab 未渲染 messagesJson 对话轮(API 未 select),acceptance 三项(交接对/摘要/交接物)已全呈现不扣分。被验提交 9f1c95d(已在 HEAD 祖先链),改动全在 F007 scope(src/components/copilot/**+api/handoffs/route.ts+admin/layout.tsx+scripts/seed/demo-handoff.ts+@ai-sdk/react)。验收未改任何产品代码(仅临时增删 scripts/test/_indep-f007-tmp.mjs 探针已删),真实 key 已 mask,已 kill dev 释放3000+关 Playwright。仅验 F007(F008-F010 未实现属正常)。报告: docs/test-reports/AGENT-FOUNDATION-F007-verify-2026-07-20.md。验收人 Andy/evaluator-subagent"
     }
   ],
   "generator_handoff": null,

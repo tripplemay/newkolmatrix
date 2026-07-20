@@ -25,7 +25,7 @@ export default defineConfig({
   // 起 standalone 产物（与 Docker runner 同 artifact；CI 在此前已 npm run build）
   webServer: {
     command: 'node scripts/serve-standalone.mjs',
-    url: 'http://127.0.0.1:3000/admin/dashboards/default',
+    url: 'http://127.0.0.1:3000/admin/today',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

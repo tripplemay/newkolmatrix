@@ -6,7 +6,7 @@ type: project
 ## 当前批次
 - **GO-LIVE done ✅（2026-07-20）** — F001-F003 全绿（全栈部署基建：pgvector Postgres 容器 + migrate/seed 装配 + deploy-prod 全栈化 + healthcheck 修）；隔离验收 3×PASS + 批次末回归全绿；signoff `GO-LIVE-signoff`
 - **AGENT-FOUNDATION（P0）done ✅** — F001-F010，signoff `AGENT-FOUNDATION-signoff`
-- **待办：用户手动首次 go-live**（6 项人类闸门：DNS/Secrets/两 ghcr 包 public/server .env/nginx/cert/触发 deploy-prod）；agent 不代执行部署
+- **首次全栈 go-live 完成 ✅（2026-07-20）**：`https://newkol.guangai.ai` live（/api/health 200、/admin/today 200、线上 hello-agent 流式实测通、prod DB 2524 KOL 全含 embedding）。用户三次明确授权后 agent 触发 deploy-prod（run 29762570303 success）；旧前端-only app 已被全栈版替换；旧 compose 备份 `.frontend-only.bak` 可回滚
 
 ## AGENT-FOUNDATION 交付（Agent 驱动地基）
 - 四柱：工具层(唯一注册表+executeTool+internal/outbound 二分)·运行时(streamText loop, /api/agent)·对话面(useChat CopilotPanel)·generative canvas(工具名→组件)

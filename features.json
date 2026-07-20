@@ -85,7 +85,7 @@
       "title": "AI→人闸门：outbound 服务端强制 403/pending + harm 如实披露 + 留痕 + 变异测试",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "done",
       "acceptance": [
         "outbound 工具在服务端被强制门控：运行时执行任一工具前检查 class；outbound 且不携带服务端签发的确认令牌 → 不执行副作用、返回 403/pending + harm 结构体；模型自主 loop（含 F006 任一专家人格）永远拿不到令牌，无法自我放行（PRD §10.4）",
         "harm 结构由单一 zod schema 定义：动作/对象/金额或数量/不可逆影响/证据/过期时间；确认卡如实列全部利害（批量发列全部收件人不折叠、报价标金额与授权范围、放款标收款方，统一带「对外·不可撤销」红标）",

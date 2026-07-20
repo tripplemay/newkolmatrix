@@ -21,7 +21,9 @@ import {
 } from 'lib/agent/persona-router';
 import { personaBoundary, DEFAULT_AGENT_ID } from 'lib/agent/registry';
 import { STAGE_AGENT, isStage } from 'lib/agent/stage-routing';
+import Button from 'components/common/Button';
 import ChatBubble from 'components/common/ChatBubble';
+import PanelHeader from 'components/common/PanelHeader';
 import ExpertScope from './ExpertScope';
 import HandoffCollab from './HandoffCollab';
 import { hasCanvasRenderer, renderToolResult } from './canvas/canvas-registry';
@@ -164,14 +166,18 @@ function CopilotChat({ context }: { context: CopilotContext }) {
             placeholder={`对${persona?.name ?? '专家'}说…`}
             className="bg-transparent min-w-0 flex-1 text-sm text-navy-700 outline-none placeholder:text-gray-400 dark:text-white"
           />
-          <button
+          {/* FE-REFACTOR F002：收敛到 common/Button iconOnly（disabled 态透明度 40→50 归一组件规范） */}
+          <Button
             type="submit"
+            variant="solid"
+            size="sm"
+            iconOnly
             disabled={busy || !input.trim()}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-500 text-white transition disabled:opacity-40"
             aria-label="发送"
+            className="shrink-0"
           >
             <MdSend size={16} />
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -194,14 +200,11 @@ function CopilotPanelInner() {
 export default function CopilotPanel() {
   return (
     <aside className="fixed right-0 top-0 z-40 hidden h-screen w-[360px] flex-col border-l border-gray-200 bg-white dark:border-white/10 dark:bg-navy-800 xl:flex">
-      <div className="shrink-0 border-b border-gray-200 px-4 py-3 dark:border-white/10">
-        <div className="text-sm font-bold text-navy-700 dark:text-white">
-          Copilot · 多 Agent 编队
-        </div>
-        <div className="text-[11px] text-gray-400">
-          进不同环节自动切换对应专家
-        </div>
-      </div>
+      <PanelHeader
+        className="shrink-0 border-b border-gray-200 px-4 py-3 dark:border-white/10"
+        title="Copilot · 多 Agent 编队"
+        subtitle="进不同环节自动切换对应专家"
+      />
       <div className="min-h-0 flex-1">
         <Suspense
           fallback={

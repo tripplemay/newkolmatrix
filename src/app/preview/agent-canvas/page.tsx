@@ -9,6 +9,8 @@
 
 import { MdGroups, MdBolt } from 'react-icons/md';
 import ChatBubble from 'components/common/ChatBubble';
+import PanelHeader from 'components/common/PanelHeader';
+import SectionLabel from 'components/common/SectionLabel';
 import ExpertScope from 'components/copilot/ExpertScope';
 import KolResultCards from 'components/copilot/canvas/KolResultCards';
 import { personaBoundary } from 'lib/agent/registry';
@@ -22,10 +24,10 @@ function StaticHandoffCard() {
     personaBoundary(HANDOFF_FIXTURE.toAgent)?.name ?? HANDOFF_FIXTURE.toAgent;
   return (
     <div className="rounded-2xl bg-white p-3 shadow-sm">
-      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+      <SectionLabel className="mb-2">
         <MdGroups size={15} className="text-brand-500" />
         协同交接 · 多 Agent 联动 · 点开看交接
-      </div>
+      </SectionLabel>
       <div className="rounded-xl border border-gray-200 bg-white">
         <div className="flex w-full items-center justify-between gap-2 px-3 py-2">
           <span className="flex items-center gap-1.5 text-xs font-semibold text-navy-700">
@@ -51,15 +53,11 @@ export default function AgentCanvasPreview() {
   return (
     <div className="min-h-screen bg-gray-50 px-6 py-8">
       <div className="mx-auto max-w-[420px]">
-        <div className="mb-3">
-          <div className="text-sm font-bold text-navy-700">
-            Copilot · 多 Agent 编队
-          </div>
-          <div className="text-[11px] text-gray-400">
-            hello-agent 端到端产物：自然语言 → search_kols → KOL 卡片流 →
-            一次协同交接
-          </div>
-        </div>
+        <PanelHeader
+          className="mb-3"
+          title="Copilot · 多 Agent 编队"
+          subtitle="hello-agent 端到端产物：自然语言 → search_kols → KOL 卡片流 → 一次协同交接"
+        />
 
         {/* 柱三：专家 Agent 头（duty + 否定式护栏） */}
         <ExpertScope agentId="match" />

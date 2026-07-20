@@ -4,19 +4,18 @@
 import Link from 'next/link';
 import Card from 'components/card';
 import Badge from 'components/common/Badge';
+import PageHeader from 'components/common/PageHeader';
 import { MdArrowForward } from 'react-icons/md';
 import { DEMO_PROJECTS } from 'components/project/demo-projects';
 
 export default function CampaignsPage() {
   return (
     <div className="mt-3">
-      <h1 className="mb-1 text-2xl font-bold text-navy-700 dark:text-white">
-        项目
-      </h1>
-      <p className="mb-4 text-sm text-gray-500">
-        每个项目是五环节（Brief · Match · Reach · Delivery ·
-        Insight）的唯一容器。点开进入项目空间。
-      </p>
+      <PageHeader
+        className="mb-4"
+        title="项目"
+        subtitle="每个项目是五环节（Brief · Match · Reach · Delivery · Insight）的唯一容器。点开进入项目空间。"
+      />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {DEMO_PROJECTS.map((p) => (
           <Link key={p.id} href={`/admin/campaigns/${p.id}`}>

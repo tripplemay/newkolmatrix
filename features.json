@@ -15,7 +15,7 @@
       "title": "common 抽取 B：PageHeader / SectionLabel / PanelHeader + Button icon variant",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "新增 common/PageHeader（align?, actions?）收敛 4 处；common/SectionLabel 收敛 3 处；common/PanelHeader 收敛 2 处；common/Button 补圆形纯图标 variant 并收敛 CopilotPanel:181 发送按钮；不改 HandoffCollab:30 / ProjectDetail:67（语义不同控件，豁免）；lint+tsc 绿。详见 spec §2 F002",
       "description": "消化 BL-FE-06。依据 FE-AUDIT F002 报告 §5 R4/R6/R8 + F001-04。"
     },

@@ -20,6 +20,8 @@ export interface ButtonProps
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   fullWidth?: boolean;
+  /** FE-REFACTOR F002：圆形纯图标按钮（等宽高 + rounded-full），children 即图标 */
+  iconOnly?: boolean;
 }
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
@@ -39,6 +41,12 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
   sm: 'h-9 px-3 text-sm gap-1.5',
   md: 'h-11 px-5 text-sm gap-2',
   lg: 'h-12 px-6 text-base gap-2',
+};
+
+const ICON_ONLY_SIZE_CLASSES: Record<ButtonSize, string> = {
+  sm: 'h-8 w-8',
+  md: 'h-10 w-10',
+  lg: 'h-12 w-12',
 };
 
 function Spinner() {
@@ -74,6 +82,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
     leftIcon,
     rightIcon,
     fullWidth = false,
+    iconOnly = false,
     disabled,
     className = '',
     children,
@@ -89,8 +98,10 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       type={type}
       disabled={isDisabled}
       aria-busy={loading || undefined}
-      className={`linear inline-flex items-center justify-center rounded-xl font-medium transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-navy-900 ${
-        SIZE_CLASSES[size]
+      className={`linear inline-flex items-center justify-center font-medium transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-navy-900 ${
+        iconOnly
+          ? `rounded-full ${ICON_ONLY_SIZE_CLASSES[size]}`
+          : `rounded-xl ${SIZE_CLASSES[size]}`
       } ${VARIANT_CLASSES[variant]} ${fullWidth ? 'w-full' : ''} ${
         isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
       } ${className}`}

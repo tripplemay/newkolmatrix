@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Card from 'components/card';
+import PageHeader from 'components/common/PageHeader';
 import StagePanel from './StagePanel';
 import {
   STAGES,
@@ -42,24 +43,22 @@ export default function ProjectDetail({
   return (
     <div className="mt-3">
       <Card extra="!p-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h1 className="text-2xl font-bold text-navy-700 dark:text-white">
-              {project?.name ?? projectId}
-            </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              {project
-                ? `${project.cover} · 负责人 ${project.owner}（分工，非权限）`
-                : '项目详情'}
-            </p>
-          </div>
-          <Link
-            href="/admin/campaigns"
-            className="text-sm font-medium text-brand-500 hover:underline"
-          >
-            ← 返回项目列表
-          </Link>
-        </div>
+        <PageHeader
+          title={project?.name ?? projectId}
+          subtitle={
+            project
+              ? `${project.cover} · 负责人 ${project.owner}（分工，非权限）`
+              : '项目详情'
+          }
+          actions={
+            <Link
+              href="/admin/campaigns"
+              className="text-sm font-medium text-brand-500 hover:underline"
+            >
+              ← 返回项目列表
+            </Link>
+          }
+        />
 
         {/* 五环节 tab（页内，非路由，D22） */}
         <div className="mt-5 flex flex-wrap gap-2 border-b border-gray-200 dark:border-white/10">

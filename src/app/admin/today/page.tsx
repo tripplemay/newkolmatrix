@@ -6,6 +6,8 @@
 import Link from 'next/link';
 import Card from 'components/card';
 import Badge from 'components/common/Badge';
+import PageHeader from 'components/common/PageHeader';
+import SectionLabel from 'components/common/SectionLabel';
 import { MdBolt, MdChevronRight } from 'react-icons/md';
 import { routeToStage, STAGE_LABEL, type Stage } from 'lib/agent/stage-routing';
 import { getPersona } from 'lib/agent/registry';
@@ -62,16 +64,15 @@ function TodoRow({ projectId, project, stage, note }: (typeof TODOS)[number]) {
 export default function TodayPage() {
   return (
     <div className="mt-3">
-      <h1 className="mb-1 text-2xl font-bold text-navy-700 dark:text-white">
-        今天
-      </h1>
-      <p className="mb-4 text-sm text-gray-500">
-        编排 Agent 当值 · 需要你拍板的事项 · 点卡直落某项目的某环节
-      </p>
+      <PageHeader
+        className="mb-4"
+        title="今天"
+        subtitle="编排 Agent 当值 · 需要你拍板的事项 · 点卡直落某项目的某环节"
+      />
       <Card extra="!p-5">
-        <div className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-gray-500">
+        <SectionLabel size="sm" className="mb-3">
           <MdBolt className="text-brand-500" /> 需要你确认
-        </div>
+        </SectionLabel>
         <div className="grid gap-2.5">
           {TODOS.map((t) => (
             <TodoRow key={`${t.projectId}-${t.stage}`} {...t} />

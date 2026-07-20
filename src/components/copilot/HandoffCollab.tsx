@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { MdGroups, MdExpandMore, MdBolt } from 'react-icons/md';
+import SectionLabel from 'components/common/SectionLabel';
 import { personaBoundary } from 'lib/agent/registry';
 
 interface HandoffRow {
@@ -81,10 +82,10 @@ export default function HandoffCollab() {
 
   return (
     <div className="rounded-2xl bg-white p-3 shadow-sm dark:bg-navy-700">
-      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+      <SectionLabel className="mb-2">
         <MdGroups size={15} className="text-brand-500" />
         协同交接 · 多 Agent 联动 · 点开看交接
-      </div>
+      </SectionLabel>
       <div className="flex flex-col gap-1.5">
         {handoffs.slice(0, 5).map((h) => (
           <HandoffItem key={h.id} h={h} />

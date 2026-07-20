@@ -9,7 +9,7 @@ type: project
 - **FE-AUDIT done ✅（同日）**：地基体检 4/4 PASS，报告 `docs/test-reports/FE-AUDIT-*`
 
 ## 已上线
-- **`https://newkol.guangai.ai` live（2026-07-20 首次全栈 go-live）**；旧 compose 备份 `.frontend-only.bak` 可回滚
+- **`https://newkol.guangai.ai` live**：当前跑 **FE-REFACTOR 版本**（2026-07-20 用户授权 agent 触发 deploy run 29784391400，钉 SHA `42d7d75d…`；线上 CSS 实测含 text-mini/micro/compact + hover:shadow-xl 确证新版）；回滚 = deploy-prod 填上一 good SHA（go-live 版）；旧 compose 备份 `.frontend-only.bak`
 - GO-LIVE ✅ · AGENT-FOUNDATION（P0）✅（四柱+编排框架+AI→人闸门）· CICD-VPS ✅ · DS-FOUNDATION ✅
 
 ## 需求池（backlog.json，3 条）

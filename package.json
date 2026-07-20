@@ -18,10 +18,13 @@
     "ai:smoke": "node --env-file=.env --import tsx scripts/test/ai-gateway-smoke.ts",
     "seed:kol": "node --env-file=.env --import tsx scripts/seed/import-kol-csv.ts",
     "agent:smoke": "node --env-file=.env --import tsx scripts/test/agent-tools-smoke.ts",
-    "orch:smoke": "node --env-file=.env --import tsx scripts/test/orchestration-smoke.ts"
+    "orch:smoke": "node --env-file=.env --import tsx scripts/test/orchestration-smoke.ts",
+    "seed:demo-handoff": "node --env-file=.env --import tsx scripts/seed/demo-handoff.ts",
+    "f007:browser": "node scripts/test/f007-browser-check.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.16",
+    "@ai-sdk/react": "4.0.34",
     "@babel/traverse": "^7.24.6",
     "@chakra-ui/accordion": "^2.1.4",
     "@chakra-ui/hooks": "^2.1.4",

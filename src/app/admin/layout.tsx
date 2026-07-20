@@ -15,6 +15,7 @@ import Navbar from 'components/navbar';
 import Sidebar from 'components/sidebar';
 import Footer from 'components/footer/Footer';
 import { useMediaQuery } from 'hooks/useMediaQuery';
+import CopilotPanel from 'components/copilot/CopilotPanel';
 
 export default function Admin({ children }: { children: React.ReactNode }) {
   // states and functions
@@ -45,7 +46,7 @@ export default function Admin({ children }: { children: React.ReactNode }) {
       <div className="h-full w-full font-dm dark:bg-navy-900">
         {/* Main Content */}
         <main
-          className={`mx-2.5 flex-none transition-all dark:bg-navy-900 md:pr-2 ${
+          className={`mx-2.5 flex-none transition-all dark:bg-navy-900 md:pr-2 xl:mr-[372px] ${
             mini === false
               ? 'xl:ml-[313px]'
               : mini === true && hovered === true
@@ -76,6 +77,8 @@ export default function Admin({ children }: { children: React.ReactNode }) {
           </div>
         </main>
       </div>
+      {/* 常驻 Copilot 多 Agent 对话面（柱三+柱四，F007） */}
+      <CopilotPanel />
     </div>
   );
 }

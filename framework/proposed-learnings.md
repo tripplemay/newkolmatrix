@@ -126,3 +126,16 @@
 **建议写入：** `framework/harness/orchestration-patterns.md` §5（旁路 audit / fan-out 段补「审计类批次方法学」小节）或新建 `framework/patterns/audit-methodology.md`
 
 **状态：** 待确认
+
+---
+
+## [2026-07-20] Andy/evaluator-subagent（Planner 自 FE-REFACTOR signoff §10 转录）— 来源：FE-REFACTOR 批次验收
+
+**类型：** 新规律 ×2（Evaluator 方法学）+ 新坑 ×2
+
+1. **「0 findings」必须配检测器活性证明才可采信**：脚本未被篡改（`git log -- <script>` 溯源）+ 前批基线复现（read-only worktree 跑同一脚本复现旧 findings 数）+ 终态判据（全仓 grep = 0）三道交叉，区分"真修干净"与"检测器死了/豁免被放宽"。来源 F005（34→0）。建议写入 `framework/harness/evaluator.md` 或 `patterns/testing-env-patterns.md`
+2. **acceptance 计数与实测用量不符时先逐站点追溯再判定**：本批三次"数字对不上"（Badge 6→5 JSX、刻度 13→9、gray-500 11→7）全部证实为上游组件抽取去重的正确收敛；判据应落终态（全仓 grep=0 / 扫描归零）而非过程计数。建议写入 `framework/harness/evaluator.md`
+3. **视觉基线"容忍带静默"是双向坑**：`--update-snapshots` 默认 changed 模式在容忍内不改写（重生 workflow 空转，已修 42d7d75 改 =all）；同一 maxDiffPixelRatio 也让整块 UI 出现/消失（1.44%）不判红。原则：**重生用 all、断言用紧阈值**，引入视觉测试时即按页面典型改动量级校准。已立 BL-FE-13 治理。建议写入 `patterns/web-runtime-patterns.md`
+4. **纯 CI 环境"空数据渲染 null"会被基线静默编码为合法空白**：linux 基线曾把 HandoffCollab 空区域固化为"正确"，组件回归覆盖长期为零无人察觉。解法 = route mock 固定夹具 + `waitFor(关键文案)` 硬断言（渲染 null 即超时硬失败）。来源 BL-FE-11 / F003+F007。建议写入 `patterns/web-runtime-patterns.md`
+
+**状态：** 待确认

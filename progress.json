@@ -1,12 +1,12 @@
 {
-  "status": "verifying",
+  "status": "done",
   "user_goal": "FE-REFACTOR 前端地基整改：消化 FE-AUDIT 的 11 条 backlog（P0×2+P1×7+P2×2，留 BL-FE-12）——公共组件抽取（Badge/ChatBubble/DefinitionRow/PageHeader/SectionLabel/PanelHeader/HandoffCard/SurfaceCard）、卡片表面语言统一（hover:shadow-xl 拍板）、术语统一（职责/边界 拍板）、token 层微排版刻度命名化+gray-600、admin/ port 约定落地（逐个 port 保留模板结构 拍板）+dead 登记、视觉基线单次重生+CI 盲区 route mock。在 ARCH-LOCK+M0.5 前把地基整净。",
   "total_features": 7,
   "completed_features": 7,
   "fix_rounds": 0,
   "current_sprint": "FE-REFACTOR",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-20T22:50",
+  "last_updated": "2026-07-20T23:30",
   "reference_docs": [
     "docs/product/KOLMatrix-PRD.md",
     "docs/audits/KOLMatrix-integrated-architecture-design-2026-07-17.md",
@@ -24,13 +24,70 @@
   "docs": {
     "spec": "specs/FE-REFACTOR-spec.md",
     "test_cases": null,
-    "signoff": null,
-    "framework_reviewed": false
+    "signoff": "test-reports/FE-REFACTOR-signoff-Andy-evaluator-subagent.md",
+    "framework_reviewed": true
   },
   "role_assignments": null,
-  "evaluator_feedback": null,
+  "evaluator_feedback": [
+    {
+      "feature": "F001",
+      "verdict": "PASS",
+      "evaluator": "Andy/evaluator-subagent",
+      "round": "verifying",
+      "route": "A",
+      "notes": "6/6 clause。Badge/ChatBubble/DefinitionRow 三组件抽取 + 术语统一「职责/边界」；dup-scan 对账 P2/P3/P5 指纹仅剩定义处；campaigns 徽标漂移已归 canonical；旧术语 UI 零残留（唯一命中为不渲染 JSDoc）。报告：docs/test-reports/FE-REFACTOR-verify-A-Andy-evaluator-subagent.md"
+    },
+    {
+      "feature": "F002",
+      "verdict": "PASS",
+      "evaluator": "Andy/evaluator-subagent",
+      "round": "verifying",
+      "route": "A",
+      "notes": "6/6 clause。PageHeader(4)/SectionLabel(3→P4 指纹完全归零)/PanelHeader(2) + Button iconOnly 收敛发送按钮；豁免项（HandoffCollab 手风琴触发/ProjectDetail tab）确认未越界。观察项 O1-O4 非阻断（ComingSoon mt-2→mt-1、disabled 40→50、PanelHeader dark 漂移修复、术语零残留）。"
+    },
+    {
+      "feature": "F003",
+      "verdict": "PASS",
+      "evaluator": "Andy/evaluator-subagent",
+      "round": "verifying",
+      "route": "B",
+      "notes": "8/8 clause。预览页与生产共用同一 HandoffCard 呈现层（import 图证据）、手抄克隆体已删、容器只剩取数职责、空态逻辑保留。决定性证据：旧 linux 基线该区域为空白（CI 无 DB 盲区实锤），新基线出现完整交接卡——生产交接卡视觉回归覆盖由零变有，P0 目标闭合。"
+    },
+    {
+      "feature": "F004",
+      "verdict": "PASS",
+      "evaluator": "Andy/evaluator-subagent",
+      "round": "verifying",
+      "route": "B",
+      "notes": "6/6 clause。SurfaceCard 收敛 5 处；shadow-sm/md 代码零残留（仅注释）；hover 统一 shadow-xl；豁免项（HandoffCard 内层手风琴）如实核对。基线 diff 逐张归因 100% 落在拍板项或其必然副产品（边框归一/±2px 位移/断行位移一处——OBS-2 建议 Planner done 追认入 D2 清单）。"
+    },
+    {
+      "feature": "F005",
+      "verdict": "PASS",
+      "evaluator": "Andy/evaluator-subagent",
+      "round": "verifying",
+      "route": "C",
+      "notes": "6/6 clause。token-scan 34→0（同脚本前批基线复现交叉验证检测器活性）；fontSize mini/micro/compact 纯 font-size 字符串，tailwind 编译产物实测像素等价；自建域 arbitrary 微字号与 gray-500 双零；commit 明示 tailwind.config 首次有意偏离及理由；horizon-tokens.md §7 一致。"
+    },
+    {
+      "feature": "F006",
+      "verdict": "PASS",
+      "evaluator": "Andy/evaluator-subagent",
+      "round": "verifying",
+      "route": "C",
+      "notes": "5/5 clause。port-guide 含拍板记录 + 8 项适配清单；inventory 78 条与矩阵复跑双向集合比对零差异（13/6/25/34）；全批零删除。OBS-1：spec acceptance 字面「65」与登记表 78（含 RTL 白名单类）为措辞瑕疵不扣分。"
+    },
+    {
+      "feature": "F007",
+      "verdict": "PASS",
+      "evaluator": "Andy/evaluator-subagent",
+      "round": "verifying",
+      "route": "B",
+      "notes": "7/7 clause。route mock 固定夹具（与 HANDOFF_FIXTURE 同款）；darwin+linux 基线单次全量重生（--update-snapshots=all 修复 changed 模式静默跳过后 bot commit 7d34d00）；本地 test:visual 2 passed + CI run 29772314482 对新 linux 基线全 job success；4 张 PNG 逐张人查。OBS-3（中，入 backlog）：maxDiffPixelRatio 0.02 容忍带过宽，本批全部有意改动仅 1.4-1.5% 低于阈值——断言灵敏度侧仍有静默带，建议下批收紧。"
+    }
+  ],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "FE-REFACTOR building 完成(7/7,2026-07-20 单会话串行)：F001 Badge/ChatBubble/DefinitionRow+术语职责·边界(f7fc3cf);F002 PageHeader/SectionLabel/PanelHeader+Button iconOnly(5341d7e);F003 HandoffCard 容器/呈现拆分(6625935);F004 SurfaceCard+hover:shadow-xl+shadow-sm/md 清零(a76a324);F005 fontSize mini/micro/compact+gray-600(bafd917,tailwind.config 首次有意偏离模板逐字节同);F006 port-guide+inventory 78 组件四分类(652ea1d);F007 route mock 消 CI 盲区+darwin 基线(9df773e)+update-snapshots=all 修 workflow 静默跳过(42d7d75)+linux 基线 bot commit(7d34d00)。全程 CI 绿(视觉 job 因 2% 容忍在中间 commit 未红;最终对新基线验证 run 29772314482 全绿)。踩坑:Playwright --update-snapshots 默认 changed 模式在容忍内静默不改写→重生 workflow 空转,已改 =all。进入 verifying:fan-out 3 路(A=F001+F002 组件抽取;B=F003+F004+F007 视觉链;C=F005+F006 token+文档)+汇总 signoff;evaluator 复跑 fe-audit 三脚本对账(dup 归零/token 清零/矩阵变化符合预期)。"
+    "Andy": "FE-REFACTOR done(7/7 首轮 PASS,44/44 clause,fix_rounds=0,2026-07-20 单会话全程:planning→building 串行 7 commit→verifying 3 路 fan-out+signoff)。关键证据:旧 linux 基线 HandoffCollab 区域空白实锤 CI 盲区,新基线填充态入镜(BL-FE-02/11 闭环)。done 收尾完成:D2 拍板追认入 spec(verify-B OBS-2);backlog +BL-FE-13(阈值收紧 P1)/BL-FE-14(HandoffPanel 二次收敛 P2);signoff §10 四条 learnings 转录 proposed-learnings 待确认(检测器活性证明/计数落终态/容忍带双向坑/空数据基线固化);project-status 覆盖写;framework_reviewed=true。同日完成三批:FE-AUDIT(4/4)+FE-REFACTOR(7/7)+GO-LIVE 收尾。下一批次:ARCH-LOCK+M0.5(用户已定顺序):架构文档定稿(f5 3260 行 vs kimi v1.1 1013 行取舍,用户工作区未提交 agent 不碰)+六页工作台 mock 先行。待用户:proposed-learnings 5 组确认(审计方法学+本批 4 条);harness-fit 9 条继续挂起。"
   }
 }

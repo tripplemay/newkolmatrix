@@ -8,6 +8,7 @@ import Card from 'components/card';
 import Badge from 'components/common/Badge';
 import PageHeader from 'components/common/PageHeader';
 import SectionLabel from 'components/common/SectionLabel';
+import SurfaceCard from 'components/common/SurfaceCard';
 import { MdBolt, MdChevronRight } from 'react-icons/md';
 import { routeToStage, STAGE_LABEL, type Stage } from 'lib/agent/stage-routing';
 import { getPersona } from 'lib/agent/registry';
@@ -45,7 +46,10 @@ function TodoRow({ projectId, project, stage, note }: (typeof TODOS)[number]) {
   const href = `${target.route}?stage=${target.stage}`;
   return (
     <Link href={href}>
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 transition hover:border-brand-200 hover:shadow-md dark:border-white/5 dark:bg-navy-700">
+      <SurfaceCard
+        interactive
+        className="flex items-center justify-between gap-3 px-4 py-3 hover:border-brand-200"
+      >
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-bold text-navy-700 dark:text-white">
             {project}
@@ -56,7 +60,7 @@ function TodoRow({ projectId, project, stage, note }: (typeof TODOS)[number]) {
           <div className="mt-0.5 truncate text-xs text-gray-500">{note}</div>
         </div>
         <MdChevronRight className="shrink-0 text-gray-300" size={20} />
-      </div>
+      </SurfaceCard>
     </Link>
   );
 }

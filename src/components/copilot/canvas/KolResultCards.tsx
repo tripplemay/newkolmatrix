@@ -6,6 +6,7 @@
 
 import { MdVerified, MdOpenInNew } from 'react-icons/md';
 import Badge from 'components/common/Badge';
+import SurfaceCard from 'components/common/SurfaceCard';
 
 export interface KolHit {
   id: string;
@@ -36,7 +37,7 @@ function fmtFollowers(n: number | null): string {
 function KolCard({ kol }: { kol: KolHit }) {
   const pct = Math.round(kol.similarity * 100);
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm transition hover:shadow-md dark:border-white/10 dark:bg-navy-700">
+    <SurfaceCard interactive className="p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 font-bold text-navy-700 dark:text-white">
@@ -77,7 +78,7 @@ function KolCard({ kol }: { kol: KolHit }) {
           频道 <MdOpenInNew size={12} />
         </a>
       )}
-    </div>
+    </SurfaceCard>
   );
 }
 

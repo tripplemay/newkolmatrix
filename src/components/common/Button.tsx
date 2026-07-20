@@ -25,8 +25,9 @@ export interface ButtonProps
 }
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
+  // FE-REFACTOR F004：去 shadow-md/hover:shadow-lg（模板生产代码零次词表），渐变 CTA 本身即强调
   primary:
-    'bg-gradient-to-br from-brand-400 to-brand-600 text-white shadow-md shadow-brand-500/20 hover:shadow-lg active:opacity-90',
+    'bg-gradient-to-br from-brand-400 to-brand-600 text-white hover:opacity-90 active:opacity-80',
   solid:
     'bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700 dark:bg-brand-400 dark:hover:bg-brand-300 dark:active:bg-brand-200 dark:text-navy-900',
   secondary:

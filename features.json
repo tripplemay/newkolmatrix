@@ -33,7 +33,7 @@
       "title": "卡片表面语言统一（SurfaceCard + hover:shadow-xl）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "新增 common/SurfaceCard 轻量表面；收敛 5 处自写卡片（today:25/KolResultCards:38/preview:20/HandoffCollab:83/ExpertScope:14）；豁免 HandoffCollab:29 与 preview:25（手风琴内层，记录在案）；可点卡片 hover 统一 hover:shadow-xl；清除 shadow-sm/md 10 处（含 Button.tsx:27×2）；lint+tsc 绿。详见 spec §2 F004",
       "description": "消化 BL-FE-05（F001-03+F003 §4.4+F002 R7 合并条目）。hover=shadow-xl 为用户拍板。"
     },

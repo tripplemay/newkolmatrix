@@ -12,6 +12,7 @@ import ChatBubble from 'components/common/ChatBubble';
 import HandoffCard from 'components/common/HandoffCard';
 import PanelHeader from 'components/common/PanelHeader';
 import SectionLabel from 'components/common/SectionLabel';
+import SurfaceCard from 'components/common/SurfaceCard';
 import ExpertScope from 'components/copilot/ExpertScope';
 import KolResultCards from 'components/copilot/canvas/KolResultCards';
 import { personaBoundary } from 'lib/agent/registry';
@@ -26,7 +27,7 @@ function StaticHandoffCard() {
   const to =
     personaBoundary(HANDOFF_FIXTURE.toAgent)?.name ?? HANDOFF_FIXTURE.toAgent;
   return (
-    <div className="rounded-2xl bg-white p-3 shadow-sm">
+    <SurfaceCard className="p-3">
       <SectionLabel className="mb-2">
         <MdGroups size={15} className="text-brand-500" />
         协同交接 · 多 Agent 联动 · 点开看交接
@@ -40,7 +41,7 @@ function StaticHandoffCard() {
         collapsible={false}
         defaultOpen
       />
-    </div>
+    </SurfaceCard>
   );
 }
 

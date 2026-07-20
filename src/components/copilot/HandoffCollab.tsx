@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { MdGroups } from 'react-icons/md';
 import HandoffCard from 'components/common/HandoffCard';
 import SectionLabel from 'components/common/SectionLabel';
+import SurfaceCard from 'components/common/SurfaceCard';
 import { personaBoundary } from 'lib/agent/registry';
 
 interface HandoffRow {
@@ -47,7 +48,7 @@ export default function HandoffCollab() {
   if (!loaded || handoffs.length === 0) return null;
 
   return (
-    <div className="rounded-2xl bg-white p-3 shadow-sm dark:bg-navy-700">
+    <SurfaceCard className="p-3">
       <SectionLabel className="mb-2">
         <MdGroups size={15} className="text-brand-500" />
         协同交接 · 多 Agent 联动 · 点开看交接
@@ -64,6 +65,6 @@ export default function HandoffCollab() {
           />
         ))}
       </div>
-    </div>
+    </SurfaceCard>
   );
 }

@@ -1,21 +1,55 @@
-# CICD-VPS F002 — newkolmatrix 生产 compose（deploysvr /opt/apps/newkolmatrix）
-# 镜像由 build-push.yml 预构建推 ghcr；本机只 pull 不 build。前端-only，无 DB/redis。
-# 宿主 127.0.0.1:3300 → 容器 :3000，nginx 反代 newkol.guangai.ai → 3300。与旧 kolmatrix(:3001) 隔离。
+# GO-LIVE F001 — newkolmatrix 生产 compose（deploysvr /opt/apps/newkolmatrix）
+#
+# 全栈：pgvector Postgres 容器（自带，D-GL1）+ app（standalone 镜像，build-push 预构建推 ghcr，本机只 pull）。
+# 密钥走同目录 .env（人工放，绝不入 git，D-GL2）：POSTGRES_PASSWORD + AIGCGATEWAY_*（compose 变量插值）。
+# 宿主 127.0.0.1:3300 → app :3000，nginx 反代 newkol.guangai.ai → 3300。db 不暴露宿主端口（仅容器网访问）。
+# 与旧 kolmatrix(:3001) / 其他 VPS app 全隔离：独立容器名 / volume / 网络。
+# 迁移+seed 由 F002 的 one-shot `migrate` 服务承担（app runner 保持最小，不含 prisma CLI/脚本）。
+
 services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: newkolmatrix-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kol}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD 必填（放 /opt/apps/newkolmatrix/.env）}
+      POSTGRES_DB: ${POSTGRES_DB:-kolmatrix}
+    volumes:
+      - newkolmatrix-pgdata:/var/lib/postgresql/data
+    # 不映射宿主端口：仅 app / migrate 经容器网络访问 db:5432（安全 + 不与其他 app 抢端口）。
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-kol} -d ${POSTGRES_DB:-kolmatrix}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   app:
     image: ghcr.io/tripplemay/newkolmatrix:${IMAGE_TAG:-latest}
     container_name: newkolmatrix-app
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3300:3000"
+      - '127.0.0.1:3300:3000'
     environment:
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
+      # DATABASE_URL 由密码单一来源派生（指向容器网络内 db 服务）——避免密码在 .env 里重复两处。
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-kol}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-kolmatrix}?schema=public
+      - AIGCGATEWAY_BASE_URL=${AIGCGATEWAY_BASE_URL:-https://aigc.guangai.ai/v1}
+      - AIGCGATEWAY_API_KEY=${AIGCGATEWAY_API_KEY:?AIGCGATEWAY_API_KEY 必填（放 /opt/apps/newkolmatrix/.env）}
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
+      # 命中轻量 200 存活端点（F001 新增 /api/health）；不再命中 F008 后 307 重定向的 /admin/dashboards/default（D-GL5）。
       test:
         - CMD-SHELL
-        - "node -e \"require('http').get('http://127.0.0.1:3000/admin/dashboards/default',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""
+        - "node -e \"require('http').get('http://127.0.0.1:3000/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 20s
+
+volumes:
+  newkolmatrix-pgdata:
+    name: newkolmatrix-pgdata

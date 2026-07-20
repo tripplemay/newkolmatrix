@@ -1,110 +1,32 @@
 {
-  "sprint": "AGENT-FOUNDATION",
+  "sprint": "GO-LIVE",
   "features": [
     {
       "id": "F001",
-      "title": "TypeScript 5 微批迁移 + 运行时版本锁定（AI SDK v5 前置）",
+      "title": "全栈 prod compose：pgvector Postgres + env 注入 + healthcheck 修复",
       "priority": "high",
       "executor": "generator",
-      "status": "done",
-      "acceptance": "typescript 升到 5.x；tsconfig 现代化（target 提到 ES2020+、strict 打开或列出豁免清单）；修复 Horizon scaffold 因升级产生的类型错误；next/react/typescript 版本锁定并提交 lockfile；tsc --noEmit + build + lint 全绿。此 feature 必须先于 F003（引入 AI SDK v5）完成——不在旧编译器上并行新类型能力（架构稿 D2/ADR-008）",
-      "description": "现仓库为 TS 4.9.4 / target es2016 / strict:false 的 Horizon scaffold。作为地基批次第一串行步先做 TS5 迁移，风险隔离在最前。若 building 时发现迁移量超预期，可临时拆出独立微批 TS5-MIGRATION。"
+      "status": "pending",
+      "acceptance": "docker-compose.prod.yml 重写为全栈：加 db 服务（pgvector/pg16 + named volume + pg_isready healthcheck）+ app 服务加 env_file（DATABASE_URL 指向 db + AIGCGATEWAY_*）+ depends_on db healthy，独立容器名/volume 不碰旧 kolmatrix；修 app healthcheck 至返回 200 的端点（新增 src/app/api/health/route.ts 返回 {ok:true} 200, runtime=nodejs），不再命中 307 的 /admin/dashboards/default；本地 docker compose -f docker-compose.prod.yml up（本地 build 或 latest 镜像 + 临时 .env）app+db 起来、app healthcheck 变 healthy、能连 db（/api/health 200、Prisma 路由不因缺 DB 500）；密钥只走 env_file，.env 不入 git（.env.example 仅占位）",
+      "description": "现 prod compose 标注『前端-only，无 DB/redis』。补 pgvector Postgres 容器 + env 注入 + healthcheck 修复（D-GL1/D-GL2/D-GL5）。纯基建，/api/health 为唯一新增 route handler（返回 200，非产品逻辑）。"
     },
     {
       "id": "F002",
-      "title": "全栈化 + DB/pgvector + Prisma schema（单角色）+ 运行时表（闸门 + 交接）",
+      "title": "迁移 + seed 装配（one-shot tools 服务，含 pgvector 扩展 + 幂等 seed）",
       "priority": "high",
       "executor": "generator",
-      "status": "done",
-      "acceptance": "prisma migrate 成功；pgvector 经自定义 SQL migration `CREATE EXTENSION IF NOT EXISTS vector`（不依赖 Prisma postgresqlExtensions 预览开关，架构稿 D3）；Kol.embedding 为 vector(1024)；schema 含 Tenant / User（单 dev 用户，无 role/scope/权限字段）/ Kol（核心字段 + D15 字段契约位 audienceDemo/credibility/brandSafety/dataSource/fieldProvenance 全部 nullable）；业务实体带 owner 标记（String? = Leo/Ada/Kai，D29 分工不是权限，非枚举非权限）；新增三张运行时表：PendingAction（最小态 pending|confirmed|executed + kind/toolName/payloadHash/harmJson/confirmationTokenHash/expiresAt）为 F009 闸门落点、OperationLog（append-only：只 INSERT，kind 枚举 auto|gate|block|irrev）为留痕落点、Handoff（id/tenantId/projectId/fromAgent/toAgent/artifactType/artifactRef/summary/messagesJson/createdAt，架构稿 §5.4）为 F006 编排框架的交接落点；docker-compose.dev.yml 起本地 postgres+pgvector；.env.example 加 DATABASE_URL 无明文密钥；build + tsc --noEmit + lint 绿",
-      "description": "对齐架构稿 §7.2 运行时实体与 PRD §11。【去三角色】删除 User.role/scope 与 Approval 交接单表。【新增】PendingAction + OperationLog + Handoff 三张运行时表（Handoff 为多 Agent 编排框架预建交接落点）。OutboundAttempt / reconciliation / PendingAction 完整 7 态明确分期到 M3。"
+      "status": "pending",
+      "acceptance": "新增 migrate+seed 机制（D-GL3）：Dockerfile 加 tools/migrate 目标（或复用 build 产物）含 prisma CLI + prisma/(schema+migrations) + scripts/seed/(脚本+CSV) + tsx；prod compose 加 one-shot 服务跑 prisma migrate deploy（建全表 + CREATE EXTENSION vector D3 迁移）+ 幂等 seed；本地全栈跑 one-shot：全表 + pgvector 扩展建好（\\dx 见 vector、Kol 表在），seed 连跑两次幂等（第二次不重复灌/不报错），灌后 Kol≈2500 且 embedding 非空，prod 镜像栈内 search_kols 有结果；tools 镜像/服务与 app runner 分离（runner 仍最小不含 prisma CLI/脚本/CSV）",
+      "description": "runner 是最小 standalone（无 prisma CLI/migrations/seed/CSV），跑不了 migrate/seed → 需独立 one-shot tools 服务。CSV 仅 372K 易随镜像。seed 需 bge-m3 算 ~2500 embedding（一次性网关开销）。须确保/加固 import-kol-csv seed 幂等。"
     },
     {
       "id": "F003",
-      "title": "aigcgateway ⇄ Vercel AI SDK provider 封装（chat tool-calling + embeddings 双链路）",
+      "title": "deploy-prod 全栈化 + runbook 更新 + 本地 prod-stack 全链路验证",
       "priority": "high",
       "executor": "generator",
-      "status": "done",
-      "acceptance": "src/lib/ai/gateway.ts 用自定义 baseURL 指向 aigcgateway OpenAI 兼容端点；scripts/test/ai-gateway-smoke.ts 经网关完成 1 次 chat（含 tool-call 触发）+ 1 次 bge-m3 embedding；密钥走 env（AIGCGATEWAY_BASE_URL / AIGCGATEWAY_API_KEY）无硬编码；失败有清晰错误不静默吞；成本/错误处理骨架就位",
-      "description": "无三角色污染，从旧 F002 平移。依赖 F001 完成 TS5（AI SDK v5 需 TS5）。"
-    },
-    {
-      "id": "F004",
-      "title": "CSV seed 灌 ~2500 真实 KOL + bge-m3 embedding 入 pgvector（单 dev 用户）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "done",
-      "acceptance": "旧仓库 kol-seed-enriched-final.csv 拷入 repo 并入 git（可复现）；scripts/seed/import-kol-csv.ts 解析（处理 BOM/列名别名/空值/货币格式）+ 规范化 + 批量入库；用 F003 链路生成 bge-m3 向量入 pgvector；seed 后 DB ≥2000 条真实 KOL 含非空 embedding；seed 1 个 dev 用户；一条 cosine（<=>）查询对 NL query 返回相关 top-K；脚本幂等（(tenantId, canonicalHandle) upsert）；脏 CSV 校验失败返回非零退出码",
-      "description": "【去三角色】旧「seed 3 个角色用户」改为「seed 1 个 dev 用户」。dataSource 字段按真实证据填写（架构稿 §7.5）。"
-    },
-    {
-      "id": "F005",
-      "title": "Agent 运行时（streamText 流式 loop）+ 唯一工具注册表/执行入口 + 工具二分",
-      "priority": "high",
-      "executor": "generator",
-      "status": "done",
-      "acceptance": "src/app/api/agent/route.ts 流式 agent loop（Vercel AI SDK streamText，单轮 maxSteps 上限、超时/错误清晰不静默）；src/lib/agent/tools/ 唯一工具注册表 + 唯一执行入口 executeTool（禁止 runTool/executeTool 双语义并存，架构稿 §5.2）；每工具声明 class: internal|outbound；工具来源抽象为可扩展（source: native 本批实装 / mcp 为已规划扩展点——注册表结构支持 MCP 桥接，但本批不实装 MCP client，无真实 MCP 需求）；实装 search_kols（NL→embedding→pgvector top-K）与 get_kol_detail（均 internal）；POST NL → agent 调 search_kols → 流式返回工具结果 + 文本；工具 IO 用 zod 校验；注册表可扩展——加工具不改 route 核心",
-      "description": "柱一（工具层）+ 柱二（Agent 运行时）本体。工具来源抽象预留 MCP 扩展点但不实装（用户未提出真实 MCP 需求，避免零业务设计）。人格路由/编排在 F006 编排框架实现。"
-    },
-    {
-      "id": "F006",
-      "title": "多 Agent 编排框架：registry + persona router + handoff 协议 + orchestrator 调度骨架",
-      "priority": "high",
-      "executor": "generator",
-      "status": "done",
-      "acceptance": [
-        "Agent registry（src/lib/agent/registry.ts）：以 PRD §9.2 编队名册为权威，声明 7 个 AgentId（orchestrator/strategy/match/reach/delivery/insight/compliance）的人格定义——system prompt 人格 + duty + iso 否定式护栏 + 绑定的工具子集 + 界面语法；加一个 agent = 往 registry 加一条，不改 route 核心（FR-12.12）",
-        "Persona router：按 copilot context（route + env + agentId）选人格并收窄工具子集，注入 F005 的 streamText runtime（单一 /api/agent 承载所有专家，不起独立进程，FR-12.1/§12.6 落点在柱二内）",
-        "Handoff 协议：以架构稿 §5.4 信封格式创建/传递/接收（fromAgent→toAgent + artifactRef + summary）；接收方按自身 scope 重新读取数据，不信任发送方携带的结论；落 F002 的 Handoff 表",
-        "Orchestrator 调度骨架：环节路由（能路由到「某项目的某环节」enter:/pick:/env:）+ pending 聚合接口（聚合待拍板事项的接口就位，不改写/软化任何专家结论）",
-        "【框架焊死 / 语义留扩展点边界】registry 结构、router 机制、handoff 信封格式、orchestrator 环节路由与聚合接口——定死且稳定；handoff 具体载荷、orchestrator 聚合排序规则、各人格职责精度、compliance 调用点——最小实现 + 代码注释标注 EXTENSION POINT，随 M1-M4 业务真实形态充实，本批不预测焊死",
-        "【最小跑通验证】≥2 个真实人格按 route 切换（如 match@creators 与 strategy@knowledge，各自工具子集不同）+ 演示一次 handoff 机制（信封创建→接收方重读）+ orchestrator 能路由到某项目某环节——证明框架每个接口都通，如同 hello-agent 证明单 agent 闭环"
-      ],
-      "description": "【本批核心新增】把「多 Agent 编排」从 M1+ 逐步长出，提前为成品级框架（用户立意：M0 搭完整多 Agent 架构成品，子 agent/工具/MCP 后期按需扩展）。编队运行时是四柱之上的调度视图、非独立第五柱，落点在柱二运行时内（PRD §12.6 blockquote）。守边界：接口/机制焊死，业务语义留扩展点，防两次 IA 反转/三角色作废式的零验证过度设计（ADR-001）。"
-    },
-    {
-      "id": "F007",
-      "title": "常驻对话面（useChat）+ Generative Canvas 协议 + 多人格切换 + 协同交接可视化",
-      "priority": "high",
-      "executor": "generator",
-      "status": "done",
-      "acceptance": "Horizon 外壳加常驻对话面板（useChat 接 /api/agent）；canvas 协议 canvas-registry.tsx：工具结果 type → React 组件；浏览器打字「找 XX KOL」→ 流式回复 + KOL 卡片流渲染（真实 seed 数据）；对话面顶部常驻显示当前专家 Agent 的 duty + 否定式护栏原文（AI 行为边界，D13 升级版）；消费 F006 编排框架：进不同 route 自动切专家人格（≥2 人格可见切换）+ 上下文 key（route+env+agentId）变化时对话清空 + 新专家开场白（FR-12.4）；协同交接区可视化框架：能以「A→B」呈现一次 handoff（可展开看交接对/摘要/交接物，FR-9.5，本批至少渲染 F006 演示的那次 handoff）；canvas 可扩展——新结果类型只需注册一个组件不改 route；浅色 console 无 error；忠实 Horizon 视觉",
-      "description": "柱三（对话面）+ 柱四（canvas）。升级：消费 F006 编排框架，前端呈现多人格切换 + 协同交接区（原 F006 的否定式护栏保留并扩展为多人格版）。"
-    },
-    {
-      "id": "F008",
-      "title": "IA：侧栏 6 项（今天/项目/创作者库/游戏知识/洞察/Agent记录）+ 项目空间是五环节的唯一容器",
-      "priority": "high",
-      "executor": "generator",
-      "status": "done",
-      "acceptance": "侧栏 6 项（今天/项目/创作者库/游戏知识/洞察/Agent记录，用户 2026-07-20 裁决按 PRD §7/落地规范 §3 实装，覆盖 spec §D21 的 4 项——PRD 权威顺序高于 spec）；路由 today/campaigns/creators/knowledge/insight/runs；五环节工作台（Brief/Match/Reach/Delivery/Insight）只存在于项目详情空间内部（/admin/campaigns/[id] 页内 tab，非路由，无跨项目环节顶级入口，D22）；stagePanel 是环节唯一渲染入口；今天(驾驶舱)待办可直达「某项目的某环节」（复用 F006 orchestrator routeToStage 环节路由）；各路由有真实占位页无死链报错（含修 /admin/dashboards 404）；无角色切换器、无路由层权限守卫（随三角色作废）",
-      "description": "【去三角色】删角色切换器/role.access 过滤/权限守卫。保留 D22（五环节在项目内）。今天待办直达复用 F006 orchestrator 的环节路由骨架。【pre-impl 裁决 2026-07-20】spec §D21 说 4 项、PRD/落地规范说 6 项源冲突；用户裁决按 6 项（PRD 权威）实装，acceptance 已回填。"
-    },
-    {
-      "id": "F009",
-      "title": "AI→人闸门：outbound 服务端强制 403/pending + harm 如实披露 + 留痕 + 变异测试",
-      "priority": "high",
-      "executor": "generator",
-      "status": "done",
-      "acceptance": [
-        "outbound 工具在服务端被强制门控：运行时执行任一工具前检查 class；outbound 且不携带服务端签发的确认令牌 → 不执行副作用、返回 403/pending + harm 结构体；模型自主 loop（含 F006 任一专家人格）永远拿不到令牌，无法自我放行（PRD §10.4）",
-        "harm 结构由单一 zod schema 定义：动作/对象/金额或数量/不可逆影响/证据/过期时间；确认卡如实列全部利害（批量发列全部收件人不折叠、报价标金额与授权范围、放款标收款方，统一带「对外·不可撤销」红标）",
-        "无阈值分级（D28）：$100 与 $10,000 走完全相同确认",
-        "internal 动作（选组合/推翻规则/复核审核项/采纳复盘/搜索/评估/匹配/起草）不弹确认框（D27 推论，反假闸门）",
-        "确认令牌只存 hash、短 TTL、单次使用、绑定 payloadHash；确认与拒绝均追加 OperationLog",
-        "不可逆动作经确认执行后自动写一条 OperationLog kind:irrev（闸门确认与留痕同事务，可查可按类型筛）",
-        "变异测试（D20 硬性）：把服务端拦截退回原状（允许 Agent 直接执行 outbound），G1「返回 403/未执行副作用」断言必须变红；未变红视为无效断言——断言验行为不验源码关键字"
-      ],
-      "description": "从旧 F008 升级：补齐 harm 单一 zod 结构（架构稿 §8.1）+ 变异测试（D20）。落点表 PendingAction/OperationLog 来自 F002。闸门对 F006 所有专家人格一视同仁（人格再多，outbound 一律停在闸门）。完整幂等投递分期到 M3。"
-    },
-    {
-      "id": "F010",
-      "title": "端到端 hello-agent（多 Agent 编排）打通 + 架构文档 + visual baseline",
-      "priority": "medium",
-      "executor": "generator",
-      "status": "done",
-      "acceptance": "串起 F001-F009 的 e2e：浏览器 NL →/api/agent 流式 loop → search_kols → KOL 卡片流在画布渲染，闭环无 error；并演示多 Agent 编排最小闭环（≥2 人格按 route 切换 + 一次可视化 handoff）；docs/dev/agent-architecture.md 落盘，含四柱架构 + 多 Agent 编排框架（registry/persona router/handoff/orchestrator + 框架焊死 vs 语义扩展点边界）+ AI→人闸门模型 + 数据流 + 「如何加一个新专家人格/新工具/新 canvas 组件」how-to；visual baseline tests/screenshots/baseline/agent-canvas-*.png 入 git（浅色 ≥1440px，CI/linux 重生）；README/CLAUDE.md 技术栈更新（DB/Prisma/pgvector/Vercel AI SDK/aigcgateway/单角色+多 Agent 编排+AI→人闸门）",
-      "description": "整合收尾。e2e 从「单 agent hello」升级为「多 Agent 编排最小闭环」demo；架构文档含编排框架 how-to（加专家人格的标准姿势）。"
+      "status": "pending",
+      "acceptance": "deploy-prod.yml 加 migrate（+首次 seed）步骤，顺序 migrate→app up→健康检查，仍仅手动 workflow_dispatch；docs/dev/deploy.md 改写覆盖全栈首次 go-live 每一步（一次性人工设置清单 DNS/Secrets/ghcr public/server compose+env_file/nginx/cert + 日常部署 + 回滚），.auto-memory/environment.md 与之一致；本地 prod-stack 全链路验证：prod 镜像 + 全栈 compose（app+db+seed）起栈跑 hello-agent 闭环通（NL→search_kols→卡片流，或 f010:e2e 指向该栈），闭环无 error；全程只涉 newkolmatrix 资源，runbook 显式声明隔离旧 kolmatrix/其他 app",
+      "description": "把 deploy-prod 与 runbook 全栈化并做本地 prod-stack 全链路验证，作为首次真实 go-live（人类闸门）前的最后就绪证明。部署触发本身不在本批。"
     }
   ]
 }

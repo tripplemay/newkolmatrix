@@ -6,7 +6,7 @@
   "fix_rounds": 0,
   "current_sprint": "GO-LIVE",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-20T15:30",
+  "last_updated": "2026-07-20T16:30",
   "reference_docs": [
     "docs/product/KOLMatrix-PRD.md",
     "docs/audits/KOLMatrix-integrated-architecture-design-2026-07-17.md",
@@ -23,7 +23,7 @@
     "spec": "specs/GO-LIVE-spec.md",
     "test_cases": null,
     "signoff": "test-reports/GO-LIVE-signoff-Andy-evaluator-subagent.md",
-    "framework_reviewed": false
+    "framework_reviewed": true
   },
   "role_assignments": null,
   "evaluator_feedback": [
@@ -129,6 +129,6 @@
   ],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "AGENT-FOUNDATION(P0)收官后，用户要求部署上线→开 GO-LIVE 批次(F001-F003 全 done, 2026-07-20)：F001 全栈 prod compose(pgvector Postgres 容器+env 插值派生 DATABASE_URL+healthcheck 修 307→/api/health)；F002 迁移+seed 装配(Dockerfile tools 目标+migrate-seed.sh+compose migrate one-shot,app depends_on migrate completed；seed 幂等 count-guard)；F003 deploy-prod 全栈化(build-push 推 app+tools 双镜像,deploy-prod up -d --wait 先 migrate 后 app,healthcheck /api/health)+runbook/environment 全栈化+prod-stack e2e 6/6。三 feature 均隔离验收 PASS+批次末回归全绿,signoff: GO-LIVE-signoff。关键坑:IA refactor redirect(dashboards→today 307)既打断视觉基线又打断 healthcheck(compose+deploy-prod 两处)。下一步:用户手动首次 go-live(6 项人工闸门:DNS/Secrets/两 ghcr 包 public/server .env/nginx/cert/触发 deploy-prod),陪走中。部署触发+VPS 设置=人类闸门,agent 不代执行。"
+    "Andy": "GO-LIVE done 收尾完成(2026-07-20 Planner)：线上实测 /api/health+/admin/today 均 200；proposed-learnings 处理完毕——[2026-07-20] IA redirect 探针/测试漂移 learning 用户确认采纳,写入 v1.0.5(四份 role-context 副本同 commit,铁律 7)+CHANGELOG+归档；harness-fit P0-P2 共 9 条用户裁决继续挂起；F001 观察项 O1(spec env_file 措辞 vs compose 变量插值实现)裁决不回改历史 spec,以验收记录为准。framework_reviewed=true。工作区有用户本地未提交的架构文档重写(architecture.md 已删,architecture_f5.md v1.0 草案 3260 行 + architecture_kimi.md v1.1 全站版·定稿候选 1013 行,CLAUDE.md 指向失效,audits 设计文档被 reference_docs 引用但未入 git)——用户裁决:开文档定稿批次作为下一批次 feature 处理,agent 不动这些文件。下一批次方向:用户要求 Planner 给出顺序建议后讨论(候选:按 v1.1 全站架构开 P1 / 专家领域工具 M1 / 认证+RLS),讨论中,尚未 spec lock。"
   }
 }

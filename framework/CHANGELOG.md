@@ -5,6 +5,19 @@
 
 ---
 
+## v1.0.5 — 2026-07-20（IA refactor redirect：探针/测试漂移扫描）
+
+**来源：** KOLMatrix AGENT-FOUNDATION F008→F009 视觉基线漂移 + GO-LIVE F001/F003 healthcheck 307。IA 重构改路由后，引用旧路由的既有配置**静默失效且延迟暴露**，同根因两例：(1) 视觉回归测试 `page.goto(旧路由)` 被重定向、`waitFor(旧页元素)` 超时——F008 改 dashboard→today 时自身 CI 侥幸绿，F009 无关 push 才红；(2) prod compose + deploy-prod 的 healthcheck 命中 `/admin/dashboards/default` 期待 200，重定向后返 307 → 容器恒 unhealthy / 部署健康检查恒失败，GO-LIVE F001/F003 才修至 `/api/health`。既有 v1.0.0「IA refactor redirect scope」learning 只覆盖死链清单，未覆盖探针/测试维度。
+
+**变更：**
+- `memory/role-context/generator.md` §"IA refactor redirect scope 评估" 补**探针/测试漂移扫描**条：redirect 落地同批必须 grep 重指 `tests/visual` route/selector + `docker-compose*.yml` / `.github/workflows/deploy*.yml` healthcheck 路由 + `curl` 探针
+- `memory/role-context/planner.md` §"IA refactor 类批次 redirect 清单评估" 补呼应条：redirect 清单必须含探针/测试扫描，acceptance 要求同批重指
+- KOLMatrix 项目侧 `.auto-memory/role-context/` 两份副本同 commit 同步（铁律 7 多副本一致性）
+
+**兼容性：** 纯新增行为规范条目，不改状态机 / 字段 / 角色协议。
+
+---
+
 ## v1.0.4 — 2026-07-14（模板 scaffold secret 预扫）
 
 **来源：** KOLMatrix DS-FOUNDATION F001（首个真实项目跑通 v1.0 三角色闭环的地基批次）。以 Horizon UI Pro 付费模板 scaffold 时，模板 demo 组件 `MapComponent.tsx:8` 硬编码 Mapbox token，首次 push 被 GitHub push protection GH013 拦。

@@ -15,6 +15,7 @@ type: feedback
 
 - spec §关键决策点必须逐条标记每个老路由 redirect 的 destination **wire-readiness** 状态
 - destination 未 wire 等效功能 → 该条写 "kept deep-link，BL-XXX wire 后启 redirect"，不预设"所有老路由立即 redirect"
+- redirect 清单除死链外必须同批扫**引用旧路由的探针/测试**：`tests/visual` route/selector + compose/workflows healthcheck 路由 + `curl` 探针，acceptance 要求同批重指（v1.0.5 — GO-LIVE 沉淀：visual goto 超时 + healthcheck 307 恒 unhealthy 两例均延迟暴露）
 
 ## 角色分配
 

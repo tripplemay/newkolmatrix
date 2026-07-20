@@ -35,3 +35,4 @@ type: feedback
 - 老路由 redirect 前先核 destination route 的 **wire-readiness**：目标路由已 wire 等效或更优功能才启 redirect
 - destination 仅 embed-old 占位时，redirect 只是 URL 换名 → 用户认知混乱，**kept 旧路由更优**，推迟到目标 wire 后的批次再启
 - 实装中发现 redirect 该缩减 → 主动停下走 partial-pending 裁决（pre-impl-adjudication.md §11）；此类 scope 缩减是良性 fix-round，不计质量问题
+- **探针/测试漂移扫描（v1.0.5 — GO-LIVE 沉淀）：** redirect 落地同批必须 grep 重指所有引用旧路由的探针与测试——`tests/visual/*.spec.ts` 的 route/selector、`docker-compose*.yml` / `.github/workflows/deploy*.yml` 的 healthcheck 路由、任何 `curl <旧路由>` 探针。此类失效**延迟暴露**（自身 CI 可侥幸绿，后续无关 push / 首次部署才红），不得留给后续批次撞见

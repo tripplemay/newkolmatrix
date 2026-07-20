@@ -22,7 +22,7 @@
   "docs": {
     "spec": "specs/GO-LIVE-spec.md",
     "test_cases": null,
-    "signoff": null,
+    "signoff": "test-reports/GO-LIVE-signoff-Andy-evaluator-subagent.md",
     "framework_reviewed": false
   },
   "role_assignments": null,
@@ -92,6 +92,39 @@
       "db_host_port_exposed": false,
       "teardown_clean": true,
       "notes": "隔离 fresh context 首轮独立验收，未参与实现。独立重建 runner(默认)+tools(--target tools)两镜像均成功→docker compose --env-file(scratchpad repo 外,真实 AIGCGATEWAY key 注入不落 repo、验收后 shred)up -d 全栈实测(含真实 bge-m3 embed 2524 KOL,~90s)→独立 DB/向量检索取证→幂等复跑→down -v 清理。旧 kolmatrix/invoce(Up 6 days)+既有 newkolmatrix-dev-pgdata 卷均未受扰动,本次仅移除 newkolmatrix-pgdata。整体 4/4 clause PASS,首轮 verifying 即通过,无 FAIL/PARTIAL。1 条观察项 O1(二跑幂等走 migrate-seed.sh count-guard 快路径,import-kol-csv 内层 upsert 级幂等未独立触发;acceptance 按 one-shot 层已满足,内层为双保险,代码可见其设计,非缺陷)如实记录不扣分。报告：docs/test-reports/GO-LIVE-F002-verify-Andy-evaluator-subagent.md。本 subagent 不改 status/completed_features/features.json/产品代码,判定转呈用户拍板。"
+    },
+    {
+      "feature": "F003",
+      "verdict": "PASS",
+      "evaluator": "Andy/evaluator-subagent",
+      "round": "verifying",
+      "commit": "2200a99",
+      "clauses": [
+        {
+          "clause": "deploy-prod.yml 含 migrate（+首次 seed）步骤，顺序正确（migrate→app up→健康检查），仍仅手动 workflow_dispatch",
+          "verdict": "PASS",
+          "evidence": "on: workflow_dispatch 仅手动(无 push);step2/3 `up -d --wait --wait-timeout 600` 经 compose depends_on(app.depends_on.migrate=service_completed_successfully + migrate.depends_on.db=service_healthy)保证 db healthy→migrate one-shot(prisma migrate deploy+首次/幂等 seed)exit0→app 起;实测 up.log 顺序 db Healthy→migrate Started→migrate Exited→app Started→app Healthy 与设计一致;失败 surface migrate 日志(`if ! up; then $COMPOSE logs --tail 80 migrate`);step3/3 healthcheck 命中 curl /api/health(非 307 的 /admin/dashboards/default)。观察项 O1(不扣分):migrate 以 depends_on 声明式编排触发(单条 up --wait)而非 workflow 内独立 compose run migrate,效果满足顺序 acceptance 且 --wait 对 exit0 one-shot 处理正常(up 退出码0),机制非缺陷。"
+        },
+        {
+          "clause": "docs/dev/deploy.md 覆盖全栈首次 go-live 每一步（一次性人工清单 DNS/Secrets/ghcr public/server compose+env_file/nginx/cert + 日常部署 + 回滚），environment.md 一致",
+          "verdict": "PASS",
+          "evidence": "逐项核对(非看标题):一次性 setup 六项全覆盖 ①DNS(Cloudflare A newkol) ②Secrets(PROD_HOST/USER/SSH_KEY) ③ghcr 两个包都 public(newkolmatrix 和 newkolmatrix-tools 明确点名) ④VPS 目录+compose+.env(POSTGRES_PASSWORD+AIGCGATEWAY_API_KEY,chmod600,DATABASE_URL 派生不手写) ⑤nginx(先 -t 不 reload) ⑥certbot;日常部署(push→ci+build-push 两镜像→手动 deploy-prod→up --wait 先 migrate 后 app→/api/health);回滚(image_tag 填上一 good SHA)。environment.md 与之一致(拓扑/两镜像命名/.env 键/up --wait 先 migrate 后 app/旧 kolmatrix 共存不碰)。"
+        },
+        {
+          "clause": "本地 prod-stack 全链路验证：prod 镜像+全栈 compose(app+db+seed)起栈跑 hello-agent 闭环通(NL→search_kols→卡片流)，闭环无 error",
+          "verdict": "PASS",
+          "evidence": "亲起 prod 栈(复刻 deploy-prod 同款 up -d --wait --wait-timeout 600,退出码0):db healthy→migrate exited(0)→app healthy。migrate 26 批真实 bge-m3 embed 2524/2524;独立直连 db count=2524 with_embedding=2524 vector 0.8.5;cosine sanity top-5 语义相关(search_kols 通);灌 demo-handoff→Handoff 表 1 条 match->reach;curl /api/health HTTP200 {ok:true};E2E_BASE=http://127.0.0.1:3300 node scripts/test/f010-e2e-check.mjs = 6/6(match 人格→NL→search_kols→15 张 KOL 卡片流→reach 人格切换→协同交接 handoff 可视化→0 console error)。E2E_BASE 覆盖(F003 引入,L12)本次指向 prod 栈生效。"
+        },
+        {
+          "clause": "全程只涉 newkolmatrix 资源，隔离旧 kolmatrix/其他 app（runbook 显式声明）",
+          "verdict": "PASS",
+          "evidence": "起栈前基线仅 newkolmatrix-dev-pgdata 卷(dev,不动);全程只操作 compose 定义的 newkolmatrix-app/db/migrate+卷 newkolmatrix-pgdata+网络 newkolmatrix_default;down -v 移除 prod 三容器+prod 卷+网络,dev 卷 newkolmatrix-dev-pgdata 保留(只删 prod);旧 kolmatrix-postgres/redis+invoce-postgres/redis 全程 Up 6 days healthy 未受扰;runbook(deploy.md 拓扑+安全 §)与 environment.md 均显式声明隔离。"
+        }
+      ],
+      "db_isolation_verified": true,
+      "db_host_port_exposed": false,
+      "teardown_clean": true,
+      "notes": "隔离 fresh context 首轮独立验收，未参与实现。复用本地 F002 构建的 latest 镜像(runner 含 /api/health F001 产物、tools 含 migrate-seed.sh+migrations+CSV380569B+demo-handoff F002 产物;F003 commit 未改产品代码 git show --stat 2200a99=5文件 workflows/docs/e2e-script/env-memory,复用无来源歧义)→真实 AIGCGATEWAY key 从 repo .env 取入 repo 外 scratchpad 临时 env(不打印/验收后 shred)→复刻 deploy-prod up -d --wait 全栈实测(migrate+2524 KOL 真实 embed)→灌 demo-handoff→E2E_BASE 指向 prod 栈 f010:e2e 6/6→down -v 拆栈。整体 4/4 clause PASS,首轮 verifying 即通过,无 FAIL/PARTIAL。1 条观察项 O1(migrate 经 compose depends_on 声明式编排触发而非 workflow 独立 run 步骤,效果满足顺序 acceptance,机制非缺陷)如实记录不扣分。报告：docs/test-reports/GO-LIVE-F003-verify-Andy-evaluator-subagent.md。批次末就绪回归全绿+signoff:docs/test-reports/GO-LIVE-signoff-Andy-evaluator-subagent.md。安全:key 不落 repo/日志、验收后 shred、repo 无 .env 泄漏。本 subagent 不改 status/completed_features/features.json/产品代码,判定转呈用户拍板;首次真实 go-live(部署触发+一次性 VPS 设置)留人类闸门。"
     }
   ],
   "generator_handoff": null,

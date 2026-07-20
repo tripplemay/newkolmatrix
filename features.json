@@ -42,7 +42,7 @@
       "title": "Agent 运行时（streamText 流式 loop）+ 唯一工具注册表/执行入口 + 工具二分",
       "priority": "high",
       "executor": "generator",
-      "status": "verifying",
+      "status": "done",
       "acceptance": "src/app/api/agent/route.ts 流式 agent loop（Vercel AI SDK streamText，单轮 maxSteps 上限、超时/错误清晰不静默）；src/lib/agent/tools/ 唯一工具注册表 + 唯一执行入口 executeTool（禁止 runTool/executeTool 双语义并存，架构稿 §5.2）；每工具声明 class: internal|outbound；工具来源抽象为可扩展（source: native 本批实装 / mcp 为已规划扩展点——注册表结构支持 MCP 桥接，但本批不实装 MCP client，无真实 MCP 需求）；实装 search_kols（NL→embedding→pgvector top-K）与 get_kol_detail（均 internal）；POST NL → agent 调 search_kols → 流式返回工具结果 + 文本；工具 IO 用 zod 校验；注册表可扩展——加工具不改 route 核心",
       "description": "柱一（工具层）+ 柱二（Agent 运行时）本体。工具来源抽象预留 MCP 扩展点但不实装（用户未提出真实 MCP 需求，避免零业务设计）。人格路由/编排在 F006 编排框架实现。"
     },

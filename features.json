@@ -105,7 +105,7 @@
       "title": "Insight 环节语法面（对照账本 reconcile）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "components/envs/insight/：原目标 vs 实际差异表 + 证据缺口卡 + 图表 + 复盘草案（采纳=internal，分享=outbound 闸门触发点）；mock 走契约层；按 spec §insight-env 4 段清单；lint+tsc 绿",
       "description": "kimi §6.3。"
     },

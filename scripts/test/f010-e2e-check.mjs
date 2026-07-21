@@ -52,7 +52,10 @@ try {
   ok(expertMatch, 'match 环节：常驻专家头显示「匹配 Agent」（route→人格）');
 
   // 在 Copilot 输入自然语言指令并发送。
-  const input = page.getByPlaceholder(/说…$/).first();
+  // ARCH-M05 F017 重指：F003 外壳升级后输入框 placeholder 按原型改为「问 Agent 或下达任务…」
+  //（旧「对{专家}说…」选择器随 UI 演进失效——v1.0.5 探针纪律）。
+  // 注意与 navbar 指令栏（「问 Campaign Agent 或下达任务…」）区分：^问 Agent 精确锚 Copilot 输入框。
+  const input = page.getByPlaceholder(/^问 Agent /).first();
   await input.waitFor({ timeout: 15000 });
   await input.fill('帮我从创作者库找《坦克世界》题材的游戏解说 KOL 候选');
   await page.getByRole('button', { name: '发送' }).first().click();
@@ -67,7 +70,14 @@ try {
   }
   ok(cardsRendered, 'NL → 流式 loop → search_kols → KOL 卡片流在画布渲染（闭环）');
   if (cardsRendered) {
-    const cardCount = await page.getByText('% 匹配').count().catch(() => 0);
+    // ARCH-M05 F017：计数改锚 canvas 头「N 位候选」的 N（F001 Badge 化后文案节点结构演进，
+    // 文本子串计数不再稳定；头部计数是 KolResultCards 的单一权威输出）。
+    const headTxt = await page
+      .getByText(/位候选/)
+      .first()
+      .textContent()
+      .catch(() => '');
+    const cardCount = Number((headTxt ?? '').match(/(\d+)\s*位候选/)?.[1] ?? 0);
     ok(cardCount >= 1, `画布渲染 ≥1 张 KOL 候选卡片（实得 ${cardCount}）`);
   }
 
@@ -79,7 +89,10 @@ try {
 
   // ── Part C：一次可视化 handoff（协同交接）──
   console.log('\n── Part C：一次可视化 handoff ──');
-  // HandoffCollab 从 /api/handoffs 拉真实交接（需 seed:demo-handoff）。等其渲染。
+  // HandoffCollab 从 /api/handoffs 拉真实交接（需 seed:demo-handoff）。
+  // ARCH-M05 F017 重指：环节页的协同卡标签已变体为「本环节协同…」且叠加 stage mock——
+  // 为保持"断言真实 Handoff 表数据"原意，回到 stage=null 的 /admin/today 等「协同交接」标签。
+  await page.goto(`${BASE}/admin/today`, { waitUntil: 'domcontentloaded' });
   let handoffShown = false;
   try {
     await page.getByText('协同交接').first().waitFor({ timeout: 15000 });

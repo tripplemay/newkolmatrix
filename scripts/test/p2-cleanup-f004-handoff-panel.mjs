@@ -41,10 +41,44 @@ const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1512, height: 982 } });
 const page = await ctx.newPage();
 
-/** 抓 HandoffPanel 外壳（凭标签文案 + SurfaceCard 特征类定位，不依赖测试专用属性）。 */
-async function readPanel(url) {
+/**
+ * 抓 HandoffPanel 外壳（凭标签文案 + SurfaceCard 特征类定位，不依赖测试专用属性）。
+ *
+ * `expectCards` = 该侧数据到位后的卡片数。用于显式等待列表落定。
+ *
+ * ⚠️ M1-A-BRIEF fixing-1：这里原先只等文案锚点就立刻读数。
+ * 那在【全站无 SSR】的年代隐含了一个同步点——锚点由 React 渲染，它出现即意味着
+ * hydration 已完成、数据已到位。M1-A-BRIEF F002 恢复 SSR 后该前提失效：
+ * 锚点现在出现在服务端 HTML 里，早于 /api/handoffs 落地与 React commit。
+ * 实测空载时读数相对数据落地的余量 min=-5ms / p50=+3ms —— 等同抛硬币，
+ * 并发或 CPU 吃紧时约 20-25% 概率读到只有 1 张卡的中间态。
+ *
+ * 注意两点分寸：
+ * 1) 只等到 `expectCards`【不】超时抛错，而是吞掉交给下面的断言判红。
+ *    否则「等到为止」会把断言变成恒真，数据真没来时也只会崩在这里而非报出干净的 ✗。
+ * 2) 光等 /api/handoffs 响应不够 —— 实测响应已落地后 DOM 仍可能只有 1 张卡
+ *    （React setState → commit 之间还有第二段间隙），故必须直接轮询 DOM 卡数。
+ */
+async function readPanel(url, { expectCards = 1 } = {}) {
   await page.goto(url, { waitUntil: 'domcontentloaded' });
   await page.getByText('多 Agent 联动 · 点开看交接').first().waitFor({ timeout: 20_000 });
+  try {
+    await page.waitForFunction(
+      (min) => {
+        const el = [...document.querySelectorAll('div')].find(
+          (d) =>
+            typeof d.className === 'string' &&
+            d.className.includes('rounded-2xl') &&
+            (d.textContent || '').includes('多 Agent 联动 · 点开看交接'),
+        );
+        return (el?.children[1]?.children.length ?? 0) >= min;
+      },
+      expectCards,
+      { timeout: 15_000, polling: 50 },
+    );
+  } catch {
+    // 超时不抛：留给断言如实报红，避免脚本崩溃掩盖掉是哪一条不达标
+  }
   return page.evaluate(() => {
     const el = [...document.querySelectorAll('div')].find(
       (d) =>
@@ -64,7 +98,9 @@ async function readPanel(url) {
 }
 
 // --- A/D 生产侧 --------------------------------------------------------
-const prod = await readPanel(PROD);
+// 生产侧数据到位后为 2 张卡（COLLAB_MOCK.brief 1 条 + /api/handoffs 取回 1 条），
+// 故等到 >=2 再读；等不到则由下面 'A 生产侧多卡路径仍在' 那条断言报红。
+const prod = await readPanel(PROD, { expectCards: 2 });
 ok(prod !== null, 'A 生产侧 HandoffPanel 在场');
 ok(prod?.cls.includes('border-dashed'), 'A/D 生产侧虚线框容器（分叉 1）');
 ok(
@@ -99,7 +135,8 @@ ok(
 );
 
 // --- B/D 夹具侧 --------------------------------------------------------
-const fix = await readPanel(FIXTURE);
+// 夹具侧是静态 mock 单卡，落定态即 1 张。
+const fix = await readPanel(FIXTURE, { expectCards: 1 });
 ok(fix !== null, 'B 夹具侧 HandoffPanel 在场');
 ok(
   fix?.cls.includes('border-dashed'),

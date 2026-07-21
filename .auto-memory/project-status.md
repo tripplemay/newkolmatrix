@@ -11,7 +11,8 @@ type: project
 - **上一批 ARCH-M05 done ✅** — M0.5 六页工作台，已部署 live（钉 SHA `d5256a8`）
 
 ## 已上线
-- `https://newkol.guangai.ai` 当前跑 **ARCH-M05/M0.5 版 @ d5256a8**；**P2-CLEANUP 尚未部署**（部署由用户手动触发）；回滚=deploy-prod 填 42d7d75
+- `https://newkol.guangai.ai` 当前跑 **P2-CLEANUP 版 @ `0c36fc2f24395be5bbf9af60a0cf4342dde057be`**（2026-07-22 部署，线上 7 探针确证）；回滚=deploy-prod 填上一版 **完整 SHA** `d5256a8...`（ARCH-M05 版）
+- ⚠️ **deploy 的 image_tag 必须填完整 40 位 SHA**，短 SHA 会 pull 失败（见 environment.md）
 
 ## 演进路线（architecture.md v1.2 §14）
 - M0 ✅ → **M0.5 ✅** → **M1 BRIEF-CAMPAIGNS（下一站）** → M2 MATCH → M3 REACH/DELIVERY → M4 INSIGHT → M5 PROD-HARDENING

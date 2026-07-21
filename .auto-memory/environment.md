@@ -14,6 +14,7 @@ type: reference
 | 部署目录 | `/opt/apps/newkolmatrix`（放 `docker-compose.prod.yml` + `.env`：`POSTGRES_PASSWORD`+`AIGCGATEWAY_API_KEY`，不入 git） |
 | 镜像 | app `ghcr.io/tripplemay/newkolmatrix:{sha\|latest}`（runner 最小）+ tools `...-tools:{sha\|latest}`（migrate/seed） |
 | 部署方式 | 手动 `deploy-prod` workflow_dispatch（人类闸门）；`up -d --wait` 先 migrate 后 app；详见 `docs/dev/deploy.md` |
+| ⚠️ image_tag 格式 | **必须填完整 40 位 SHA**（镜像 tag 取 `github.sha`）。填 7 位短 SHA 会在 pull 阶段直接失败：`failed to resolve reference ...: not found`。回滚同理。2026-07-22 实测踩中 |
 
 ## 旧 kolmatrix（共存，不碰）
 

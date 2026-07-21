@@ -6,7 +6,7 @@
       "title": "架构文档定稿 v1.2（kimi 基底 + f5 十条增量 + as-built 校准）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "acceptance": "以 architecture_kimi.md(v1.1) 为基底定稿 docs/dev/architecture.md v1.2：并入 f5 十条实现层增量（spec §F001 清单，schema/API 以实物为准转录）；as-built 校准六处漂移（OperationLog 7 列 cuid/PendingAction 3 态/闸门单步 confirm+reject 无 execute 无 HMAC/append-only 触发器未落地转欠账/删「零后端」快照/版本表 TS5.9+React19.2+Prisma6.19+ai7+工具字段 class+canvas 落点+common 10 组件+redirect 桩现状）；矛盾裁决=已实装 as-built、未实装标「演进目标」按 M 路线归位（两步票据→M3/调度器→M1/路线图采 M0-M5）；f5 归档 docs/archive/；audits 设计文档入 git；CLAUDE.md 指向修复；核实 AI SDK core/provider 版本族配对并记录结论；evaluator 可逐条 grep 实物对账校准项",
       "description": "ARCH-LOCK。用户工作区未提交的架构文件由本 feature 正式处理。定稿文档是后续 F002-F016 的口径权威，必须首个完成。"
     },
@@ -15,7 +15,7 @@
       "title": "路由收敛 + routes.tsx 重写（6 入口 + redirect + v1.0.5 探针清单）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "acceptance": "routes.tsx 重写为 6 入口（今天/项目/创作者库/游戏知识/洞察/Agent 记录，kimi §6.1 表）；占位路由（dashboards/discovery/database/outreach 等）redirect 至对应新页（destination 本批建成，满足 wire-readiness）；v1.0.5 探针清单同批核销：grep 并重指 tests/visual route/selector + docker-compose*/deploy*.yml healthcheck + scripts/test/f0*-check 的 route 引用，清单入 spec 附录逐条打勾；lint+tsc 绿；无死链（新 6 页均有 page.tsx 骨架或真页）",
       "description": "IA refactor 类改动，redirect 探针纪律（v1.0.5 learning）硬性执行。"
     },
@@ -24,7 +24,7 @@
       "title": "三区外壳改造（侧栏 6 入口 + CTA 卡 + 玻璃 navbar 指令栏 + Copilot 抽屉化）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "acceptance": "admin/layout.tsx 固定三列：侧栏 285px（6 入口 + 底部「Agent 自动边界」CTA 常驻不可关闭）· 主区弹性（悬浮玻璃 navbar 内嵌指令栏，指令提交路由到 Copilot）· Copilot 360px 常驻；移动端 Copilot 退为 fixed 右滑抽屉；路由切换只重绘主区与 Copilot 上下文，侧栏/navbar 不重挂载；对照原型外壳区（spec §外壳 4 段清单）；lint+tsc 绿",
       "description": "kimi §6.2。复用既有 CopilotPanel/sidebar/navbar fork，按原型改造。"
     },

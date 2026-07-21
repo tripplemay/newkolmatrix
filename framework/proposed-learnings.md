@@ -123,3 +123,23 @@
 ---
 
 **当前无待确认提案**（harness-fit P0-3 / P1-1~3 / P2-1~5 见上，状态=长期挂起，非待办）。
+
+## [2026-07-21] Andy/Generator — 来源：P2-CLEANUP F005 新增视觉基线用例
+
+**类型：** 新坑
+
+**内容：** 新增一条视觉回归用例后，首次 push 的 CI **必然红**——linux 基线尚不存在（`A snapshot doesn't exist`）。须手动跑 `Update visual baselines` workflow 补 linux 基线；而该 workflow 的 commit 带 `[skip ci]`，所以补完基线 CI 也不会自动复跑，必须另有一次触碰非 paths-ignore 路径的 push 才能验证 CI 真的绿。Generator 的「CI 绿才能切 verifying」纪律在此处需要这个额外动作，否则会误判为红灯滞留或误判为已绿。
+
+**建议写入：** `framework/patterns/web-runtime-patterns.md` §4（视觉回归三静默坑，作为第四条「新增用例的 CI 首红是预期，且补基线不自动复验」）
+
+**状态：** 待确认
+
+## [2026-07-21] Andy/Generator — 来源：P2-CLEANUP F003 pre-impl 审计
+
+**类型：** 新规律
+
+**内容：** spec 里「某组件状态源脱节」类 feature，开工前应先核**该组件是否真被渲染**（全仓引用扫描）与**它声称的样式属性是否真产出 CSS**。本批 F003 两条都不成立：组件零引用，且 `borderColor` 被 spread 到一个纯 div 包装件上从不产出样式——acceptance 写的「深色下边框跟随」用规定的改法根本无法达成。planning 阶段的只读勘查看到了「引了哪个 useColorMode」，但没看到「这个组件有没有人用」「这个 prop 有没有效」。建议 Planner 起草此类 feature 时把「消费点存在性」与「属性生效性」列入勘查清单。
+
+**建议写入：** `framework/patterns/audit-methodology.md` 或 `framework/harness/pre-impl-adjudication.md` §触发条件
+
+**状态：** 待确认

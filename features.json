@@ -51,7 +51,7 @@
       "title": "今天页真页（KPI + 确认雷达 + 编队 + feed）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "/admin/today 按原型还原：KPI strip（MiniStatistics）+ 需要你确认雷达（复用 SurfaceCard 待办卡直落 ?env=）+ 编队花名册（AgentSquad 新建）+ 今日 feed；mock 走 F004 契约层；按 spec §today 4 段清单（必用组件/不得简化 N 元素）逐项达成；lint+tsc 绿",
       "description": "原型 today 页 + kimi §6.1 界面语法「KPI+确认雷达+编队+feed」。"
     },

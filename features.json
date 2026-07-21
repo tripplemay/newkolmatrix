@@ -33,7 +33,7 @@
       "title": "抽 HandoffPanel + 夹具对齐生产（BL-FE-14，两件合一）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "抽 common/HandoffPanel.tsx 承载容器 chrome（SurfaceCard + SectionLabel + MdGroups + 标签文案），生产 HandoffCollab.tsx:72-79 与夹具 preview/agent-canvas/page.tsx:29-34 共用；抽象必须显式容纳三处分叉（border-dashed / stage 三元文案 /多卡 flex 容器）作为 props 或变体，不得靠夹具将就；夹具 border-dashed 经此对齐生产口径（本 feature 的回归价值）；两处重复导入 MdGroups/SectionLabel/SurfaceCard 随之收敛；HandoffCard 11 props 全路径不退化；预期改动 agent-canvas.png，基线由 F005 统一重生；lint + tsc 绿",
       "description": "BL-FE-14。用户裁决「两件都做」；抽象与夹具对齐合并为单条——拆两条会让「夹具偏离生产」与「夹具跟随生产」在同批次内互相打架（D4）。"
     },

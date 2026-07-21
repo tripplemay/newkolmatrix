@@ -90,6 +90,23 @@
 
 **汇总环节是机械合并，不是二次评估。** 主上下文不得在汇总时调整任何 result 判定。
 
+> **例外——审计类批次的汇总层反过来必须是对抗复核层**（防漏报，不是防误报）。见 `patterns/audit-methodology.md` §3。两者方向相反：验收 fan-out 的汇总不得动判定；审计 fan-out 的汇总必须抽查回原件重跑并主动找盲区。
+
+### 4.1 subagent 生成通路故障时的 resume 兜底（v1.0.6）
+
+**症状：** 派发新 subagent 时 tmux 新建 pane 报 **ENXIO**（且 pty 数量未触顶，根因未明），fan-out 卡住无法继续。
+
+**兜底：** 向**已完成的 agent** `SendMessage` 走 resume 通路可绕过该故障（ARCH-M05 D 组 / E 组 / 汇总 / 复验四次成功）。
+
+**独立性核验（不可省）：** resume 转派会把新任务交给一个**已有上下文**的 agent，因此必须逐次核验转派方向：
+
+| 转派方向 | 允许？ | 理由 |
+|---|---|---|
+| 验收 → 验收 | ✅ | 目标 agent 无实现上下文，铁律 4 不破 |
+| 实现 → 验收 | ❌ | 等于自评，直接违反独立性铁则 |
+
+转派事实（哪个 agent 接了哪段、方向为何合规）**必须记入 signoff**，不得只留在对话里。
+
 ---
 
 ## 5. Workflow 脚本 / 独立任务的编排场景
@@ -99,7 +116,7 @@
 | 场景 | 模式 |
 |---|---|
 | ≥4 features 的批次验收 | §4 三阶段 fan-out（pipeline：每个 feature 验完即复核，不等全量） |
-| 上线前 audit（prod-launch-audit-template.md） | 多维 finder fan-out（安全 / ghost-control / PRD 偏差 / 部署对位各一个 finder）→ 对抗复核 → 汇总四池子报告 |
+| 上线前 audit（prod-launch-audit-template.md） | 多维 finder fan-out（安全 / ghost-control / PRD 偏差 / 部署对位各一个 finder）→ 对抗复核 → 汇总四池子报告。**方法学见 `patterns/audit-methodology.md`**（基线词表校准 / 传递可达性 / 汇总即对抗复核 / 产物脚本化） |
 | 全仓扫描类独立任务（rate-limit 全裸点、RLS 缺失表） | loop-until-dry：连续 2 轮无新发现才停，避免 top-N 截断漏尾部 |
 | 大型迁移批次（migration-batch-checklist.md） | discover 站点 → pipeline 逐项转换（worktree 隔离）→ 逐项验证 |
 
@@ -176,3 +193,4 @@
 |---|---|---|
 | 2026-07-09 | 初版（v1.0）：快车道标准流 / 并行 building / fan-out 验收 + 对抗复核 / Workflow 与 /loop 场景 / 模型分层 / 慢车道保留场景 | 框架 v1.0 重构（适配 Claude Code subagent + Workflow + plan mode + hooks 时代） |
 | 2026-07-12 | §8 Workflow ⇄ progress.json 日志契约（阶段边界不自动越 / 机械原样回写 / 逐条落盘抗崩溃 / 验收工件回喂沉淀） | harness-fit 分析 wt27gd5xu（红队：naive 上 Workflow 是正确性回归 + 沉淀饿死风险） |
+| 2026-07-21 | §4.1 subagent 通路故障的 resume 兜底（含「验收→验收」独立性核验表）+ §4 审计类汇总层例外指针 + §5 audit 行指向 `patterns/audit-methodology.md` | KOLMatrix ARCH-M05（tmux pane ENXIO 四次转派）+ FE-AUDIT |

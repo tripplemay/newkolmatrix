@@ -141,8 +141,28 @@ nvm use                          # 不一致时切换；无 nvm 装 Node 20 LTS
 
 ---
 
+## 7. Next.js UI 实测走 standalone，不走 `next dev`（v1.0.6 — KOLMatrix ARCH-M05 沉淀）
+
+**背景：** ARCH-M05 验收期间 `next dev` **全路由 500 / 白屏**，与被测代码无关：Next 15 devtools 的 `segment-explorer` 与 RSC client manifest 冲突。C 组、D 组两个互不相通的隔离 evaluator **各自独立踩中**并各花了排查时间——典型的「环境误报吃掉验收预算」。
+
+**规律：** 本类项目的 UI 实测（浏览器探针、E2E、视觉回归）**一律走生产构建**：
+
+```bash
+npx next build
+PORT=3000 node .next/standalone/server.js
+```
+
+理由不止是绕开这个坑：standalone 才是**线上实际跑的产物**，dev server 的 HMR / RSC 开发态与生产行为本就存在差异，验收基于 dev 等于验错了对象。
+
+**Evaluator 纪律：** 探针脚本头部显式声明前置（`已 next build 且 standalone server 起在 BASE`），别让下一个隔离 evaluator 再踩一次——**跨隔离上下文的坑必须写进脚本本身**，因为 fresh context 读不到上一个 evaluator 的对话。
+
+**来源：** KOLMatrix ARCH-M05 verify C 组 / D 组（INFO-1，两组独立命中）。
+
+---
+
 ## 版本历史
 
 | 日期 | 修订 | 来源 |
 |---|---|---|
 | 2026-07-09 | v1.0 重构：自 `harness/evaluator.md` §13-§16 / §18-§19 原文迁出成独立 pattern 文件 | 框架 v1.0 目录分层 |
+| 2026-07-21 | §7 Next.js UI 实测走 standalone 不走 `next dev`（devtools × RSC manifest 冲突） | KOLMatrix ARCH-M05 |

@@ -5,6 +5,28 @@
 
 ---
 
+## v1.0.6 — 2026-07-21（视觉回归三坑 + 双域 token + 审计方法学 + 验收活性证明）
+
+**来源：** KOLMatrix 三个批次的 13 条待确认 learnings 一并沉淀 —— FE-AUDIT（首次 Evaluator-only 三路 fan-out + 汇总对抗复核实跑）、FE-REFACTOR（signoff §10 转录）、ARCH-M05（架构定稿 + M0.5 六页工作台，17 features 大规模并行编排）。
+
+共同主题是**静默失败**：这批坑没有一个会让 lint / tsc / 测试变红——它们让检查变绿得毫无意义（空数据基线、容忍带、死掉的检测器、JIT 丢类），或让验收预算被环境误报吃掉（`next dev` 白屏两组独立踩中）。
+
+**变更：**
+- `patterns/web-runtime-patterns.md` 新增 **§4 视觉回归基线的三个静默坑**（4.1 CDN 字体是抖动总根源→本地 woff2 夹具离线回放；4.2 容忍带双向坑→重生用 `all`、断言用紧阈值；4.3 纯 CI 空数据渲染 null 被基线固化为合法空白→route mock + `waitFor` 硬断言）+ **§5 Tailwind JIT 双域 token 分工**（`className` 可达值必须进 `tailwind.config`，JS 域才走 `design-tokens.ts`）
+- `patterns/testing-env-patterns.md` 新增 **§7**：Next.js UI 实测走 `next build` + standalone，不走 `next dev`（devtools `segment-explorer` × RSC manifest 冲突）；含「跨隔离上下文的坑必须写进探针脚本本身」纪律
+- **新建 `patterns/audit-methodology.md`**：审计类批次方法学四条（§1 基线词表校准防误报 / §2 import 图传递可达性防伪存活 / §3 汇总层必须是对抗复核层 / §4 审计产物脚本化转回归 harness）
+- `harness/orchestration-patterns.md` 新增 **§4.1** subagent 生成通路故障的 resume 兜底（含「验收→验收」允许、「实现→验收」禁止的独立性核验表 + 转派须记入 signoff）；§4 补审计类汇总层的反向例外指针；§5 audit 行指向新 pattern
+- `memory/role-context/evaluator.md` 新增三节：「0 findings」检测器活性证明三道交叉 / 计数不符先逐站点追溯（判据落终态不落过程计数）/ 文档新鲜度 clause
+- `memory/role-context/planner.md` 新增「批内文档新鲜度」：口径权威文档作为首 feature 交付时会被后续 feature 反向漂移，批末须排刷新步或加复核 clause
+- `patterns/README.md` 触发条件表补 audit-methodology 行 + 更新 web-runtime / testing-env 两行触发词
+- KOLMatrix 项目侧 `.auto-memory/role-context/` 两份副本同 commit 同步（铁律 7 多副本一致性）
+
+**兼容性：** 纯新增 pattern 与行为规范，不改状态机 / 字段 / 角色协议。
+
+**不在本次范围：** harness-fit 分析（P0-3 / P1-1~P1-3 / P2-1~P2-5）用户 2026-07-21 三度裁决继续挂起。
+
+---
+
 ## v1.0.5 — 2026-07-20（IA refactor redirect：探针/测试漂移扫描）
 
 **来源：** KOLMatrix AGENT-FOUNDATION F008→F009 视觉基线漂移 + GO-LIVE F001/F003 healthcheck 307。IA 重构改路由后，引用旧路由的既有配置**静默失效且延迟暴露**，同根因两例：(1) 视觉回归测试 `page.goto(旧路由)` 被重定向、`waitFor(旧页元素)` 超时——F008 改 dashboard→today 时自身 CI 侥幸绿，F009 无关 push 才红；(2) prod compose + deploy-prod 的 healthcheck 命中 `/admin/dashboards/default` 期待 200，重定向后返 307 → 容器恒 unhealthy / 部署健康检查恒失败，GO-LIVE F001/F003 才修至 `/api/health`。既有 v1.0.0「IA refactor redirect scope」learning 只覆盖死链清单，未覆盖探针/测试维度。

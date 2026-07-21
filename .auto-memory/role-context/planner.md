@@ -17,6 +17,12 @@ type: feedback
 - destination 未 wire 等效功能 → 该条写 "kept deep-link，BL-XXX wire 后启 redirect"，不预设"所有老路由立即 redirect"
 - redirect 清单除死链外必须同批扫**引用旧路由的探针/测试**：`tests/visual` route/selector + compose/workflows healthcheck 路由 + `curl` 探针，acceptance 要求同批重指（v1.0.5 — GO-LIVE 沉淀：visual goto 超时 + healthcheck 307 恒 unhealthy 两例均延迟暴露）
 
+## 批内文档新鲜度（v1.0.6 — ARCH-M05 沉淀）
+
+- 批次内若有「口径权威文档」（架构定稿、契约规范）作为**首个** feature 交付，后续 feature 的实装会**反向漂移**它（已实装的仍标「演进目标」、计数过期）
+- 拆 features 时对策二选一：批末排一条**文档刷新 feature**，或在 acceptance 里给该文档加「批末新鲜度复核」clause
+- 大批次（≥10 features）两者都上；反面案例 ARCH-M05 FIX-2（architecture.md 三处批内漂移）
+
 ## 角色分配
 
 - 项目根存在 `.agents-registry` 时，展示可用 agent 列表，询问用户分配

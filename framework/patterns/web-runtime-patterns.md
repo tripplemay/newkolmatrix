@@ -104,9 +104,71 @@ grep -rnE "pk\.[A-Za-z0-9]|sk-[A-Za-z0-9]|sk\.eyJ|AIza[0-9A-Za-z_-]{35}|ghp_[A-Z
 
 ---
 
+## 4. 视觉回归基线的三个静默坑（v1.0.6 — KOLMatrix FE-REFACTOR + ARCH-M05 沉淀）
+
+**共同特征：** 这三条都不会让测试变红——它们让测试**变绿得毫无意义**，或红在与根因无关的地方。引入视觉回归测试时应一次性按本节校准。
+
+### 4.1 CDN 字体是抖动的总根源
+
+**背景：** Playwright 每个 test 起全新 browser context、零 HTTP 缓存 → **每个用例都重新拉一次 Google Fonts**。网络抖动即 `document.fonts.ready` 挂起 / 截图超时。ARCH-M05 F017 排查中它先后伪装成「`networkidle` 等待挂起」和「多 worker 资源竞争」，三层排查才见底。
+
+**规律：** 视觉测试**不得依赖任何外部字体 CDN**。把 woff2 与改写后的 `@font-face` CSS 入库 `tests/visual/fonts/`，用 `page.route()` 全离线回放。
+
+```
+tests/visual/fonts/          # woff2 + 改写 src: 指向本地的 CSS
+  → page.route('**/fonts.googleapis.com/**', 回放本地 CSS)
+  → page.route('**/fonts.gstatic.com/**',   回放本地 woff2)
+```
+
+字形与线上一致（同一份 woff2），因此基线仍有效。副产品：ARCH-M05 全套时长 60-90s → 24s。
+
+### 4.2 容忍带是双向坑：重生用 `all`，断言用紧阈值
+
+**背景：** FE-REFACTOR F005 两个方向都踩了同一个 `maxDiffPixelRatio`：
+- **重生方向：** `--update-snapshots` 默认 `changed` 模式在容忍带内**不改写**基线 → 重生 workflow 空转，基线永远停在旧版（已修 `42d7d75` 改 `=all`）
+- **断言方向：** 同一个宽容忍度让**整块 UI 出现/消失（1.44%）也不判红**
+
+**规律：** 两个方向用**不同**的口径——**重生一律 `--update-snapshots=all`**（无条件改写），**断言用紧阈值**（`maxDiffPixels ~1500` 或 `ratio 0.001` 量级）。引入视觉测试时即按「该页面一次典型改动的像素量级」校准阈值，不要沿用框架默认值。
+
+**落地纪律：** 阈值收紧后先**本地连跑 3 次**验证抗抖动（4.1 处理完再跑，否则测的是字体抖动），再入 CI。
+
+### 4.3 纯 CI 环境「空数据渲染 null」会被基线静默编码为合法空白
+
+**背景：** BL-FE-11 / FE-REFACTOR F003+F007：CI 无 DB，组件读不到数据渲染 `null`，linux 基线于是把 `HandoffCollab` 的**空区域固化成「正确」**——该组件的回归覆盖长期为零，无人察觉。截图对比永远绿，因为两边都是空白。
+
+**规律：** 视觉基线里任何依赖数据的区块，必须 **route mock 固定夹具 + `waitFor(关键文案)` 硬断言**。`waitFor` 是关键：渲染 `null` 时它超时**硬失败**，把「静默空白」转成「响亮的红」。
+
+**自检：** 新增基线页时问一句「如果这个区块的数据源整个消失，这条测试会红吗？」——答案是否，说明缺 `waitFor` 硬断言。
+
+**来源：** KOLMatrix FE-REFACTOR F005 / F003+F007（BL-FE-11、BL-FE-13）+ ARCH-M05 F017。
+
+---
+
+## 5. Tailwind JIT 静态扫描：`className` 可达的值必须定义在 config（双域 token 分工）（v1.0.6 — KOLMatrix ARCH-M05 沉淀）
+
+**背景：** ARCH-M05 把设计 token 收敛到 `design-tokens.ts` 后，某些渐变**静默消失**——没有报错、没有 lint 警告、tsc 全绿，只是 CSS 里根本不存在那个 class。
+
+**根因：** Tailwind JIT 靠**静态扫描源码文本**生成 CSS。`from-[${JS常量}]` 在扫描期只是一个模板字面量，Tailwind 看不到最终值，**不生成任何 CSS**。
+
+**规律：设计 token 有两个域，出处不同，不可互串：**
+
+| 域 | 消费方 | token 出处 | 反例 |
+|---|---|---|---|
+| **CSS 域** | `className` 中可达的一切色值 / 尺寸 | **必须**定义在 `tailwind.config.js`（或 CSS 变量） | ❌ `` className={`from-[${T.brand}]`} `` → 静默无 CSS |
+| **JS 域** | 图表 options（ApexCharts 等）、inline `style` | `design-tokens.ts` 等 JS 常量 | ✅ `options.colors = [T.brand]` |
+
+**自检：** 抽取 token 常量时，逐个检查消费点落在哪个域；凡是进 `className` 的，同步在 `tailwind.config.js` 建对应键，`className` 写静态类名。
+
+**检测：** 这类丢失 tsc / lint 抓不到，只有**视觉回归**能抓（见 §4——这也是把阈值收紧的价值之一）。
+
+**来源：** KOLMatrix ARCH-M05（token 双域收敛）。
+
+---
+
 ## 版本历史
 
 | 日期 | 修订 | 来源 |
 |---|---|---|
 | 2026-07-09 | v1.0 重构：自 `harness/generator.md` §8-§9 原文迁出成独立 pattern 文件 | 框架 v1.0 目录分层 |
 | 2026-07-14 | §3 付费/第三方模板 scaffold 首推前 secret 预扫（含 `--amend` 清历史铁律） | KOLMatrix DS-FOUNDATION F001 |
+| 2026-07-21 | §4 视觉回归基线三个静默坑（CDN 字体抖动 / 容忍带双向 / 空数据基线）+ §5 Tailwind JIT 双域 token 分工 | KOLMatrix FE-REFACTOR + ARCH-M05 |

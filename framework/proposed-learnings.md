@@ -124,3 +124,43 @@
 
 **当前无待确认提案**（harness-fit P0-3 / P1-1~3 / P2-1~5 见上，状态=长期挂起，非待办）。
 
+
+## [2026-07-22] Andy/Generator — 来源：M1-A-BRIEF F002 勘查盲区
+
+**类型：** 新坑
+
+**内容：** 勘查「哪些文件有 SSR 风险」时按目录划审查面（components/ + hooks/）漏掉了 utils/，
+而真正导致全站 hydration mismatch 的恰是 `utils/navigation.ts` 的 `typeof window` 分支。
+规律：这类风险应按**语义**（全仓 grep `typeof window|typeof document|isWindowAvailable`）划范围，
+不能按「常见目录」划——模板遗留代码最爱藏在 utils/ 这类不起眼的地方。
+
+**建议写入：** `framework/patterns/audit-methodology.md`（勘查范围划定原则）
+
+**状态：** 待确认
+
+## [2026-07-22] Andy/Generator — 来源：M1-A-BRIEF F002 探针漂移
+
+**类型：** 新规律
+
+**内容：** 测试里的「代理判据」会随架构变更**静默失效**。P2-CLEANUP 的 p2:f002 用
+「主题钮是否存在」代理「React 未 hydrate」，该代理只在全站无 SSR 时成立；F002 恢复 SSR 后
+它恒真，那条防假绿的守卫本身变成了假绿。
+规律：写代理判据时必须注释**它成立的前提**，且改动该前提的批次要 grep 全部代理点。
+配套纪律：换判据后必须补一条「同一表达式在相反状态下会翻转」的活性证明——
+本批第一版把判据写成 `document.body` 恒假，正是被这条活性证明当场抓住的。
+
+**建议写入：** `framework/patterns/audit-methodology.md` §5-§6（断言退化的第三种形态：代理前提失效）
+
+**状态：** 待确认
+
+## [2026-07-22] Andy/Generator — 来源：M1-A-BRIEF F001 D17
+
+**类型：** 模板修订
+
+**内容：** spec 写覆盖率门时若 `include` 范围大于本批次实际负责的代码，会逼出两种坏结局：
+接进 CI 则永久红，不接则门从不执行（假门）。Planner 起草覆盖率类 acceptance 时应把
+`include` 限定在本批次拥有的路径，并写明「后续批次逐步放宽，不得反向下调 threshold」。
+
+**建议写入：** `framework/harness/planner.md` 或 spec 模板的覆盖率段
+
+**状态：** 待确认

@@ -13,18 +13,6 @@
     "source": "FE-AUDIT F003 §4.3 观察"
   },
   {
-    "id": "BL-FE-13",
-    "title": "视觉断言阈值收紧（重生 all / 断言紧阈值分离）",
-    "description": "FE-REFACTOR verify-B OBS-3 + signoff 新坑：maxDiffPixelRatio 0.02 ≈ 29,700px 容忍带过宽——本批 en-today 全部有意改动仅 1.44-1.53%（含「协同交接卡整块出现/消失」1.44% 量级事件）低于阈值不判红；断言灵敏度侧仍有 ~2% 静默带，与 --update-snapshots changed 模式静默跳过（已修 42d7d75 改 =all）同源（阈值既管重生也管断言）。建议：断言收紧至 maxDiffPixels ~1500 或 ratio 0.001，配合既有 waitFor 关键文案硬断言抗抖动；收紧后先本地跑 3 次确认无平台抖动误报再入 CI。",
-    "decisions": [
-      "原则已定（signoff §10）：重生用 all、断言用紧阈值；具体阈值随批次实测校准"
-    ],
-    "confirmed_at": null,
-    "priority": "P1",
-    "estimate": "0.5 人日",
-    "source": "FE-REFACTOR verify-B OBS-3 / signoff"
-  },
-  {
     "id": "BL-FE-14",
     "title": "HandoffCollab 容器 chrome 与预览包装二次收敛",
     "description": "FE-REFACTOR verify-B OBS-1：预览页 StaticHandoffCard 包装函数与 HandoffCollab 的容器 chrome（SurfaceCard+SectionLabel+「协同交接 · 多 Agent 联动 · 点开看交接」标签文案）逐字重复——呈现层已共享（HandoffCard），外层包装仍两处；改标签文案需两处同步。可抽 HandoffPanel 二次收敛或接受现状。",

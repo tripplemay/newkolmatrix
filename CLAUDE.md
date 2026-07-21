@@ -70,8 +70,9 @@ npm run test:visual       # Playwright 视觉回归（dashboard/today + agent-ca
 
 涉及对应模块时再读，不需要每次启动都加载：
 
-- **架构详情：** → `docs/dev/architecture.md`（系统架构、请求管道、认证、数据库等）
-- **开发规则：** → `docs/dev/rules.md`（Migration 规则、[框架]开发规则、设计决策、CI/CD）
+- **架构详情：** → `docs/dev/architecture.md`（v1.2 定稿：全站目标态 + as-built 校准；Agent 层细节另见 `docs/dev/agent-architecture.md`）
+- **部署与 CI/CD：** → `docs/dev/deploy.md`（首次 go-live 一次性清单、日常部署、回滚）
+- **模板 port 约定：** → `docs/dev/template-port-guide.md`（admin/ 逐个 port 保留结构）+ `docs/dev/template-inventory.md`（库存登记表）
 - **规格文档：** → `docs/specs/`（开发时优先查阅）
 - **设计稿：** → `design-draft/`（UI 页面还原时参考）
 - **技术域 pattern 库：** → `framework/patterns/README.md`（触发条件命中才读）

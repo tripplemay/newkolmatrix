@@ -304,21 +304,32 @@ function CopilotPanelInner() {
 }
 
 export default function CopilotPanel() {
-  const { drawerOpen } = useCopilotUi();
+  const { drawerOpen, closeDrawer } = useCopilotUi();
   return (
-    // 三区外壳右栏：xl 常驻 360px；xl 以下退为 fixed 右滑抽屉（S2-10 cop-toggle / 指令栏 Enter 打开）
-    <aside
-      className={`fixed right-0 top-0 z-40 flex h-screen w-[360px] max-w-[94vw] flex-col border-l border-gray-200 bg-white transition-transform duration-300 dark:border-white/10 dark:bg-navy-800 ${
-        drawerOpen ? 'translate-x-0 shadow-xl' : 'translate-x-[103%]'
-      } xl:translate-x-0 xl:shadow-none`}
-    >
-      <Suspense
-        fallback={
-          <div className="p-4 text-sm text-gray-400">加载 Copilot…</div>
-        }
+    // 三区外壳右栏：xl 常驻 360px；xl 以下退为 fixed 右滑抽屉（S2-10 cop-toggle / 指令栏 Enter 打开）。
+    // ARCH-M05 fixing FIX-4（verify-B O-2）：aside z-40→z-10 恢复原型层叠（navbar z-20 在上，
+    // cop-toggle 双向可用）；补 mobile scrim（点击关闭，接 closeDrawer）——抽屉不再单向不可关。
+    <>
+      {drawerOpen && (
+        <div
+          aria-hidden
+          onClick={closeDrawer}
+          className="fixed inset-0 z-[5] bg-navy-900/50 backdrop-blur-[2px] xl:hidden"
+        />
+      )}
+      <aside
+        className={`fixed right-0 top-0 z-10 flex h-screen w-[360px] max-w-[94vw] flex-col border-l border-gray-200 bg-white transition-transform duration-300 dark:border-white/10 dark:bg-navy-800 ${
+          drawerOpen ? 'translate-x-0 shadow-xl' : 'translate-x-[103%]'
+        } xl:translate-x-0 xl:shadow-none`}
       >
-        <CopilotPanelInner />
-      </Suspense>
-    </aside>
+        <Suspense
+          fallback={
+            <div className="p-4 text-sm text-gray-400">加载 Copilot…</div>
+          }
+        >
+          <CopilotPanelInner />
+        </Suspense>
+      </aside>
+    </>
   );
 }

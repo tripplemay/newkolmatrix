@@ -3,7 +3,7 @@ function MiniStatistics(props: {
   name: string;
   values?: string;
   icon: JSX.Element;
-  value: string;
+  value: React.ReactNode;
   iconBg: string;
   /** ARCH-M05 F006 — KPI 涨幅位（原型 .k-val small，绿色）。可选：无 delta 的 KPI 不渲染该位（V1 两态不得统一）。 */
   delta?: string;

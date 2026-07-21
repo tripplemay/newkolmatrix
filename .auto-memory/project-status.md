@@ -4,7 +4,7 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **P2-CLEANUP done ✅（2026-07-22）** — 5/5 PASS，fix_rounds=1；signoff `docs/test-reports/P2-CLEANUP-signoff.md`
+- **P2-CLEANUP done ✅ 且已上线用户验收通过（2026-07-22）** — 5/5 PASS，fix_rounds=1；signoff `docs/test-reports/P2-CLEANUP-signoff.md`；用户线上逐条验收「通过」（`docs/test-reports/user_report/P2-CLEANUP-线上验收说明.md`）
 - **交付：** F001 抽屉遮罩关闭（根因实测 container height=0px，`containerProps.style` 补 100vh）· F002 深色持久化（`kolmatrix.colorMode` + pre-paint 内联脚本）· F003 Avatar 边框跟随（改用 Tailwind `dark:` 变体）· F004 抽 `common/HandoffPanel`，夹具对齐生产 · F005 CreatorDrawer 入基线
 - **fix_round1 教训：** F003 首版按 acceptance 字面「改读 hooks/useColorMode」实装 → 判 PARTIAL。该 hook 每调用点独立 state、零跨实例订阅，纯读取方活体切换不跟随。改用 `dark:` 变体（项目主导范式，84 文件）绕开
 - **回归资产：** `npm run p2:f001~f004`（浏览器探针须先起 standalone 并 `export BASE`）+ `tests/visual/creator-drawer.spec.ts` + evaluator 两套独立 harness（`scripts/test/f003-harness/`、`f003-reverify/`）
@@ -19,10 +19,10 @@ type: project
 
 ## 需求池（backlog.json）
 - **BL-FE-16（P2）** — `useColorMode` 跨实例不同步（纯读取方 + 多标签页均不同步），DS-FOUNDATION F005 遗留
-- **待入池（signoff §4 O-1）** — `ChakraNextAvatar` + `showBorder` 边框恒不渲染（`shouldForwardProp` 白名单拦下 `showBorder`，既存行为非本批引入）；建议与 BL-FE-16 合入死代码清理批次
+- **BL-FE-17（P2）** — `ChakraNextAvatar` + `showBorder` 边框恒不渲染（`shouldForwardProp` 白名单拦下），既存行为；建议与 BL-FE-16 合成「`image/` 模板残留统一处置」批次
 
 ## 待人类处理
-- `framework/proposed-learnings.md` 两条待确认（视觉用例首推 CI 必红 + 组件消费点/属性生效性应入勘查清单）
+- `framework/proposed-learnings.md`：**P2-CLEANUP 新增 4 条待裁决**（视觉用例首推 CI 必红 / 消费点+属性生效性入勘查清单 / 断言换实现后退化为恒真 / 合成节点探针保真度）；另有 harness-fit 9 条长期挂起（用户三度裁决继续挂起）
 
 ## 关键技术坑（沿用 framework v1.0.6）
 - UI 实测一律 standalone 不走 next dev · CDN 字体是视觉测试抖动总根源 · Tailwind JIT 双域 token · 基线重生用 `--update-snapshots=all` 断言用紧阈值 · 空数据基线须 waitFor 硬断言

@@ -1,0 +1,763 @@
+# M1-A-BRIEF 验收报告（fan-out 汇总）
+
+> 编排：6 个隔离 evaluator subagent 逐 feature 验收；FAIL/PARTIAL 各派一个复核 subagent 尝试证伪。
+> 本文件由编排者**机械转录**各 subagent 的结构化返回，未改写、未筛选、未软化任何判定。
+> 验收对象：HEAD `168dba876b0ce496aa2dc03b319aed27a1959424`
+
+## 判定汇总
+
+| Feature | 结论 | 对抗复核 |
+|---|---|---|
+| F001 | **PARTIAL** | 证伪失败，维持原判 |
+| F002 | **PARTIAL** | 证伪失败，维持原判 |
+| F003 | **PASS** | — |
+| F004 | **PASS** | — |
+| F005 | **PASS** | — |
+| F006 | **PASS** | — |
+
+---
+
+## F001 — PARTIAL
+
+### 结论摘要
+
+F001 的**全部字面 acceptance 条目实测通过**（vitest+coverage-v8 已装、D18 原生 tsconfigPaths 已实证为承重件、D17 收窄后的覆盖率门实测会红、CI unit job 实跑 92 用例含 12 条打真库集成测、CRA 六项残留摘净且摘前零引用可回溯实证、provenance 19 用例 1:1 忠实改写且原脚本已删、lint+tsc 全绿）。
+
+判 PARTIAL 的唯一扣分项：**F001 把 vitest 的覆盖率产物 `coverage/` 目录（16 个文件）提交进了 git，且 `.gitignore` 未登记该目录**。后果是 acceptance 自己要求接入 CI 的那条命令 `npm run test:unit:coverage` 每跑一次就会污染工作区——我实测跑完当场 8 个 tracked 文件变 modified。这不是一次性失误：批次内 4 个 commit（9efb756/8fac75b/cff395e/e12421c）分别夹带了 11/7/8/9 个 coverage 产物文件。它同时让仓内长期存在一份会过期、且宣称具体覆盖率数字的假快照，并给 harness-rules 强制的 push 前 `git status --short` 检查制造持续噪音。
+
+这是「vitest 地基」这一交付物自身的缺陷而非无关小节，故不判 PASS。修复成本极低：`.gitignore` 加 `/coverage/` + `git rm -r --cached coverage`。
+
+另附一条**不扣分的 soft-watch**（不属 F001 acceptance）：`docs/dev/architecture.md` §12.6.3 至今仍写「演进目标（未实装，规划态）… 当前仓库中不存在」，并仍规定 `vite-tsconfig-paths` + `include:['src/lib/**']`——这两点已分别被 D18/D17 推翻且实物已落地。裁决链在 preimpl-audit 里完整，但口径文档本身滞后，建议 M1-B 顺手校准。
+
+### 复现 / 所跑命令
+
+```
+【扣分项复现（coverage 产物入 git）】
+1. cd /Users/yixingzhou/project/newkolmatrix && git status --short   → 干净
+2. npm run test:unit:coverage                                        → 92 passed，Lines 98.05%
+3. git status --short
+   → M coverage/clover.xml / M coverage/data/index.html / M coverage/data/provenance.ts.html
+     M coverage/domain/{env-advance,env-guards,health,index}.*.html / M coverage/index.html （8 个 tracked 文件被弄脏）
+4. grep -n "coverage" .gitignore  → 无输出（coverage 未被忽略）
+5. git ls-files coverage/ | wc -l → 16（产物已入库）
+6. git log --oneline --diff-filter=A -- coverage/index.html → 9efb756（即 F001 commit 引入）
+7. 批次内反复夹带：git show --stat --name-only --pretty=format: <sha> -- coverage/
+   → 9efb756=11 · 8fac75b=7 · cff395e=8 · e12421c=9 个文件
+（复现后我已 git checkout -- coverage/ 还原，未留下修改）
+
+【已跑通的验证命令（供复核）】
+- npm run test:unit                → Test Files 4 passed / Tests 92 passed
+- npm run test:unit:coverage       → Lines 98.05% (101/103)，门通过
+- 覆盖率门活性证明：npx vitest run --coverage --coverage.include='src/lib/agent/**' --coverage.reporter=text-summary
+  → ERROR: Coverage for lines (1.85%) does not meet global threshold (80%)；REAL_EXIT=1
+- D17 依据复核：--coverage.include='src/lib/**' → Lines 23.66%，同样 exit 1（仍远低于 80，D17 判断成立）
+- D18 活性证明：临时 probe config 关掉 resolve.tsconfigPaths 跑全量
+  → Error: Cannot find package 'lib/db/prisma' imported from src/lib/domain/env-advance.ts
+     Error: Cannot find package 'lib/agent/stage-routing' imported from src/lib/domain/env-guards.ts
+     Test Files 3 failed | 2 passed  （证明该选项是承重件，非摆设；probe 文件已删除）
+- npm run lint                     → ✔ No ESLint warnings or errors
+- npx tsc --noEmit                 → TSC_EXIT=0
+- gh run view 29860371189 --json jobs → "Unit + integration tests => success"（与 Lint/Typecheck/Build/Visual 同级并行）
+- CI 日志实证：Tests 92 passed (92)，含 tests/integration/env-advance.test.ts (12 tests)
+```
+
+### acceptance 逐条判定
+
+| 条目 | 判定 | 证据 |
+|---|---|---|
+| 装 vitest + @vitest/coverage-v8 | PASS | package.json:105 "@vitest/coverage-v8":"^4.1.10"、:118 "vitest":"^4.1.10"（均在 devDependencies）。npm ls → vitest@4.1.10 / @vitest/coverage-v8@4.1.10 / vite@8.1.5 均实装。 |
+| 【D18】vite-tsconfig-paths 不装，改用原生 resolve.tsconfigPaths | PASS | package.json 无该依赖；node_modules/vite-tsconfig-paths absent。vitest.config.ts:33 `resolve: { tsconfigPaths: true }`。选项真实存在且默认关：node_modules/vite/dist/node/index.d.ts:2007 `tsconfigPaths?: boolean; @default false @experimental`。D18 所述弃用警告文案在 Vite 8 运行时逐字可查：node_modules/vite/dist/node/chunks/node.js:35656-35657。跑测输出零弃用警告。 |
+| 【D18】该原生选项确为承重件（非写了不起作用） | PASS | 临时 probe config 仅把 resolve.tsconfigPaths 置 false 跑全量：Error: Cannot find package 'lib/db/prisma' imported from src/lib/domain/env-advance.ts；Cannot find package 'lib/agent/stage-routing' imported from src/lib/domain/env-guards.ts；Test Files 3 failed \| 2 passed。置 true 则 4/4 全绿。probe 文件已删除，工作区未留痕。 |
+| 【D18】「等效性已实测 19/19 双配置同样通过」这一历史声明 | NOT_VERIFIABLE | 复现「装 vite-tsconfig-paths 的那一半配置」需改 package.json 并写入共享 node_modules，越出 Evaluator 修改边界且会破坏并发 evaluator 环境，故未执行。可实证部分：tests/unit/provenance.test.ts 确为 19 用例且在现配置下 19/19 通过。另发现该声明的括号注「含依赖 baseUrl:'src' 裸导入解析的用例」对这 19 条并不成立——我实测 provenance.test.ts 在 tsconfigPaths=false 下仍 19/19 通过（其经 ProvenanceTag.tsx 的 `lib/data/provenance` 是 `import type`，转译期即被擦除，不触达解析器）。真正依赖该解析的是 health / env-guards / env-advance 三个测试文件。措辞瑕疵，不影响 D18 结论成立。 |
+| vitest.config.ts：environment:'node' | PASS | vitest.config.ts:41 `environment: 'node'`。 |
+| vitest.config.ts：include:['tests/unit/**/*.test.ts','tests/integration/**/*.test.ts'] | PASS | vitest.config.ts:42 与 acceptance 逐字一致。实跑收到 tests/unit 3 文件 + tests/integration 1 文件。 |
+| vitest.config.ts：coverage:{provider:'v8', thresholds:{lines:80}} | PASS | vitest.config.ts:44 `provider: 'v8'`、:55 `thresholds: { lines: 80 }`。 |
+| 【D17】coverage.include 收窄为 ['src/lib/domain/**','src/lib/data/provenance.ts'] | PASS | vitest.config.ts:54 逐字一致。实跑覆盖表只出现 data/provenance.ts + domain/{env-advance,env-guards,health}.ts。 |
+| 【D17】门是真的（不是只写在配置里的假门） | PASS | 活性证明：npx vitest run --coverage --coverage.include='src/lib/agent/**'（仅换 include，thresholds 仍取自配置文件）→ `ERROR: Coverage for lines (1.85%) does not meet global threshold (80%)`，进程 REAL_EXIT=1。证明配置里的 80 会被真正读取并致 CI 红。 |
+| 【D17】不得反向下调 thresholds | PASS | thresholds.lines 仍为 80，未下调。D17 所依据的事实亦复核成立：现时 --coverage.include='src/lib/**' 实测 Lines 23.66% (111/469)，仍远低于 80（D17 起草时为 6.2%，差异来自 F004-F006 后续补入的已测 domain 代码）。 |
+| package.json 补 test:unit 脚本 | PASS | package.json:11 "test:unit":"vitest run"（另有 :12 watch、:13 coverage）。本机实跑 → Test Files 4 passed / Tests 92 passed。 |
+| 接入 CI workflow 且与 lint/typecheck 同级 | PASS | .github/workflows/ci.yml:63-91 `unit` job，与 lint(:30)/typecheck(:42)/build/visual 平级，无 needs 依赖串接。job 内 :91 跑 `npm run test:unit:coverage`（覆盖率门随之执行）。 |
+| 验收须核 CI 实际跑了该步，不能只看 package.json 有 script | PASS | gh run view 29860371189（HEAD 前一个产品 commit e12421c 的 CI）→ jobs: Build/Unit + integration tests/Lint/Visual regression/Typecheck 全 success。抓取该 job 原始日志实证其真跑：`> vitest run --coverage`、`RUN v4.1.10`、`✓ tests/unit/health.test.ts (32 tests)`、`✓ tests/unit/env-guards.test.ts (29 tests)`、`✓ tests/integration/env-advance.test.ts (12 tests)`、`✓ tests/unit/provenance.test.ts (19 tests)`、`Tests 92 passed (92)`、覆盖率表 All files 98.05% Lines。集成用例为 12 条而非 0 条（未静默跳过）。F001 自身 commit 的 CI run 29856818448 亦含 'Unit tests => success'。 |
+| 摘除 @types/jest（dependencies + devDependencies 共 2 处） | PASS | 摘前实证：git show 9efb756^:package.json \| grep → :57 与 :97 各一处 "@types/jest":"^25.2.3"，恰好 2 处，与 acceptance 描述逐字吻合。摘后：当前 package.json grep jest → 无；node_modules/@types/jest absent。 |
+| 摘除 @testing-library/{jest-dom,react,user-event}（:54-56） | PASS | 摘前实证：9efb756^ 的 :54 jest-dom^5.16.5 / :55 react^13.3.0 / :56 user-event^13.5.0，位置与 acceptance 一致。摘后三者均不在 package.json，node_modules 内亦 absent。 |
+| 摘除 eslintConfig 段（:126-131） | PASS | 摘前实证：9efb756^:package.json:126-131 `"eslintConfig":{"extends":["react-app","react-app/jest"]}`。摘后 package.json 无 eslintConfig 键；全仓（除 package-lock/node_modules）grep 'react-app' 零命中；lint 走 .eslintrc.json 的 next/core-web-vitals，实跑无错。 |
+| 摘除前须 grep 实证全仓零引用 | PASS | 我在摘除前的树（9efb756^）上独立复跑了该 grep：git grep '@testing-library' -- '*.ts\|tsx\|js\|jsx\|mjs' → 零命中；git grep -w 'jest' -- src scripts tests → 零命中。即摘除时的事实前提确实成立，是清理而非降级。当前树同一 grep 亦零命中（仅 features.json/vitest.config.ts 注释中的文字提及）。 |
+| scripts/test/provenance-smoke.ts:42-190 改写为 tests/unit/provenance.test.ts，覆盖 readContractSlot 三态 / isPendingVerification / resolveProvenance 三级回退 | PASS | 逐条比对被删原件（git show 9efb756^:scripts/test/provenance-smoke.ts）与 tests/unit/provenance.test.ts：A1-A5（readContractSlot 三态 + 绝不填 0）、B1-B5（isPendingVerification）、C1-C5（三级回退 field→row→fallback + 两条脏数据降级）、D1-D2、E1-E2 共 19 条一一对应，断言语义无删减，自建 expect/process.exit 换成 vitest describe/it/expect。19 用例本机与 CI 均全绿。测试确在驱动真实实现：CI 日志可见实现内部告警 stderr `[contract-slot] test.dirty 校验失败，已降级为 null（不抛错）`。 |
+| 原脚本删除 | PASS | git show --stat 9efb756 → `scripts/test/provenance-smoke.ts \| 203 ---`（删除）。当前 ls scripts/test/ 无该文件；全仓（package.json/CI/脚本）无任何悬空引用，仅 tests/unit/provenance.test.ts:1 的溯源注释提及。 |
+| 不做 jsdom 组件单测 | PASS | environment 固定 'node'（vitest.config.ts:41）；npm ls jsdom → (empty)，未安装；find tests -name '*.test.tsx' → 无。组件正确性仍由 Playwright 兜底（test:visual 在 CI visual job）。 |
+| lint + tsc 绿 | PASS | npm run lint → `✔ No ESLint warnings or errors`（0 error 0 warning）。npx prisma generate 后 npx tsc --noEmit → 无输出，TSC_EXIT=0。tsconfig.json include 已含 'tests/**/*.ts' 与 'vitest.config.ts'（D18 附带项），测试代码确受 tsc 约束。 |
+| [扣分项 · 超出字面 acceptance 但属本 feature 交付物自身缺陷] vitest 覆盖率产物 coverage/ 被提交进 git 且未 gitignore | FAIL | git ls-files coverage/ → 16 个文件已入库；grep coverage .gitignore → 无。引入点即 F001：git log --diff-filter=A -- coverage/index.html → 9efb756。实测污染：干净树上跑一次 `npm run test:unit:coverage`（正是 acceptance 要求接入 CI 的命令）后，git status --short 出现 8 个 M（clover.xml + 7 个 html）。批次内已反复夹带：9efb756=11 / 8fac75b=7 / cff395e=8 / e12421c=9 个 coverage 文件。后果：仓内常驻一份会过期且宣称具体覆盖率数字的假快照；harness-rules 强制的 push 前 git status 检查被持续噪音干扰。修复：.gitignore 加 /coverage/ + git rm -r --cached coverage。 |
+| [soft-watch · 不属 F001 acceptance，不扣分] 口径文档 architecture.md §12.6.3 滞后于实物 | PARTIAL | docs/dev/architecture.md:1642 仍写「vitest 单元/集成层 — 演进目标（未实装，规划态）… 当前仓库中不存在」，:1646-1660 仍规定新增 devDep `vite-tsconfig-paths` 与 `plugins:[tsconfigPaths()]`、`coverage.include:['src/lib/**']` —— 三点均已被 D18/D17 推翻且实物已落地。裁决链在 docs/specs/M1-A-BRIEF-f003-f006-preimpl-audit.md D17/D18 中完整可溯，故不判 F001 失分；但 acceptance 把该处标为「配置口径」来源，文档与实物已反向漂移，建议 M1-B 校准。 |
+
+### 对抗复核（独立 subagent，只许证伪不许放宽口径）
+
+- refuted: **False**
+- final_result: **PARTIAL**
+
+证伪失败——原发现全部承重证据在 HEAD 168dba87 上 1:1 复现，维持 PARTIAL。
+
+【复现结果】工作区起始干净；npm run test:unit:coverage 跑完当场弄脏 9 个 tracked 文件（原报 8，差额为 coverage-final.json + 并发 evaluator 遗留的未跟踪 probe 测试轻微改变 env-guards 数字，即污染面比原报略重而非略轻），已 git checkout -- coverage/ 还原，HEAD 未变，未新增任何文件。git ls-files coverage/ = 16；grep coverage .gitignore 无匹配；coverage/index.html 引入者 = 9efb756（即 F001 commit）；四个 commit 夹带数 9efb756=11 / 8fac75b=7 / cff395e=8 / e12421c=9，与原报逐字一致。
+
+【根因是结构性而非偶发】vitest.config.ts 未设 reportsDirectory 也未覆盖 reporter，默认把 html/clover/json 写入 ./coverage。故 acceptance 强制接入 CI 的那条命令每次执行都必然重写 tracked 文件，确定性发生，无 flaky 成分。
+
+【三条证伪路径全部走不通】
+(2) 环境误报：testing-env-patterns.md 七条已知模式（字体子集 / fire-and-forget / prisma generate / Node 版本漂移 / E2E suite isolation / RLS 跨租户 / standalone vs next dev）逐条比对，无一命中。本发现是 git 仓库状态事实，与 DB、Node 版本、端口、并发 evaluator 均无关。
+(3) 已记录在案的预期行为：spec 与 preimpl-audit 只就 coverage.include 与 thresholds 作出 D17、就插件摘除作出 D18，全仓无任何裁决授权把覆盖率报告产物入库，亦无 artifact 保留决策。
+
+【两条反而加强原发现的新证据】其一，无任何消费方——跨 yml/json/md/ts/mjs grep 仅命中 package-lock.json 的依赖名，CI unit job（.github/workflows/ci.yml:91）只跑命令、不 upload 不 publish，16 个文件消费方为零。其二，仓库自身已在 .gitignore 相隔两行处成文该约定：/test-results/、/playwright-report/、/playwright/.cache/ 被忽略，而刻意基线放 tests/screenshots/baseline/*.png 且入库——「生成产物忽略、刻意基线入库」是项目自订规则，coverage/ 属前者（甚至含 istanbul 自带报告外壳 favicon.png、sort-arrow-sprite.png）。故属内部自相矛盾，非 evaluator 外加标准。
+
+【陈旧快照坐实】committed coverage/index.html 硬写 97.58%/95%/100%/98.05%，冻结于 e12421c（2026-07-21），今日恰好吻合仅因其后无改动；任何后续改动即在仓内留下一份看似权威的错误数字。
+
+【原理由中一处不精确，不影响结论】「给 harness-rules 强制的 push 前 git status --short 检查制造噪音」略有夸大——该强制检查作用域限于 docs/test-reports/ docs/test-cases/ .auto-memory/，coverage/ 不会在其中出现。但真实且已实证的危害更重：脏工作区被 git add -A 扫进无关 commit，这正是 F001/F004/F005/F006 四次实际发生的事。该承重证据未受影响。
+
+【soft-watch 已核实且原判正确未计分】architecture.md:1628 仍标 vitest「❌ 未装」，:1642 §12.6.3 仍题「演进目标（未实装，规划态）」，:1644「当前仓库中不存在」，:1646/:1651 仍规定 vite-tsconfig-paths + plugins:[tsconfigPaths()]，均被 as-built 与 D17/D18 推翻。原 evaluator 将其列为不扣分 soft-watch 而未膨胀扣分，处理得当（该项不属 F001 acceptance）。
+
+【判定】该缺陷落在「vitest 地基」交付物自身：acceptance 明文要求把 test:unit:coverage 接入 CI，而正是这条命令污染工作区。发现成立，不因「影响不大 / 可后续处理」降级（brief 明令禁止）。维持 PARTIAL，refuted=false。修复成本仍为 .gitignore 加 /coverage/ + git rm -r --cached coverage（属产品配置，须由 Generator 在 fixing 阶段执行，本复核未改动任何产品文件）。
+
+---
+
+## F002 — PARTIAL
+
+### 结论摘要
+
+F002 的实质交付全部成立且证据充分：SSR 真的恢复了（线上 0c36fc2f 六页首屏可见文本全 0 字符 vs 本地 HEAD 1173/564/653/1059/222/231）、24 次加载零 hydration 失配（且检测器经注入实证活着）、13/13 视觉基线零漂移、深色刷新零浅色窗口（剔脚本对照证明探针非恒绿）、lint+tsc 绿、三处实装期修复（navigation.ts 守卫 / :root 兜底 / navbar 双图标）均有运行时实证。
+
+未达标的是 acceptance 明文列出的回归红线一条：「p2:f001 / p2:f002 / p2:f004 三条探针全绿」——p2:f004 非稳定绿。critical 断言 p2-cleanup-f004-handoff-panel.mjs:76（`cardCount >= 2`）在 10 次专项实测中失败 2 次（20%），首跑整条探针即 14 passed/1 failed，重跑 3 次才 15/15。
+
+根因实测而非推断：HandoffPanel 的卡 = COLLAB_MOCK[stage]（同步）+ GET /api/handoffs（HandoffCollab.tsx:57 客户端 useEffect 异步取数），探针以 `getByText('多 Agent 联动 · 点开看交接').waitFor()` 作就绪信号后立即读 children.length，两者之间无同步点。诊断脚本给出：探针现判据 8/10 通过，等 /api/handoffs 落地后读 10/10 通过。
+
+归因于 F002 的决定性证据：该锚点文本在 SSR HTML 中的出现次数，prod（0c36fc2f，拆 NoSSR 前）= 0，local（HEAD，拆后）= 1。拆前锚点只能在客户端挂载后出现，waitFor 必然落在 hydration 之后（fetch 早已发出，本地环回通常已返回，断言碰巧稳定）；拆后 waitFor 在 domcontentloaded 即满足，早于 hydration、更早于 fetch 发出。即 F002 恢复 SSR 系统性抹掉了该断言隐含的同步点。产品行为无缺陷，缺陷在交付的探针资产。
+
+判 PARTIAL 而非 PASS 的理由：这不属 role-context/evaluator.md §13「checklist 文本陈旧→直接 update 标 PASS」（那条覆盖描述性文字漂移且功能等价），而是交付的回归探测器变成非确定性——回归红线 20% 概率误报，下一批次 evaluator 会照它烧掉一轮 fixing。且这是同一失效模式的第二个实例：Generator 已在本批识别并修复 p2:f002 的同类问题（「探针代理前提随架构变更失效」，已入 proposed-learnings），未横扫到姊妹探针 p2:f004；其记录的「p2 四条探针 55 断言全绿」为单次运行结果，不具复现性。
+
+### 复现 / 所跑命令
+
+```
+复现 p2:f004 抖动（唯一未达标项）：
+
+1. export BASE=http://127.0.0.1:3300
+2. npm run p2:f004
+   → 多次运行，约 20% 概率出现：
+     ✗ A 生产侧多卡路径仍在 — 卡数=1
+     === F004 HandoffPanel：14 passed, 1 failed ===
+   其余运行为 15 passed, 0 failed
+3. 定量诊断（Evaluator 新增）：
+   export BASE=http://127.0.0.1:3300 N=10
+   node scripts/test/m1a-f002-p2f004-race-diag.mjs
+   → 探针现判据（waitFor 后即刻读）: 8/10
+     等 /api/handoffs 落地后读     : 10/10
+     run 10 记录「此刻 /api/handoffs 已返回=false」
+4. F002 归因证据：
+   curl -s "https://newkol.guangai.ai/admin/campaigns/lc?env=brief" | grep -c "多 Agent 联动 · 点开看交接"  → 0
+   curl -s "http://127.0.0.1:3300/admin/campaigns/lc?env=brief" | grep -c "多 Agent 联动 · 点开看交接"      → 1
+
+建议修法（Generator 执行；Evaluator 未代改以免自评自修）：
+在 p2-cleanup-f004-handoff-panel.mjs 的 readPanel() 中，于 waitFor 锚点之后、evaluate 读数之前补同步点：
+  await page.waitForResponse((r) => r.url().includes('/api/handoffs'), { timeout: 15_000 });
+或改为对 cardCount 轮询等待。修复后用 m1a-f002-p2f004-race-diag.mjs 复验，应为 10/10。
+
+其余全 PASS 项所跑命令：
+- SSR before/after 对照：node 脚本 fetch 六页剥标签计字符（prod 全 0 / local 1173,564,653,1059,222,231）
+- export BASE=http://127.0.0.1:3300; node scripts/test/m1a-f002-hydration.mjs → 24 loads, 0 mismatch, dark applied 12/12, RESULT: PASS
+- node scripts/test/m1a-f002-hydration-livecheck.mjs → 对照 0 / 注入失配 1 条 React #418，RESULT: PASS
+- node scripts/test/m1a-f002-dark-flash-frames.mjs → A 首采样 54ms dark=true 浅色 0；B 剔脚本 48ms~292ms 抓到浅色窗口，RESULT: PASS
+- npx playwright test -c tests/visual/playwright.evaluator.config.ts → 13 passed (23.2s)
+- npx prisma generate && npx tsc --noEmit → exit 0；npm run lint → No ESLint warnings or errors
+- npm run p2:f001 → 12/0；npm run p2:f002 → 14/0
+```
+
+### acceptance 逐条判定
+
+| 条目 | 判定 | 证据 |
+|---|---|---|
+| AppWrappers.tsx:20-22 移除 NoSSR(ssr:false) 包装，全站恢复服务端渲染 | PASS | src/app/AppWrappers.tsx:20-65 现为直接导出的 'use client' 组件，dynamic(ssr:false) 已移除（git show 416c23c 确认）。全路由扫 15 条无 500：渲染页 200 且均有 SSR 文本，其余为 307 跳转。 |
+| 实证要求——六个 admin 页 curl 首屏 HTML 须含实际内容而非空壳（非「代码里删了那行」） | PASS | before/after 独立对照：线上 0c36fc2f 六页可见文本全 0 字符（真空壳）；本地 HEAD today=1173 campaigns=564 insight=653 knowledge=1059 creators=222 runs=231。creators/runs 低值已复核为两页自身 useSearchParams+Suspense（creators/page.tsx:9,106,334；runs/page.tsx:13,166,244），SSR HTML 实见 fallback 文案「加载创作者库…」「加载 Agent 记录…」，且相对 before 的 0 仍是净增，非 F002 缺陷。 |
+| spec §1.2 列出的 6 个活文件逐个 SSR-safe 化（dropdown/index.tsx、HalfGauge.tsx、AppWrappers.tsx、layout.tsx、useColorMode.ts、useMediaQuery.ts） | PASS | 逐个通读确认：dropdown document 仅在 useEffect 内；HalfGauge getComputedStyle 在 useEffect + Chart 走 dynamic ssr:false；layout.tsx pre-paint 脚本为 <body> 首子节点；useColorMode:55,62 typeof document 守卫；useMediaQuery:12 typeof window 守卫。全 src 重扫 typeof window\|document 仅剩 4 处全部合法，无漏网。 |
+| D6 四个死代码文件（navbar/RTL.tsx、navbar/Configurator.tsx、fixedPlugin/FixedPlugin.tsx、rtlProvider/RtlProvider.tsx）不碰 | PASS | 四文件 git log -1 均为 a04699e（DS-FOUNDATION scaffold）；F002 commit 416c23c 改动清单仅 7 个文件，不含它们。 |
+| 四个 ApexCharts 组件不需改（charts/{LineArea,Line,Pie,Bar}Chart.tsx:4 各自已 dynamic ssr:false） | PASS | 四文件 :4 行均为 `const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });`；charts/ 最后修改为 a899d2f（ARCH-M05），F002 未触。 |
+| 浏览器控制台零 hydration mismatch 警告（桌面+移动两视口 × 六页实测，非推断） | PASS | scripts/test/m1a-f002-hydration.mjs：24 loads（6 页 × 2 视口 × 2 色彩模式，超出 acceptance 要求的 12）→ hydration mismatch warnings: 0，other console errors/warnings: 0。深色 12 次实测 body.dark=true 12/12（否则「深色零失配」等于没测到深色）。配活性证明 m1a-f002-hydration-livecheck.mjs：route 拦截注入文本失配后抓到 [pageerror] Minified React error #418，与 Generator 声称修掉的错误同型 → 0 findings 可采信。 |
+| P2-CLEANUP 回归红线不得破——npm run p2:f001 / p2:f002 / p2:f004 三条探针全绿 | FAIL | p2:f001 = 12 passed/0 failed ✅；p2:f002 = 14 passed/0 failed ✅；p2:f004 首跑 14 passed/1 failed ❌（p2-cleanup-f004-handoff-panel.mjs:76 `cardCount>=2` 得卡数=1），重跑 3 次 15/15 → 抖动。专项诊断 N=10：探针现判据 8/10、等 /api/handoffs 落地后 10/10。归因 F002：锚点文本在 SSR HTML 出现次数 prod(0c36fc2f)=0 / local(HEAD)=1，waitFor 从 hydration 后前移到 domcontentloaded，抹掉了断言隐含的同步点。产品行为正确，失效的是探针资产。 |
+| 深色刷新无浅色闪烁需肉眼确认（layout.tsx 的 pre-paint 内联脚本在 SSR 下仍须 paint 前置 body.dark） | PASS | 以客观取证替代肉眼（隔离 evaluator 无法肉眼看，且肉眼分辨不出一两帧闪白）。scripts/test/m1a-f002-dark-flash-frames.mjs：A 原样刷新首个可采样点 54ms 即 dark=true、浅色采样点 0、稳定后截图亮度 45；B 剔除 pre-paint 内联脚本后 48ms~292ms 抓到浅色窗口（脚本剔除 2 次）→ 探针活着。基线实测本页深色 45/浅色 237，阈值 110。备注：初版 CDP screencast 实现导航期不发帧、剔脚本仍抓不到浅色，自证不可用已弃用，过程记入报告防后续 evaluator 重踩。 |
+| 13 张视觉基线期望零漂移，若有漂移须逐处对账并说明成因，不得直接重生 | PASS | npx playwright test -c tests/visual/playwright.evaluator.config.ts → 13 passed (23.2s)，比对既有 tests/screenshots/baseline/*-darwin.png 全 13 张，git status 确认 baseline 目录零改动（未重生）。为不干扰并发 evaluator 未用根配置 webServer（其 serve-standalone.mjs 会 cpSync 写共享 .next 并占 3000），改用等价配置直打 3300，testDir/snapshotPathTemplate/viewport/workers:1/retries:0 逐字沿用。 |
+| lint + tsc 绿 | PASS | npx prisma generate 前置（testing-env-patterns §3）后 npx tsc --noEmit → exit 0 零输出；npm run lint → ✔ No ESLint warnings or errors。项目无 .nvmrc，§4 版本一致性检查不适用。 |
+| 【实装期发现】utils/navigation.ts:11 findCurrentRoute 的 isWindowAvailable 服务端守卫已删除（客户端行为不变，服务端从恒 null 改为正常匹配） | PASS | src/utils/navigation.ts:11-19 守卫已删并留成因注释；isWindowAvailable 仍导出，唯一消费方 rtlProvider/RtlProvider.tsx:14（D6 死代码，spec 明令不碰）。运行时实证：六页 SSR brandText 分别为 今天/项目/创作者库/游戏知识/洞察/Agent 记录，无一回落 'Main Dashboard' —— 正是原 React #418 的源头已消除。 |
+| styles/index.css 补 :root 兜底定义 12 个运行时色阶变量（此前只由 AppWrappers useEffect 注入，SSR 首帧 var(--color-500) 未定义 → 品牌色整片 FOUC） | PASS | 服务的 /_next/static/css/50da8cfe89c21b68.css 实含 :root{--background-100:#ffffff;...--color-900:#11047a}。脚本比对 :root 与 AppWrappers theme state：root count 13 \| AppWrappers count 13，逐项值全等 → PARITY OK。acceptance 文字写「12 个」，实物两侧均为 13（--background-100/900、--shadow-100 + --color-50…900 十档）；依 role-context「判据落终态」，终态判据是两处取值一致且成立，acceptance 的 12 属笔误，不构成缺陷。 |
+| navbar 主题图标由 isDark 三元改为 CSS dark: 变体择一（isDark 服务端恒 false，参与渲染即失配） | PASS | src/components/navbar/index.tsx:100-104 改为两图标同时渲染 + dark: 变体择一，isDark 不再解构（只取 toggle，hook 仍挂载以同步持久值）。SSR HTML 实见 class="block h-5 w-5 dark:hidden" 与 class="hidden h-5 w-5 dark:block" 并存；深色态 12 次加载零 hydration 失配佐证。 |
+
+### 对抗复核（独立 subagent，只许证伪不许放宽口径）
+
+- refuted: **False**
+- final_result: **PARTIAL**
+
+复核结论：原 PARTIAL 判定成立，未被证伪，且原报告实际低估了问题。
+
+【复现成功】12 次串行空载 `npm run p2:f004` 全绿（首轮看似证伪），但在编排者明示的「多 evaluator 并发共用一台服务」条件下（4 路并发 × 2 轮）逐字复现原报告症状：2/8（25%）出现 `✗ A 生产侧多卡路径仍在 — 卡数=1` / `14 passed, 1 failed`，与原报告 ~20% 一致。
+
+【机理独立量化】自建时序探针 scripts/test/m1a-f002-p2f004-timeline.mjs（未沿用原诊断脚本）：
+· 空载 1x：读数时刻相对 /api/handoffs 落地的余量 min=-5ms / p50=+3ms / max=+6ms，15 次中 1 次读到 cardCount=1。空载机器上 ±5ms 余量不构成同步点，等同抛硬币。
+· 3x/4x CPU 节流：锚点即刻 cardCount>=2 为 0/13，稳定后 13/13。
+· 4x 节流 run4：锚点可见=1060ms 而 apiReq=1092ms —— 锚点比 fetch「发出」还早 32ms，实证锚点已不受 hydration 门控。
+· 全部 23 次运行产品行为均正确（cardsSettled=2）。缺陷 100% 在交付的探针资产，不在产品。
+
+【F002 归因独立成立】HEAD 的 SSR HTML 中锚点出现 1 次且为真实可见 DOM（偏移 36461，不在任何 <script> 内，紧接 `<div class="flex flex-col gap-1.5">` 内仅 1 张卡；真实 handoff summary 出现 0 次）；prod（0c36fc2f，拆 NoSSR 前）出现 0 次。COLLAB_MOCK.brief 仅 1 条，故 cardCount>=2 结构上必须依赖异步取数。拆前锚点只能在 hydration 后出现从而隐含排序，F002 抹掉了该隐含同步点。
+
+【三条证伪路径全部封闭】
+1. 已知环境误报？否。非 prisma generate（不涉 tsc）／非 Node 漂移／非 RLS／非端口占用。并发只是触发器不是成因（空载即有 ±5ms 竞态窗）。关键：framework/patterns/testing-env-patterns.md §2 正是同一模式且明文规定同一判定——「直接标 PARTIAL（race condition 风险），要求 Generator 选 (A) 或 (B) 之一显式声明」。框架自身的已知模式库确认 PARTIAL 而非豁免。
+2. 已记录在案的预期行为？否。docs/specs/M1-A-BRIEF-spec.md:54 与 :172 均无条件写明「三条探针全绿」；features.json F002 acceptance 重复该红线；P2-CLEANUP-signoff.md 零处提及 cardCount／竞态。framework/proposed-learnings.md:~140 只记录了姊妹探针 p2:f002 的代理前提失效，反证同一失效模式未横扫到 p2:f004。
+3. evaluator.md §13「checklist 文本陈旧→直接 update 标 PASS」？否。§13 覆盖命名漂移且功能等价的描述性文本；此处断言语义正确、元素稳定后确实存在，坏掉的是回归探测器的确定性。§13 不提供 PASS 通道。
+
+【对原报告的一处修正（加强而非削弱）】原建议修法不充分：3x 节流下 /api/handoffs 响应比读数早落地 1~25ms（余量为正），DOM 仍 5/5 只有 1 张卡——React setState→commit 存在网络之外的第二段间隙。故 page.waitForResponse('/api/handoffs') 单独使用仍会抖；只有其列出的另一方案（对 cardCount 轮询等待）才真正闭合。修复指派应指向轮询方案。
+
+【未升级为 FAIL 的依据】p2:f001 复跑 12/0、p2:f002 复跑 14/0，三条红线探针中仅一条受影响；产品行为无缺陷。维持 PARTIAL。
+
+【边界】未改任何产品代码；仅新增测试产物 /Users/yixingzhou/project/newkolmatrix/scripts/test/m1a-f002-p2f004-timeline.mjs。未执行 npm run build、未重启 3300 服务、未占用端口。[L2] 生产写入类未执行（不需要）；prod 仅用只读 GET 作对照。
+
+---
+
+## F003 — PASS
+
+### 结论摘要
+
+F003（Prisma schema 扩展 Project + expand-contract 迁移 + seed）24 条可判定 acceptance 条目全部 PASS，无 PARTIAL / FAIL。所有「须实证 / 须实测 / grep 实证」条目均实跑取证，未以读码替代：新建 eval 库做「零态 migrate → 幂等重跑 ×2 → 无 drift」全路径；自写 77 断言探针机器逐字比对 seed 落库结果 vs mock/projects.ts（并做变异实测证明探针非恒真）；D12 回滚验证以「0c36fc2f 检出 worktree + 用旧 schema 生成独立 prisma client」重做一遍，且强度高于 Generator 原验证（另加旧 client 对 Project/OperationLog 的写入实测 + 旧 migrations 目录打新库的 migrate deploy 实测）。lint / tsc 均绿。
+
+记录 4 条非阻断观察（均不违反 F003 任一 acceptance 字面条目，不改变 PASS 判定，供 Planner 决定是否入 M1-B）：
+O1【建议明文兜底】canonical seed 未接入生产部署链——scripts/deploy/migrate-seed.sh 自 0c36fc2f 起零改动（git diff --stat 空），只灌 Kol，不跑 seed:projects；docker-compose.prod.yml 的 app 依赖 migrate 成功完成，故 prod 部署后迁移会生效但 Project 表为空。D1「页面接真数据留 M1-B」覆盖了这个边界，但「seed 入部署链」本身未被明文点名。
+O2【既有条件】tsconfig.json include 不含 scripts/**（实测 tsc program 里 scripts 文件数 = 0），故 F003 的交付物 scripts/seed/canonical-projects.ts 不受 `tsc --noEmit` 门约束。非本批引入（F001 只补了 tests/** + vitest.config.ts）。显式 typecheck 该文件为 0 error，无潜伏问题。
+O3【既有欠账】acceptance 的「ref 专指 PendingAction.id，不得一列两义」这个前提在仓库层面本就不成立：src/lib/agent/tools/send-outreach.ts:47 `ref: input.projectId ?? null` 把 projectId 写进 ref。该行来自 AGENT-FOUNDATION F009（commit fc6c5f6），在回滚 SHA 0c36fc2f 已存在，非 F003 引入；F003 未动 ref，F006 的 env-advance.ts:124 明确注释「ref 不填」。F003 对该条款的义务（不新增歧义）已履行。
+O4【写入侧无强制】seed 对 goal 只做 type-only import（`import type { ProjectGoal }`），写库前不跑 zod 运行时校验。实测当前 4 条数据经 parseProjectGoal 全部通过，且 zod schema 本身有真实鉴别力（9 组用例：缺字段/类型错/负数/小数/非 ISO 日期/散文串全部 REJECT，多余 budget 键被 strip），故当前无实际风险。
+
+### 复现 / 所跑命令
+
+```
+全部为已跑通的验证命令（HEAD=168dba876b0ce496aa2dc03b319aed27a1959424）：
+
+1) schema 层实物取证
+docker exec newkolmatrix-dev-db psql -U kol -d kolmatrix -c '\d "Project"' -c '\d "OperationLog"'
+docker exec newkolmatrix-dev-db psql -U kol -d kolmatrix -c "SELECT enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid WHERE t.typname='Stage' ORDER BY e.enumsortorder;"
+grep -c "@map\|@@map" prisma/schema.prisma   → 0
+
+2) 迁移全路径（隔离 eval 库，跑完已 DROP）
+psql -d postgres -c "CREATE DATABASE kolmatrix_eval_f003;"
+DATABASE_URL=<eval> npx prisma migrate deploy        # 零态 3 个迁移全 applied
+DATABASE_URL=<eval> npx prisma migrate deploy ×2     # No pending migrations，EXIT=0
+DATABASE_URL=<eval> npx prisma migrate diff --from-url <eval> --to-schema-datamodel prisma/schema.prisma --exit-code  → No difference detected
+npm run db:migrate                                   # dev 库：No pending migrations
+
+3) seed 逐字比对探针（本次新写，77 断言）
+node --env-file=.env --import tsx scripts/test/eval-m1a-f003-seed-parity.ts   → 77 通过 / 0 失败
+探针活性实测（在 eval 库上篡改 market / targetExposure / maxReached 并 ADD COLUMN health）→ 72 通过 / 5 失败，5 条精确落在篡改点
+
+4) seed 幂等
+fresh eval 库 seed ×2 → 四条 id 完全相同、count 恒为 4
+npm run seed:projects（dev 库重跑）→ Project=4 Game=4
+
+5) D12 回滚验证（本次独立重做，强度高于原验证）
+git worktree add --detach <scratch>/rb 0c36fc2f24395be5bbf9af60a0cf4342dde057be
+在 worktree 内把 generator output 改到 ./oldclient → npx prisma generate --schema=<worktree>/prisma/schema.prisma
+（实测 grep -c maxReached：旧 client 0 处 / 当前 client 43 处；共享 node_modules/.prisma/client/index.d.ts md5 前后均为 c3d5c730d5ec0faf9dd2fb5f7a257d52，未污染）
+旧 client 跑旧 db-smoke 打已迁移库 → 9/9 全绿
+旧 client 写入探针 → 8/8 全绿（旧 client INSERT Project 不给 cur/maxReached，DB 默认值兜底 brief/brief；INSERT OperationLog 不给新两列；读回体不含新列）
+旧 migrations 目录（仅 2 个迁移）对已应用 3 个迁移的库跑 migrate deploy → EXIT=0，migrate status → "Database schema is up to date!"（证明回滚时 prod migrate 容器不会失败卡住 app 启动）
+
+6) 运行时
+curl -s http://127.0.0.1:3300/api/handoffs?projectId=xg → HTTP 200（新 client × 新 schema 直读 DB 正常）
+
+7) 门禁
+npx tsc --noEmit → EXIT=0
+npm run lint → "✔ No ESLint warnings or errors"
+npx eslint scripts/seed/canonical-projects.ts src/lib/data/schemas/project.ts → 0
+
+清理：eval 库已 DROP DATABASE，worktree 已 git worktree remove --force，dev 库经 seed 重跑恢复为 4 项目 / 4 游戏。未执行 npm run build，未重启 3300 服务，未占用端口。
+新增测试产物（唯一新增文件）：/Users/yixingzhou/project/newkolmatrix/scripts/test/eval-m1a-f003-seed-parity.ts（不在 vitest include 的 tests/unit|tests/integration 范围内，不影响其他 evaluator 的 test:unit）。
+```
+
+### acceptance 逐条判定
+
+| 条目 | 判定 | 证据 |
+|---|---|---|
+| Project 加列 gameId String? + FK→Game.id | PASS | psql \d "Project"：gameId \| text \| nullable；FK 约束 Project_gameId_fkey FOREIGN KEY (gameId) REFERENCES Game(id) ON UPDATE CASCADE ON DELETE SET NULL。schema.prisma:124,138 |
+| Project 加列 goal Json? | PASS | psql：goal \| jsonb \| nullable。schema.prisma:125 |
+| Project 加列 budgetTotal Decimal? | PASS | psql：budgetTotal \| numeric(14,2) \| nullable。schema.prisma:126 `Decimal? @db.Decimal(14,2)`（显式精度是超出 acceptance 的收敛，非偏离） |
+| Project 加列 currency String? | PASS | psql：currency \| text \| nullable。schema.prisma:129 |
+| Project 加列 market String? | PASS | psql：market \| text \| nullable。schema.prisma:130 |
+| Project 加列 cur Stage enum 默认 brief | PASS | psql：cur \| "Stage" \| not null \| default 'brief'::"Stage"。schema.prisma:131 |
+| Project 加列 maxReached Stage enum 默认 brief | PASS | psql：maxReached \| "Stage" \| not null \| default 'brief'::"Stage"。schema.prisma:132 |
+| 新建 Prisma Stage enum，取值与 lib/agent/stage-routing.ts:10 的 TS 类型逐字一致（brief\|match\|reach\|delivery\|insight） | PASS | pg_enum 按 enumsortorder 查出 brief,match,reach,delivery,insight；stage-routing.ts:10 `export type Stage = 'brief' \| 'match' \| 'reach' \| 'delivery' \| 'insight'`。探针断言「Stage enum 取值与 stage-routing.ts 逐字一致 — brief\|match\|reach\|delivery\|insight」✓ |
+| 不加 status 列（D5） | PASS | information_schema.columns 查 Project 的 status/health → 0 rows。探针「Project 不含 status 列（D5）」✓；变异实测中人为 ADD COLUMN health 后该类断言确实翻红，证明检测非恒真 |
+| 不加 health 列（D6） | PASS | 同上；另 SELECT * FROM "Project" 返回键为 id,publicId,slug,tenantId,name,owner,createdAt,budgetTotal,cur,currency,gameId,goal,market,maxReached — 无 health |
+| goal jsonb 形状 = {targetExposure:number, periodStart:string, periodEnd:string}，不含预算（预算单一真相在 budgetTotal+currency） | PASS | 四条落库 goal 均为 {"periodEnd","periodStart","targetExposure"} 三键；探针「goal 不含预算字段（D6 单一真相）」×4 ✓。zod schema 对多余 budget 键做 strip（实测输入含 budget:999 → 输出无该键），故预算无法从 goal 侧变成第二真相 |
+| 配 zod schema 落 src/lib/data/schemas/（architecture.md:655 登记目录本批首次落地） | PASS | src/lib/data/schemas/project.ts 存在，导出 projectGoalSchema / ProjectGoal / parseProjectGoal。鉴别力实测 9 组：合法 PARSE-OK；缺 periodEnd / targetExposure 是串 / 负数 / 小数 / 非 ISO 日期(2026/01/01) / null / mock 散文串 全部 REJECT |
+| 【D13】同一迁移给 OperationLog 加 projectId String? + @@index([projectId]) 与 payloadJson Json?（与 Handoff 同形态） | PASS | 单一迁移文件 20260721184633_m1a_project_domain_fields_and_oplog_project_payload/migration.sql 同时含 OperationLog 两列 + Project 七列 + Stage enum + 两索引 + FK。psql \d "OperationLog"：payloadJson jsonb nullable / projectId text nullable；索引 OperationLog_projectId_idx 存在 |
+| 【D13】ref 列语义保持不变仍专指 PendingAction.id，不得一列两义 | PASS | 迁移 SQL 未触碰 ref（grep drop/alter ref → 无）；schema.prisma:202 注释保留「→ PendingAction.id。语义单一，不得挪作他用（D13）」；F006 的 src/lib/domain/env-advance.ts:124 显式「ref 不填」，改用 projectId+payloadJson。注：src/lib/agent/tools/send-outreach.ts:47 `ref: input.projectId ?? null` 确实一列两义，但 git show 0c36fc2f:src/lib/agent/tools/send-outreach.ts 显示该行在回滚 SHA 已存在（来自 commit fc6c5f6 AGENT-FOUNDATION F009），非 F003 引入，不计入本条判定 |
+| expand-contract 迁移——新列一律 nullable 或带默认，不得加 NOT NULL 无默认列 | PASS | migration.sql 全文仅 ADD COLUMN / CREATE INDEX / CREATE TYPE / ADD CONSTRAINT，无任何 DROP；两个 NOT NULL 列均带 DEFAULT 'brief'。探针对 7 个新列逐列断言 nullable 或有 default ✓ |
+| 通用列约定遵 architecture.md:646-655（String @id @default(cuid())、无 @map/@@map、createdAt @default(now())） | PASS | grep -c "@map\\|@@map" prisma/schema.prisma → 0；Project/Game/OperationLog 均为 id String @id @default(cuid()) + createdAt DateTime @default(now())（schema.prisma:114,120,147,153,203） |
+| seed 四个 canonical 项目 xg/lc/aw/mf 落库（复用 getDevTenantId() 惯例；gameId 需先 seed 四条 Game 否则 FK 悬空） | PASS | canonical-projects.ts:18 import getDevTenantId、:102 调用；:107 先 upsert Game 再 :122 upsert Project。DB：Project=4 / Game=4，四条 game-xg\|lc\|aw\|mf 各挂 1 个项目；探针「gameId 非空（FK 不悬空）」×4 ✓。副证：fresh 库无 dev tenant 时脚本以明确文案退出而非悬空写入 |
+| id/name/game/market/owner/cur 与 mock/projects.ts:36-81 逐字一致 | PASS | 探针以 mockProjects 为基准逐字段 === 比对，20 条断言全绿（xg/lc/aw/mf × name/game/market/owner/cur）。mock 的 id 落 slug 列（DB id 按 acceptance 自身的通用列约定必须是 cuid，二者不可兼得，slug 是 D-INTEROP 人类可读稳定标识，映射唯一自洽）。变异实测把 xg.market 改成 TAMPERED 后该断言即翻红 |
+| budget 串解析为 budgetTotal+currency（$18,000→18000+USD） | PASS | 探针独立解析 mock budget 串再比对：xg '$18,000'→18000 / lc '$12,000'→12000 / aw '$9,000'→9000 / mf '$7,500'→7500，currency 四条均 USD，8 条断言全绿 |
+| 【D14】goal jsonb 填满不留 null；targetExposure 按等比派生（xg 3000000 / lc 2000000 / aw 1500000 / mf 1250000）；periodStart/End 按 cur 阶段配置；seed 注释须标明二者为演示夹具非实测 | PASS | 探针以 spec §3 D14 明文值硬编码为基准比对，四条 targetExposure 全中（3000000/2000000/1500000/1250000）；四条 goal 均通过 zod（无 null 字段）；周期与 cur 阶段吻合（xg reach 进行中 07-01→07-31 / lc match 刚开始 07-15→08-31 / aw delivery 接近结束 06-01→07-31 / mf insight 已结束 05-15→07-15，相对 now=2026-07-21）。注释实证：canonical-projects.ts:11「**这两类值是演示夹具，不是实测**」+ :48「（D14 演示夹具：按各项目 cur 所处阶段配置…）」+ :29 派生基准可审计说明 |
+| health 不 seed（D6） | PASS | Project 表根本无 health 列（information_schema 查询 0 rows），seed 脚本无 health 字段，脚本注释 :12 明示「health —— 不 seed（D6）」 |
+| npm run db:migrate 本地跑通且幂等重跑不报错 | PASS | 零态：新建 kolmatrix_eval_f003 后 migrate deploy 三个迁移全部 Applying + 'All migrations have been successfully applied'；幂等：连跑两次均 'No pending migrations to apply.'，EXIT=0/EXIT=0；dev 库 npm run db:migrate 同样 No pending。另 migrate diff --exit-code 对 eval 库 → 'No difference detected.'，证明迁移文件与 schema.prisma 无 drift |
+| 回滚验证——生产当前 IMAGE_TAG 对应代码（0c36fc2f24395be5bbf9af60a0cf4342dde057be）跑在新 schema 上不崩（D12，须实测不得只靠 prisma validate） | PASS | 本次独立重做且加强，未采信 Generator 叙述。(a) worktree 检出 0c36fc2f，用其旧 schema 生成独立 prisma client（grep -c maxReached：旧 client 0 / 当前 client 43，证明确是旧 client；共享 node_modules/.prisma/client md5 前后一致 c3d5c730… 未被污染）；(b) 旧 client 跑旧 scripts/test/db-smoke.ts 打已迁移库 → 9/9 全绿，counts project=4 game=4；(c) 加强项：旧 client 写入探针 8/8 全绿——旧 client INSERT Project 不提供 cur/maxReached 成功，读回 DB 默认值 brief/brief；INSERT OperationLog 不提供新两列成功；旧 client 返回体不含 cur/goal/projectId（旧代码零感知）；(d) 加强项：旧 migrations 目录（仅 2 个迁移）对已应用 3 个迁移的库跑 migrate deploy → EXIT=0、migrate status → 'Database schema is up to date!'，覆盖 docker-compose.prod.yml 中 app depends_on migrate service_completed_successfully 这条真实回滚阻塞路径 |
+| lint + tsc 绿 | PASS | npx tsc --noEmit → EXIT=0（无输出）；npm run lint → '✔ No ESLint warnings or errors'（0 error 0 warning）。补充：scripts/ 不在 tsconfig include 内（tsc --listFilesOnly \| grep -c scripts/ → 0），故对 F003 交付物 scripts/seed/canonical-projects.ts 单独显式 typecheck + eslint，均 EXIT=0，无潜伏问题 |
+| [L2] 生产环境实测（部署新迁移后 prod 行为） | NOT_VERIFIABLE | [L2] 未执行，待授权。生产 https://newkol.guangai.ai 当前跑 P2-CLEANUP 版 0c36fc2f，非本批产物；F003 acceptance 未要求 prod 验证，本条仅为完整性记录。回滚安全性已在本地以等价迁移库 + 旧 client + 旧 migrations 目录三路实测覆盖 |
+
+---
+
+## F004 — PASS
+
+### 结论摘要
+
+F004 `src/lib/domain/health.ts` 全部 14 条可判定 acceptance 条目实测通过，无 PARTIAL / FAIL / NOT_VERIFIABLE。
+
+acceptance 中标注「grep 实证」「须实测」的条目全部实跑取证，未以阅读代码替代：
+· 「权重与阈值不得是函数体内魔数」→ grep 实证 80/55/0.4/0.2 四组字面量在 health.ts 中【仅】出现于常量定义行（:24,:26,:34-37），函数体一律引用 `HEALTH_THRESHOLDS.*` / `HEALTH_WEIGHTS.*` / `BLOCKER_SATURATION`（:96,:97,:153,:180-183）。
+· 「计算值不进契约位（D11）」→ health.ts 内 `readContractSlot|provenance` 零命中；全仓 readContractSlot 消费方（today/insight/runs/envs 六处）无一经手 health 计算值。
+· 「三态不得压成二态」「一一映射不得两处各算」→ 我自建独立探针穷举 **3,110,400** 组入参（含 null / 0 / 负数 / NaN / Infinity / MAX_SAFE_INTEGER / Invalid Date 的笛卡尔积），score 恒为 0–100 整数、band 恒等于 resolveBand(score)、三档均出现，零 NaN 零越界；全仓 grep 确认无第二处 score→band 阈值判定。
+· 「D15 null 因子按 0 分计入、不归一化、无空态、不得打补丁掩盖」→ 探针实证满分 100 在去 exposure/budget/time 后分别降至 50/80/80（归一化实现会仍为 100）；全 null 输入 → score=20 / band=cr。
+
+额外做了 acceptance 未要求的**检测器活性证明**（F004 本身不强制变异测试，那是 F005 的条款）：对实现的**副本**施加 6 处变异（原仓文件全程未改），其中 5 处被 Generator 测试集捕获翻红——D15 反模式补丁「无实测当达标」杀 4 条、分档边界 >= 改 > 杀 1 条、wn 档并入 gd 杀 5 条、退出加权后归一化杀 3 条、阈值改魔数 60 杀 2 条。证明该测试集对 acceptance 明令禁止的几类退化确有检测力，非「恒绿的假测试」。
+
+L1 全部可本地判定，本 feature 无 [L2] 条目（纯函数，不触外部服务 / 不写库 / 无计费），故无「待授权」挂账。
+
+### 复现 / 所跑命令
+
+```
+全部在 HEAD=168dba876b0ce496aa2dc03b319aed27a1959424 实跑，未 build、未重启 3300 服务、未占端口。
+
+1) 单测（acceptance 指定文件）
+   $ npx vitest run tests/unit/health.test.ts --reporter=verbose
+   → Test Files 1 passed (1) / Tests 32 passed (32)
+
+2) 全量单测 + 覆盖率门
+   $ npm run test:unit:coverage
+   → Test Files 4 passed (4) / Tests 92 passed (92)
+   → health.ts | 97.82 %Stmts | 97.61 %Branch | 100 %Funcs | 100 %Lines
+   → Coverage summary Lines 98.05% (门 thresholds.lines:80 通过)
+
+3) 静态门
+   $ npx tsc --noEmit          → exit=0，零输出
+   $ npm run lint              → ✔ No ESLint warnings or errors
+
+4) grep 实证（acceptance「验收会 grep 实证」）
+   $ grep -n "\b80\b\|\b55\b\|0\.4\|0\.2\b" src/lib/domain/health.ts
+   → 仅 :24 gd: 80 / :26 wn: 55 / :34-37 权重四行（即常量定义处），函数体零魔数
+   $ grep -rn "readContractSlot\|provenance" src/lib/domain/health.ts
+   → 零命中（D11 强类型直读）
+   $ grep -rn "'gd'" src --include="*.ts" --include="*.tsx" | grep -v domain/health.ts
+   → 仅类型声明与既有 mock 硬编码值，无第二处 score→band 计算
+   $ grep -n "^export" src/lib/domain/health.ts
+   → 10 条全为具名导出，无 export default / export * / namespace
+
+5) 独立探针（Evaluator 自建，跑在 scratchpad 副本上，未入仓）
+   /private/tmp/claude-501/.../scratchpad/mut/probe.test.ts
+   $ npx vitest run --root <scratchpad>/mut --config <scratchpad>/mut/vitest.config.ts probe.test.ts
+   → 5 passed；P1 穷举样本数=3110400，出现的档位=cr,gd,wn
+   → P3 gd=100/gd  wn=65/wn  cr=14/cr
+   → P4 满分=100 去exposure=50 去budget=80 去time=80
+   → P5 全 null → score=20 band=cr
+
+6) 变异检测器活性（在副本上施加，原仓文件 git status 全程无 M）
+   M1 无实测当达标 → 4 failed | M2 >= 改 > → 1 failed | M3 wn 并入 gd → 5 failed
+   M4 摘除 targetExposure<=0 显式守卫 → 32 passed（存活，见 O1，非缺陷）
+   M5 归一化 → 3 failed | M6 阈值改魔数 60 → 2 failed | 还原后 32 passed
+```
+
+### 证据
+
+```
+【E1 用例与覆盖率】
+$ npm run test:unit:coverage
+ Test Files  4 passed (4)
+      Tests  92 passed (92)
+-----------------|---------|----------|---------|---------|-------------------
+File             | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+ domain          |    96.9 |    96.05 |     100 |   97.46 |
+  health.ts      |   97.82 |    97.61 |     100 |     100 | 87
+Lines : 98.05% ( 101/103 )   ← vitest.config.ts thresholds.lines:80 通过
+
+【E2 魔数 grep 实证 — acceptance 明写「验收会 grep 实证」】
+$ grep -n "\b80\b\|\b55\b\|0\.4\|0\.2\b" src/lib/domain/health.ts
+24:  gd: 80,
+26:  wn: 55,
+34:  exposure: 0.4,
+35:  budget: 0.2,
+36:  time: 0.2,
+37:  blockers: 0.2,
+$ grep -n "HEALTH_THRESHOLDS\.\|HEALTH_WEIGHTS\.\|BLOCKER_SATURATION" src/lib/domain/health.ts
+96:  if (score >= HEALTH_THRESHOLDS.gd) return 'gd';
+97:  if (score >= HEALTH_THRESHOLDS.wn) return 'wn';
+153:  return clamp01(1 - n / BLOCKER_SATURATION) * 100;
+180-183:  b.exposure * HEALTH_WEIGHTS.exposure + b.budget * HEALTH_WEIGHTS.budget + ...
+→ 阈值/权重字面量仅存在于常量定义，函数体零魔数
+
+【E3 D16 入参契约逐字比对】
+docs/specs/M1-A-BRIEF-f003-f006-preimpl-audit.md:105-115 规定的 HealthInput 八个字段
+vs src/lib/domain/health.ts:52-69 实装：targetExposure/actualExposure/budgetTotal/budgetSpent:
+number|null · periodStart/periodEnd: Date|null · now: Date · blockerCount: number —— 逐字一致，无增删。
+HealthResult（:72-76）= {score:number; band:HealthBand}，HealthBand（:14）= ProjectHealth
+= src/lib/data/mock/projects.ts:11 的 'gd'|'wn'|'cr' —— 符合 D15「去掉可空返回」。
+
+【E4 D11 契约位隔离】
+$ grep -rn "readContractSlot\|provenance" src/lib/domain/health.ts
+  → 零命中 = 未走契约位（强类型直读）✔
+
+【E5 独立穷举探针（Evaluator 自建，非 Generator 用例）】
+  穷举样本数=3110400，出现的档位=cr,gd,wn        ← 三态未压成二态 + 无 NaN/越界
+  gd=100/gd  wn=65/wn  cr=14/cr                  ← 端到端三档可达（我自选入参）
+  满分=100 去exposure=50 去budget=80 去time=80   ← D15 非归一化实证
+  全 null → score=20 band=cr                     ← =Math.round(HEALTH_WEIGHTS.blockers*100)，无虚假绿灯
+  b[54]='cr' b[55]='wn' b[79]='wn' b[80]='gd'    ← 分档切点精确落在 55/80
+
+【E6 变异检测器活性（副本变异，原仓文件未动）】
+[M1 D15反模式补丁：无实测当达标]              Tests  4 failed | 28 passed (32)
+[M2 分档边界 >= 改 >（80 落 wn）]              Tests  1 failed | 31 passed (32)
+[M3 三态压成二态（wn 档并入 gd）]              Tests  5 failed | 27 passed (32)
+[M4 摘除 targetExposure 除零防护]              Tests  32 passed (32)   ← 存活，见 O1
+[M5 退出加权后归一化（blockers 独占）]         Tests  3 failed | 29 passed (32)
+[M6 阈值硬编码漂移（改魔数 60）]               Tests  2 failed | 30 passed (32)
+--- 还原后复核 ---                             Tests  32 passed (32)
+
+【E7 静态门】
+$ npx tsc --noEmit   → exit=0
+$ npm run lint       → ✔ No ESLint warnings or errors
+
+【E8 变更范围与稳定性】
+$ git show --stat 8fac75b → src/lib/domain/health.ts(+187) + tests/unit/health.test.ts(+303)
+$ git log 8fac75b..HEAD -- src/lib/domain/health.ts tests/unit/health.test.ts → 空（F004 后未被改动）
+
+────────── 观察项（均非 F004 acceptance 条目，不影响判定，供 Planner 记账）──────────
+O1 变异 M4 存活：摘除 health.ts:108 `if (targetExposure <= 0) return 0;` 显式除零守卫后
+   32 条用例仍全绿。追因：clamp01(:87 `if (!Number.isFinite(x)) return 0`)是第二层兜底，
+   Infinity/NaN 均被它吃掉，行为不变。coverage 报告 health.ts 唯一未覆盖分支正是 :87，
+   印证 Generator 用例只打到第一层。**除零防护在行为层成立**（E5 三百万样本零 NaN/越界，
+   含 targetExposure=0 / budgetTotal=0 / 起止同日 / 周期倒挂 / Invalid Date），
+   显式守卫属冗余纵深防御 —— 判为非缺陷，仅记账。
+O2 commit 8fac75b message 写「34 条单测」，文件实为 32 条（`grep -c "  it("` = 32）。
+   acceptance 未规定用例数，纯 message 笔误。
+O3 【批次级，归 F001 非 F004】`coverage/` 16 个产物文件已入 git 且 .gitignore 无该条目
+   （`grep -n coverage .gitignore` 零命中）。后果：跑 `npm run test:unit:coverage`
+   即改动 tracked 文件 —— 我本次跑覆盖率就使 8 个 coverage/* 变 M。并发验收下建议 Planner
+   在 M1-B 把 coverage/ 加入 .gitignore 并从索引移除。我未 revert（并发 evaluator 竞态风险）。
+O4 health.ts:11 以 `import type` 复用 mock/projects.ts 的 ProjectHealth，形成 domain→data/mock
+   目录方向依赖。`import type` 编译期擦除、无运行时耦合，且避免了第四份三态取值副本
+   （project-status 已记 projects.ts:11 × today.ts:59 × today/page.tsx:133 三重重复归 M1-B 收敛），
+   判为正确取向，随 M1-B 收敛一并处理。
+O5 「预算消耗率」因子（:117-128）实装口径为**预算效率**（达成率÷消耗率），非原始消耗率；
+   `spendRatio===0` 时记满分。PRD:373 只点名四个因子并明写「权重与阈值为示意，上线以真实
+   数据校准」，未定义单因子打分公式，spec/D16 亦未约束 —— 属实装裁量且已在源码注释说明，
+   判 PASS。上线校准时建议连同该口径一并复核。
+```
+
+### acceptance 逐条判定
+
+| 条目 | 判定 | 证据 |
+|---|---|---|
+| 新建 src/lib/domain/health.ts | PASS | 文件存在，187 行，随 commit 8fac75b 落盘；git log 8fac75b..HEAD 对该文件为空，即验收对象与实现提交一致。 |
+| 按 D7 用 kebab-case 文件名 + 具名导出（不用 namespace object），对齐 lib/agent/stage-routing.ts 惯例 | PASS | 文件名 health.ts 与 spec D7 代码块 `src/lib/domain/health.ts` 逐字一致。`grep -n "^export"` 得 10 条全为具名导出（:14 type / :22 :33 :44 const / :52 :72 :79 interface / :95 :157 :177 function）；`grep -n "export default\|export \* \|namespace"` 零命中（仅注释行提及 namespace）。 |
+| 导出 computeHealth() + HEALTH_WEIGHTS + HEALTH_THRESHOLDS 常量 | PASS | health.ts:177 export function computeHealth · :33 export const HEALTH_WEIGHTS · :22 export const HEALTH_THRESHOLDS。三者均被 tests/unit/health.test.ts:8-13 实际 import 并断言（`HEALTH_THRESHOLDS.gd===80` / `HEALTH_THRESHOLDS.wn===55` / 四权重合计 toBeCloseTo(1)），用例实跑通过，证明导出可用而非仅声明。 |
+| 算法按 PRD:373 加权（目标达成度·预算消耗率·时间进度·阻塞项数）→ 0-100 | PASS | PRD:373 原文核对：「加权（目标达成度·预算消耗率·时间进度·阻塞项数）→ 0–100%」。实装四因子 exposureScore(:105)/budgetScore(:117)/timeScore(:135)/blockerScore(:151) 与四项一一对应，:179-183 按 HEALTH_WEIGHTS 加权求和。0-100 值域由独立探针 P1 穷举 3,110,400 组入参（含 NaN/Infinity/负数/Invalid Date）实测：score 恒为整数且 0<=score<=100，零越界零 NaN。口径观察见 O5。 |
+| 分档 >=80 达标 gd / 55-79 注意 wn / <55 风险 cr | PASS | resolveBand(:95-99) 单一映射。独立探针 P2 对 score=0..100 逐值枚举：b[54]='cr'、b[55]='wn'、b[79]='wn'、b[80]='gd'，且 cr 恰 55 个 / wn 恰 25 个 / gd 恰 21 个 —— 切点精确落在 55 与 80，与 PRD:373 一致。变异 M2（>= 改 >）与 M6（阈值改魔数 60）分别翻红 1 条与 2 条，证明该判据非恒真。 |
+| 权重与阈值必须是导出常量，不得是函数体内魔数（acceptance 明写「验收会 grep 实证」） | PASS | 实跑 grep（非阅读代码）：`grep -n "\b80\b\|\b55\b\|0\.4\|0\.2\b" src/lib/domain/health.ts` 输出仅 :24 gd:80 / :26 wn:55 / :34-37 四权重 —— 全部是常量定义行，函数体内零魔数。反向验证：`grep -n "HEALTH_THRESHOLDS\.\|HEALTH_WEIGHTS\.\|BLOCKER_SATURATION"` 显示 :96 :97 :153 :180-183 六处函数体均通过常量引用。阻塞饱和数亦提为导出常量 BLOCKER_SATURATION(:44) 而非写死。变异 M6 把 :97 常量换成字面量 60 即翻红 2 条，证明「引用常量」有测试守护。 |
+| 三态不得压成二态（mock/projects.ts:10-17 明令） | PASS | 明令原文核对 src/lib/data/mock/projects.ts:10-11「健康度三态（原型 .pill/.dot gd/wn/cr，不得压成二态）」。实证三层：(1) 独立探针 P1 穷举 3,110,400 组入参，出现档位=cr,gd,wn 三档俱全；(2) 独立探针 P3 以我自选入参端到端产出 gd=100/wn=65/cr=14；(3) 变异 M3（wn 档并入 gd）令 5 条用例翻红，证明该约束由活的断言守护而非恒真。 |
+| 百分比与分档由同一函数产出、一一映射，不得两处各算 | PASS | computeHealth(:186) 返回 {score, band:resolveBand(score)}，band 只从 score 推导。独立探针 P1 在 3,110,400 组入参上逐一断言 r.band === resolveBand(r.score)，零反例。全仓 grep 确认无第二处计算：`grep -rn "'gd'" src` 除 health.ts 外命中的 creator-ui.tsx:35/68（PillTone，另一概念的信用分映射）、projects.ts:11/55/66 与 today.ts:59/96/110（既有 mock 硬编码值与类型声明）、env-reach.ts:18/29（ReachStageTone），均非 score→band 阈值计算。`grep -rn "computeHealth\|resolveBand\|HEALTH_" src tests scripts` 显示消费方目前只有 tests/unit/health.test.ts —— 页面接入归 M1-B（spec D1），符合本批范围。 |
+| 计算值不进契约位（D11：不走 readContractSlot，强类型直读） | PASS | `grep -rn "readContractSlot\|provenance" src/lib/domain/health.ts` 零命中。全仓 readContractSlot 消费方共 8 个文件（today/page.tsx:302、insight/page.tsx:54-59、runs/page.tsx:43-44、envs/{insight,match,brief,reach} 组件）逐一核对，无一经手 health 计算值。HealthResult 为强类型 interface（:72-76），非 unknown + 读时降级。 |
+| D16 入参契约 HealthInput 八字段 + HealthResult {score,band} 逐字实装 | PASS | 以裁决文档为准逐字比对：preimpl-audit.md:105-115 的 HealthInput 与 health.ts:52-69 完全一致（targetExposure/actualExposure/budgetTotal/budgetSpent: number\|null；periodStart/periodEnd: Date\|null；now: Date；blockerCount: number），无增删字段。now 确为显式注入——health.ts 全文无 `new Date()` 调用，函数纯度可测。HealthResult(:72-76) 按 D16「但去掉可空返回」实装为 {score:number; band:HealthBand}，band 非可空。tsc --noEmit exit=0 佐证类型自洽。 |
+| D15：任一因子输入为 null 时该因子按 0 分计入加权，不退出加权、不归一化、返回类型无空态 | PASS | 三处 null 分支实装 exposureScore:107 / budgetScore:119 / timeScore:137 均 `return 0`。独立探针 P4 实证非归一化：四因子齐备满分=100，单独置 actualExposure=null 降至 50、budgetSpent=null 降至 80、periodStart=null 降至 80 —— 若为「退出加权后归一化」实现，三者均应仍为 100。P5 实证无空态：全 null 输入产出 score=20（恰等于 Math.round(HEALTH_WEIGHTS.blockers*100)）、band='cr'，返回数值而非 null。变异 M5（改为归一化）翻红 3 条，证明该约束有活断言守护。 |
+| D15 不得靠给算法打补丁（如「无实测就当达标」）掩盖 seed 全 cr | PASS | 源码无此类补丁：exposureScore/budgetScore/timeScore 的 null 分支一律 return 0，无任何「无实测→满分」路径。护栏为活：变异 M1 把 exposureScore:107 的 `return 0` 改为 `return 100`（即该反模式补丁本身）后，测试集翻红 4 条 —— 其中 tests/unit/health.test.ts:169-184「seed 形态（有目标有周期、无实测曝光与消耗）落 cr」正是为此设的护栏。独立探针 P5 另行确认全 null 输入落 cr 而非 gd。 |
+| tests/unit/health.test.ts 覆盖三档 + 55/80 两侧（54/55/56、79/80/81）+ 零阻塞/多阻塞 + 周期未开始/已结束 + 除零防护 + null 因子按 0 分计入的实证 | PASS | 文件存在，32 条用例实跑全绿（npx vitest run tests/unit/health.test.ts → 32 passed）。逐项对账 acceptance 点名的六类：① 三档 :61-64 + :103-117 端到端三档可达；② 边界两侧 :52-59 恰为 79/80/81 与 54/55/56（acceptance 举例的六个值全覆盖）；③ 零/多阻塞 :188-210（0 满分、1-5 单调递减、饱和触底、999、负数）；④ 周期未开始/已结束 :214-253（未开始满分、已结束零成果触底、已结束达标不扣分、进行中居中）；⑤ 除零防护 :257-302（target=0、budgetTotal=0、起止同日、周期倒挂、以及「任何输入组合 score 不是 NaN」）；⑥ null 因子按 0 分 :121-184（六个字段逐一 + 非归一化 + 无空态 + seed 形态落 cr）。覆盖率实测 health.ts 行覆盖 100%、分支 97.61%、函数 100%。除零防护的纵深冗余见 O1（非缺陷）。 |
+| lint + tsc 绿 | PASS | $ npx tsc --noEmit → exit=0，零诊断输出。$ npm run lint → 「✔ No ESLint warnings or errors」，0 error 0 warning（连 evaluator.md §15 的 unused-import soft-watch 矩阵都无需触发）。两条均在 HEAD=168dba87 工作区实跑，未走缓存。 |
+
+---
+
+## F005 — PASS
+
+### 结论摘要
+
+F005（domain/env-guards.ts 环节流转守卫 + 变异测试）10 条 acceptance 全部实测通过。核心风险项「变异测试须证明检测器活性」由 Evaluator 独立设计 12 个变异体、对真实实现（非测试文件内的合成变异体）逐个植入并跑真实测试套件，12/12 全部翻红（杀死率 100%），还原后 29/29 复绿、源文件零残留；D9 三条 DEPENDENCY_NOT_IMPLEMENTED 在全合法状态空间（含 maxReached 已到末环节的解锁历史）逐条实测 allowed=false，无一放行。另补测 Generator 套件未覆盖的输入空间（cur<maxReached 回退态、非法环节取值、返回结构全空间不变式）11/11 通过，未发现缺陷。lint 0 error 0 warning、tsc exit 0、全量 92 用例（含 12 条打真库的集成测试）绿。无 [L2] 项——F005 是无外部依赖的纯函数模块，全部 L1 可判。两处观察不降级：env-guards.ts:111 为 canAdvance 不可达的防御性穷举分支（覆盖率唯一未命中行，行覆盖 96.42% > 门 80%）；architecture.md:481 仍标「未实装」属反向漂移，但 F005 acceptance 未要求改该文档，建议 Planner 在 done 阶段更正。
+
+### 复现 / 所跑命令
+
+```
+全部在 HEAD=168dba876b0ce496aa2dc03b319aed27a1959424 上执行，未跑 build、未碰 3300 端口、未改任何产品代码。
+
+1) F005 原测试套件：
+   npx vitest run tests/unit/env-guards.test.ts --reporter=verbose
+   → Test Files 1 passed (1) / Tests 29 passed (29)
+
+2) 独立变异战役（隔离 worktree，不污染仓库工作树）：
+   git worktree add <scratch>/mut 168dba8
+   ln -s /Users/yixingzhou/project/newkolmatrix/node_modules <scratch>/mut/node_modules
+   bash <scratch>/mutate.sh   # 12 变异体，每个 cp 备份 → perl 就地改真实 src/lib/domain/env-guards.ts → 跑测试 → 还原
+   → 见 evidence 中 12 行 MUTANT[...] 输出，全部 N failed
+   git worktree remove --force <scratch>/mut   # 已清理，git worktree list 确认
+
+3) Evaluator 独立探针（新增文件，测试域内）：
+   npx vitest run tests/unit/env-guards.evaluator-probe.test.ts --reporter=verbose
+   → Tests 11 passed (11)
+
+4) L1 门：
+   npx tsc --noEmit ; echo $?          → 0
+   npx next lint                        → ✔ No ESLint warnings or errors
+   npm run test:unit                    → Test Files 5 passed / Tests 103 passed（92 既有 + 11 探针）
+   npx vitest run --coverage --coverage.reportsDirectory=<scratch>/cov
+                                        → env-guards.ts 行覆盖 96.42%，门 thresholds.lines:80
+
+5) 未改动被测物自证：
+   git diff HEAD --stat -- src/lib/domain/env-guards.ts tests/unit/env-guards.test.ts  → 空
+   git status --short src/ prisma/                                                      → 空
+```
+
+### 证据
+
+```
+【A】F005 原测试套件（主仓，HEAD=168dba8）
+$ npx vitest run tests/unit/env-guards.test.ts
+ Test Files  1 passed (1)
+      Tests  29 passed (29)
+
+【B】Evaluator 独立设计的 12 变异体对【真实实现】的战役（隔离 worktree）
+$ bash <scratch>/mutate.sh
+=== BASELINE ===        Tests  29 passed (29)
+MUTANT[M1 不变量方向反转 c>=m]        =>  Tests  4 failed | 25 passed (29)
+MUTANT[M2 不变量恒真 return true]     =>  Tests  3 failed | 26 passed (29)
+MUTANT[M3a D9 reach 改放行]           =>  Tests  4 failed | 25 passed (29)
+MUTANT[M3b D9 delivery 改放行]        =>  Tests  4 failed | 25 passed (29)
+MUTANT[M3c D9 insight 改放行]         =>  Tests  4 failed | 25 passed (29)
+MUTANT[M4 raiseMaxReached 丢取大者]   =>  Tests  3 failed | 26 passed (29)
+MUTANT[M5 canEnter 摘除解锁范围检查]  =>  Tests  2 failed | 27 passed (29)
+MUTANT[M6 canEnter 摘除不变量前置校验]=>  Tests  1 failed | 28 passed (29)
+MUTANT[M7 canAdvance 摘除不变量校验]  =>  Tests  1 failed | 28 passed (29)
+MUTANT[M8 brief→match 丢掉 goal 判据] =>  Tests  1 failed | 28 passed (29)
+MUTANT[M9 末环节改为放行]             =>  Tests  2 failed | 27 passed (29)
+MUTANT[M10 非法目标环节改为放行]      =>  Tests  1 failed | 28 passed (29)
+=== 还原后复跑 ===      Tests  29 passed (29)
+=== 源文件是否被还原 === (空 = 已还原)
+→ 杀死率 12/12，无存活变异体。D20 原文判据（AGENT-FOUNDATION-spec.md:83「退回原状则断言变红」）成立。
+
+【C】D9 三条保守拒绝 —— 源码 + 行为双证
+$ grep -rn "DEPENDENCY_NOT_IMPLEMENTED" src/ tests/
+src/lib/domain/env-guards.ts:33:  | 'DEPENDENCY_NOT_IMPLEMENTED'
+src/lib/domain/env-guards.ts:117:      return deny('DEPENDENCY_NOT_IMPLEMENTED');   # →reach
+src/lib/domain/env-guards.ts:120:      return deny('DEPENDENCY_NOT_IMPLEMENTED');   # →delivery
+src/lib/domain/env-guards.ts:123:      return deny('DEPENDENCY_NOT_IMPLEMENTED');   # →insight
+tests/integration/env-advance.test.ts:148-150  (F006 侧同样三条)
+→ 单一字面量，M2/M3 可 grep 定位；与 BRIEF_GOAL_NOT_CONFIRMED 可区分（测试 :113-119 断言 not.toBe）
+行为面：Evaluator 探针「即便 maxReached 已到末环节，D9 三条仍不放行」通过 —— 解锁历史不构成绕过依赖检查的后门。
+
+【D】守卫五条 vs architecture.md:485-489 逐行对齐
+485 | → brief    | 无（项目创建即入）              → env-guards.ts:109-111 case 'brief': allow()
+486 | → match    | brief 目标已确认                → :112-114 ctx.goal == null ? deny(BRIEF_GOAL_NOT_CONFIRMED) : allow()   （D9 授权以 goal 为判据）
+487 | → reach    | status=approved 的 MatchPlan    → :115-117 deny(DEPENDENCY_NOT_IMPLEMENTED)
+488 | → delivery | ≥1 Deal                         → :118-120 deny(DEPENDENCY_NOT_IMPLEMENTED)
+489 | → insight  | 全部 Deal completed/显式收尾     → :121-123 deny(DEPENDENCY_NOT_IMPLEMENTED)
+
+【E】D8 返回结构（src/lib/domain/env-guards.ts:22-43）
+export type EnvGuardReason = 'STAGE_NOT_UNLOCKED' | 'BRIEF_GOAL_NOT_CONFIRMED' | 'DEPENDENCY_NOT_IMPLEMENTED' | 'ALREADY_AT_FINAL_STAGE' | 'INVARIANT_VIOLATED'
+export interface EnvGuardResult { allowed: boolean; reason: EnvGuardReason | null }
+→ 字符串字面量联合，无自由文本、无 i18n key。Evaluator 探针以 ReadonlySet 白名单穷举 (cur × maxReached × target) 含 6 个非法取值，无任何越界 reason、无 undefined、无抛错。
+
+【F】D2 不变量端到端（F005 提供 + F006 消费）
+src/lib/domain/env-guards.ts:73-78  isStageInvariantHeld  → c<0||m<0 返回 false；否则 c<=m
+src/lib/domain/env-guards.ts:153-155 raiseMaxReached      → stageIndex(target) > stageIndex(maxReached) ? target : maxReached
+src/lib/domain/env-advance.ts:98     "单调不减只在 raiseMaxReached 一处实现（F005），这里不重复写比较逻辑"
+  const maxReachedAfter = raiseMaxReached(maxReached, to);
+  prisma.project.update({ data: { cur: to, maxReached: maxReachedAfter } })
+→ 写入后恒有 cur=to <= maxReachedAfter，不变量在唯一写入点被保持。
+
+【G】断言验行为不验源码关键字（D20）
+$ grep -cE "readFileSync|require\('fs'\)|from 'fs'|toString\(\)\.(includes|match)" tests/unit/env-guards.test.ts
+0
+$ grep -c "MUTANT" src/lib/domain/env-guards.ts   → 0（源文件零变异残留）
+$ grep -nE "it\.skip|describe\.skip|it\.only|todo" tests/unit/env-guards.test.ts | wc -l  → 0
+
+【H】L1 门
+$ npx tsc --noEmit ; echo "tsc exit=$?"        → tsc exit=0
+$ npx next lint                                 → ✔ No ESLint warnings or errors（0 error 0 warning）
+$ npm run test:unit                             → Test Files 5 passed (5) / Tests 103 passed (103)
+$ npx vitest run --coverage ...
+ domain/env-guards.ts | 97.14 %Stmts | 96.29 %Branch | 100 %Funcs | 96.42 %Lines | Uncovered: 111
+ （门 vitest.config.ts thresholds.lines:80；:111 = transitionGuard 的 case 'brief'，经 canAdvance 不可达）
+$ grep -n "unit\|test:unit" .github/workflows/ci.yml
+54:  # M1-A-BRIEF F001 + F006 — 单测 / 集成测试门，与 lint / typecheck 同级
+63:  unit:
+91:      - run: npm run test:unit:coverage
+→ F005 的用例确实在 CI 里跑。
+
+【I】Evaluator 独立探针（新增，覆盖 Generator 套件盲区）
+$ npx vitest run tests/unit/env-guards.evaluator-probe.test.ts
+ Tests  11 passed (11)
+含：D9 在全合法状态空间（VALID_STATES 15 组 × goal 2 态）不放行 · cur<maxReached 回退态推进/回看语义 · 非法取值不污染 maxReached · 返回结构全空间不变式
+文件：/Users/yixingzhou/project/newkolmatrix/tests/unit/env-guards.evaluator-probe.test.ts（untracked，待编排者汇合后提交）
+
+【J】边界自证：未改动任何产品代码
+$ git diff HEAD --stat -- src/lib/domain/env-guards.ts tests/unit/env-guards.test.ts  → 空
+$ git status --short src/ prisma/                                                      → 空
+$ git worktree list → 我的 mut worktree 已 remove（另两个 f006mut / rb 属并发 evaluator，未触碰）
+```
+
+### acceptance 逐条判定
+
+| 条目 | 判定 | 证据 |
+|---|---|---|
+| 新建 src/lib/domain/env-guards.ts，具名导出 canEnter() / canAdvance()（形态同 D7：kebab-case 文件名 + 具名导出，不用 namespace object） | PASS | 文件存在（155 行）。grep '^export' 得 9 处全为具名导出：stageIndex:62 / isStageInvariantHeld:73 / canEnter:86 / canAdvance:133 / nextStage:143 / raiseMaxReached:153 + 3 个类型。grep -c 'export default' = 0，无 namespace object。文件名为 kebab-case，与既有惯例 lib/agent/stage-routing.ts 一致。 |
+| 返回结构按 D8 = {allowed:boolean, reason:EnvGuardReason\|null}，EnvGuardReason 为字符串字面量联合，不得是自由文本、不得是 i18n key | PASS | env-guards.ts:22-43 定义 5 个字面量联合成员 + interface EnvGuardResult{allowed:boolean; reason:EnvGuardReason\|null}。Evaluator 探针以白名单 ReadonlySet 穷举 (cur×maxReached×target)，含 ''/'nope'/'BRIEF'/'brief '/'0'/'__proto__' 六个非法取值，全部命中白名单，无自由文本、无 undefined、无抛错；allowed=true 时 reason 恒为 null。文案零出现，未耦合展示层。 |
+| 守卫条件按 architecture.md:483-489 五条 | PASS | 逐行对齐：arch:485 →brief 无条件 → :109-111 allow()；:486 →match brief 目标已确认 → :112-114 以 ctx.goal 判定（D9 明文授权「→match 可由 goal 判定」）；:487 →reach / :488 →delivery / :489 →insight → :115-123 三个 case。transitionGuard 的 switch 对 Stage 联合穷举，tsc exit=0 证明无遗漏分支。 |
+| 依赖表未建的三条按 D9 保守拒绝：→reach / →delivery / →insight 一律返回 {allowed:false, reason:'DEPENDENCY_NOT_IMPLEMENTED'}，绝不返回 true | PASS | 行为实测（非读代码）：原套件 3 条逐条用例通过（match→reach / reach→delivery / delivery→insight）。Evaluator 探针进一步在全合法状态空间复核——cur∈{match,reach,delivery} × maxReached 从 cur 到 insight × goal∈{齐备,null}，共 18 组输入，allowed 全为 false 且 reason 全为 DEPENDENCY_NOT_IMPLEMENTED；专项断言「即便 maxReached='insight'（历史曾解锁）仍不放行」通过，证明解锁历史不构成绕过依赖检查的后门。 |
+| 该 reason 须与真实业务拒绝理由可区分，供 M2/M3 逐条替换时能 grep 到 | PASS | grep -rn 'DEPENDENCY_NOT_IMPLEMENTED' src/ tests/ 精确命中 env-guards.ts:33/117/120/123 三个替换点 + 测试两处 + F006 集成测试三处，无噪声。与业务理由的可区分性由行为断言守住：tests/unit/env-guards.test.ts:113-119 断言 businessDeny.reason（BRIEF_GOAL_NOT_CONFIRMED）not.toBe depDeny.reason。 |
+| 维护 D2 双值不变量 curIdx <= maxReachedIdx 且 maxReached 单调不减 | PASS | 判定侧 isStageInvariantHeld:73-78（非法取值返回 false，不静默当合法）；抬升侧 raiseMaxReached:153-155 取较大者，单调性单点实现。两个守卫在不变量破坏时均返回 INVARIANT_VIOLATED（原测试 :145-155 通过）。端到端：唯一写入点 env-advance.ts:98 复用 raiseMaxReached 且注释「单调不减只在一处实现，这里不重复写比较逻辑」，落库 cur=to、maxReached=maxReachedAfter，恒有 to <= maxReachedAfter。Evaluator 探针补测 cur<maxReached 回退态（Generator 套件几乎只喂 cur===maxReached，此列为盲区）：回退后 canEnter 解锁范围仍以 maxReached 为准不随 cur 收缩、raiseMaxReached('delivery','match')='delivery' 不回落，均通过。 |
+| tests/unit/env-guards.test.ts + 变异测试（D20 要求守卫/闸门/状态机类必配，断言验行为不验源码关键字） | PASS | 文件存在 272 行 29 条用例，含独立的「变异测试」describe 块（:218-272）5 条。断言纯行为：grep -cE 'readFileSync\|from \'fs\'\|toString().includes' = 0，无任何源码关键字断言。无 skip/only/todo 残留（grep 计数 0）。测试通过行为等价的合成变异体 + 对真实实现的反向断言（realAnyAllowed toBe false）把变异体与真实实现绑在同一组输入上。 |
+| 须证明检测器活性——把不变量反转后测试必须翻红（框架 v1.0.6 纪律 / D20 原文「退回原状则断言变红」） | PASS | 未采信测试文件内的合成变异体自证。Evaluator 在隔离 git worktree（@168dba8 + symlink node_modules）中对真实 src/lib/domain/env-guards.ts 独立设计并逐个植入 12 处变异，跑真实测试套件：M1 不变量方向反转 c>=m → 4 failed；M2 不变量恒真 → 3 failed；M3a/b/c D9 三条各改放行 → 各 4 failed；M4 抬升丢取大者 → 3 failed；M5 canEnter 摘除解锁检查 → 2 failed；M6/M7 两守卫各摘除不变量前置校验 → 各 1 failed；M8 丢 goal 判据 → 1 failed；M9 末环节改放行 → 2 failed；M10 非法目标改放行 → 1 failed。杀死率 12/12，无存活变异体。还原后 29/29 复绿，git status 确认源文件已还原、grep MUTANT = 0。仓库工作树全程未被改动（git diff HEAD 对被测物为空）。 |
+| D9 三条 DEPENDENCY_NOT_IMPLEMENTED 逐条实测返回 false，不得有任一条返回 true | PASS | 原套件三条独立用例逐条 expect(r.allowed).toBe(false) + expect(r.reason).toBe('DEPENDENCY_NOT_IMPLEMENTED') 全绿；另有穷举用例断言 canAdvance 只在 brief→match 且 goal 齐备时放行。Evaluator 探针扩至 18 组输入复核，无一放行。反向证明：M3a/M3b/M3c 三次把对应 case 改成 allow() 后，各有 4 条断言翻红——说明这组断言确实在测这件事，不是死断言。 |
+| lint + tsc 绿 | PASS | npx tsc --noEmit → exit 0（含新增探针文件；tsconfig.json include 已覆盖 tests/**/*.ts，测试代码受同一道类型门约束）。npx next lint → ✔ No ESLint warnings or errors，0 error 0 warning，无需套用 evaluator.md §15 warning 处理矩阵。全量 npm run test:unit → Test Files 5 passed / Tests 103 passed（92 既有含 12 条打真库集成测试 + 11 条 Evaluator 探针）。覆盖率 env-guards.ts 行 96.42% > 门 80%，且该门已接 CI（.github/workflows/ci.yml:63 unit job :91 跑 test:unit:coverage，与 lint/typecheck 同级）。 |
+
+---
+
+## F006 — PASS
+
+### 结论摘要
+
+F006「环节推进写 OperationLog」acceptance 12 条逐条实测全部达标。推进函数落 src/lib/domain/env-advance.ts，且 grep 实证 prisma.project.update 在全 src/ 仅此一处调用点 —— 产品代码内不存在绕过守卫的推进路径，「服务端强制那一半」成立。独立探针（非复用 Generator 断言）打真库驱动 advanceStage，用 Prisma 与原生 SQL 双路读回 OperationLog 整行，核实 kind='auto'（枚举未扩）· projectId 落 D13 新列 · 载荷四字段落 payloadJson · summary 为人话且不含结构化数据 · ref 为 null。守卫拒绝 8 种情形（goal 未确认 / D9 三条 / 末环节 / 不变量破坏 / 项目不存在 / 跨租户）逐条实测 logId=null 且写入条数=0。append-only 应用层保证经 grep 实证：全 src/ 对 operationLog 只有 .create，无 update/delete/upsert。集成测试 12/12 本地通过，且 CI run 29860371189 日志确认在真 pgvector:pg16 service 上跑满 12 条（非 0 条、非静默跳过）。lint + tsc 在纯净 HEAD 隔离 worktree 中双绿。
+
+一项非失分发现（soft-watch，已实测定性）：对真实实现做 6 个变异体，M1/M2/M3/M4/M6 均被测试翻红，唯 M5（raiseMaxReached 取大者 → 直接赋 to）存活 12/12。根因是幂等用例夹具为 maxReached==to（回退一格），该条件下两种写法等价。另造 cur=brief/maxReached=delivery 深度回退夹具区分实测：真实实现正确（maxReached 保持 delivery），变异体回落为 match 破坏 D2 单调不减。故属测试强度缺口而非实现缺陷；F006 acceptance 仅要求「maxReached 抬升幂等」有集成测试（有且通过），变异测试是 F005 acceptance 的要求，不构成 F006 失分。补测已留为独立脚本，建议 M1-B 折进正式套件。
+
+### 复现 / 所跑命令
+
+```
+全部为已跑通的验证命令（cwd=/Users/yixingzhou/project/newkolmatrix，HEAD=168dba8）：
+
+1) 集成测试（打本地 dev 真库）
+   npx vitest run tests/integration/env-advance.test.ts --reporter=verbose
+   → Test Files 1 passed (1) / Tests 12 passed (12)
+
+2) Evaluator 独立探针（不复用 Generator 断言，Prisma + 原生 SQL 双路读回整行）
+   node --env-file=.env --import tsx scripts/test/f006-evaluator-probe.ts
+   → [1] 日志条数=1；kind=auto / actor=orchestrator / ref=null / projectId 已填 /
+     payloadJson={to,from,maxReachedAfter,maxReachedBefore} 四字段齐全；
+     summary="项目「探针项目」环节推进：Brief → Match"
+   → [2] 8 种拒绝情形全部 ok=false、logId=null、写入条数=0
+   → [3] 回退后再推进 cur=match maxReached=match 总日志=2
+
+3) maxReached 深度回退补测（区分 raiseMaxReached 取大者 vs 直接赋值）
+   node --env-file=.env --import tsx scripts/test/f006-maxreached-deep-probe.ts
+   → PASS — maxReached 保持 delivery，单调不减成立（exit=0）
+
+4) DB 实物列核对
+   docker exec newkolmatrix-dev-db psql -U kol -d kolmatrix -c '\d "OperationLog"'
+   → payloadJson jsonb / projectId text / OperationLog_projectId_idx 均在位
+
+5) append-only 应用层保证
+   grep -rn "operationLog" src/ scripts/ prisma/
+   → src/ 内只有 4 处 .create（send-outreach / gate ×3 / env-advance），零 update/delete
+
+6) 变异检测力（隔离 worktree，产品代码零改动）
+   bash <scratchpad>/f006-mutate.sh
+   → M1 守卫分支摘除 3 failed · M2 kind→gate 1 failed · M3 projectId 不填 1 failed
+     · M4 载荷塞 summary/ref 2 failed · M5 maxReached 直接赋 to **12 passed（存活）**
+     · M6 不写日志 4 failed · 还原后 12 passed，源文件零 MUTANT 残留
+
+7) lint + tsc（纯净 HEAD worktree，排除我新增脚本的干扰）
+   npx tsc --noEmit → exit 0
+   npx next lint   → ✔ No ESLint warnings or errors
+
+8) CI 未静默跳过集成测试
+   gh run view 29860371189 --log | grep "integration/env-advance"
+   → ✓ tests/integration/env-advance.test.ts (12 tests) 195ms；Test Files 4 passed (4)
+   → jobs：Unit + integration tests = success（起 pgvector/pgvector:pg16 service + migrate deploy）
+```
+
+### 证据
+
+```
+■ 集成测试（本地真库）
+$ npx vitest run tests/integration/env-advance.test.ts --reporter=verbose
+ ✓ 推进成功 → 恰好写一条 OperationLog > brief→match 成功，游标与 maxReached 同步前进 14ms
+ ✓ 推进成功 → 恰好写一条 OperationLog > 恰好写一条日志，且取值符合 D10 + D13 7ms
+ ✓ 守卫拒绝 → 零写入 > D9 依赖未建的三条被拒，各自零写入且游标不动 9ms
+ ✓ maxReached 抬升幂等 / 单调不减（D2） > cur 回退后再推进，maxReached 不回落也不重复抬升 7ms
+ Test Files  1 passed (1) / Tests  12 passed (12)
+
+■ Evaluator 独立探针（原生 SQL 读回，绕开 Generator 断言）
+$ node --env-file=.env --import tsx scripts/test/f006-evaluator-probe.ts
+[1] 原生 SQL 读回： [{ "kind": "auto", "actor": "orchestrator",
+  "summary": "项目「探针项目」环节推进：Brief → Match", "ref": null,
+  "projectId": "cmrv1tgxm00049y98zwy3j1ma",
+  "payloadJson": {"to":"match","from":"brief","maxReachedAfter":"match","maxReachedBefore":"brief"} }]
+[2] goal 未确认 brief→match → ok=false reason=BRIEF_GOAL_NOT_CONFIRMED logId=null 写入条数=0
+[2] D9 match→reach → ok=false reason=DEPENDENCY_NOT_IMPLEMENTED logId=null 写入条数=0
+[2] D9 reach→delivery → ok=false reason=DEPENDENCY_NOT_IMPLEMENTED logId=null 写入条数=0
+[2] D9 delivery→insight → ok=false reason=DEPENDENCY_NOT_IMPLEMENTED logId=null 写入条数=0
+[2] 末环节 insight → ok=false reason=ALREADY_AT_FINAL_STAGE logId=null 写入条数=0
+[2] 不变量破坏(cur>maxReached) → ok=false reason=INVARIANT_VIOLATED 写入条数=0
+[2] 项目不存在 → PROJECT_NOT_FOUND ; [2] 跨租户 → PROJECT_NOT_FOUND
+[3] 回退后再推进 → cur=match maxReached=match 总日志=2
+
+■ DB 实物列（D13 两列）
+$ docker exec newkolmatrix-dev-db psql -U kol -d kolmatrix -c '\d "OperationLog"'
+ payloadJson | jsonb | ; projectId | text |
+ Indexes: "OperationLog_projectId_idx" btree ("projectId")
+
+■ append-only（应用层）
+$ grep -rn "operationLog" src/
+ src/lib/agent/tools/send-outreach.ts:41:  await prisma.operationLog.create({
+ src/lib/agent/gate/gate.ts:85/142/174: prisma.operationLog.create({
+ src/lib/domain/env-advance.ts:112:    prisma.operationLog.create({
+ → 零 update / delete / upsert
+
+■ 无绕过路径（服务端强制）
+$ grep -rn "project.update|project.create" src/
+ src/lib/domain/env-advance.ts:108:    prisma.project.update({   ← 全 src/ 唯一写入点
+
+■ 变异检测力（隔离 worktree，产品代码零改动）
+ M1 守卫拒绝分支摘除      →  Tests 3 failed | 9 passed  (killed)
+ M2 kind 'auto'→'gate'    →  Tests 1 failed | 11 passed (killed)
+ M3 projectId 不填         →  Tests 1 failed | 11 passed (killed)
+ M4 载荷塞 summary/ref     →  Tests 2 failed | 10 passed (killed)
+ M5 maxReached 直接赋 to   →  Tests 12 passed            ← 存活（测试强度缺口）
+ M6 不写 OperationLog      →  Tests 4 failed | 8 passed  (killed)
+ 还原 → 12 passed，grep -c MUTANT = 0
+
+■ M5 存活的定性（实现正确，非缺陷）
+$ node --env-file=.env --import tsx scripts/test/f006-maxreached-deep-probe.ts   # 真实实现
+ 前置：cur=brief maxReached=delivery → 落库：{"cur":"match","maxReached":"delivery"}
+ PASS — maxReached 保持 delivery，单调不减成立
+$ 同一探针跑 M5 变异体：
+ 落库：{"cur":"match","maxReached":"match"}
+ FAIL — maxReached 回落为 match，D2 单调不减被破坏
+ → 探针具判别力；真实实现（env-guards.ts:153 raiseMaxReached 取大者）正确
+
+■ CI 未静默跳过集成测试
+$ gh run view 29860371189 --log | grep integration/env-advance
+ ✓ tests/integration/env-advance.test.ts (12 tests) 195ms
+ Test Files 4 passed (4) ; All files 覆盖 97.58 stmts / 98.05 lines
+ jobs: Unit + integration tests = success（pgvector/pgvector:pg16 service + prisma migrate deploy）
+
+■ L1 就绪（168dba8 纯净 worktree）
+$ npx tsc --noEmit → exit 0
+$ npx next lint  → ✔ No ESLint warnings or errors
+
+■ [L2] 未执行，待授权 —— 生产 https://newkol.guangai.ai 仍跑上一批次 0c36fc2f，F006 无线上写入面可验；本 feature 无外部服务依赖，L1 已足以覆盖全部 acceptance。
+
+■ 边界合规
+$ git status --short src/ prisma/ tests/ .github/ package.json vitest.config.ts → 空（产品代码与既有测试零改动）
+ 新增测试产物（未 commit，tsc 通过）：
+ /Users/yixingzhou/project/newkolmatrix/scripts/test/f006-evaluator-probe.ts
+ /Users/yixingzhou/project/newkolmatrix/scripts/test/f006-maxreached-deep-probe.ts
+ 注：coverage/ 目录在验收期间被其他并发 evaluator 重新生成（git status 显示 M），非本次验收所改。
+```
+
+### acceptance 逐条判定
+
+| 条目 | 判定 | 证据 |
+|---|---|---|
+| 推进动作（cur 前进 / maxReached 抬升）落 domain/ 的推进函数，实现服务端强制那一半（页面半边归 M1-B） | PASS | src/lib/domain/env-advance.ts:49 export async function advanceStage()。强制性实证：grep -rn "project.update\|project.create" src/ → 全 src/ 仅 env-advance.ts:108 一处 prisma.project.update，产品代码内不存在绕过 canAdvance 的 cur/maxReached 写入路径。函数体 :72 先 canAdvance 判定，:80 拒绝即 return，写库在 :107 之后。 |
+| 每次成功推进写一条 OperationLog | PASS | 独立探针 [1]：单次 advanceStage 后「日志条数：1」。集成测试「每次成功推进都各写一条（两次推进 → 两条日志）」断言 countLogs()==2 通过。变异体 M6（摘除 operationLog.create）令 4 条用例翻红，证明该断言非空转。 |
+| kind='auto'（architecture.md:800 可逆动作），不扩枚举 | PASS | 原生 SQL 读回："kind": "auto"。prisma/schema.prisma:188-193 enum OperationLogKind 仍为 auto/gate/block/irrev 四态未扩。变异体 M2（auto→gate）令 1 条用例翻红。 |
+| projectId 填 D13 新增的 OperationLog.projectId 列 | PASS | docker psql \d "OperationLog" → projectId text + OperationLog_projectId_idx 在位。原生 SQL 读回 "projectId": "cmrv1tgxm00049y98zwy3j1ma" 与探针项目 id 一致。变异体 M3（不填 projectId）令 1 条用例翻红。 |
+| 载荷 {from,to,maxReachedBefore,maxReachedAfter} 落 D13 新增的 payloadJson 列 | PASS | 原生 SQL jsonb 读回：{"to":"match","from":"brief","maxReachedAfter":"match","maxReachedBefore":"brief"} 四字段齐全。src/lib/domain/env-advance.ts:100-105 构造 payload，:123 落 payloadJson。 |
+| 载荷不得塞进 summary（summary 是 data/mock/runs.ts:5 固定的展示契约） | PASS | 实际落库 summary="项目「探针项目」环节推进：Brief → Match"，为人类可读句子，不含任何结构化载荷。变异体 M4（把载荷 JSON.stringify 塞 summary + ref）令 2 条用例翻红。 |
+| 载荷不得复用 ref（ref 专指 PendingAction.id，不得一列两义） | PASS | 原生 SQL 读回 "ref": null。env-advance.ts:124 注释明示不填 ref。schema.prisma:202 ref 注释保持「→ PendingAction.id，语义单一，不得挪作他用（D13）」未被改写。 |
+| summary 仍写人类可读一句话 | PASS | 落库实值「项目「探针项目」环节推进：Brief → Match」，用 STAGE_LABEL 做中文/展示名映射（env-advance.ts:121）。 |
+| 守卫拒绝的推进不写日志、仅返回 reason | PASS | 独立探针 [2] 逐条实测 8 种拒绝情形，全部 logId=null 且写入条数=0：goal 未确认→BRIEF_GOAL_NOT_CONFIRMED · D9 三条(match→reach/reach→delivery/delivery→insight)→DEPENDENCY_NOT_IMPLEMENTED · 末环节→ALREADY_AT_FINAL_STAGE · cur>maxReached→INVARIANT_VIOLATED · 项目不存在→PROJECT_NOT_FOUND · 跨租户→PROJECT_NOT_FOUND。变异体 M1（摘除拒绝分支）令 3 条用例翻红。 |
+| append-only 由应用层保证（DB 触发器 R14 不在本批） | PASS | grep -rn "operationLog" src/ → 产品代码内对 OperationLog 只有 4 处 .create（agent/tools/send-outreach.ts:41、agent/gate/gate.ts:85/142/174、domain/env-advance.ts:112），零 .update/.delete/.upsert。deleteMany 仅出现在 scripts/test/gate-smoke.ts 与测试夹具清理中。 |
+| tests/integration/env-advance.test.ts 覆盖三条——推进成功写一条、守卫拒绝零写入、maxReached 抬升幂等 | PASS | 文件存在（265 行，12 用例，3 个 describe 块与三条要求一一对应），本地 12/12 通过，CI run 29860371189 日志「✓ tests/integration/env-advance.test.ts (12 tests) 195ms」证明在真库上跑满 12 条非静默跳过。⚠ soft-watch：幂等用例夹具为 maxReached==to，判别力不足——变异体 M5（raiseMaxReached 取大者→直接赋 to）存活 12/12。我另造 cur=brief/maxReached=delivery 深度夹具实测：真实实现正确（maxReached 保持 delivery），变异体回落 match 破坏 D2。故为测试强度缺口非实现缺陷，且变异测试是 F005 acceptance 要求、非 F006 要求，不构成本条失分。补测脚本 scripts/test/f006-maxreached-deep-probe.ts，建议 M1-B 折进正式套件。 |
+| lint + tsc 绿 | PASS | 在 168dba8 纯净隔离 worktree 中执行：npx tsc --noEmit → exit 0；npx next lint → 「✔ No ESLint warnings or errors」（exit 0）。主仓含我新增两个探针脚本后 tsc 仍 exit 0。CI run 29860371189 的 Lint / Typecheck job 均 success。 |

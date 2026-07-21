@@ -1,2828 +1,1759 @@
-# KOLMatrix 架构设计文档
+# KOLMatrix 全站架构设计文档
 
 | 项 | 内容 |
 |---|---|
-| 文档 | KOLMatrix 架构设计（Architecture Design） |
-| 版本 | v1.0 |
-| 日期 | 2026-07-17 |
-| 状态 | 草案（Draft） |
-| 需求源 | `docs/product/KOLMatrix-PRD.md`（v1.0） |
-| 交互源 | 定稿原型 `docs/product/interaction-prototype-v2.html` · 落地规范 `docs/product/interaction-prototype-v2-落地规范.md` |
-| 规格源 | `docs/specs/AGENT-FOUNDATION-spec.md`（四柱 / 闸门 D26-D29 / 字段契约 F001） |
-| 读者 | 实现工程师（Generator）——可照此建目录、写代码 |
+| 版本 | **v1.2（2026-07-21）定稿版** |
+| 日期 | 2026-07-21 |
+| 状态 | **定稿**（ARCH-M05 F001 交付；后续批次以本文为工程落法权威） |
+| 范围 | 覆盖 PRD 全站：六页工作台 · 项目五环节 · 多 Agent 编队 · AI→人闸门 · 数据与溯源 · 信号与集成 · 主动式 Agent · 度量 · 部署演进 |
+| 输入 | `docs/product/KOLMatrix-PRD.md`（v1.0）· `interaction-prototype-v2.html` + 落地规范 · `docs/specs/AGENT-FOUNDATION-spec.md` · `docs/specs/ARCH-M05-spec.md` + `ARCH-M05-ui-inventory.md` · `gap-data-layer.md` · **仓库实物代码（as-built 校准源）** |
+| 读者 | Generator（实现）、Evaluator（验收）、后续批次 Planner |
+| 关系 | 本文是**工程侧全站目标态架构**；PRD §9–§13 是产品侧权威定义；批次 spec 是验收口径。冲突时：产品语义以 PRD 为准，批次验收以 spec 为准，工程落法以本文为准 |
 
-> 本文档经多 agent 起草 + 架构稽核（27 项跨章一致性裁决）+ 残留验证（20 项扫描 PASS）后合稿。跨章契约（闸门两步票据、PendingAction 7 态、harm zod、工具层类型、模块路径表）已全局统一，权威归属见各章标注。
-
-## 目录
-
-- **§1 架构总览**
-- **§2 系统上下文与分层视图**
-- **§3 技术选型总表**
-- **4.1 App Router 目录结构**
-- **4.2 页面组件树与复用组件架构**
-- **4.3 状态管理策略**
-- **4.4 设计系统与主题**
-- **4.5 Generative canvas 前端协议（canvas-registry）**
-- **5. Agent 运行时架构**
-- **6.1 设计原则与系统不变量**
-- **6.2 工具执行器中间件（outbound 强制层）**
-- **6.3 确认流全链路**
-- **6.4 PendingAction 与确认票：数据结构与防重放**
-- **6.5 OperationLog：append-only 留痕**
-- **6.6 认证与租户占位**
-- **6.7 密钥管理与副作用 Provider**
-- **6.8 审计与可查询**
-- **6.9 闸门有效性验证（F008 验收 + 变异测试）**
-- **6.10 P0 落地 vs 后期演进汇总**
-- **7.1 落点总览**
-- **7.2 ER 总览**
-- **7.3 Prisma schema 设计**
-- **7.4 pgvector 检索设计**
-- **7.5 溯源实现（数据维）**
-- **7.6 Seed 管道（F003）**
-- **7.7 迁移与演进策略**
-- **8.1 路由清单**
-- **8.2 aigcgateway 集成（F002）**
-- **8.3 外部集成边界**
-- **8.4 环境变量清单与启动校验**
-- **9.1 环境总览**
-- **9.2 本地开发环境：docker compose dev（P0 · F001）**
-- **9.3 生产全栈化改造：前端-only → 加 DB / 迁移 / env**
-- **9.4 CI/CD 现状与演进**
-- **9.5 deploy 人类闸门**
-- **9.6 密钥与配置矩阵**
-- **10.1 质量门总览**
-- **10.2 构建门现状与注意项**
-- **10.3 vitest 单元/集成层（P0 新增）**
-- **10.4 Playwright：visual + E2E 双 testDir**
-- **10.5 闸门测试与变异测试策略（F008 硬门，D20/FR-10.3/§15.4）**
-- **10.6 canvas 协议可扩展性断言（§15.3）**
-- **10.7 执行位置汇总**
-- **P0 — AGENT-FOUNDATION（当前批次，F001 → TS5 升级微批次（ADR-008）→ F002–F008 严格串行）**
-- **WORKBENCH-UI（M0.5）**
-- **P1 — BRIEF-CAMPAIGNS（M1）**
-- **P2 — MATCH（M2）**
-- **P3 — REACH-CRM（M3，outbound 最密集）**
-- **P4 — DELIVERY / INSIGHT-ROI（M4）**
-- **P5 — PROD-HARDENING（M5）**
-- **ADR-001 前后端同一 Next.js 应用（不拆独立后端）**
-- **ADR-002 多 Agent = 单 loop + 按环节切换 system prompt / 工具子集（非多实例编排框架）**
-- **ADR-003 闸门位置：工具执行层的两步票据门（不在 Next middleware、不在前端、不在 prompt）**
-- **ADR-004 深字段用 jsonb 契约位（不上宽表/子表规范化）**
-- **ADR-005 canvas 注册表：受控 register API（不用 switch、不做服务端驱动 UI）**
-- **ADR-006 单租户硬编码 dev tenant，tenantId 只占位（不提前上 RLS/认证）**
-- **ADR-007 AI 出口收口到 aigcgateway 单点（不直连模型商 SDK）**
-- **ADR-008 TS 升级时机：F002 启动前以独立微批次升 TS 5.x（不与 F001–F008 混批）**
-- **ADR-009 向量检索用 pgvector in-Postgres（不引独立向量库）**
-- **ADR-010 OperationLog append-only：审计流水只追加，闸门状态机在 PendingAction（不 UPDATE 日志行）**
-- **ADR-011 运行时无状态：对话上下文由前端 useChat 持有逐轮回传**
-- **ADR-012 部署形态：GHCR 预构建镜像 + VPS compose pull + 手动 workflow_dispatch（不上 Vercel、不自动 CD）**
+> **作废层警示**：凡 `lead/bd/finance` 三角色、`scope`/`Approval` 审批链、阈值分级（$8,000/$2,000/10 封）、`copilotScope` 角色数据边界、角色切换器等表述均属已作废层（D26–D29 裁决），本文不引用、不实现。
 
 ---
 
-# KOLMatrix 架构设计文档 · §1–§3
+## 阅读约定：as-built vs 演进目标（v1.2 新增，全文强制）
+
+本文经 AGENT-FOUNDATION（M0）+ GO-LIVE + FE-REFACTOR 三批交付后**逐条对实物代码校准**。全文遵守两条标注纪律：
+
+| 标注 | 含义 | 判定规则 |
+|---|---|---|
+| （无标注） | **as-built**：仓库中已实装，Evaluator 可 grep / 运行验证 | 已实装一律以实物为准，文档不得写「更好的设计」冒充现状 |
+| **演进目标（未实装，归 M_x）** | 目标态设计，当前**没有**对应代码 | 按 M0–M5 路线归位；实装时以本文设计为起点，允许修订 |
+
+**矛盾裁决原则（ARCH-M05 spec §2.4）**：已实装一律 as-built；未实装标「演进目标」按 M 路线归位。v1.0/v1.1 中与实物冲突的表述已在 v1.2 逐条改写，**不保留双份说法**。
+
+---
 
 ## §1 架构总览
 
-### 1.1 设计目标
+### 1.1 一句话架构定义
 
-本架构服务一个目标：把现有的**前端-only Horizon 模板工程**（DS-FOUNDATION 已 signoff）演进为 **AI-native 全栈单应用**，在不推翻已有地基（`src/app/admin/layout.tsx` 外壳、`src/routes.tsx` 路由表、Tailwind 设计系统、Playwright visual baseline）的前提下立起四根柱子：
+**一个 Next.js 全栈应用 = 常驻对话面 + Generative Canvas + 多 Agent 运行时（应答 + 例程）+ 服务端强制的 AI→人闸门，承载「项目五环节纵推」领域模型，立在 Postgres + pgvector 之上。**
 
-1. **工具层**：`src/lib/agent/tools/` 注册表，工具二分 `internal` / `outbound`，全部 IO 经 zod 校验（F004）
-2. **Agent 运行时**：`src/app/api/agent/route.ts`，Vercel AI SDK `streamText` 流式 tool-calling loop，经 aigcgateway 出口（F004 / F002）
-3. **常驻对话面**：`useChat` + `CopilotPanel`，产品唯一 NL 入口（F005）
-4. **Generative Canvas**：工具结果按 `type` 经 `canvas-registry.tsx` 映射 React 组件渲染（F005）
+KOLMatrix 不是「CRUD-over-REST + AI 挂件」，而是以「工具结果协议」为骨架的 Agent 驱动应用：用户意图经对话面进入 → Agent 运行时调工具 → 工具结果按工具名/`type` 渲染成画布组件 → 对外/不可逆/花钱的动作被服务端闸门拦在「已备好，等你按」；同时例程调度让 Agent 在无人值守时沿同一工具注册表推进工作并留痕（例程 = **演进目标（未实装，归 M1）**）。
 
-外加两块地基与一道闸门：
+### 1.2 架构要回答的七个问题
 
-- **数据地基**（F001–F003）：Prisma + Postgres + pgvector，`Kol` 浅字段 + D15 五个 nullable jsonb 契约位 + `embedding vector(1024)`（bge-m3），seed ~2,524 条真实 KOL
-- **AI→人闸门**（F008）：outbound 工具服务端强制拦截为 `PendingAction(pending)`，经 confirm→execute 两步票据放行（唯一契约见闸门章），`OperationLog` append-only 留痕。口径分辨（与 PRD 一致）：outbound **语义类别 5 类**（发信/报价/放款/分发 Key/对外分享，批量发=发信类的批量形态）；**工具白名单 6 个工具名**（send_outreach/send_bulk_outreach/commit_quote/payout/distribute_keys/create_share_link——批量独立成工具因其 harm 必须列全名单），`OUTBOUND_TOOL_NAMES`=6 名
-- **P0 验收锚**：hello-agent 闭环——「找东南亚原神向 KOL」→ 运行时调 `search_kols`（NL→embedding→pgvector cosine top-K）→ `type=kol_cards` 流式回传 → canvas 渲染真实 seed 卡片流，全程无表单/翻页/手填（F007）
+| # | 问题 | 架构回答 | 详解 |
+|---|---|---|---|
+| 1 | 全站业务如何统一建模？ | 六页 × 五环节能力地图 + 目标态领域模型 + 全套状态机 | §2、§5 |
+| 2 | AI 如何从副驾变主驾？ | 四柱：工具层 / Agent 运行时 / 常驻对话面 / Generative Canvas | §8 |
+| 3 | Agent「主动干活」（夜间筛查、今日完成）从哪来？ | 主动式例程：调度器以 agent 身份复用同一工具注册表，全量留痕 | §8.10 |
+| 4 | 多 Agent 编队如何落地又不失控？ | Agent = system prompt 人格 + 按环节收窄的工具子集；隔离=否定式护栏 | §8.6 |
+| 5 | 「AI 不替人做不可逆承诺」如何兑现？ | 工具二分 internal/outbound + 服务端 pending + 确认后服务端内部执行 + 留痕 | §9 |
+| 6 | 「每个数字都知道从哪来」如何落地？ | 字段契约位（D15）+ `dataSource`/`fieldProvenance` 双层溯源 + `ProvenanceTag` | §7.5 |
+| 7 | 外部世界（回复/发布/签约/托管）如何进来？ | 信号接入层：规范化 Signal → 领域事件 → CRM/交付推断 | §10.4 |
 
-### 1.2 架构原则（从 PRD DP-1..DP-6 推导）
+### 1.3 设计原则 → 架构机制映射
 
-产品原则（PRD §6，L275–L282）逐条推导为架构级原则，每条给出机制落点。**原则优先序继承 PRD：AP-4/AP-6 为不可让渡安全底线，AP-5 为对外可信度底线。**
-
-| 产品原则 | 架构级原则 | 机制落点 |
+| 原则（PRD §6） | 架构机制 | 强制层 |
 |---|---|---|
-| **DP-1** 单角色，无角色分叉（D26） | **AP-1 零权限维度**：schema、路由、组件三层都不存在「角色」这个轴。权限分叉不是「先不做」，是**禁止回填** | Prisma schema 无 `role`/`scope`/`Approval` 表（FR-11.16）；无路由权限守卫（D10 作废）；`owner`（Leo/Ada/Kai）是纯展示字段，**任何代码不得从 owner 派生权限判定**（FR-11.15，D29） |
-| **DP-2** AI 主驾非副驾（D5） | **AP-2 工具结果协议是一等公民**：交互主轴 = 对话面 + canvas，页面是 Agent 落地画布；表单/表格降级为精调兜底 | 所有工具结果带 `type` 字段（FR-12.5）；`useChat` → `/api/agent` 首 token 即出（FR-12.10）；对话式 Refine 替代重开表单（FR-12.11） |
-| **DP-3** 多 Agent 编队，各有职责与隔离边界 | **AP-3 专家 = 配置，不 = 服务**：七个专家（strategy/match/reach/delivery/insight/compliance/orchestrator）是同一运行时上的 system prompt + 工具子集切换，不是七个进程；**canvas 注册表开闭原则**——新增能力 = 加一工具 + 一 canvas 组件，`route.ts` 核心零改动 | `copContext` 随 `route+env` 切换专家（FR-7.12/FR-12.17）；工具子集按环节收窄；扩展性是**验收断言**（§15.3：新结果类型只加组件不改 route 核心） |
-| **DP-4** AI→人闸门（D27–D29） | **AP-4 闸门服务端强制优先于前端约束**：outbound 拦截是运行时硬约束（两步票据机制：PendingAction → confirm 签票 → execute 消费票），不是前端 if、不是 system prompt 建议；**模型 loop 永远拿不到票据，无法自我放行**（FR-10.1/10.2） | 6 个 outbound 工具（5 语义类）→ 拦截为 `PendingAction(pending)` + `harm` 结构体（唯一 zod 定义 `src/lib/agent/gate/harm.ts`），**拦截时不下发任何令牌**；人确认 `POST /api/actions/[id]/confirm` 签发一次性票据（票仅在 confirm 响应中出现一次），`POST /api/actions/[id]/execute {ticket}` 消费票执行；闸门状态机由 `PendingAction` 承载（Prisma 权威见 §7），`OperationLog` 留 gate 类日志且 DB 层触发器阻断 UPDATE/DELETE（FR-11.12）；internal 一律不弹框——假闸门稀释真闸门（FR-10.6） |
-| **DP-5** 数据溯源：每个数字都知道从哪来 | **AP-5 字段契约解耦数据层与产品层**：产品层只依赖字段契约，不依赖数据来源；**缺值是显示态（「待接入」），不是错误态**；数据管道（seed/Apify/外购/一方 API）到位后填真值，UI 与逻辑零返工（D15，gap-data-layer §5） | 五契约位 nullable jsonb + zod schema 落 `src/lib/*/schemas.ts`（FR-11.20）；溯源回退链 `fieldProvenance[field]` → 行级 `dataSource` → 保守下限 `ai_estimate`（FR-11.7）；每个渲染数据点必带 `ProvenanceTag`（FR-12.14） |
-| **DP-6** 流程是可计算实体，状态机有守卫 | **AP-6 机制化守门优先序：DB 约束 > 服务端 > 前端 > 文档**；守卫/闸门/状态机类必配**变异测试**（断言验行为不验源码关键字，把拦截退回原状断言必须变红，D20） | 健康度/匹配分/交付达标实时计算非硬编码（FR-8.2.1）；环节推进是责任链有 guard（FR-7.9）；闸门验收门 G1–G5（§15.4 硬性） |
+| DP-1 单角色，无角色分叉 | 无 role/scope/权限列；`owner` 仅展示标记 | schema + 代码评审 |
+| DP-2 AI 主驾 | 常驻对话面 + canvas 为交互主轴；表单降级兜底 | 前端架构（§6） |
+| DP-3 多 Agent 编队有隔离 | 编队名册注册表 + 工具子集 + 否定式护栏注入 | Agent 运行时（§8.6） |
+| DP-4 AI→人闸门 | outbound 工具服务端强制 + 确认令牌服务端内部消费 + 无阈值 | **服务端**（§9） |
+| DP-5 数据溯源 | `fieldProvenance` 逐字段 + `ProvenanceTag` + 缺值显「待接入」 | 数据契约 + UI（§7.5） |
+| DP-6 流程是可计算实体 | 健康度/匹配分/交付达标=纯函数实时算；状态机有守卫；配变异测试 | 领域层（§5.3/§5.4） |
 
-### 1.3 硬约束（不可让渡）
+> DP-4 / DP-6 是不可让渡底线：机制化守门优先级 **服务端 > 前端 > 文档**。
 
-1. **单一 Next.js 应用**：前后端同处一个 App Router 工程，后端 = Route Handlers + Server Actions + `src/lib`；旧仓库 `src/lib` 仅参考不移植（D1/D8，FR-12.2）
-2. **运行时无状态**：对话状态由前端 `useChat` 持有、逐轮回传，服务端不跨请求缓存对话上下文——这是后期 RLS 不改上层的前提（FR-12.9，NFR-S9）
-3. **`OperationLog` append-only**：应用层只追加；DB 层触发器/权限阻断 UPDATE/DELETE（NFR-S4）
-4. **禁止回填作废层**：`role`/`scope`/`Approval`/`allowedRoles`/阈值分级（$8,000/$2,000/10 封）/`copilotScope` 一律不得出现（spec §3.1.5 裁决）
-5. **密钥零硬编码**：`AIGCGATEWAY_BASE_URL`/`AIGCGATEWAY_API_KEY`/`DATABASE_URL` 走 env（唯一定义 `src/lib/env.ts`，导出惰性缓存函数 `serverEnv()`）+ 启动校验（入口 `src/instrumentation.ts`），`.env.example` 无明文（NFR-S5）
-6. **所有系统边界不可信**：API 入参、模型输出、上传素材、外部采集帧，先过 zod 再进业务（NFR-S6）
-7. **canvas 只走受控 React 组件树**：禁 `dangerouslySetInnerHTML` 承接模型文本（FR-12.16，NFR-S7）
-8. **单租户占位**：硬编码 dev tenant，schema 保留 `tenantId`，RLS/真实认证留后期（D4）
-9. **构建门**：`npm run build` + `tsc --noEmit` + `next lint` 全绿 + Playwright visual baseline（浅色 ≥1440px，CI/linux 重生）；不提交无法运行的代码（§15.1/15.2）
-10. **设计系统唯一**：颜色统一 `var(--color-*)`（`AppWrappers.tsx` 注入 `--color-50..900`，品牌主色 `--color-500 #422AFB`），不搬原型自定义 CSS，不新写 CSS 变量体系或 `data-theme`；深浅走 `body.dark` + Tailwind `dark:`（FR-12.26）
+### 1.4 技术选型总表（as-built 版本已锁定）
 
-### 1.4 P0 落地 vs 后期演进
+版本列 = `package.json` 实测值（2026-07-21）。**「状态」列区分已装 / 未装**——未装项不得在实现中假定其存在。
 
-| 维度 | P0（AGENT-FOUNDATION / WORKBENCH-UI） | 后期演进 |
-|---|---|---|
-| 租户/认证 | 硬编码 dev tenant，`tenantId` 占位，无登录 | M5：next-auth 真实认证 + Postgres RLS（依赖运行时无状态，上层零改） |
-| 数据填充 | seed ~2,524 条浅字段 + embedding；五契约位建库即在但 **nullable 不填充**，UI 读 null 显「待接入」 | Apify 采集管道 / 外购 API / 平台一方数据，落同一契约位（NFR-D1，成本锚点 Modash $16,200/年） |
-| 闸门执行 | 6 个 outbound 工具（5 语义类）服务端拦截 `PendingAction` + 确认卡 + confirm→execute 两步票据 + append-only 留痕（F008 全量落地，**不是演进项**） | 真实投递通道（Resend 发信、partner 电子签+Stripe escrow）接到 outbound 工具背后 |
-| 部署 | 现状 Docker 镜像为前端-only（`docker-compose.prod.yml` 无 DB 服务） | 全栈化部署改造：VPS 加 Postgres 服务 / env 注入 / `prisma migrate` 入发布流程；deploy 永留人类闸门（workflow_dispatch） |
-| TypeScript | **独立微批次在 F002 启动前升 TS 5.x**（升级+构建门全绿，不与 F001–F008 混批，ADR-008）；之后 zod/Prisma/AI SDK 均按 TS5 选版 | 渐进收紧 strict |
-| 性能 | 成本/错误骨架 + 成本记账挂点（FR-12.31） | NFR-P7 embedding/检索缓存、NFR-P8 按任务复杂度模型路由 |
-| 环节能力 | M0.5 六页外壳 + 五环节 mock | P1–P4 逐环节接真 Agent（Brief→Match→Reach→Delivery/Insight） |
+| 领域 | 选型（as-built 版本） | 状态 | 选型理由 | 反选型（不选原因） |
+|---|---|---|---|---|
+| 应用框架 | **Next.js 15.5.20** App Router，前后端同一应用 | 已装 | D1 硬决策：Route Handlers 免去独立后端；`output:'standalone'` 已接 Docker CD；运行时无状态设计让同应用也能留 RLS 边界 | 独立后端（NestJS/Fastify + SPA）：多一套部署与鉴权面；旧仓库后端：明确只参考不移植（D8） |
+| UI 运行时 | **React 19.2.7 / react-dom 19.2.7**（正式版，非 RC） | 已装 | 模板 scaffold 基线；已随 FE-REFACTOR 稳定在正式版 | 降级 React 18：与模板 scaffold 冲突 |
+| 语言 | **TypeScript 5.9.3**（`strict:true`，豁免 `strictNullChecks`/`strictPropertyInitialization`） | 已装 | ADR-08 的 TS5 升级**已销项**；AI SDK v5+ 要求 TS≥5，此前提已满足 | 停留 4.9：无法承载 AI SDK 选型（历史约束，已解除） |
+| 设计系统 | **Tailwind ^3.3.3** + `AppWrappers.tsx` 运行时 CSS 变量色阶（`--color-50..900`，主色 `#422AFB`） | 已装 | 模板主设计系统就是 Tailwind + CSS 变量，**不是** Chakra theme（无 ChakraProvider/extendTheme）；浅色默认 + `body.dark` | Chakra theme 全家桶：模板架构不支持；再写一套 CSS 变量/`data-theme`：FR-12.26 明令禁止 |
+| 交互原语 | Chakra 拆包（modal/hooks/popover/tooltip/accordion/icons/portal/system/theme-tools） | 已装 | GateConfirm 焦点陷阱 + Escape（NFR-A1）直接用 `@chakra-ui/modal` 现成可达性 | Radix/Headless UI：重复引入第三套原语体系。**Toast 不扩此白名单**——自建 `common/Toast`（裁决 #9） |
+| Agent 运行时 SDK | **`ai` 7.0.31**（`streamText`）+ **`@ai-sdk/react` 4.0.34**（`useChat`）+ **`@ai-sdk/openai` 4.0.16** | 已装 | D2 硬决策：流式 loop、tool-calling、React hook 一体；工具定义天然接 zod；`useChat` 逐轮回传对话正好满足运行时无状态（FR-12.9） | LangChain/LlamaIndex：抽象层过重；手写 SSE loop：重造流式协议与 tool-call 解析；厂商 SDK 直连：绑定单一供应商 |
+| 模型出口 | **aigcgateway**（OpenAI 兼容 baseURL），唯一接入点 `src/lib/ai/gateway.ts`，用 `createOpenAI({ baseURL, fetch: resilientFetch })` + `.chat(modelId)` | 已装 | D2：chat（tool-calling）+ embedding 双链路单出口；统一计费与成本记账挂点（`logUsage`）；密钥只走 env | 直连 OpenAI/Anthropic：多密钥多计费面。**注意**：用 `@ai-sdk/openai` 而非 `@ai-sdk/openai-compatible`，且**必须** `.chat()`——provider 默认 callable 走 Responses API，网关不支持 |
+| Embedding | **bge-m3，1024 维**，经网关（`EMBEDDING_DIMENSIONS=1024`） | 已装 | D3：多语种强（全球 KOL）；维度与 `vector(1024)` 列一致 | OpenAI text-embedding-3：需另开出口；本地推理：dev 机不必要的重量 |
+| ORM / DB | **Prisma 6.19.3 + @prisma/client 6.19.3** + PostgreSQL **16** + pgvector | 已装 | PRD §11 栈约束；migration 工具链成熟；`Unsupported("vector(1024)")` + `$queryRaw` 覆盖向量读写 | Drizzle：PRD 已锁 Prisma；裸 SQL：失去 migrate/类型生成 |
+| 向量检索 | pgvector cosine（`<=>`）top-K，同库 | 已装 | ~2,524 条规模 DB 侧 <200ms（NFR-P3）绰绰有余；与业务数据同库同事务，溯源/闸门留痕不跨系统 | 独立向量库（Pinecone/Qdrant）：此规模纯增运维面；检索收敛在 `search_kols` 内、可换实现不改协议 |
+| 校验 | **zod 4.4.3** | 已装 | NFR-S6/FR-11.20 硬要求：工具 IO、jsonb 契约位、API 入参统一一套 schema；AI SDK 工具定义原生吃 zod | yup/valibot：AI SDK 生态以 zod 为一等公民 |
+| 图表 | ApexCharts 3.35.5 + react-apexcharts 1.4.0 | 已装 | 模板封装件现成（`components/charts/`）；`HalfGauge` = radialBar −90/90（FR-8.2.1.1） | ECharts/Recharts：重复引入，需重做 Horizon 视觉适配 |
+| 表格 | @tanstack/react-table ^8.7.9 | 已装 | `DataTable` 抄模板 ComplexTable 写法；headless 与 Tailwind 无冲突 | AG Grid：闭源重件 |
+| 上传 | react-dropzone ^14.2.3 | 已装 | `UploadZone`（FR-8.4.2）直接用 | 手写 drag events：已有依赖不重造 |
+| 客户端状态 | 不新增全局状态库：`useChat` 持对话、URL 持导航与筛选态（§6.5 四位）、`ConfiguratorContext` 持主题 | 已有 | FR-7.6/7.8 要求环节态可链接直达；URL 即状态天然满足（ADR-18） | zustand/jotai/Redux：当前无跨树共享可变状态诉求，引入即闲置 |
+| 单元/变异测试 | **vitest** | **未装** | 见 §12.6：当前测试由 tsx smoke 脚本 + Playwright 承担 | — |
+| E2E / 视觉 | Playwright ^1.61.1（+ `playwright` ^1.61.1） | 已装 | 视觉回归已跑通（chromium 1512×982，darwin/linux 双 baseline，CI/linux 重生） | Cypress：迁移无收益 |
+| 认证 | 无（硬编码 dev tenant，`slug='dev'`） | 已装（占位） | D4：单租户占位，`tenantId` 进 schema 不进逻辑分支 | next-auth 现在就上：M5 配合 RLS 一次到位，避免假多租户 |
+| 部署 | Docker 四阶段（`deps`/`build`/`tools`/`runner`，node 20-alpine standalone）+ GH Actions：CI（push main → lint+tsc+build+visual）、CD 仅 `workflow_dispatch` 手动（VPS `newkol.guangai.ai:3300`） | 已装 | CICD-VPS + GO-LIVE 已 done；deploy/prod 永留人类闸门 | 自动部署 on push：违反人类闸门约束，禁止 |
+
+**附注 · AI SDK 版本族配对核查（ARCH-M05 F001 要求，2026-07-21 实测）**
+
+表面上 `ai@7` 与 `@ai-sdk/openai@4` / `@ai-sdk/react@4` 主版本号不一致，易误判为错配。经 `node_modules` 内 `peerDependencies` / `dependencies` 逐包核对，**配对合法，无冲突**：
+
+| 包 | 装机版本 | 关键依赖 / peer | 判定 |
+|---|---|---|---|
+| `ai` | 7.0.31 | deps: `@ai-sdk/provider@4.0.3`、`@ai-sdk/provider-utils@5.0.11`；peer: `zod ^3.25.76 \|\| ^4.1.8` | — |
+| `@ai-sdk/openai` | 4.0.16 | deps: `@ai-sdk/provider@4.0.3`、`@ai-sdk/provider-utils@5.0.11`（**与 `ai` 完全一致**）；peer: 同上 zod | ✅ 同族 |
+| `@ai-sdk/react` | 4.0.34 | deps 含 `ai@7.0.31`（**精确等于根装版本**）；peer: `react ^18 \|\| ~19.0.1 \|\| ~19.1.2 \|\| ^19.2.1` | ✅ 同族 |
+| `zod` | 4.4.3 | 满足三处 peer 的 `^4.1.8` | ✅ |
+| `react` | 19.2.7 | 满足 `@ai-sdk/react` peer 的 `^19.2.1` | ✅ |
+
+`npm ls ai @ai-sdk/openai @ai-sdk/react @ai-sdk/provider @ai-sdk/provider-utils zod` 输出中 `@ai-sdk/provider` / `@ai-sdk/provider-utils` / `zod` 全部 `deduped`，**node_modules 内各只有一份实例**（无嵌套重复副本），无 `UNMET PEER DEPENDENCY` 告警。
+
+**结论：`ai@7` + `@ai-sdk/*@4/5` 是 AI SDK v5+ 的正常版本策略**——核心包（`ai`）与 provider/UI 包独立发版，靠共享的 `@ai-sdk/provider` 契约版本对齐。**配对经 peerDeps 检查无冲突、无版本告警。** 升级纪律：升 `ai` 时须同步确认 `@ai-sdk/openai` / `@ai-sdk/react` 依赖的 `@ai-sdk/provider` 版本仍与之一致，不一致则同批升级。
+
+### 1.5 架构约束（已锁定，非本文决策）
+
+- **AI 唯一出口**：aigcgateway（OpenAI 兼容 baseURL），chat（tool-calling）+ embedding 双链路；密钥全走 env。默认 chat=`deepseek-v3`、embedding=`bge-m3`（`src/lib/ai/gateway.ts` 常量，env 可覆盖）。
+- **数据现状**：`scripts/seed/data/kol-seed-enriched-final.csv` **2,524 条**真实 KOL（含表头 2,525 行）入 git 可复现；Apify 采集、外购评估 API、平台一方 API 均后期。
+- **租户与认证**：单租户硬编码 dev tenant（`slug='dev'`，schema 带 `tenantId` 占位），无真实认证；RLS 与认证是 M5 已知下游。
+- **资金边界**：合同/支付走 partner（电子签 + Stripe escrow）；本系统只做触发条件 + 闸门 + 状态追溯，不碰资金与税务。
+- **已交付地基**：DS-FOUNDATION（admin 外壳 / 色阶注入 / 深浅色 / 路由表 / 构建门）· **AGENT-FOUNDATION（M0：Prisma schema + pgvector + seed + gateway + 四柱 + 编排框架 + AI→人闸门）** · GO-LIVE（生产全栈化：db 容器 + migrate one-shot + `/api/health`）· FE-REFACTOR（前端整肃 + 视觉基线）。
+
+> **v1.1 → v1.2 校准**：v1.1 §1.4 末句「**后端尚未落地**（无 `prisma/`、`src/lib/`、`src/app/api/`）」的「零后端」快照**已删除**——三者均已实装（`prisma/schema.prisma` + 2 个 migration、`src/lib/{agent,ai,db}/`、`src/app/api/{agent,gate/confirm,gate/reject,handoffs,health}/`）。
 
 ---
 
-## §2 系统上下文与分层视图
+## §2 业务架构
 
-### 2.1 系统上下文图
+### 2.1 业务结构一句话
 
-用户只有一种：营销操盘手（单角色）。系统边界内是一个 Next.js 应用 + 一个 Postgres；边界外 P0 只有 aigcgateway 一个活跃依赖，其余（Apify/Resend/partner/平台）皆为后期虚线。
+**项目是空间、环节是时间**（D21/D22）：侧栏六页是跨项目工作台，项目内部五环节（Brief → Match → Reach → Delivery → Insight）纵推；操盘手是决策者+审阅者，编队沿环节把机械工作做完、把拍板点顶到面前。
+
+### 2.2 业务能力地图（全站功能 → 架构落点）
+
+| 页 / 域 | 用户只回答 | 核心能力 | 领域模块 | 当值 Agent | 批次 |
+|---|---|---|---|---|---|
+| 今天（雷达） | 哪个项目卡在我这、要我做什么 | 待办聚合 · 编队状态 · 今日完成 · 负荷 | ask 聚合（§8.7） | 编排 | M0.5 外壳 / M1 真数据 |
+| 项目 · Brief | 方向对不对 | 目标拆解 · 预算配比 · 健康度监测 · 阻塞处置 | project + brief 域 | 策略 | M1 |
+| 项目 · Match | 批准哪一组 | 语义搜索 · 可解释评分 · 组合生成 · 待裁定 | match 域 | 匹配 | M2 |
+| 项目 · Reach | 这封发不发、价接不接 | 邀约起草 · 逐人谈判 · 报价 · 信号跟进 | reach（CRM）域 | 触达 | M3 |
+| 项目 · Delivery | 这笔放不放 | 条件核对 · 合同/托管/披露 · 放款准备 · Key 分发 | delivery 域 | 交付 | M3 |
+| 项目 · Insight | 对账原目标 | 目标 vs 实际 · 证据缺口 · 复盘草案 | insight 域（项目内） | 洞察 | M4 |
+| 创作者库 | 有谁值得复用、分流到哪 | 发现 · 受众预排序 · 加入项目匹配 | kol 资产域 | 匹配 | M2 |
+| 游戏知识 | 这游戏卖点/受众/红线 | 素材管理 · Agent 解析 · 特点提炼 | knowledge 域 | 策略 | M1 |
+| 洞察（跨项目） | 哪个项目 ROI 高、加投谁 | 跨项目 ROI · 周报草案 · 对外分享 | insight 域（跨项目） | 洞察 | M4 |
+| Agent 记录 | 编队做了什么、哪些不可逆 | 全量留痕 · 类型筛选 · 闸门审计闭环 | audit 域 | 编排 | M0（表已实装） |
+| 合规（横切，无页） | 这个能不能发 | 品牌安全 · #ad 披露 · 授权范围核查 | compliance 域 | 合规（被调用） | M2/M3 |
+
+铁律（FR-7.5）：**发现/分流 ≠ 执行**——创作者库唯一动作是「加入某项目匹配」；触达/谈判/放款只能在项目内发生。
+
+### 2.3 三条业务主线
 
 ```mermaid
 flowchart LR
-  operator["营销操盘手<br/>(单角色, D26 · 无第二种用户)"]
-
-  subgraph kolmatrix["KOLMatrix — 单一 Next.js 15 应用 (D1)"]
-    fe["前端工作台<br/>三区外壳: 侧栏 300px (主区偏移 xl:ml-[313px]) + 主区画布 + Copilot 360px<br/>侧栏 6 页 + 项目详情五环节 tab"]
-    rt["Agent 运行时 + 闸门<br/>src/app/api/agent/route.ts + /api/actions/[id]/(confirm|execute|reject)<br/>streamText loop · outbound→拦截 PendingAction(pending)"]
-    db[("Postgres + pgvector<br/>dev: docker-compose.dev.yml<br/>Kol(契约位+embedding) · Game 三表 · PendingAction(闸门状态机) · OperationLog")]
-  end
-
-  gw["aigcgateway<br/>OpenAI 兼容 baseURL<br/>chat tool-calling + bge-m3 embedding"]
-  apify["Apify 采集管道<br/>(后期, NFR-D1)"]
-  resend["Resend 邮件投递<br/>(后期, D8)"]
-  partner["partner 电子签 + Stripe escrow<br/>(后期, NFR-S8)"]
-  platforms["YouTube / Twitch<br/>TikTok / Instagram"]
-
-  operator -->|"NL 指令 · 闸门确认(confirm→execute 两步票据)"| fe
-  fe -->|"useChat POST 流式"| rt
-  rt -->|"chat + embedding 双链路<br/>env: AIGCGATEWAY_*"| gw
-  rt -->|"Prisma / $queryRaw(vector)"| db
-  apify -.->|"dataSource=crawl + fieldProvenance<br/>落同一字段契约"| db
-  apify -.-> platforms
-  rt -.->|"send_outreach 等 outbound<br/>(人确认后才产生副作用)"| resend
-  rt -.-> partner
+    subgraph 资产线["资产线（关系飞轮 BG-4）"]
+        MAT[素材上传] --> KNOW[游戏知识<br/>卖点/受众/红线]
+        KOL[KOL 库<br/>seed + 字段契约位]
+    end
+    subgraph 项目线["项目线（五环节价值流）"]
+        B[Brief] --> M[Match] --> R[Reach] --> D[Delivery] --> I[Insight]
+    end
+    KNOW -->|受众| M
+    KNOW -->|卖点| R
+    KNOW -->|红线| CMP[合规 Agent]
+    KOL --> M
+    M -->|定稿组合| R
+    R -->|谈定条款| D
+    D -->|交付与花费数据| I
+    I -->|采纳回填下个 Brief| B
+    SIG[外部信号<br/>回复/发布/签约/托管] --> R
+    SIG --> D
+    CMP -. 拦截 .-> D
+    subgraph 信任线["信任线（诚实性护城河）"]
+        LOG[OperationLog<br/>append-only]
+        GATE[AI→人闸门]
+    end
+    B & M & R & D & I --> LOG
+    GATE -. outbound .-> LOG
+    LOG --> RADAR[今天雷达 / Agent 记录 / 度量]
 ```
 
-系统上下文要点：
+- **项目线**：Project 聚合是五环节的容器与游标，环节间交接物（组合→草稿→条款→凭证→复盘）是责任链。
+- **资产线**：KOL 库 + 游戏知识 + 交互/交付数据回流喂 Agent——第一天起设计的数据闭环。
+- **信任线**：闸门 + append-only 留痕 + 逐字段溯源，相对黑盒 AI 工具的诚实性护城河（FR-10.9）。
 
-- **对外承诺只有一条出边**：所有对外副作用（发信/报价/放款/分发 key/分享链接）都必须穿过运行时的闸门层——外部投递服务永远接在 outbound 工具背后，前端没有任何直连外部的通道
-- **数据只有一种入口形状**：无论 seed CSV、Apify 爬取、外购还是一方 API，都落到 `Kol` 的同一组契约字段并携带 `dataSource` + `fieldProvenance`，产品层无感知（AP-5）
-- **aigcgateway 是唯一模型出口**：chat（tool-calling）与 embedding（bge-m3）双链路都走它，为成本记账与模型路由（NFR-P8）预留单点
+---
 
-### 2.2 分层视图
+## §3 系统上下文
+
+```mermaid
+flowchart LR
+    subgraph 用户侧
+        U[营销操盘手<br/>单角色·1-5 人小团队]
+    end
+
+    subgraph KOLMatrix["KOLMatrix（单个 Next.js 全栈应用）"]
+        FE[前端：三区外壳<br/>侧栏 / 画布 / Copilot]
+        API["Route Handlers<br/>/api/agent · /api/gate/{confirm,reject}<br/>/api/handoffs · /api/health"]
+        AGENT[Agent 运行时<br/>streamText 应答 loop]
+        TOOLS[工具注册表<br/>class: internal / outbound]
+        DOMAIN[领域服务<br/>纯函数 + 状态机（M1+）]
+        LIB[数据访问层<br/>Prisma + zod]
+    end
+
+    subgraph 外部依赖
+        GW[aigcgateway<br/>chat tool-calling + bge-m3 embedding]
+        DB[(PostgreSQL 16 + pgvector<br/>dev docker / prod 容器)]
+        PARTNER[partner 服务·M3<br/>电子签 + Stripe escrow]
+        EXT[数据源·后期<br/>Apify 采集 / 外购评估 API / 平台一方 API]
+        MAIL[邮件投递·M3<br/>Resend 等]
+        SIGIN[入站信号·M3<br/>邮件回复 / partner 回调 / 平台发布]
+    end
+
+    U -->|HTTPS：对话/确认/页面| FE
+    FE --> API
+    API --> AGENT --> TOOLS --> DOMAIN --> LIB --> DB
+    AGENT -->|OpenAI 兼容| GW
+    LIB -->|embedding| GW
+    TOOLS -. 出站适配·M3 .-> PARTNER
+    TOOLS -. 出站适配·M3 .-> MAIL
+    SIGIN -.->|webhook / 轮询·M3| API
+    LIB -. 同一字段契约接入 .-> EXT
+```
+
+**边界声明（架构不做什么）**：不做人→人审批与组织权限层；不碰资金流与税务（partner 域）；不自建模型服务（gateway 域）；当前不做真实认证与多租户隔离。
+
+| 外部系统 | 方向 | 交互 | 状态 |
+|---|---|---|---|
+| aigcgateway | 出站 | OpenAI 兼容：chat（tool-calling）+ embedding（bge-m3） | **已接**（M0/F003） |
+| PostgreSQL 16 + pgvector | — | 主存储 + 向量检索（cosine `<=>`） | **已接**（dev docker + prod 容器） |
+| partner（电子签 + Stripe escrow） | 双向 | 出站：签署/托管/放款执行；入站：signed/funded 回调 | 演进目标（未实装，归 M3） |
+| 邮件投递（Resend 等） | 双向 | 出站：`send_outreach` 投递；入站：回复追踪 | 演进目标（未实装，归 M3）；当前 `send_outreach.execute` 为 mock 副作用（写 `SENT_MARKER` 日志行） |
+| 平台发布信号 | 入站 | 频道轮询（RSS/API）或手动上传兜底 | 演进目标（未实装，归 M3+）；受平台收权影响（NFR-S10） |
+| Apify / 外购评估 / 平台一方 API | 入站 | 补 `Kol` 深字段（受众/可信度/品牌安全） | 演进目标（未实装，归 M5）；字段契约位已预留 |
+
+---
+
+## §4 总体架构
+
+### 4.1 分层视图
 
 ```mermaid
 flowchart TB
-  subgraph L1["① 交互层（浏览器）"]
-    cmd["navbar 指令栏 (FR-7.2)<br/>任意页 Enter → 送入 Copilot"]
-    copilot["CopilotPanel (useChat)<br/>随 route+env 切专家 · 常驻否定式声明"]
-    canvas["GenerativeCanvas + canvas-registry.tsx<br/>type → React 组件（开闭原则）"]
-    gatecard["GateConfirm 确认卡<br/>如实列全部利害 · 「对外·不可撤销」"]
-  end
+    subgraph 浏览器["浏览器（React 19 Client）"]
+        SHELL[三区外壳<br/>Sidebar · Main · CopilotPanel]
+        SURF[五环节语法画布<br/>glance/compare/converse/verify/reconcile]
+        REG[canvas-registry<br/>工具名 → React 组件]
+        CHAT[useChat<br/>流式对话状态]
+    end
 
-  subgraph L2["② API / Agent 运行时层（同一 Next.js 应用）"]
-    route["src/app/api/agent/route.ts<br/>streamText tool-calling loop · 无状态 (FR-12.9)<br/>system prompt = 当前专家人格 + 否定式护栏"]
-    gatekeeper["闸门层 src/lib/agent/gate/ (ticket.ts·harm.ts·pending.ts)<br/>查工具 class: internal→放行执行<br/>outbound→创建 PendingAction(pending) + harm 结构体 · 不下发任何令牌"]
-  end
+    subgraph SERVER["Next.js Server（同一应用）"]
+        direction TB
+        RH["Route Handlers<br/>/api/agent · /api/gate/* · /api/handoffs · /api/health"]
+        JOBS["jobs/scheduler（演进 M1）"]
+        subgraph LIB["src/lib（服务端领域层）"]
+            RUNTIME[agent/：route.ts loop 组装<br/>persona-router · context · to-ai-sdk-tools]
+            AGENTS[agent/registry.ts<br/>编队名册：duty/iso/工具子集]
+            TOOLREG["agent/tools/（注册表：zod IO · class internal/outbound）"]
+            GATE[agent/gate/<br/>gate.ts 确认执行 · harm.ts 利害结构]
+            ORCH[agent/orchestrator.ts · handoff.ts · stage-routing.ts]
+            DOMAIN["domain/（演进 M1）：健康度/匹配分/守卫/CRM 推断/ROI"]
+            SIG["signals/（演进 M3）"]
+            DATA[db/prisma.ts]
+            OPS["ops/（演进 M3）：email/escrow/keys/share 适配器"]
+        end
+    end
 
-  subgraph L3["③ 工具层"]
-    tools["src/lib/agent/tools/ 注册表 (zod IO)<br/>internal: search_kols · get_kol_detail · evaluate_creator · match_plan · draft_email<br/>outbound: send_outreach · send_bulk_outreach · commit_quote · distribute_keys · payout · create_share_link"]
-  end
+    DB[(Postgres 16 + pgvector)]
+    GW[aigcgateway]
 
-  subgraph L4["④ 领域 / 数据访问层"]
-    lib["src/lib/db/prisma.ts 单例 + db/tenant.ts (DEV_TENANT) · src/lib/*/schemas.ts (zod, jsonb 形状唯一权威)<br/>src/lib/oplog/ (append.ts·queries.ts·schemas.ts) append-only writer"]
-  end
-
-  subgraph L5["⑤ 数据层"]
-    pg[("Postgres + pgvector<br/>Kol: 浅字段 + 5 契约位 jsonb(nullable) + embedding vector(1024)<br/>Game / Material / GameKnowledge (sourceMaterialIds 溯源)<br/>OperationLog (DB 触发器阻断 UPDATE/DELETE)")]
-  end
-
-  subgraph EXT["外部服务"]
-    gw2["aigcgateway<br/>接入点: src/lib/ai/gateway.ts"]
-    future["后期: Apify / Resend / partner"]
-  end
-
-  cmd --> copilot
-  copilot -->|"POST /api/agent (逐轮回传对话)"| route
-  route --> gatekeeper --> tools
-  tools --> lib --> pg
-  route -->|"chat / embedding"| gw2
-  tools -.->|"outbound 副作用 (确认后)"| future
-  route -->|"流式 type 化工具结果"| canvas
-  gatekeeper -->|"pending + harm（不含任何令牌）"| gatecard
-  gatecard -->|"确认: POST /api/actions/[id]/confirm 签一次性票<br/>→ POST /api/actions/[id]/execute {ticket} 消费票执行"| gatekeeper
+    SHELL --> CHAT -->|POST /api/agent（SSE）| RH
+    SHELL -->|读类 fetch / RSC| RH
+    REG -. 工具结果路由 .- SURF
+    RH --> RUNTIME --> AGENTS
+    RUNTIME --> TOOLREG --> GATE
+    TOOLREG --> DOMAIN
+    TOOLREG --> DATA --> DB
+    RUNTIME --> ORCH
+    JOBS -.->|以 agent 身份复用| TOOLREG
+    RUNTIME --> GW
+    DATA -->|embedding| GW
 ```
 
-两条关键流（实现工程师照此写调用链）：
+### 4.2 关键架构风格决定
 
-**internal 流（无闸门，FR-10.6）**：指令栏/Copilot 输入 → `useChat` POST `/api/agent` → `streamText` loop 模型决定调 `search_kols` → 闸门查 `class=internal` 放行 → 工具执行（`src/lib/kol/search.ts`：NL→`gateway.ts` embedding→pgvector `<=>` cosine top-K）→ 执行管线组装前端信封 `ToolResultPart{type:'kol_cards', data, meta:{toolName,toolClass,agentId,createdAt}}` 流式回传（信封与 `ToolDefinition`/`ToolOutcome` 同定义于 `src/lib/agent/tools/types.ts`）→ `canvas-registry` 查 `type` 渲染 KOL 卡片流 → 同时追加 `OperationLog`（internal 类日志，UI 弱化展示，FR-11.14）。
+1. **单全栈应用**（D1）：前后端同处一个 Next.js App Router 应用；后端 = Route Handlers + `src/lib`。无独立后端服务、无微服务、无消息队列。
+2. **三条请求通道分离**：
+   - **对话通道**：`POST /api/agent`，SSE 流式（`toUIMessageStreamResponse`），承载「NL → 规划 → 工具 → 画布结果」；
+   - **数据通道**：页面读类数据走普通 Route Handler / Server Component 直读 repository——**读数据不经过模型**；
+   - **作业通道**：调度器例程 + 信号 webhook（**演进目标，未实装，归 M1/M3**）——产物一律落库留痕，再经雷达/记录页呈现。
+3. **工具结果协议解耦四柱**（FR-12.3）：新增工具或结果类型不改运行时 route 核心与对话面外壳（见 §8.5 as-built 路由键说明）。
+4. **运行时不保存会话状态**（FR-12.9）：`/api/agent` 无状态；对话历史由前端 `useChat` 持有并逐轮回传。为多租户 RLS 留干净边界。
+5. **领域逻辑是纯函数**：健康度、匹配分、交付达标、环节流转守卫、CRM 状态推断全部落在 `src/lib/domain/`（**演进目标，未实装，归 M1+**），可单测、可变异测试，不藏在组件或 prompt 里（DP-6）。
+6. **能力只建一套**：应答 loop、主动例程、信号处理都复用同一工具注册表与领域函数——Agent「自己干活」和「替人答话」是同一份能力的两种触发方式（§8.10）。
+7. **唯一执行入口**（as-built，架构级）：所有工具调用必经 `executeTool()`（`src/lib/agent/execute.ts`），以保证 ① zod 入参校验 ② `class` 分流（outbound 门控）统一生效。**禁止双执行语义并存**——`registerTool` 对重名直接抛错。
 
-**outbound 流（闸门，FR-10.1）**：模型调 `send_outreach` → 闸门查 `class=outbound` → **不执行副作用**，创建 `PendingAction(uuid, status=pending)` 并返回 pending + `harm` 结构体（唯一 zod 定义 `src/lib/agent/gate/harm.ts`：`title` / `irreversibleLabel:'对外·不可撤销'` / `facts[]` / `recipients[{displayName,platform,handle?}]` / `amount?` / `scope?` / `basis?`）——**拦截时不下发任何令牌**（禁止令牌随 SSE/data-gate 流下发）→ 前端渲染 `GateConfirm` → 操盘手确认 → `POST /api/actions/[id]/confirm` 服务端签发**一次性票据**（票仅在 confirm 响应中出现一次，不变量 I3）→ `POST /api/actions/[id]/execute {ticket}` 消费票执行副作用 → 成功则**同一事务** finalize(`executed`) + INSERT `irrev` 行（含确认人/确认时间/依据，FR-8.6.7）；副作用失败 → `failed`、无 irrev 行；拒绝走 `POST /api/actions/[id]/reject`。模型 loop 全程接触不到票据。
+### 4.3 目录结构（文件级，as-built + 演进标注）
 
-### 2.3 与现有代码库的衔接
-
-现状（侦察确认）：**零后端**——无 `src/app/api/`、无 `src/lib/`、无 prisma、无 zod、无 AI SDK。已有资产 = 外壳 + 模板组件库存 + CI/CD 骨架。目录增量规划：
-
-```
-src/
-├── app/
-│   ├── api/agent/route.ts            # 新建 F004 — Agent 流式端点
-│   ├── api/actions/[id]/             # 新建 F008 — 闸门契约端点
-│   │   ├── confirm/ execute/ reject/ #   POST 确认(签一次性票)/执行(消费票)/拒绝
-│   │   └── route.ts                  #   GET pending 详情（恢复确认卡）
-│   ├── admin/
-│   │   ├── layout.tsx                # 已有(81行) — 加 Copilot 第三区，侧栏/navbar 不重挂载(FR-7.1)
-│   │   ├── today/ campaigns/ campaigns/[id]/ creators/
-│   │   │   knowledge/ insight/ runs/ # F006 — 六页 IA 替换现 discovery/database/outreach 占位
-│   │   └── dashboards/default/       # 已有实装页，IA 切换后由 today 承接
-├── instrumentation.ts                # 启动 env 校验入口（本仓库有 src/，不在根）
-├── lib/                              # 全部新建（现不存在）
-│   ├── env.ts                        # serverEnv() 惰性缓存
-│   ├── ai/gateway.ts                 # F002 — aigcgateway provider (baseURL + env 校验)
-│   ├── db/prisma.ts · db/tenant.ts   # F001 — Prisma 单例 · DEV_TENANT
-│   ├── agent/                        # runtime.ts + resolve.ts + prompt.ts
-│   │   ├── tools/                    # F004 — registry.ts(注册表) + types.ts(ToolDefinition/ToolOutcome/OUTBOUND_TOOL_NAMES) + 每工具一文件
-│   │   ├── experts/                  # 七专家定义
-│   │   └── gate/                     # F008 — ticket.ts(签/验票) + harm.ts(harm zod 唯一定义) + pending.ts
-│   ├── oplog/                        # F008 — append.ts + queries.ts + schemas.ts（append-only）
-│   └── kol/search.ts · kol/schemas.ts # F004/FR-11.20 — 检索 + jsonb 契约位 zod（形状唯一权威）
-├── components/
-│   ├── copilot/CopilotPanel.tsx      # F005
-│   ├── canvas/                       # F005 — 注册表（受控 register API）+ renderers
-│   └── gate/GateConfirm.tsx          # F008
-├── routes.tsx                        # 已有 IRoute[] — F006 改为 6 页
-prisma/schema.prisma                  # F001
-scripts/seed/import-kol-csv.ts        # F003（幂等）
-scripts/test/ai-gateway-smoke.ts      # F002
-docker-compose.dev.yml                # F001 — 本地 pg + pgvector
-```
-
-衔接约定：
-
-| 约定 | 内容 |
-|---|---|
-| 导入路径 | 业务代码一律裸 src 导入（`tsconfig.baseUrl: "src"`）、**不新增 `@/` 别名**；保留既有 `@/public/*` 静态资源映射（tsconfig paths 已存在）——新代码写 `import { toolRegistry } from 'lib/agent/tools/registry'`、`import { gateway } from 'lib/ai/gateway'`，与现有 `import Card from 'components/card'` 一致 |
-| 组件复用 | Horizon 现成 → className/token 约定 → 才新建（FR-12.25）；需新建产品件清单：`CopilotPanel` `GenerativeCanvas` `GateConfirm` `ProvenanceTag` `ConversationInbox` `AgentSquad` `ExpertAgentHeader` `HalfGauge`(ApexCharts radialBar −90/90) `DataTable`(抄模板 ComplexTable + @tanstack/react-table) `UploadZone`(react-dropzone) |
-| 命名 | Prisma camelCase / DB snake_case(`@map`)；uuid `gen_random_uuid()`（`OperationLog` 例外 bigint autoincrement）；timestamptz + `@updatedAt`；长生命周期实体 `deletedAt` |
-| pgvector | Prisma `Unsupported("vector(1024)")`，读写走 `$queryRaw`（cosine 用 `<=>`）；`embeddingTextHash` 做重嵌入守卫（FR-11.5） |
-| 测试衔接 | Playwright 沿用现配置（`tests/visual/`，snapshot 双平台后缀）；新增页面必补 baseline（§15.2）；单元/变异测试新增 vitest（现有 @testing-library/react 已装但无 runner） |
-
----
-
-## §3 技术选型总表
-
-| 领域 | 选型（版本） | 状态 | 选型理由 | 替代方案（不选原因） |
-|---|---|---|---|---|
-| 应用框架 | Next.js ^15.1.5 App Router，前后端同一应用 | 已装 | D1 硬决策：Route Handlers + Server Actions 免去独立后端；`output:'standalone'` 已接 Docker CD；运行时无状态设计让同应用也能留 RLS 边界 | 独立后端（NestJS/Fastify + SPA）：多一套部署与鉴权面，P0 单人团队维护成本不划算；旧仓库后端：明确只参考不移植（D8） |
-| UI 运行时 | React 19.0.0-rc.1 | 已装 | Horizon Pro 模板 pin；`.npmrc legacy-peer-deps=true` 已消化 RC peer 冲突 | 降级 React 18：与模板 scaffold 冲突，改造成本大于收益 |
-| 语言 | TypeScript 5.x（现装 ^4.9.4 模板 pin；**独立微批次在 F002 启动前升级**） | **需升级** | 统一裁决（ADR-008）：TS5 升级 + 构建门全绿作为独立微批次完成，**不与 F001–F008 混批**；之后 zod/Prisma/AI SDK 均按 TS5 选版（AI SDK v5 要求 TS≥5）；新代码按 strict 风格写，为渐进收紧铺路 | 停留 4.9：AI SDK v5 要求 TS≥5，无法承载 Agent 运行时选型；「落地中再评估」：拖到 F002 之后会与 AI SDK/Prisma 版本连环冲突 |
-| 设计系统 | Tailwind ^3.3.3 + `AppWrappers.tsx` 运行时 CSS 变量色阶（`--color-50..900`，主色 #422AFB） | 已装 | 模板主设计系统就是 Tailwind + CSS 变量，**不是** Chakra theme（无 ChakraProvider/extendTheme）；浅色默认 + `body.dark` | Chakra theme 全家桶：模板架构不支持；再写一套 CSS 变量/`data-theme`：FR-12.26 明令禁止 |
-| 交互原语 | Chakra 拆包（仅 modal/hooks/popover/tooltip/accordion） | 已装 | GateConfirm 焦点陷阱 + Escape（NFR-A1）直接用 `@chakra-ui/modal` 现成可达性 | Radix/Headless UI：重复引入第三套原语体系 |
-| Agent 运行时 SDK | Vercel AI SDK v5（`streamText` + `useChat`；v5 要求 TS≥5，依赖 F002 前完成的 TS5 微批次） | **需新增**（`ai` + provider 包） | spec D2 硬决策：流式 loop、tool-calling、React hook 一体；工具定义天然接 zod；`useChat` 逐轮回传对话正好满足运行时无状态（FR-12.9） | LangChain/LlamaIndex：抽象层过重，四柱只需 loop+注册表；手写 SSE loop：重造流式协议与 tool-call 解析；`@anthropic-ai/sdk` 直连：绑定单一供应商，且模型出口已定为网关 |
-| 模型出口 | aigcgateway（OpenAI 兼容 baseURL），接入点 `src/lib/ai/gateway.ts`，自定义 provider（`@ai-sdk/openai-compatible` 或 `createOpenAI({baseURL})`，F002 定） | **需新增** | D2：chat（tool-calling）+ embedding 双链路单出口；统一计费与成本记账挂点，支撑后期模型路由（NFR-P8）；密钥 env + 启动校验 | 直连 OpenAI/Anthropic：多密钥多计费面，失去路由单点；smoke 脚本 `scripts/test/ai-gateway-smoke.ts` 是 F002 验收 |
-| Embedding | bge-m3，1024 维，经网关 | **需新增**（网关侧，无本地依赖） | D3：多语种强（全球 KOL：东南亚/多地区 NL 检索）；维度与 `vector(1024)` 列一致 | OpenAI text-embedding-3：需另开出口；本地推理：dev 机不必要的重量 |
-| ORM / DB | Prisma（按 TS5 选版）+ PostgreSQL + pgvector（dev: `docker-compose.dev.yml`） | **需新增** | PRD §11 栈约束；migration 工具链成熟；`Unsupported("vector")` + `$queryRaw` 覆盖向量读写；jsonb 契约位 + zod 双层校验 | Drizzle：pgvector 支持更原生，但 PRD 已锁 Prisma 且团队规约以 Prisma 计；裸 SQL：失去 migrate/类型生成 |
-| 向量检索 | pgvector cosine（`<=>`）top-K，同库 | 随 DB | ~2,524 条规模 DB 侧 <200ms（NFR-P3）绰绰有余；与业务数据同库同事务，溯源/闸门留痕不跨系统 | 独立向量库（Pinecone/Qdrant）：此规模纯增运维面；后期数据量上来再评估，检索接口收敛在 `search_kols` 工具内、可换实现不改协议 |
-| 校验 | zod | **需新增** | NFR-S6/FR-11.20 硬要求：工具 IO、jsonb 契约位、API 入参、模型输出统一一套 schema；AI SDK 工具定义原生吃 zod；「空依据的分数判非法」（FR-11.4）这类规则用 `refine` 表达 | yup/valibot：AI SDK 生态以 zod 为一等公民 |
-| 图表 | ApexCharts 3.35.5 + react-apexcharts 1.4.0 | 已装 | 模板封装件现成（`components/charts/`）；`HalfGauge` = radialBar −90/90（FR-8.2.1.1） | ECharts/Recharts：重复引入，且需重做 Horizon 视觉适配 |
-| 表格 | @tanstack/react-table ^8 | 已装 | `DataTable` 抄模板 ComplexTable 写法；headless 与 Tailwind 设计系统无冲突 | AG Grid：闭源重件，兜底表格用不到 |
-| 上传 | react-dropzone | 已装 | `UploadZone`（FR-8.4.2）直接用 | 手写 drag events：已有依赖不重造 |
-| 单元/变异测试 | vitest | **需新增** | CLAUDE.md 建议项；ESM/TS 原生快；闸门/守卫类必须配变异测试（D20/§15.4），vitest 起停快适合高频跑 | jest：模板只装了 @testing-library 没装 runner，jest 对 ESM/TS4.9 配置成本更高 |
-| E2E / 视觉 | Playwright ^1.61.1 | 已装 | 视觉回归已跑通（chromium 1512×982，darwin/linux 双 baseline，CI/linux 重生）；M0–M4 交互门（§15.3）沿用 | Cypress：迁移无收益 |
-| 客户端状态 | 不新增全局状态库：`useChat` 持对话、URL（`?env=` + `cur` 游标）持导航态、既有 `ConfiguratorContext` 持主题 | 已有 | FR-7.6/7.8 要求环节态可链接直达（雷达待办落 `ask.env`），URL 即状态天然满足；对话态归 useChat（AP-4 令牌也走请求体不走全局 store） | zustand/jotai：当前无跨树共享的可变状态诉求，引入即闲置 |
-| 认证 | P0 无（硬编码 dev tenant） | — | D4：单租户占位，`tenantId` 进 schema 不进逻辑分支 | next-auth 现在就上：M5 再做，配合 RLS 一次到位，避免 P0 假多租户 |
-| 部署 | Docker 三阶段（node 20-alpine, standalone）+ GH Actions：CI（push main → lint+tsc+build+visual）、CD 仅 `workflow_dispatch` 手动（VPS newkol.guangai.ai:3300） | 已装 | CICD-VPS 已 done；deploy/prod 永留人类闸门（与 AP-4 同构） | 自动部署 on push：违反人类闸门约束，禁止 |
-
-**P0 需新增依赖清单**（在 TS5 升级微批次完成后安装——zod/Prisma/AI SDK 均按 TS5 选版；注意 `.npmrc legacy-peer-deps=true` 环境下安装，装后跑 `tsc --noEmit` 确认与 @types/react@18 pin 不冲突）：
-
-```bash
-# 运行时
-npm i ai @ai-sdk/openai-compatible zod @prisma/client
-# 开发
-npm i -D prisma vitest tsx dotenv-cli csv-parse
-```
-
-**反选型清单**（明确不引入，防蔓延）：微服务/独立 Agent 服务（AP-3：专家是配置不是服务）；独立向量库；第二套 NL 入口（DP-3：全产品只保留一个）；全局状态库；任何含 `role`/`scope`/审批链语义的库或表（AP-1）；`dangerouslySetInnerHTML` 类 HTML 渲染方案（FR-12.16）。
-
----
-
-# §4 前端架构
-
-> 读者：Generator。本章给出 App Router 目标目录树（文件级）、页面组件树与复用组件架构、状态管理策略、设计系统约定、generative canvas 前端协议。业务代码一律裸 `src` 导入（`tsconfig baseUrl: "src"`），不新增 `@/` 别名；保留既有 `@/public/*` 静态资源映射（tsconfig paths 已存在）。`components/...` 即 `src/components/...`。
-
-## 4.1 App Router 目录结构
-
-### 4.1.1 目标目录树（文件级，含标注）
-
-图例：`[保留]` 现状不动 · `[改]` 原地修改 · `[新建]` 新文件 · `[删]` 落地后删除 · `(P0)` AGENT-FOUNDATION / WORKBENCH-UI 必须 · `(演进)` 后期批次。
+图例：`[已建]` 仓库现存 · `[新建]` 后续批次新增 · `(M0.5)` ARCH-M05 必须 · `(演进 Mx)` 后期批次。
 
 ```
 src/
-├── routes.tsx                            [改](P0) 5 项 → 6 项侧栏 IA（见 4.1.2）
-├── Fonts.tsx                             [保留] 模板字体定义（演进：接线 next/font/local）
+├── routes.tsx                              [已建] 6 项侧栏 IA
+├── Fonts.tsx                               [已建] next/font/local 接线
 ├── app/
-│   ├── layout.tsx                        [保留] 根布局，默认浅色（body 无 dark class）
-│   ├── AppWrappers.tsx                   [改](P0) ConfiguratorContext 扩展 copilot 字段（见 4.3.3）
-│   ├── page.tsx                          [改](P0) redirect('/admin/today')（现指 dashboards/default）
+│   ├── layout.tsx                          [已建] 根布局，默认浅色（body 无 dark class）
+│   ├── AppWrappers.tsx                     [已建] 运行时 CSS 变量色阶注入
+│   ├── page.tsx                            [已建] 根重定向
 │   ├── api/
-│   │   ├── agent/
-│   │   │   └── route.ts                  [新建](P0/F004) 流式 loop（后端另章，此处仅作前端对接点）
-│   │   └── actions/[id]/                 [新建](P0/F008) 闸门两步票据契约，权威定义见闸门章（A4）：
-│   │       ├── route.ts                  #   GET pending 详情（today 雷达卡/项目页恢复确认卡）
-│   │       ├── confirm/route.ts          #   POST 人确认→签发一次性票（票仅在此响应出现一次）
-│   │       ├── execute/route.ts          #   POST 消费票执行
-│   │       └── reject/route.ts           #   POST 驳回
+│   │   ├── agent/route.ts                  [已建] 柱二：streamText 流式 loop + persona 路由（F005/F006）
+│   │   ├── gate/confirm/route.ts           [已建] 闸门：人确认 →（服务端内部签令牌）→ 执行 → irrev 留痕
+│   │   ├── gate/reject/route.ts            [已建] 闸门：拒绝 → 失效 PA + block 留痕
+│   │   ├── handoffs/route.ts               [已建] 协同交接读写（F006）
+│   │   ├── health/route.ts                 [已建] 纯 liveness 探针（GO-LIVE F001）
+│   │   ├── kols/route.ts · kols/[id]/route.ts          [新建](演进 M1+) 读类数据通道
+│   │   └── signals/inbound/route.ts        [新建](演进 M3) 入站信号 webhook
+│   ├── preview/agent-canvas/               [已建] canvas fixture 预览页（视觉基线用）
 │   └── admin/
-│       ├── layout.tsx                    [改](P0) 三区外壳：现有 Sidebar+Navbar+Footer 之外挂 Copilot 右栏（见 4.2.1）
-│       ├── page.tsx                      [改](P0) redirect('/admin/today')
-│       ├── today/
-│       │   └── page.tsx                  [新建](P0) 今天/雷达（编排 Agent）
-│       ├── campaigns/
-│       │   ├── page.tsx                  [改](P0) 项目列表（替换 ComingSoon 占位）
-│       │   └── [id]/
-│       │       ├── page.tsx              [新建](P0) 项目详情 RSC 壳：取项目数据 → <ProjectDetail/>
-│       │       └── ProjectDetail.tsx     [新建](P0) client：项目头 + StageRail + stagePanel（?env= tab）
-│       ├── creators/
-│       │   └── page.tsx                  [新建](P0) 创作者库（吸收原 discovery+database 职责）
-│       ├── knowledge/
-│       │   └── page.tsx                  [新建](P0) 游戏知识（UI P0 可 mock，真解析属 P1）
-│       ├── insight/
-│       │   └── page.tsx                  [新建](P0) 洞察（跨项目）
-│       ├── runs/
-│       │   └── page.tsx                  [新建](P0) Agent 记录（append-only 日志读取面）
-│       ├── dashboards/default/page.tsx   [删] today 落地后删除（F006）。⚠️ 同批改两处指向 /admin/today：
-│       │                                     docker-compose.prod.yml healthcheck 与 playwright.config.ts
-│       │                                     webServer.url，并重生受影响 visual baseline
-│       ├── discovery/page.tsx            [删] 并入 creators
-│       ├── database/page.tsx             [删] 并入 creators
-│       └── outreach/page.tsx             [删] 槽位由 runs 接替（触达能力进项目详情 Reach 环节，FR-7.5）
+│       ├── layout.tsx                      [已建] 三区外壳（侧栏 + 主区 + Copilot 列）
+│       ├── page.tsx                        [已建]
+│       ├── today/page.tsx                  [已建·外壳](M0.5 充实) 今天/雷达
+│       ├── campaigns/page.tsx              [已建·外壳](M0.5 充实) 项目列表
+│       ├── campaigns/[id]/page.tsx         [已建·外壳](M0.5 充实) 项目空间 + 五环节 tab（?env=）
+│       ├── creators/page.tsx               [已建·外壳](M0.5 充实) 创作者库
+│       ├── knowledge/page.tsx              [已建·外壳](M0.5 充实) 游戏知识
+│       ├── insight/page.tsx                [已建·外壳](M0.5 充实) 洞察（跨项目）
+│       ├── runs/page.tsx                   [已建·外壳](M0.5 充实) Agent 记录
+│       ├── dashboards/page.tsx             [已建] ⚠️ redirect 桩（非删除）
+│       ├── dashboards/default/page.tsx     [已建] ⚠️ redirect('/admin/today')
+│       ├── discovery/page.tsx              [已建] ⚠️ redirect('/admin/creators')
+│       ├── database/page.tsx               [已建] ⚠️ redirect('/admin/creators')
+│       └── outreach/page.tsx               [已建] ⚠️ redirect('/admin/campaigns')
 ├── components/
-│   ├── （card/charts/sidebar/navbar/fields/progress/dropdown/tooltip/popover/...）[保留] Horizon 库存
-│   ├── navbar/index.tsx                  [改](P0) 搜索胶囊 → CommandBar 指令栏 + Agent 推进中脉冲（FR-7.2）
-│   ├── sidebar/components/SidebarCard.tsx[改](P0) 内容改「Agent 自动边界」CTA，不可关闭（FR-7.3）
-│   ├── common/ComingSoon.tsx             [保留] 过渡期占位
-│   ├── copilot/                          [新建](P0/F005)
-│   │   ├── CopilotPanel.tsx              # 常驻右栏容器（useChat 宿主）
-│   │   ├── ExpertAgentHeader.tsx         # 专家头 + duty/iso 职责隔离卡（FR-7.13）
-│   │   ├── MessageList.tsx               # 流式消息列（aria-live="polite"，NFR-A2）
-│   │   ├── MessageBubble.tsx             # 单条气泡（text part）
-│   │   ├── CommandBar.tsx                # navbar 内嵌指令栏（Enter → 送入 Copilot 并展开）
-│   │   ├── CopilotInput.tsx              # 面板底部输入（InputField 拼）
-│   │   ├── agents.ts                     # 前端花名册元数据（7 Agent：id/name/duty/iso/开场白）
-│   │   └── useCopilotContextKey.ts       # 包 lib/agent/resolve.ts 同构推导 → contextKey（见 4.3.2）
-│   ├── canvas/                           [新建](P0/F005) generative canvas 协议（见 4.5）
-│   │   ├── types.ts                      # CanvasComponentProps / CanvasGo（ToolResultPart 信封权威在 src/lib/agent/tools/types.ts）
-│   │   ├── canvas-registry.tsx           # 受控 register API：registerCanvasRenderer(type,component)（唯一核心，加类型不改它）
-│   │   ├── renderers/
-│   │   │   ├── index.ts                  # 注册入口（★加新类型只在此加一行 registerCanvasRenderer）
-│   │   │   ├── KolCardStream.tsx         # type='kol_cards'（P0，hello-agent）
-│   │   │   ├── KolDetailCard.tsx         # type='kol_detail'（P0）
-│   │   │   ├── ActionCards.tsx           # type='action_cards'（{icon,title,sub,go}，FR-7.14）
-│   │   │   ├── GateConfirmCard.tsx       # type='gate_confirm'（P0/F008，包 GateConfirm）
-│   │   │   ├── PlainResultCard.tsx       # 未注册 type 兜底（JSON 摘要 + toolName）
-│   │   │   ├── MatchPlanMatrix.tsx       # type='match_plan'（演进 P2）
-│   │   │   └── RoiReportCard.tsx         # type='roi_report'（演进 P4）
-│   ├── stage/                            [新建](P0 WORKBENCH-UI) 五环节落地面（D22：stagePanel 唯一渲染入口）
-│   │   ├── stage-registry.ts             # env → StageDef（grammar/verb/agentId/Panel）
-│   │   ├── StageRail.tsx                 # 环节导轨（5 节点三态，读 cur 游标，FR-7.7/7.8）
-│   │   ├── StageHeader.tsx               # 落地面顶部固定 grammar+verb 标签（FR-7.10）
-│   │   ├── BriefPanel.tsx                # 仪表 glance：HalfGauge + 阻塞卡 + timeline
-│   │   ├── MatchPanel.tsx                # 对比矩阵 compare：横向多方案 ≥5 行 + 推荐列 + 待你裁定区
-│   │   ├── ReachPanel.tsx                # 对话收件箱 converse：包 ConversationInbox
-│   │   ├── DeliveryPanel.tsx             # 条件台账 verify：DataTable 逐条件行，无推荐卡
-│   │   └── InsightPanel.tsx              # 对照账本 reconcile：原目标 vs 实际 + 证据缺口
-│   ├── table/DataTable.tsx               [新建](P0) @tanstack/react-table 通用封装（抄 ComplexTable 抽参）
-│   ├── gate/GateConfirm.tsx              [新建](P0/F008) 闸门确认卡（Chakra Modal + 焦点陷阱，NFR-A1）
-│   ├── provenance/ProvenanceTag.tsx      [新建](P0) 溯源徽标（读 fieldProvenance，四类非仅颜色区分）
-│   ├── inbox/ConversationInbox.tsx       [新建](P0) 触达三栏（左选人/中对话/右档案，state.pick）
-│   ├── squad/AgentSquad.tsx              [新建](P0) 编队花名册卡（今天页；6 元入卡=5 环节专家+合规，orchestrator 汇报者不入卡；协同交接默认折叠可展开）
-│   ├── gauge/HalfGauge.tsx               [新建](P0) ApexCharts radialBar −90/90 半环
-│   └── upload/UploadZone.tsx             [新建](P0 UI) react-dropzone（已装）+ 素材列表 + parseStatus
-├── contexts/
-│   └── ConfiguratorContext.ts            [改](P0) 扩展 copilot 外壳态（见 4.3.3）
-├── hooks/
-│   ├── useMediaQuery.ts 等               [保留]
-│   └── useBadgeCounts.ts                 [新建](P0 可 mock) 今天/记录侧栏徽标计数（FR-7.4；asks 经 list_pending_asks 单一工具取数）
+│   ├── （card/charts/sidebar/navbar/fields/progress/dropdown/tooltip/popover/…）[已建] Horizon 库存
+│   ├── common/                             [已建] **恰好 10 件**：Badge · Button · ChatBubble ·
+│   │                                         ComingSoon · DefinitionRow · HandoffCard · PageHeader ·
+│   │                                         PanelHeader · SectionLabel · SurfaceCard
+│   │   ├── Toast.tsx                       [新建](M0.5) 自建轻量（单例+2.4s+底部居中，裁决 #9）
+│   │   ├── DataTable.tsx                   [新建](M0.5) @tanstack/react-table 通用封装
+│   │   ├── HalfGauge.tsx                   [新建](M0.5) ApexCharts radialBar −90/90
+│   │   ├── UploadZone.tsx                  [新建](M0.5) react-dropzone + parseStatus
+│   │   ├── ProvenanceTag.tsx               [新建](M0.5) variant: 'badge' | 'inline'（裁决 #10）
+│   │   ├── AgentSquad.tsx                  [新建](M0.5) variant: 'grid' | 'compact'（裁决 #7）
+│   │   ├── GateConfirm.tsx                 [新建](M0.5) 闸门确认卡（Chakra Modal + 焦点陷阱）
+│   │   └── ConversationInbox.tsx           [新建](M0.5) Reach 三栏收件箱
+│   ├── copilot/                            [已建]
+│   │   ├── CopilotPanel.tsx                [已建] 常驻右栏容器（useChat 宿主）
+│   │   ├── ExpertScope.tsx                 [已建] 专家头 + duty/iso 职责隔离卡
+│   │   ├── HandoffCollab.tsx               [已建] 协同交接区（默认折叠）
+│   │   └── canvas/                         [已建] ⚠️ **canvas 落点在 copilot/ 之下，非顶层 components/canvas/**
+│   │       ├── canvas-registry.tsx         [已建] 工具名 → React 组件（§8.5）
+│   │       └── KolResultCards.tsx          [已建] search_kols 结果卡片流
+│   ├── envs/                               [新建](M0.5) 五套环节语法（brief/match/reach/delivery/insight）
+│   └── project/                            [已建] 项目相关件
 ├── lib/
-│   ├── mock/                             [新建](P0 WORKBENCH-UI 过渡，接真数据后删)
-│   │   ├── kols.ts / projects.ts / knowledge.ts / runlog.ts / squad.ts
-│   ├── agent/ · ai/ · db/                [新建] 后端另章（前端仅 import 其导出的 TS 类型）
-├── types/
-│   └── navigation.d.ts                   [改](P0) IRoute 增 badge 字段（见 4.1.2）
-├── variables/charts.ts                   [保留] chartOptions 预设复用源
-└── styles/                               [保留]
+│   ├── ai/gateway.ts                       [已建] aigcgateway provider（chat + embedding + 成本/错误骨架）
+│   ├── agent/
+│   │   ├── registry.ts                     [已建] 编队名册（7 人格：duty/iso/uiSyntax/tools/systemPrompt）
+│   │   ├── persona-router.ts               [已建] context → 人格 + 工具子集收窄
+│   │   ├── context.ts                      [已建] buildToolContext（dev tenant 解析）
+│   │   ├── execute.ts                      [已建] **唯一执行入口** executeTool（zod + class 分流）
+│   │   ├── to-ai-sdk-tools.ts              [已建] 注册表 → AI SDK tool set 适配
+│   │   ├── orchestrator.ts                 [已建] 环节路由 + pending 聚合（原样不改写）
+│   │   ├── stage-routing.ts                [已建] client-safe 五环节纯函数
+│   │   ├── handoff.ts                      [已建] handoff 信封协议
+│   │   ├── gate/gate.ts                    [已建] createPendingAction / confirm / reject
+│   │   ├── gate/harm.ts                    [已建] harm 单一 zod + PendingActionEnvelope
+│   │   └── tools/
+│   │       ├── types.ts                    [已建] ToolDefinition（**字段名 `class`**）· ToolContext
+│   │       ├── registry.ts                 [已建] 注册表（重名即抛）
+│   │       ├── index.ts                    [已建] native 工具装配入口（幂等注册）
+│   │       ├── search-kols.ts              [已建] internal
+│   │       ├── get-kol-detail.ts           [已建] internal
+│   │       └── send-outreach.ts            [已建] **outbound**（唯一，闸门演示；execute 为 mock）
+│   ├── db/prisma.ts                        [已建] Prisma client 单例
+│   ├── domain/                             [新建](演进 M1+) 纯函数：health · match-score · env-guards · …
+│   ├── data/schemas/ · provenance.ts       [新建](演进 M1+) zod 契约位 + resolveProvenance（§7.5）
+│   ├── api/envelope.ts · errors.ts         [新建](演进 M1+) 统一响应信封 + ApiErrorCode（§10.1）
+│   ├── env.ts                              [新建](演进) serverEnv 集中校验（§13.2）
+│   ├── signals/                            [新建](演进 M3)
+│   ├── jobs/                               [新建](演进 M1) scheduler + routines
+│   └── ops/                                [新建](演进 M3) email · escrow · keys · share 适配器
+├── contexts/ConfiguratorContext.ts         [已建]
+├── hooks/                                  [已建]
+├── variables/charts.ts                     [已建] chartOptions 预设复用源
+└── styles/                                 [已建]
+
+prisma/
+├── schema.prisma                           [已建] §7.2.1 权威转录
+└── migrations/
+    ├── 20260718000000_init/                [已建] 建表 + CREATE EXTENSION vector
+    └── 20260720000000_pendingaction_input/ [已建] PendingAction.inputJson
+
+scripts/
+├── seed/import-kol-csv.ts                  [已建] CSV → 规范化 → upsert → embedding（幂等）
+├── seed/data/kol-seed-enriched-final.csv   [已建] 2,524 条
+├── seed/demo-handoff.ts                    [已建]
+├── deploy/migrate-seed.sh                  [已建] tools 镜像 one-shot 入口
+└── test/                                   [已建] 见 §12.6
+
+tests/visual/                               [已建] dashboard.spec.ts · agent-canvas.spec.ts
 ```
 
-**测试配套**（详见验收章，此处只列文件位）：每个新页补 `tests/visual/<page>.spec.ts` + baseline 入 `tests/screenshots/baseline/`（15.2）。
-
-### 4.1.2 routes.tsx 与 IRoute 扩展
-
-```tsx
-// src/routes.tsx —— 整体替换现有 5 项（P0）
-import { MdOutlineToday, MdCampaign, MdPersonSearch,
-         MdVideogameAsset, MdInsights, MdHistory } from 'react-icons/md';
-import { IRoute } from 'types/navigation';
-
-const routes: IRoute[] = [
-  { name: '今天',     layout: '/admin', path: '/today',     icon: <MdOutlineToday className="text-inherit h-5 w-5" />, badge: 'asks' },
-  { name: '项目',     layout: '/admin', path: '/campaigns', icon: <MdCampaign className="text-inherit h-5 w-5" /> },
-  { name: '创作者库', layout: '/admin', path: '/creators',  icon: <MdPersonSearch className="text-inherit h-5 w-5" /> },
-  { name: '游戏知识', layout: '/admin', path: '/knowledge', icon: <MdVideogameAsset className="text-inherit h-5 w-5" /> },
-  { name: '洞察',     layout: '/admin', path: '/insight',   icon: <MdInsights className="text-inherit h-5 w-5" /> },
-  { name: 'Agent记录', layout: '/admin', path: '/runs',     icon: <MdHistory className="text-inherit h-5 w-5" />, badge: 'runs' },
-];
-export default routes;
-```
-
-`types/navigation.d.ts` 的 `IRoute` 增一个可选字段：`badge?: 'asks' | 'runs'`；`sidebar/components/Links` 读到该字段时渲染计数徽标，计数来自 `hooks/useBadgeCounts.ts`（P0 mock 常量，演进接 API；`asks` 计数与今天页 KPI「待你确认」同源——`Project.ask` 为**展示聚合层**，其 outbound 条目由 `PendingAction(status=pending)` 派生，KPI 与徽标计数均经 `list_pending_asks` 单一工具取数，FR-8.1.3）。
-
-**路由铁律**（FR-7.6/7.9）：项目详情 `/admin/campaigns/[id]` **不进侧栏**，由项目列表卡片 `router.push` 下钻；五环节是 `?env=` query tab **不是子路由**（`?env=brief|match|reach|delivery|insight`，缺省取项目 `cur` 游标）。active 高亮沿用 sidebar 内置 `pathname.includes(routeName)`，`/admin/campaigns/[id]` 自然命中「项目」。**无路由权限守卫**（D26 单角色，D10 已作废——不得引入任何 role 判断）。
-
-## 4.2 页面组件树与复用组件架构
-
-**复用优先级（FR-12.25，硬约定）**：① Horizon 现成组件 → ② className/token 约定（如 `.btn` 无组件，用 `rounded-xl bg-brand-500 hover:bg-brand-600 ...` class 约定）→ ③ 才新建，且用 Horizon 原语拼。完整手写件→真组件映射表见 `docs/product/interaction-prototype-v2-落地规范.md` §4（权威），本节只固化架构结构。
-
-### 4.2.1 三区外壳改造（src/app/admin/layout.tsx）
-
-现有外壳（Sidebar 313px 偏移 + Portal Navbar + `<main>`）保留，追加第三区：
-
-- `CopilotPanel` 挂在 **admin layout 内**（不是各 page 内）——App Router 的 layout 跨路由持久，满足 FR-7.1「路由切换只重绘主区与 Copilot 上下文，侧栏/navbar 不重挂载」。对话线程重置由 copContext key 驱动（4.3.2），**不靠组件重挂载**。
-- 桌面（`xl:`）：`CopilotPanel` 为 `fixed right-0 top-0 h-full w-[360px]`；主区 `<main>` 在现有 `xl:ml-[313px]` 基础上加 `copilotOpen ? 'xl:mr-[372px]' : 'xl:mr-0'`（360px + 12px gutter）。
-- 移动（`<xl`）：Copilot 退为 Chakra `Drawer`（右滑，复用 `navbar/Configurator.tsx` 的 Drawer 写法），开关状态即 `copilotOpen`，断点判断复用 `hooks/useMediaQuery`。
-- Navbar 改造：搜索胶囊位替换为 `components/copilot/CommandBar.tsx`（保留玻璃外壳 `bg-white/30 backdrop-blur-xl`）+ 常驻「Agent 推进中」脉冲点（纯 CSS，产品识别项）。
-
-### 4.2.2 Copilot 面板与主区组件关系（mermaid）
-
-```mermaid
-flowchart LR
-  subgraph shell["src/app/admin/layout.tsx（client，跨路由持久）"]
-    SB["Sidebar<br/>routes.tsx 6 项 + badge"]
-    NB["Navbar<br/>+ CommandBar 指令栏"]
-    subgraph main["主区 children（随路由重绘）"]
-      PG["page.tsx（RSC 取数）"]
-      PD["ProjectDetail.tsx（client）"]
-      RAIL["StageRail（?env= 三态导轨）"]
-      SP["stagePanel<br/>stage-registry: env→Panel"]
-    end
-    CP["CopilotPanel（360px 常驻）<br/>useChat id=copContext key"]
-  end
-  NB -- "Enter: setCopilotBoot(text)<br/>+ setCopilotOpen(true)" --> CTX[("ConfiguratorContext<br/>copilot 扩展字段")]
-  CTX --> CP
-  PG --> PD --> RAIL --> SP
-  ROUTE["usePathname + ?env="] -- "useCopilotContextKey<br/>（lib/agent/resolve 同构推导）<br/>key 变化→线程重置为专家开场白" --> CP
-  CP -- "POST（messages 全量回传）" --> API["/api/agent/route.ts<br/>（无状态流式 loop）"]
-  API -- "stream: text parts + ToolResultPart{type,data,meta}" --> CP
-  CP -- "part.type" --> REG["canvas-registry"]
-  REG --> KC["KolCardStream"]
-  REG --> AC["ActionCards"]
-  REG --> GC["GateConfirmCard"]
-  REG --> PL["PlainResultCard（未知 type 兜底）"]
-  AC -- "onGo('env:'/'pick:'/'enter:')<br/>router.push / setEnv / setPick" --> SP
-  GC -- "① POST confirm（人确认→签票，<br/>票仅在此响应出现一次）" --> CONFIRM["/api/actions/[id]/confirm"]
-  GC -- "② POST execute {ticket}<br/>（消费票执行）" --> EXEC["/api/actions/[id]/execute"]
-```
-
-### 4.2.3 各页组件树（P0 组装清单）
-
-| 页面 | 组件树（缩进=嵌套；★=新建件） | 数据 |
-|---|---|---|
-| `/admin/today` | `MiniStatistics`×4（待你确认/进行中/本周发出/放款待办；「待你确认」经 `list_pending_asks` 取数，与侧栏徽标同源）→ 雷达区：`Card` 列表（仅 `ask≠null` 项目——`ask` 为展示聚合层，outbound 条目由 `PendingAction(status=pending)` 派生，红标「对外·不可撤销」；点击 `router.push('/admin/campaigns/'+id+'?env='+ask.env)`；outbound 待办卡另可经 `GET /api/actions/[id]` 拉 pending 详情**重新渲染 ★`GateConfirm` 确认卡**——pending 恢复入口，确认时才签票，支持刷新/跨会话恢复）→ ★`AgentSquad`（6 元入卡：5 环节专家+合规，orchestrator 为汇报者不入卡；数据经 `squad_status`（outputSchema 定 6 元）+ 团队负荷 `Progress`，负荷条固定注「单一角色，仅用于分工」） | `lib/mock/projects.ts` → RSC |
-| `/admin/campaigns` | `Card` 项目卡网格（健康度 `CircularProgress` 缩略 + `cur` 环节徽标 + `owner` 标记）；卡片 `router.push` 下钻 | 同上 |
-| `/admin/campaigns/[id]` | 项目头 `Card` → ★`StageRail` → ★`StageHeader`(grammar+verb) → ★五 Panel 之一（4.2.4） | RSC 取项目 → client 切 env |
-| `/admin/creators` | 筛选 chips 行（Agent 重排候选，非纯前端过滤）→ ★`DataTable`（列含匹配% `Progress`、★`ProvenanceTag`）→ 详情 Chakra `Drawer`（七分区固定，每区 `ProvenanceTag`；第 7 分区三 Agent 判断卡；底栏**仅**「标记关注」「加入匹配」两 internal，禁 outbound 入口，FR-8.3.9） | mock → F003 seed |
-| `/admin/knowledge` | 游戏 tab（多库隔离）→ ★`UploadZone` → 素材 `DataTable`（parseStatus 状态图标列）→ 三类特点卡（sell/aud/rules，每条带溯源「基于 N 份素材」可回溯） | `lib/mock/knowledge.ts` |
-| `/admin/insight` | KPI `MiniStatistics` → `LineAreaChart`/`BarChart`/`PieChart`(donut options) 看板 → NL 追问入口（送 Copilot）→「对外分享」按钮（唯一闸门，弹 ★`GateConfirm`） | mock → P4 |
-| `/admin/runs` | 类型筛选 chips（auto/gate/block/irrev 四类互斥）→ ★`DataTable`（`irrev` 行展开「（你已确认）」归属：发起 Agent/确认人/利害/时间/依据；`block` 行必带拦截原因） | mock → OperationLog |
-
-### 4.2.4 五环节 Panel（D22/FR-7.10/7.11 硬约束）
-
-`stagePanel` 是环节唯一渲染入口；五套语法**结构不同**，不得退化成同一张表换数据：
-
-```ts
-// src/components/stage/stage-registry.ts
-import type { ComponentType } from 'react';
-
-export type StageEnv = 'brief' | 'match' | 'reach' | 'delivery' | 'insight';
-export type AgentId = 'strategy' | 'match' | 'reach' | 'delivery' | 'insight'
-                    | 'compliance' | 'orchestrator';
-
-export interface StagePanelProps { projectId: string; }
-
-export interface StageDef {
-  env: StageEnv;
-  title: string;                    // 'Brief' …
-  grammar: '仪表' | '对比矩阵' | '对话收件箱' | '条件台账' | '对照账本';
-  verb: 'glance' | 'compare' | 'converse' | 'verify' | 'reconcile';
-  agentId: AgentId;                 // 进环节 Copilot 切该专家（FR-9.1）
-  Panel: ComponentType<StagePanelProps>;
-}
-
-export const STAGES: readonly StageDef[] = [ /* brief→match→reach→delivery→insight 顺序即导轨顺序 */ ];
-```
-
-| Panel | 结构性硬约束 | 关键拼装 |
-|---|---|---|
-| `BriefPanel` | 仪表 glance | ★`HalfGauge`（健康度 0–100，≥80 绿/55–79 橙/<55 红）+ 阻塞卡（附 internal 处置按钮直接执行，不弹框）+ timeline（与导轨共用同一 `cur`） |
-| `MatchPanel` | **必横向多方案对比**（≥5 行候选 × 方案列 + Agent 推荐列） | 对比矩阵用 `DataTable` 变体 + 「待你裁定」区（低置信度列存疑原因，不显低分）；「批准这组」= internal **不弹框**（D27） |
-| `ReachPanel` | **必单人纵向流**（三栏聚焦一人） | ★`ConversationInbox`（`pick` 切人）+ `TextField` 草稿 +「重写」internal 无限重生成 + 发送按钮 → ★`GateConfirm` |
-| `DeliveryPanel` | **必无推荐卡条件台账** | `DataTable` 逐条件行（内容/Key/合同/托管/#ad = 齐`MdCheckCircle`绿/缺`MdCancel`红/不适用），放款按钮**仅在全部必需条件满足时渲染**，无绕过入口 |
-| `InsightPanel` | 对照账本 | 原目标 vs 实际两列对账 + 证据缺口显式列（诚实标注不可归因）+「采纳结论」internal 回填下个 Brief |
-
-## 4.3 状态管理策略
-
-**总原则：不引状态库**（zustand/swr/react-query 均未装，P0 不装）。四层足够：URL（路由与 tab 态）+ RSC（首屏取数）+ `useChat`（对话与 canvas 数据流）+ ConfiguratorContext（外壳态）。演进期若出现跨页缓存需求再评估引入。
-
-### 4.3.1 Server / Client 边界与数据获取
-
-- `admin/layout.tsx` 是 `'use client'`，但 `children` 以 slot 传入，**页面仍可为 RSC**——所有 `page.tsx` 默认 Server Component，负责取数并把可序列化 props 传给 client 岛。
-- P0（WORKBENCH-UI）：RSC 直接 `import` `lib/mock/*.ts`；数据层落地后同签名换成 `lib/db` 服务（Prisma 查询），页面组件不改（契约先行，D15 同构思路）。
-- 图表（ApexCharts）与一切交互件是 client；`ProjectDetail.tsx`、五 Panel、`CopilotPanel` 均 client。
-- `?env=` tab 切换在 client 内完成：`useSearchParams` 读 + `router.replace('?env=x', { scroll: false })` 写，Panel 数据 P0 随首屏一次下发（FR-7.7「点节点切落地面，不改路由页」）。
-- 工具动作改变了页面数据（如「加入匹配」）→ client 调 `router.refresh()` 重新拉 RSC 数据；演进期按 NFR-P7 给 `get_kol_detail` 类加短 TTL 缓存。
-- **对话状态全部在前端**：`useChat` 持有 messages 并逐轮全量回传 `/api/agent`（FR-12.9 运行时无状态，为 RLS 留边界）。服务端不缓存会话，前端也**不做**对话持久化（P0；演进期落 localStorage 需评估）。
-
-### 4.3.2 Copilot 上下文键（copContext）
-
-```ts
-// src/components/copilot/useCopilotContextKey.ts
-// agentId 推导的唯一权威是 src/lib/agent/resolve.ts 的同构纯函数（前端 import 同一函数；
-// 服务端对 /api/agent 请求体 context 重解析、不信任客户端）。本章不自带推导表。
-import { resolveAgent } from 'lib/agent/resolve';
-
-export interface CopilotContextKey {
-  route: string;              // pathname 第二段：'today' | 'campaigns' | ...
-  projectId: string | null;   // /admin/campaigns/[id] 时有值
-  env: StageEnv | null;       // 项目详情内的当前环节
-  agentId: AgentId;           // = resolveAgent({ pathname, env, projectId })
-  key: string;                // contextKey = agentId + ':' + (projectId ?? 'ws') —— 传给 useChat 的 id
-}
-export function useCopilotContextKey(): CopilotContextKey; // usePathname + useSearchParams + resolveAgent
-```
-
-`CopilotPanel` 把 `key` 作为 `useChat({ id: key })` 的会话 id：**key 变化 = 线程重置**为该专家开场白 + 主动汇报「刚刚完成」（FR-7.12 / FR-8.7.9 / FR-9.2）；key 不含 pathname/env，**同一专家在同一项目内跨页保持线程**（无项目上下文归 `'ws'` 工作区线程）。专家的 duty/iso 展示文案取自 `components/copilot/agents.ts`（前端只存展示元数据；system prompt 与工具作用域在服务端按 agentId 切，另章）。
-
-### 4.3.3 ConfiguratorContext 扩展
-
-现有字段全部保留（`mini/hovered/contrast/theme` 及 setter），追加 Copilot 外壳态——它与 `mini` 同属「三区外壳布局态」，放同一 context 合理；若演进期 theme 变更引发的重渲染成为问题，再拆独立 `CopilotShellContext`：
-
-```ts
-// src/contexts/ConfiguratorContext.ts（新增字段）
-interface ConfiguratorContextType {
-  /* —— 现有：mini/setMini/hovered/setHovered/contrast/setContrast/theme/setTheme/sidebarWidth —— */
-  copilotOpen: boolean;                       // 桌面折叠 / 移动抽屉开关
-  setCopilotOpen: Dispatch<SetStateAction<boolean>>;
-  copilotBoot: string | null;                 // CommandBar Enter 注入的指令（FR-8.7.6）
-  setCopilotBoot: Dispatch<SetStateAction<string | null>>;
-}
-```
-
-流转：`CommandBar` Enter → `setCopilotBoot(text)` + `setCopilotOpen(true)`；`CopilotPanel` 消费 `copilotBoot`（`append` 进 `useChat` 后立即 `setCopilotBoot(null)`，遵守不可变更新——用新值替换，不改旧对象）。状态提供方仍是 `AppWrappers.tsx`（`useState` 初始 `copilotOpen: true` 桌面 / 移动由断点判断）。
-
-## 4.4 设计系统与主题
-
-- **单一来源**：Tailwind 3.3（`darkMode: 'class'`）+ `AppWrappers.tsx` 运行时注入 `--color-50..900` 到 `document.documentElement`；`tailwind.config.js` 的 `brand-*` 即 `var(--color-*)`，品牌主色 `--color-500 #422AFB`。
-- **深浅色**：默认浅色（根 layout `<body id="root">` 无 dark class）；深色 = `Configurator`/`FixedPlugin` toggle 给 body 加 `dark` class，组件一律用 `dark:` 变体。**禁止**：自建 `data-theme`、第二套 CSS 变量、照搬原型自定义 CSS（FR-12.26）。
-- **常用 token → class 对照**（完整表见落地规范 §5）：卡片 = `Card` 默认（`rounded-[20px] shadow-3xl shadow-shadow-500 dark:shadow-none`）；标题 `text-navy-700 dark:text-white`；次级 `text-gray-700`/`text-gray-600`；按钮 `rounded-xl bg-brand-500 hover:bg-brand-600 active:bg-brand-700 dark:bg-brand-400`；闸门红按钮同型 `bg-red-500 hover:bg-red-600`；浅底 `bg-lightPrimary`。
-- **产品识别项**（保留、不强对齐 Horizon）：渐变 CTA 卡 `bg-gradient-to-br from-brand-400 to-brand-600`（= SidebarCard 写法）、指令栏、半环仪表、Copilot 列、Agent-live 脉冲。
-- **可访问性硬门**：`GateConfirm` 焦点陷阱 + Escape + 语义按钮标签，不仅靠红色（NFR-A1）；`ProvenanceTag` 四类（platform_api/optin·purchased·crawl/user_upload·ai_estimate 分档）用图标+文字区分，不得仅颜色（NFR-A4）；对比度 ≥4.5:1。
-- **字体**：P0 沿用现状（Google Fonts `@import`）；演进：`next/font/local` 接 `public/fonts/dm-sans/*.ttf`，Poppins 补 ttf 或保留 CDN（PRD Q2）。
-- 每个新页过 `next build + tsc --noEmit + next lint` 全绿 + Playwright visual baseline（浅色 ≥1440px，CI/linux 重生，15.2）。
-
-## 4.5 Generative canvas 前端协议（canvas-registry）
-
-四柱第④柱。核心：工具结果带 `type` 字段，前端按注册表映射到 React 组件；**加新类型 = 加一个 renderer 文件 + 加一行 `registerCanvasRenderer` 注册，不改 CopilotPanel、不改 route.ts**（15.3 canvas 可扩展性断言）。
-
-### 4.5.1 协议类型
-
-```ts
-// src/components/canvas/types.ts
-import type { ComponentType } from 'react';
-import type { StageEnv } from 'components/stage/stage-registry';
-
-// ToolResultPart{type,data,meta:{toolName,toolClass,agentId,createdAt}} 前端信封的唯一权威在
-// src/lib/agent/tools/types.ts（工具层章），由执行管线统一组装（data 已过服务端 zod 校验，
-// 前端视为受信结构、不再执行 HTML）。本章不复制定义，仅 re-export：
-export type { ToolResultPart } from 'lib/agent/tools/types';
-import type { ToolResultPart } from 'lib/agent/tools/types';
-
-/** 动作卡导航文法（FR-7.14）：env=切环节 · pick=选中对象 · enter=进项目 */
-export type CanvasGo = `env:${StageEnv}` | `pick:${string}` | `enter:${string}`;
-
-/** 与工具层信封一一对应：组件签名 {part,onGo,onFollowUp}，示例一律传 part */
-export interface CanvasComponentProps<T = unknown> {
-  part: ToolResultPart<T>;
-  onGo: (go: CanvasGo) => void;          // CopilotPanel 注入：解析前缀→router.push / setEnv / setPick
-  onFollowUp?: (text: string) => void;   // 对话式 Refine（internal，FR-12.11）
-}
-
-export type CanvasRenderer<T = unknown> = ComponentType<CanvasComponentProps<T>>;
-```
-
-### 4.5.2 注册表（受控 register API，加类型只改一个文件）
-
-```tsx
-// src/components/canvas/canvas-registry.tsx —— 受控 register API（唯一核心，此后不再改动）
-import PlainResultCard from './renderers/PlainResultCard';
-import type { ToolResultPart, CanvasGo, CanvasRenderer } from './types';
-
-const registry = new Map<string, CanvasRenderer<any>>();
-
-/** F005「可扩展不改核心」验收与 G 系 fixture 注入测试均依赖此 API（非 Object.freeze 静态映射） */
-export function registerCanvasRenderer(type: string, component: CanvasRenderer<any>): void {
-  registry.set(type, component);
-}
-
-export function CanvasPart(props: {
-  part: ToolResultPart;
-  onGo: (go: CanvasGo) => void;
-  onFollowUp?: (text: string) => void;
-}) {
-  const Renderer = registry.get(props.part.type) ?? PlainResultCard; // 未知 type 兜底，不抛错
-  return <Renderer part={props.part} onGo={props.onGo} onFollowUp={props.onFollowUp} />;
-}
-```
-
-```ts
-// src/components/canvas/renderers/index.ts —— ★新类型只在此文件加一行注册
-import { registerCanvasRenderer } from 'components/canvas/canvas-registry';
-import KolCardStream from './KolCardStream';
-import KolDetailCard from './KolDetailCard';
-import ActionCards from './ActionCards';
-import GateConfirmCard from './GateConfirmCard';
-
-registerCanvasRenderer('kol_cards', KolCardStream);      // P0 hello-agent：真实 seed KOL 卡片流
-registerCanvasRenderer('kol_detail', KolDetailCard);     // P0
-registerCanvasRenderer('action_cards', ActionCards);     // P0：{icon,title,sub,go}[]
-registerCanvasRenderer('gate_confirm', GateConfirmCard); // P0/F008：outbound pending 确认卡
-// registerCanvasRenderer('match_plan', MatchPlanMatrix); // 演进 P2 —— 加一行即渲染
-// registerCanvasRenderer('roi_report', RoiReportCard);   // 演进 P4
-```
-
-### 4.5.3 安全与渲染纪律
-
-- **受控组件树**：canvas 只渲染结构化 `data` 到受控 React 组件，**禁 `dangerouslySetInnerHTML`** 承接任何模型产文本（FR-12.16/NFR-S7）；模型文本一律作为 React text node 输出。lint 机制强制：`react/no-danger` 以 **error 级**覆盖 `src/components/canvas/**` 与 `src/components/copilot/**` 两目录。
-- **溯源必带**：canvas 内每个展示数据点渲染 ★`ProvenanceTag`（`fieldProvenance[field]` → 回退行级 `dataSource` → 皆空视为 `ai_estimate` 保守下限；null 显「待接入」，FR-7.21/FR-12.14）。
-- **internal/outbound 二分在 UI 的兑现**：internal 结果（KOL 卡、动作卡、Refine）点击即执行**不弹框**（FR-10.6）；`gate_confirm` 是 outbound 工具被服务端拦截后（创建 `PendingAction(status=pending)` + 流回 harm 结构体；**拦截时不下发任何令牌**）流回的**唯一**确认入口；刷新/跨会话经 `GET /api/actions/[id]` 恢复确认卡（4.5.4）。
-- 流式消息容器 `aria-live="polite"`（NFR-A2）；30 张 KOL 卡渲染 <500ms、滚动 60fps（NFR-P6，P0 直接列表渲染，演进期需要时上虚拟滚动）。
-
-### 4.5.4 GateConfirmCard 前端契约（F008 对接点）
-
-```ts
-// gate_confirm 的 data 形状：harm 披露结构体的唯一 zod 权威在 src/lib/agent/gate/harm.ts（闸门章）：
-// { title:string, irreversibleLabel: z.literal('对外·不可撤销') /* 无空格，逐字符定死 */,
-//   facts:string[], recipients:[{displayName,platform,handle?}], amount?, scope?, basis? }
-// 本章不复制字段定义，一律 z.infer 引用：
-import type { z } from 'zod';
-import { harmSchema } from 'lib/agent/gate/harm';
-export type GateConfirmData = z.infer<typeof harmSchema>;
-// part 另携 pendingActionId（PendingAction uuid，仅为标识、非令牌——拦截时不下发任何令牌；
-// 一次性票仅在 confirm 响应中出现一次，不变量 I3）。recipients 全名单逐一列出，不折叠（FR-10.5）；
-// amount 带币种（NFR-I4）。
-```
-
-`GateConfirmCard` 内嵌 ★`GateConfirm`（Chakra Modal 版同一组件复用于页面内闸门按钮）。确认流走两步票据契约（权威定义见闸门章 A4）：「确认执行」→ ① `POST /api/actions/[id]/confirm`（人确认→响应签发一次性票，票仅在此响应出现一次）→ ② `POST /api/actions/[id]/execute` `{ticket}`（消费票执行）；「驳回」→ `POST /api/actions/[id]/reject`；刷新/跨会话经 `GET /api/actions/[id]` 拉 pending 详情重新渲染确认卡（确认时才签票）。execute 成功后向对话追加执行结果、`router.refresh()` 主区。**无阈值分级，一律一次确认**（D28）；`irrev` 留痕由服务端在副作用成功后与 finalize(executed) 同事务写入（闸门章语义，FR-8.6.7），前端不补写日志。
-
-### 4.5.5 加新 canvas 类型 How-to（写进 docs/dev/agent-architecture.md 的操作序列）
-
-1. 服务端：新工具在注册表声明输出 `type`（另章）。
-2. 前端：`src/components/canvas/renderers/` 新建 `<TypeName>.tsx`，实现 `CanvasRenderer<TData>`。
-3. 前端：`renderers/index.ts` 加一行 `registerCanvasRenderer('<type>', Component)` 注册。
-4. 验证：`CopilotPanel.tsx`、`canvas-registry.tsx`、`/api/agent/route.ts` **零改动**——若 PR diff 触碰这三个文件，即违反 FR-12.3/15.3，Evaluator 拒收。
+> **Import 别名根 = `src`**（`tsconfig baseUrl: "src"`，裸导入如 `lib/agent/registry`，无 `@/`）；保留既有 `@/public/*` 静态资源映射。
 
 ---
 
-## 5. Agent 运行时架构
+## §5 领域架构
 
-> 本章覆盖技术四柱中的 ①工具层 与 ②Agent 运行时，以及运行在其上的多 Agent 编队与协同交接。四柱解耦铁律（FR-12.3）：新增工具（①）或新增结果类型（④）都不改 `route.ts` 核心（②）与对话面外壳（③）。柱③④（useChat/CopilotPanel/canvas-registry 的组件实现）与闸门确认卡 UI 见对应章节，本章只写到协议边界。
+> PRD §11 给出了 `Kol` / 知识平面 / `OperationLog` 的字段级契约，并明确 `Project` / `ProjectKol` / Match 组合 / Outreach / Deal / Payout 的**字段级 schema 留后续批次 spec 定义**。本章给出**目标态概念模型**：实体、职责、关系、状态机。
+>
+> **v1.2 校准**：本章 §5.2–§5.5 除已标注者外**整体是演进目标（未实装）**——当前 `prisma/schema.prisma` 只有 8 个模型（§7.2.1 为实装权威）。概念层变更需显式修订本文（R13）。
 
-### 5.0 目录落位与现状衔接
+### 5.1 领域模块分解
 
-当前代码库**无 `src/app/api/`、无 `src/lib/`、无数据层**——本章全部为新建。遵循项目导入约定：业务代码一律裸 src 导入（`tsconfig.json` `baseUrl: "src"`，写 `import { registry } from 'lib/agent/tools/registry'`），不新增 `@/` 别名；保留既有 `@/public/*` 静态资源映射（tsconfig paths 已存在）。
-
-```
-src/
-├── app/api/
-│   ├── agent/route.ts              # ② 运行时入口：边界校验 + 委托 lib/agent/runtime.ts（F004）
-│   └── actions/[id]/               # 闸门两步票据契约的唯一端点组（权威契约见闸门章）
-│       ├── route.ts                # GET：pending 详情（今天雷达卡/项目页恢复确认卡的入口）
-│       ├── confirm/route.ts        # POST：人确认 → 签发一次性票（票仅在此响应出现一次，I3；F008）
-│       ├── execute/route.ts        # POST {ticket}：消费票 → 执行 outbound 副作用（F008，模型 loop 之外）
-│       └── reject/route.ts        # POST：拒绝
-└── lib/
-    ├── ai/gateway.ts               # aigcgateway provider（F002，OpenAI 兼容 baseURL；env 经 src/lib/env.ts serverEnv()，启动校验入口 src/instrumentation.ts）
-    └── agent/
-        ├── runtime.ts              # ② streamText 流式 loop 核心（route.ts 薄壳调用）
-        ├── resolve.ts              # route/env → AgentId（纯函数，前后端同构复用）
-        ├── prompt.ts               # buildSystemPrompt 五层组装管线
-        ├── context.ts              # 环节上下文快照 + 游戏知识注入取数
-        ├── handoff.ts              # 交接记录读写
-        ├── schemas.ts              # 本域 zod schema 汇集（FR-11.20：schema 是形状唯一权威）
-        ├── gate/
-        │   ├── ticket.ts           # 一次性票签发/校验/消费（票 TTL 常量唯一定义处，见闸门章）
-        │   ├── harm.ts             # harm 结构体唯一 zod 定义（本章 5.1.1 仅 z.infer 引用）
-        │   └── pending.ts          # PendingAction 落行与状态机操作
-        ├── tools/
-        │   ├── types.ts            # 工具层类型唯一权威：ToolDefinition / ToolContext / StageScope / ToolOutcome / ToolResultPart / OUTBOUND_TOOL_NAMES
-        │   ├── registry.ts         # 注册表：register / getTool / listTools / getToolsForAgent / toAiSdkTools
-        │   ├── index.ts            # 显式注册入口（import 全部工具文件并 register + OUTBOUND_TOOL_NAMES 装载断言）
-        │   └── search-kols.ts · get-kol-detail.ts · send-outreach.ts · …   # 各工具一文件（文件名 kebab，工具名 snake_case）
-        └── experts/
-            ├── types.ts            # ExpertDefinition / AgentId
-            ├── base-prompt.ts      # 基座层文本（常量）
-            ├── strategy.ts · match.ts · reach.ts · delivery.ts · insight.ts · compliance.ts · orchestrator.ts
-            └── index.ts            # EXPERTS 名册（Record<AgentId, ExpertDefinition>）
-```
-
-**依赖前置（F004 落地时安装，现均未装）：** `ai`（Vercel AI SDK）+ OpenAI 兼容 provider 包 + `zod` + `prisma`/`@prisma/client`。版本注记（ADR-008 统一口径）：**TS 5.x 升级走独立微批次，在 F002 启动前完成**（升级 + 构建门全绿，不与 F001–F008 混批）；此后 zod / Prisma / AI SDK 均按 TS5 选版（AI SDK v5 要求 TS ≥5）。
-
-### 5.1 工具层：注册表（柱①，F004）
-
-#### 5.1.1 ToolDefinition schema
-
-```ts
-// src/lib/agent/tools/types.ts —— 工具层类型唯一权威文件（其余各章不再自带私有工具类型定义）
-import { z } from 'zod';
-import type { PrismaClient } from '@prisma/client';
-import type { HarmDisclosure } from 'lib/agent/gate/harm';
-// ↑ harm 结构体的权威 zod 定义见闸门章 src/lib/agent/gate/harm.ts（本文件仅 z.infer 类型引用）。
-//   要点：{ title: string, irreversibleLabel: z.literal('对外·不可撤销') /*无空格，逐字符定死*/,
-//          facts: string[], recipients: [{ displayName, platform, handle? }], amount?, scope?, basis? }
-//   G2 断言路径同步为 harm.irreversibleLabel === '对外·不可撤销'。
-
-export type ToolKind = 'internal' | 'outbound';
-
-/** 环节作用域：五环节 + 合规（跨环节被调用）+ 工作区层（今天/记录/库页/编排） */
-export type StageScope =
-  | 'brief' | 'match' | 'reach' | 'delivery' | 'insight'
-  | 'compliance'
-  | 'workspace';
-
-export interface ToolContext {
-  tenantId: string;        // P0 = 硬编码 dev tenant（D4）
-  userId: string;          // P0 = 唯一 dev 用户
-  agentId: AgentId;        // 当前专家 → OperationLog.actorId（actorType='agent'）
-  projectId?: string;
-  gameId?: string;
-  env?: StageScope;
-  db: PrismaClient;
-  ai: GatewayProvider;     // src/lib/ai/gateway.ts 导出的 provider 句柄
-}
-
-/**
- * outbound 工具白名单（唯一常量定义处）。口径分辨（与 PRD 一致）：
- * 语义类别 5 类（发信/报价/放款/分发 Key/对外分享，批量发=发信类的批量形态）；
- * 工具名 6 个——批量发独立成工具，因其 harm 必须列全收件人名单。
- * 装载断言：tools/index.ts 注册完毕后校验注册表内 kind='outbound' 的名字集合
- * 与本常量完全相等（多一名、少一名都在启动时抛错）。
- */
-export const OUTBOUND_TOOL_NAMES = [
-  'send_outreach', 'send_bulk_outreach', 'commit_quote',
-  'payout', 'distribute_keys', 'create_share_link',
-] as const;
-export type OutboundToolName = (typeof OUTBOUND_TOOL_NAMES)[number];
-
-export interface ToolDefinition<
-  In extends z.ZodTypeAny = z.ZodTypeAny,
-  Out extends z.ZodTypeAny = z.ZodTypeAny,
-> {
-  name: string;            // 全局唯一；三重同名：AI SDK 工具名 = OperationLog.action = 本字段
-  description: string;     // 面向模型：何时调用、参数含义、返回什么
-  kind: ToolKind;          // internal | outbound —— 闸门分流与日志 toolClass 的唯一依据（取代已作废的 allowedRoles）
-  scopes: StageScope[];    // 出现在哪些专家的候选工具集里（发现机制的过滤键）
-  inputSchema: In;         // zod：既生成 AI SDK parameters，又做运行时入参校验（NFR-S6）
-  outputSchema: Out;       // zod：execute 返回值出口校验（模型输出/DB 数据同样视为不可信边界）
-  resultType: string;      // canvas-registry 的 type 路由键（'kol_cards' / 'match_plan' / 'gate_confirm' …）
-  execute: (input: z.infer<In>, ctx: ToolContext) => Promise<z.infer<Out>>;
-  disclose?: (input: z.infer<In>, ctx: ToolContext) => Promise<HarmDisclosure>;
-  // 不变量：outbound 必须实现 disclose；internal 不得实现（register 时校验，见 5.1.2）
-}
-
-/** runTool 归一化出口的判别联合（执行管线内部形态，见 5.1.3） */
-export type ToolOutcome =
-  | { kind: 'result'; resultType: string; data: unknown }                       // internal 正常产物
-  | { kind: 'gate_pending'; pendingActionId: string; harm: HarmDisclosure };    // outbound 拦截——不含任何令牌（I3）
-
-/** 前端信封：执行管线统一组装；柱④ canvas 组件签名 { part, onGo, onFollowUp } 与其一一对应 */
-export interface ToolResultPart {
-  type: string;                       // canvas-registry 路由键（'kol_cards' / 'gate_confirm' …）
-  data: unknown;                      // outputSchema 校验后的数据；gate_pending 时为 { pendingActionId, harm, status:'pending' }
-  meta: { toolName: string; toolClass: ToolKind; agentId: AgentId; createdAt: string };
-}
-```
-
-#### 5.1.2 注册与发现机制
-
-**注册 = 显式 import**（Next.js 打包器不支持运行时目录扫描，不做 fs 魔法）：每个工具一个文件、default export 一个 `ToolDefinition`；`tools/index.ts` 逐行 import 并调用 `register()`。**加新工具 = 新建一个文件 + index.ts 加一行 + canvas-registry 加一个组件**，`route.ts` 零改动（FR-12.6 / FR-9.6 验收断言）。
-
-```ts
-// src/lib/agent/tools/registry.ts（要点伪码）
-const tools = new Map<string, ToolDefinition>();
-
-export function register(def: ToolDefinition): void {
-  if (tools.has(def.name)) throw new Error(`duplicate tool: ${def.name}`);
-  if (def.kind === 'outbound' && !def.disclose)
-    throw new Error(`outbound tool ${def.name} must implement disclose()`);
-  if (def.kind === 'internal' && def.disclose)
-    throw new Error(`internal tool ${def.name} must not declare disclose()`);  // 假闸门防线（D27/FR-10.6）
-  tools.set(def.name, def);
-}
-
-export function getTool(name: string): ToolDefinition | undefined;
-export function listTools(scope?: StageScope): ToolDefinition[];          // 发现：按环节过滤
-export function getToolsForAgent(agentId: AgentId): ToolDefinition[];     // 交叉校验：EXPERTS[agentId].toolNames
-                                                                          // 白名单 ∩ 注册表；名单里有未注册名 → 启动即抛错
-```
-
-#### 5.1.3 执行包装管线（zod → 闸门 → 执行 → 留痕 → type 路由）
-
-`toAiSdkTools()` 把注册表条目转成 AI SDK `tools` 对象，每个工具的 `execute` 统一包在 `runTool` 管线里——**这是闸门在 loop 内的唯一咬合点**：
-
-```ts
-// src/lib/agent/tools/registry.ts
-export function toAiSdkTools(defs: ToolDefinition[], ctx: ToolContext) {
-  return Object.fromEntries(defs.map((def) => [def.name, tool({
-    description: def.description,
-    parameters: def.inputSchema,
-    execute: (raw) => runTool(def, raw, ctx),
-  })]));
-}
-
-// 归一化出口为 ToolOutcome 判别联合，再统一组装前端信封 ToolResultPart（类型见 5.1.1）
-async function runTool(def: ToolDefinition, raw: unknown, ctx: ToolContext): Promise<ToolResultPart> {
-  const input = def.inputSchema.parse(raw);                       // ① 入参校验，失败即清晰报错不静默吞
-  const meta = { toolName: def.name, toolClass: def.kind, agentId: ctx.agentId, createdAt: new Date().toISOString() };
-
-  if (def.kind === 'outbound') {                                  // ② 闸门分流（FR-10.1/10.2 运行时硬约束）
-    const harm = await def.disclose!(input, ctx);
-    const pendingActionId = await createPendingAction(ctx, def.name, input, harm); // gate/pending.ts：PendingAction(status='pending') 落行 + gate 类留痕
-    return { type: 'gate_confirm', data: { pendingActionId, harm, status: 'pending' as const }, meta };
-    // 注意：此分支【不存在】调用 def.execute 的代码路径，且拦截时不下发任何令牌
-    //（不变量 I3：票仅在 confirm 响应中出现一次，禁止令牌随 SSE/data-gate 流下发）。
-    // 模型「决定」直调 outbound 也只能拿到 pending 结果 —— 无法自我放行。
-  }
-
-  const output = def.outputSchema.parse(await def.execute(input, ctx));  // ③ 执行 + 出参校验
-  await appendAutoLog(ctx, def.name, input);                      // ④ internal 也留痕（gateStatus=null，FR-11.14）
-  return { type: def.resultType, data: output, meta };            // ⑤ 统一信封 → canvas-registry 按 type 路由（柱④协议）
-}
-```
-
-outbound 的真实执行发生在 **loop 之外**，走**两步票据契约**（唯一权威契约见闸门章，本章不再自带端点设计）：确认卡（`type:'gate_confirm'` 由 canvas 渲染为 `GateConfirm` 组件）点击确认 → `POST /api/actions/[id]/confirm`（人确认 → 签发一次性票；**票仅在 confirm 响应中出现一次**，不变量 I3——拦截时不下发任何令牌，禁止令牌随 SSE/data-gate 流下发）→ `POST /api/actions/[id]/execute { ticket }`（消费票 → 调用 `def.execute` 产生副作用 → 成功则**同事务** finalize(executed) + INSERT `irrev` 留痕；副作用失败 → `failed`、无 irrev 行）；拒绝走 `POST /api/actions/[id]/reject`；pending 恢复走 `GET /api/actions/[id]`（今天雷达卡/项目页重新渲染确认卡）。票的签发/校验/一次性消费在 `src/lib/agent/gate/ticket.ts`，PendingAction 状态机在 `gate/pending.ts`，细节归闸门章节；本章只保证不变量：**票通道与模型消息流零交集**。
-
-#### 5.1.4 工具清单与落地节奏
-
-| 工具名 | kind | scopes | resultType | 落地 |
+| 模块 | 职责 | 核心实体 | 关键规则 | 批次 |
 |---|---|---|---|---|
-| `search_kols`（NL→bge-m3→pgvector cosine top-K） | internal | match, workspace | `kol_cards` | **P0 F004 实装** |
-| `get_kol_detail` | internal | match, reach, workspace | `kol_detail` | **P0 F004 实装** |
-| `evaluate_creator` / `match_plan` | internal | match | `evaluation` / `match_plan` | P2 MATCH |
-| `draft_email` / `refine_email` | internal | reach | `email_draft` | P3 REACH-CRM |
-| `track_delivery` / `check_deliverables` | internal | delivery | `delivery_ledger` | P4 |
-| `compute_roi` / `draft_report` | internal | insight | `roi_report` / `weekly_report` | P4 |
-| `check_brand_safety` / `check_platform_compliance` | internal | compliance | `compliance_verdict` | P2 起（被调用形态见 5.4） |
-| `list_pending_asks` / `summarize_squad` | internal | workspace | `ask_cards` / `squad_status` | WORKBENCH-UI 接真 |
-| `send_outreach` / `send_bulk_outreach` / `commit_quote` | **outbound** | reach | `gate_confirm` | 门控管线 **P0 F008** 全量；工具体逐环节批次 |
-| `distribute_keys` / `payout` | **outbound** | delivery | `gate_confirm` | 同上（P4 实装 execute） |
-| `create_share_link` | **outbound** | insight | `gate_confirm` | 同上（P4 实装 execute） |
-
-口径分辨（与 PRD 一致）：对外不可撤销是**语义类别 5 类**（发信 / 报价 / 放款 / 分发 Key / 对外分享，批量发=发信类的批量形态）；落到**工具白名单是 6 个工具名**（`OUTBOUND_TOOL_NAMES`，见 5.1.1——批量发独立成工具，因其 harm 必须列全收件人名单）。
-
-P0（F004+F008）验收线：`search_kols`/`get_kol_detail` 真实走通 + 六个 outbound 在注册表**声明齐全**（装载断言对齐 `OUTBOUND_TOOL_NAMES`）、闸门管线（pending/403、harm、票据、留痕）端到端可测（G1–G5 + D20 变异测试），outbound 的 `execute` 体允许是骨架。
-
-### 5.2 `/api/agent`：streamText 流式 loop（柱②，F004）
-
-#### 5.2.1 请求契约与处理步骤
-
-```ts
-// POST /api/agent —— 请求体（zod 校验于入口，schemas.ts）
-interface AgentRequestBody {
-  messages: UIMessage[];        // useChat 逐轮全量回传（FR-12.9 运行时无状态，为 RLS 留边界）
-  context: {
-    pathname: string;           // 如 '/admin/campaigns/abc123'
-    env?: StageScope;           // 项目详情内 ?env= 游标
-    projectId?: string;
-    gameId?: string;
-  };
-}
-```
-
-`route.ts` 五步，每步各归其位、核心不随工具增长而改动：
-
-1. **边界校验**：`agentRequestSchema.parse(body)`（NFR-S6）。
-2. **服务端解析专家**：`const agentId = resolveAgent(body.context)` ——**客户端只上报位置（route/env），永远不点名 agent、不点名工具**；工具作用域由服务端从 agentId 推导，杜绝伪造扩权。
-3. **组装**：`expert = EXPERTS[agentId]`；`toolDefs = getToolsForAgent(agentId)`；`system = await buildSystemPrompt(expert, body.context)`（五层管线，见 5.3.3）。
-4. **起流**：
-   ```ts
-   const result = streamText({
-     model: gateway.chat(expert.model ?? DEFAULT_CHAT_MODEL),  // NFR-P8 按专家/任务路由模型，P0 单模型
-     system,
-     messages: convertToModelMessages(body.messages),
-     tools: toAiSdkTools(toolDefs, ctx),
-     maxSteps: 8,               // AI SDK v5 等价写法：stopWhen: stepCountIs(8)
-     onStepFinish: recordUsage, // FR-12.29~31 成本记账挂点（P0 只落 log，后期喂模型路由）
-     onError: toUserFacingError,// FR-12.7 失败清晰不静默吞：流内 error part + 服务端全量上下文日志
-   });
-   ```
-5. **回流**：`return result.toUIMessageStreamResponse()`（SSE，UI Message Stream 协议）。
-
-**maxSteps=8 的依据**：「一句话跨多环节办事」（FR-8.7.7）典型串联为 搜索→评估→组方案→起草 约 4–6 步，8 步留余量；同时是失控循环的硬顶。单工具场景（hello-agent「找东南亚原神向 KOL」）1 步收敛，不受影响。
-
-#### 5.2.2 流式协议到 useChat（柱②→③④的边界）
-
-服务端流出的 UI Message Stream 由 `useChat`（`CopilotPanel` 内，`api: '/api/agent'`，`body` 挂 context）消费为 `message.parts`：`text` part 增量渲染（首 token 即出，NFR-P1 TTFT<2s；`aria-live="polite"`，NFR-A2）；工具 part 经历 `input-streaming → input-available → output-available` 三态，`output-available` 时按 `output.type` 查 canvas-registry：
-
-```tsx
-// CopilotPanel 消费侧（柱③④细节见对应章节，此处仅示分发边界）
-// part.output 即 5.1.1 的 ToolResultPart 信封；canvas 组件签名 { part, onGo, onFollowUp } 与该信封一一对应
-if (part.type.startsWith('tool-') && part.state === 'output-available') {
-  const C = canvasRegistry[part.output.type];          // ToolResultPart.type：'kol_cards' → KolCardStream；'gate_confirm' → GateConfirm
-  return C ? <C part={part.output} /> : <UnknownResultFallback part={part.output} />;
-}
-```
-
-`route.ts` 不含任何 `type→组件` 知识；canvas 只走受控 React 组件树、禁 `dangerouslySetInnerHTML` 承接任何模型文本（FR-12.16/NFR-S7）。
-
-#### 5.2.3 Agent loop 时序图（含闸门分支）
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor U as 操盘手
-    participant CP as CopilotPanel<br/>(useChat)
-    participant RT as /api/agent<br/>(streamText loop)
-    participant REG as tools/registry<br/>(runTool 管线)
-    participant GW as aigcgateway<br/>(chat tool-calling)
-    participant DB as Postgres<br/>(pgvector·PendingAction·OperationLog)
-    participant GC as /api/actions/[id]<br/>(confirm·execute·reject)
-
-    U->>CP: 「给这 3 位起草邮件并发出」
-    CP->>RT: POST messages + context{pathname, env, projectId}
-    RT->>RT: resolveAgent → reach<br/>buildSystemPrompt（基座+职责+iso+环节+游戏知识）
-    RT->>GW: streamText(system, tools=reach 工具子集, maxSteps=8)
-    GW-->>CP: text delta（首 token 即出）
-    GW->>REG: tool call: draft_email(input)
-    REG->>REG: inputSchema.parse ✓ · kind=internal
-    REG->>DB: execute（读 Kol/知识）+ appendLog(internal, gateStatus=null)
-    REG-->>GW: {type:'email_draft', …}（outputSchema.parse ✓）
-    GW-->>CP: tool part → canvas 渲染草稿卡（internal 不弹确认框，D27）
-    GW->>REG: tool call: send_outreach(input)
-    REG->>REG: kind=outbound → 不进入 execute
-    REG->>DB: PendingAction(status='pending') 落行 + gate 类留痕
-    REG-->>GW: ToolResultPart{type:'gate_confirm', data:{pendingActionId, harm}, meta}
-    GW-->>CP: tool part → GateConfirm 卡（「对外·不可撤销」+ 收件人全名单）
-    Note over GW,REG: 模型只见 pending 结果——拦截时不下发任何令牌，loop 内无票通道，无法自我放行（FR-10.1/10.2，I3）
-    U->>CP: 审阅利害，点「确认发送」
-    CP->>GC: POST /api/actions/[id]/confirm（人确认）
-    GC-->>CP: 一次性票（票仅在此响应出现一次，I3）
-    CP->>GC: POST /api/actions/[id]/execute {ticket}
-    GC->>DB: 消费票 → def.execute 真实发送<br/>副作用成功 → 同事务 finalize(executed) + INSERT irrev 行（失败 → failed、无 irrev 行）
-    GC-->>CP: 执行结果 → 卡片翻转为「已发送（你已确认）」
-```
-
-### 5.3 多 Agent 编队实现
-
-#### 5.3.1 专家定义：system prompt 模板 + 工具作用域子集
-
-一个专家 = 人格化的四柱视图：`ExpertDefinition` 同时是 **prompt 数据源**和 **UI 职责/隔离卡数据源**（文案单源，FR-7.13/FR-9.1 的卡片由 `CopilotPanel` 直接 import 同一定义渲染，防 prompt 与 UI 漂移）。
-
-```ts
-// src/lib/agent/experts/types.ts
-export type AgentId =
-  | 'strategy' | 'match' | 'reach' | 'delivery' | 'insight'
-  | 'compliance' | 'orchestrator';
-
-export interface ExpertDefinition {
-  id: AgentId;
-  displayName: string;              // 「策略 Agent」…
-  stage: StageScope;                // 主场；compliance='compliance'，orchestrator='workspace'
-  grammar?: { name: string; verb: string };  // 环节界面语法标签（FR-7.10，如 {name:'compare', verb:'对比'}）
-  duty: string;                     // 职责层文案（= UI 职责卡）
-  iso: string[];                    // 否定式隔离条目（= UI 隔离卡 = prompt 隔离层，见 5.3.5）
-  toolNames: string[];              // 工具作用域白名单（服务端唯一权能来源）
-  openingLine: string;              // 上下文切换后的开场白（FR-7.12）
-  knowledgeKinds: ('selling_point' | 'audience' | 'compliance_redline')[];  // 注入哪几类游戏知识
-  model?: string;                   // 可选模型路由位（NFR-P8，P0 不填走默认）
-}
-```
-
-**编队名册与工具作用域**（源自 FR-12.17 + §10 outbound 清单）：
-
-| AgentId | 主场 | internal 子集 | outbound 子集 | 注入知识 kind |
-|---|---|---|---|---|
-| `strategy` | brief | 素材解析/知识抽取（P1）、draft_brief、健康度 | — | selling_point, audience |
-| `match` | match | search_kols、get_kol_detail、evaluate_creator、match_plan | — | audience |
-| `reach` | reach | draft_email、refine_email、get_active_plan、get_kol_detail | send_outreach、send_bulk_outreach、commit_quote | selling_point |
-| `delivery` | delivery | track_delivery、check_deliverables | distribute_keys、payout | —（红线经合规被调用取得） |
-| `insight` | insight | compute_roi、draft_report | create_share_link | — |
-| `compliance` | 跨环节 | check_brand_safety、check_platform_compliance | — | compliance_redline |
-| `orchestrator` | workspace | list_pending_asks、summarize_squad、search_kols、get_kol_detail | — | — |
-
-#### 5.3.2 Copilot 上下文切换协议：route/env → agent 解析
-
-```ts
-// src/lib/agent/resolve.ts —— 纯函数、零 IO，前后端同构复用
-const STAGE_AGENT: Record<string, AgentId> = {
-  brief: 'strategy', match: 'match', reach: 'reach', delivery: 'delivery', insight: 'insight',
-};
-
-export function resolveAgent(ctx: { pathname: string; env?: string }): AgentId {
-  if (ctx.pathname.startsWith('/admin/campaigns/') && ctx.env && STAGE_AGENT[ctx.env])
-    return STAGE_AGENT[ctx.env];                      // 项目详情五环节 tab（?env=）
-  if (ctx.pathname.startsWith('/admin/creators'))  return 'match';     // 创作者库=发现分流（FR-7.5）
-  if (ctx.pathname.startsWith('/admin/knowledge')) return 'strategy';
-  if (ctx.pathname.startsWith('/admin/insight'))   return 'insight';
-  return 'orchestrator';   // /admin/today · /admin/runs · /admin/campaigns 列表 · 兜底
-}
-```
-
-- **客户端**：`CopilotPanel` 监听 `usePathname()` + `useSearchParams().get('env')`，计算 `contextKey = agentId + ':' + (projectId ?? 'ws')`（`agentId = resolveAgent(ctx)`；无项目上下文取 `'ws'` 工作区哨兵值）；把 `contextKey` 作为 `useChat` 的会话 id——**key 变化 = 线程重置 + 插入该专家 `openingLine`**（FR-7.12 / FR-8.7.9），并主动汇报「刚刚完成」（FR-9.2，见 5.3.4 数据来源）。**同一专家在同一项目内跨页保持线程**（contextKey 不变则线程不重置）。
-- **服务端**：`route.ts` 用同一个 `resolveAgent` 对请求体 context **重新解析**，绝不接受客户端指定的 agentId 或工具名单——resolver 是同构纯函数，但**权能裁决只发生在服务端**。
-
-#### 5.3.3 System prompt 组装管线（五层）
-
-```ts
-// src/lib/agent/prompt.ts
-export async function buildSystemPrompt(expert: ExpertDefinition, ctx: AgentRequestContext) {
-  return [
-    BASE_PROMPT,                                        // ① 基座层
-    dutySection(expert),                                // ② 职责层
-    isoSection(expert),                                 // ③ 隔离层（D13 否定式护栏）
-    await stageContext(ctx),                            // ④ 环节上下文层（lib/agent/context.ts）
-    await gameKnowledgeSection(ctx, expert.knowledgeKinds), // ⑤ 游戏知识注入层
-  ].filter(Boolean).join('\n\n---\n\n');
-}
-```
-
-| 层 | 内容 | 数据来源 |
-|---|---|---|
-| ① 基座 | 产品世界观（单角色操盘手、AI 主驾人拍板）；工具结果协议（一切结构化产出必经工具，不徒手编数据）；溯源诚实规则（缺值=「待接入」，绝不用 0 或编造冒充，FR-11.17/FR-8.2.2.4）；语言约定（UI 中文，触达邮件按 KOL 语言，NFR-I2） | `experts/base-prompt.ts` 常量 |
-| ② 职责 | `expert.duty` + 环节界面语法（grammar/verb，约束产出形态：match 出对比矩阵、reach 出单人纵向流） | ExpertDefinition |
-| ③ 隔离 | 否定式护栏，见 5.3.5 | ExpertDefinition.iso |
-| ④ 环节上下文 | 项目快照：`cur` 游标、ProjectKol 5 态计数、阻塞项、**指向本专家的最近 Handoff 摘要**（5.4） | `context.ts` 现查 DB |
-| ⑤ 游戏知识 | `gameId` → `GameKnowledge` where `kind in expert.knowledgeKinds` and `supersededById is null`，逐条附 `sourceMaterialIds` 溯源标注 | `context.ts` 现查 DB |
-
-⑤ 每轮请求**现查现组**（无服务端缓存，FR-12.9）——这正是 FR-8.4.9「特点是工具调用输入非硬编码」的实现：知识更新后，下一轮对话自动用新值，无需任何失效逻辑。P0 知识条目量小直接全量注入；后期演进为按 token 预算裁剪 top-N + embedding 相关性排序。
-
-#### 5.3.4 编排 Agent 的跨环节汇总
-
-`orchestrator` 只做两件事（FR-9.6）：**待办汇总**与**环节调度**，不下场做环节工作。
-
-- `list_pending_asks`：「待你确认」的**单一取数工具**——`Project.ask` 是展示聚合层，其 outbound 条目由 `PendingAction(status='pending')` 派生；按紧急度排序输出 `type:'ask_cards'`。「今天」页 KPI「待你确认」与雷达卡徽标计数均经**本工具**取数（server component 直调其 `execute`），保证同源（FR-8.1.3）。outbound 类待办标红「对外不可撤销」（FR-8.1.2）。
-- `summarize_squad`：聚合各环节最近 OperationLog（auto/gate 条目）→ 输出 `type:'squad_status'`，squad 卡固定 **6 元入卡（5 环节专家 + 合规）**；orchestrator 是汇报者，不入卡；`outputSchema` 定死 6 元 + 各环节「刚刚完成」（FR-8.1.4；也是 5.3.2 专家切入时汇报的数据源）。
-- **不改写/软化铁律**（FR-9.6 + FR-10.8）的机制化落法：这两个工具只做 SELECT 聚合，`outputSchema` 中 pending 结论字段定义为原样透传（无任何改写/过滤参数）；再在 orchestrator 的 iso 层声明「我不改写、不软化任何专家的 pending 结论」——数据层强制 + prompt 层承诺双保险。
-- 跨环节跳转：产出 `type:'action_cards'`（`{icon,title,sub,go}`，`go` 前缀 `env:`/`pick:`/`enter:`），由 canvas 侧解释执行导航（FR-7.14/FR-8.1.6）。
-
-#### 5.3.5 否定式护栏 D13 的注入方式
-
-D13 升级版语义：**AI 的行为边界**（非已作废的角色数据边界）。`expert.iso` 是唯一文案源，同时注入三处：prompt 隔离层、Copilot 常驻隔离卡、Agent 编队页展示。
-
-隔离条目固定否定句式，覆盖两个维度：
-
-- **横向（Agent 间分工）**：如 match 的 `iso`——「我不会替你联系创作者、不谈价——入选组合我会交接给触达 Agent」；delivery——「我不选人、不谈判」。越界请求的回应模式写进基座层：**不是拒答，而是指路**（「这属于 X Agent 的职责，切到 Y 环节我把上下文带过去」）。
-- **纵向（AI→人闸门）**：如 reach 的 `iso`——「发送邮件、确认报价是对外不可撤销动作，我只能起草并备好，由你确认后才会发出」。
-
-**承诺与兑现一致性（FR-10.7）机制化**：单测断言每个专家 iso 中提及的 outbound 行为 ⊆ 该专家 `toolNames` 中 `kind='outbound'` 的工具集合，且注册表中该工具确实走 5.1.3 的 pending 分支——prompt 说「我不会直接发」与服务端 403/pending 必须指向同一批工具，任何一侧漂移测试即红（配合 D20 变异测试）。此外对话面顶部常驻「只做可撤销的事…」声明（FR-7.16）由柱③渲染，文案同样取自基座层常量，单源。
-
-#### 5.3.6 多 Agent 切换时序图（含交接引用）
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor U as 操盘手
-    participant PG as 项目详情页<br/>(?env= 环节导轨)
-    participant CP as CopilotPanel
-    participant RES as resolveAgent<br/>(同构纯函数)
-    participant RT as /api/agent
-    participant DB as Postgres<br/>(Handoff·GameKnowledge·ProjectKol)
-
-    Note over PG,CP: env=match，匹配 Agent 在场
-    U->>CP: 「批准这组」（internal，点了即办不弹框，D27）
-    CP->>RT: match_plan 确认动作
-    RT->>DB: ProjectKol 5 人置「已确认」+ 写 Handoff(match→reach, artifact=match_plan)
-    U->>PG: 点导轨 Reach 节点（?env=reach，cur 前移）
-    PG->>CP: route/env 变化（外壳不重挂载，FR-7.1）
-    CP->>RES: resolveAgent({pathname, env:'reach'}) → 'reach'
-    CP->>CP: contextKey 变化 → 线程重置 + reach openingLine（FR-7.12/8.7.9）<br/>职责/隔离卡切换为 reach.duty / reach.iso
-    U->>CP: 首条消息「开始触达吧」
-    CP->>RT: POST messages + context{pathname, env:'reach', projectId}
-    RT->>RES: 服务端重解析 → 'reach'（不信任客户端点名）
-    RT->>DB: stageContext：读 Handoff(toAgent='reach') 最近条 + selling_point 知识
-    RT->>RT: buildSystemPrompt(reach 五层) + toAiSdkTools(reach 工具子集)
-    RT-->>CP: 「匹配 Agent 刚交来 5 人组合（受众契合 82%…），我先为首位起草」（FR-9.2 主动汇报）
-    Note over RT,DB: reach 经 get_active_plan 工具消费 match 的持久化产物 —— 工具级共享（5.4）
-```
-
-### 5.4 协同交接机制
-
-#### 5.4.1 两种实现形态：工具级共享 vs 子 Agent 调用
-
-| 维度 | 工具级共享（P0–P3 主用） | 子 Agent 调用（后期演进） |
-|---|---|---|
-| 形态 | 上游把产物**持久化到 DB**，下游经自己作用域内的读工具取用 | 某工具 `execute` 内部再起一次 `generateText`（子专家 prompt + 子工具集），同步拿结论 |
-| 典型例 | `match_plan` 确认 → 写 ProjectKol + Handoff；reach 用 `get_active_plan` 读 | delivery 的 `check_deliverables` 内部子调用 compliance 专家审 #ad 披露 |
-| 上下文成本 | 低：产物结构化、按需取，不膨胀主 loop | 高：独立子 loop 的延迟与 token 成本 |
-| 可审计性 | Handoff 行 + OperationLog 天然留痕 | 需显式为子 Agent 动作写 OperationLog（actorId=子 agentId） |
-| 无状态约束 | 天然满足（状态在 DB 行里，FR-12.9） | 满足（子调用在单请求生命周期内完成） |
-
-**合规「被调用」形态的分期**：P0–P2 合规能力降级为 internal 工具（`check_brand_safety` 直接实现，reach/delivery 的工具子集里可见），结果带 `calledBy: AgentId` 字段，UI 据此渲染进调用方的 collab 区（FR-7.15）；P3+ 升级为真子调用（compliance 专家 prompt + 红线知识注入独立推理），工具签名不变、调用方零改动——这正是工具结果协议解耦的红利。
-
-#### 5.4.2 交接记录结构
-
-```prisma
-// prisma/schema.prisma（伪码示意；Prisma 唯一权威定义见 §7 数据章——F001 建齐、P2 起写入。命名遵循 §数据章约定：camelCase + @map snake_case）
-model Handoff {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId     String   @map("tenant_id") @db.Uuid
-  projectId    String   @map("project_id") @db.Uuid
-  fromAgent    String   @map("from_agent")     // AgentId
-  toAgent      String   @map("to_agent")       // AgentId
-  artifactType String   @map("artifact_type")  // 'match_plan' | 'outreach_thread' | 'delivery_ledger' | 'roi_report'
-  artifactRef  Json     @map("artifact_ref")   // { table: string, id: string } 指向持久化产物行
-  summary      String                          // 折叠态一句话（FR-7.15 默认折叠）
-  messages     Json?                           // [{ from: AgentId, text: string }] —— 展开态三要素之 messages
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
-
-  @@index([projectId, toAgent, createdAt])
-  @@map("handoffs")
-}
-```
-
-- **写入点**：上游工具 `execute` 尾部（如 `match_plan` 的「批准这组」internal 动作落 ProjectKol 的同事务内写 `match→reach` 行）。
-- **读取点**：两处——④ 环节上下文层把 `toAgent=当前专家` 的最近 Handoff 摘要注入 prompt（下游专家"知道上游交了什么"）；UI collab 区展开三要素（pair=`fromAgent→toAgent`、`messages`、交接物=`artifactRef` 解引用+结果，FR-9.5）。
-- **典型链**（FR-9.5）：匹配→触达（组合+受众依据）、触达→交付（谈定条款）、交付→合规（放款前审）、交付→洞察（交付数据）。
-- Handoff 是**可读上下文**，不是权限凭证：下游工具读产物只依赖自身 scopes 白名单，Handoff 缺失时工具照常可用（降级为无上游摘要）。
-
-### 5.5 P0 落地 vs 后期演进汇总
-
-| 能力 | P0（AGENT-FOUNDATION F004/F005/F008） | 后期演进 |
-|---|---|---|
-| 工具注册表 | 全套 `ToolDefinition`/registry/runTool 管线；实装 `search_kols`+`get_kol_detail`；六 outbound 声明齐全+闸门管线可测 | 逐批次填工具体（P1–P4）；成本记账喂模型路由 |
-| streamText loop | `/api/agent` 全量落地，maxSteps=8，hello-agent 闭环（F007 验收） | 流内缓存（NFR-P7 同 query 复用、detail 短 TTL）；多模型路由（`expert.model`） |
-| 专家编队 | `experts/` 七定义 + resolveAgent + 五层 prompt 管线全量落地；P0 阶段仅 match/orchestrator 有真工具，其余专家可切换、能对话、工具子集为空或骨架 | 逐环节接真（M1–M4）；⑤ 层知识裁剪 top-N |
-| 游戏知识注入 | 管线落地，F008 前用 seed/mock 知识条目（schema F001 建齐） | P1 真实素材解析产知识（FR-8.4.4） |
-| 协同交接 | `Handoff` 表随 F001 建 schema；hello-agent 不写交接 | P2 MATCH 起真实写入；P3+ 合规升级子调用 |
-| 闸门咬合 | runTool outbound 分支 + `/api/actions/[id]/{confirm,execute,reject}` 两步票据路由（唯一契约，权威见闸门章）+ 变异测试（G1–G5） | 无演进——这是硬约束，永不放宽 |
-
-> 依赖与工期提示：本章全部代码依赖 `ai`/`zod`/`prisma` 安装；TS 5.x 已由 **F002 启动前的独立微批次**升级完成（ADR-008 统一口径，不与 F001–F008 混批）；`src/lib/ai/gateway.ts` 属 F002，本章按其已就绪引用。CopilotPanel 挂载进现有 `src/app/admin/layout.tsx` 三区外壳右栏属柱③/IA 章节，本章只依赖其调用 `/api/agent` 的请求契约（5.2.1）。
-
----
-
-# §6 闸门与安全架构：outbound 强制层设计
-
-> 本章落实 D26–D29 / FR-10.x / NFR-S1~S9 / F008。核心命题只有一句：**「对外 / 花钱 / 不可逆」的副作用代码，在整个代码库中只有一个执行入口，该入口在服务端检查确认票——模型 loop 与前端都拿不到票，因此谁都无法替人拍板。**
-
-## 6.1 设计原则与系统不变量
-
-| # | 不变量 | 兑现机制 | 对应条款 |
-|---|---|---|---|
-| I1 | 副作用单一咽喉点：任何 outbound 副作用只能经 `executeTool()` 触达 | `executeTool()` 唯一实现于 `src/lib/agent/runtime.ts`；ESLint `no-restricted-imports` 禁止 route/组件直接引各 outbound 工具模块与 `lib/agent/tools/effects` | FR-10.1 |
-| I2 | 模型 loop 结构性无票：柱② 适配器的工具闭包**没有 ticket 形参** | `toModelToolSet()`（同在 `runtime.ts`）只暴露 `(input) => executeTool(name, input, ctx)`，票在类型签名上就传不进去 | FR-10.2 |
-| I3 | 票只在「人确认」的响应中出现一次，单次使用、短 TTL、绑定 payload | `PendingAction.ticketHash` + 原子条件 UPDATE 消费 | §6.4 |
-| I4 | internal 一律不设闸门（假闸门稀释真闸门） | executor 对 `kind==='internal'` 无任何 gate 分支 | FR-10.6 / D27 推论 |
-| I5 | 留痕 append-only：pending / confirmed 双行追加，绝不 UPDATE | repo 只导出 `append*`；DB 触发器阻断 UPDATE/DELETE | FR-11.12 / NFR-S4 |
-| I6 | 不依赖前端：`GateConfirm` 卡只是渲染层，绕开它直接 curl 也被拦 | 拦截逻辑全部在 Route Handler / lib 层，验收测试为纯 HTTP + 函数级 | F008 验收 1 |
-
-与代码库现状的衔接：当前 repo **无 `src/lib`、无 `src/app/api`**（DS-FOUNDATION 只有外壳）。本章所有模块都是 F004/F008 新建件；依赖上需要新增 `zod` 与 `vitest`（devDep，F008 测试用），`@prisma/client`、`ai`/`@ai-sdk/*` 由 F001/F004 引入——TS 已按 ADR-008 在 **F002 启动前以独立微批次升至 5.x**（升级+构建门全绿，不与 F001-F008 混批），此后 zod / Prisma / AI SDK 一律按 TS5 选版（AI SDK v5 要求 TS≥5）。全部导入遵循项目裸 src 风格（`baseUrl: "src"`，如 `import { executeTool } from 'lib/agent/runtime'`）；业务代码一律裸 src 导入、不新增 `@/` 别名，保留既有 `@/public/*` 静态资源映射（tsconfig paths 已存在）。
-
-## 6.2 工具执行器中间件（outbound 强制层）
-
-### 6.2.1 文件布局
-
-```
-src/lib/agent/
-├── runtime.ts                 # executeTool()：全系统唯一工具执行入口（本节主角）+ toModelToolSet() 柱② 门面 + ToolResultPart 信封组装
-├── tools/
-│   ├── types.ts               # 工具层唯一类型源：ToolDefinition / ToolContext / ToolOutcome / ToolResultPart / OUTBOUND_TOOL_NAMES
-│   ├── registry.ts            # 注册表 + 装载期不变量校验（见 6.2.4）
-│   ├── search-kols.ts / get-kol-detail.ts / evaluate-creator.ts / match-plan.ts / draft-email.ts ...  # internal 工具（平铺于 tools/，kind 由定义声明）
-│   ├── send-outreach.ts / send-bulk-outreach.ts / commit-quote.ts / distribute-keys.ts / payout.ts / create-share-link.ts
-│   │                          # outbound 白名单 6 个工具名；语义类别 5 类（发信/报价/放款/分发 Key/对外分享，
-│   │                          # 批量发=发信类的批量形态，独立成工具因其 harm 必须列全名单）。P0 先落 payout + send_outreach 即可测门
-│   └── effects.ts             # OutboundEffects 接口 + P0 devStubEffects（写 StubDelivery 行）
-├── gate/
-│   ├── ticket.ts              # issueTicket / consumeTicket / GATE_TICKET_TTL_MS + canonicalJson / sha256（payloadHash）
-│   ├── harm.ts                # HarmDisclosure zod schema（全案唯一 harm 契约）+ buildHarm 约束
-│   └── pending.ts             # PendingAction 落单 / 详情读取 / 条件 UPDATE（Prisma 模型权威见 §7）
-src/lib/oplog/
-│   ├── append.ts              # appendAuto / appendGatePending / appendGateRejected / appendBlock / appendIrrev（只 INSERT）
-│   ├── schemas.ts             # 各 kind 行形状的 zod 校验（FR-11.20）
-│   └── queries.ts             # listOperationLogs()（审计查询，§6.8）
-src/app/api/
-├── agent/route.ts             # 柱②（F004），工具调用一律经 toModelToolSet → executeTool
-└── actions/[id]/
-    ├── route.ts               # GET：pending 详情（恢复确认卡，见 6.3.3；不含票）
-    ├── confirm/route.ts       # 人确认端点：签发一次性票
-    ├── execute/route.ts       # 带票执行端点：失败按 §6.3.1 分码 403/409/410
-    └── reject/route.ts        # 驳回：追加 gate/rejected 行
-```
-
-### 6.2.2 核心类型（`src/lib/agent/tools/types.ts`）
-
-本文件是**工具层唯一类型源**（各章不得另设私有工具类型）：
-
-```ts
-import { z } from 'zod';
-import type { HarmDisclosure } from 'lib/agent/gate/harm';
-
-export type ToolKind = 'internal' | 'outbound';
-
-/** 对外白名单：语义类别 5 类（发信/报价/放款/分发 Key/对外分享；批量发=发信类的批量形态），
- *  工具名 6 个——批量发信独立成工具，因其 harm 必须列全收件人名单。 */
-export const OUTBOUND_TOOL_NAMES = [
-  'send_outreach', 'send_bulk_outreach', 'commit_quote',
-  'distribute_keys', 'payout', 'create_share_link',
-] as const;
-
-export interface ToolContext {
-  tenantId: string;          // P0 = DEV_TENANT_ID（§6.6）
-  userId: string;            // P0 = DEV_USER_ID
-  agentId: string;           // 发起专家：'strategy'|'match'|'reach'|'delivery'|'insight'|'compliance'|'orchestrator'
-  projectId?: string;
-}
-
-export type GateDenyReason =
-  | 'unknown_tool' | 'no_ticket' | 'not_confirmed'
-  | 'ticket_expired' | 'ticket_used' | 'payload_mismatch';
-
-export type ToolOutcome<T = unknown> =
-  | { status: 'executed'; type: string; data: T; logId: bigint }                       // type → canvas-registry
-  | { status: 'pending'; type: 'gate_confirm'; pendingActionId: string; harm: HarmDisclosure }
-  | { status: 'forbidden'; reason: GateDenyReason }                                     // HTTP 面按 §6.3.1 分码：403/409/410
-  | { status: 'invalid_input'; issues: z.ZodIssue[] };
-
-export interface ToolDefinition<I = unknown, O = unknown> {
-  name: string;
-  kind: ToolKind;
-  description: string;                 // 喂给模型的工具描述
-  scopes: string[];                    // 专家可见性收窄（FR-12.17）：toModelToolSet 按 agentId 过滤
-  inputSchema: z.ZodType<I>;           // NFR-S6：所有 IO 先过 zod
-  outputSchema?: z.ZodType<O>;         // 成功结果形状（canvas 消费前校验）
-  resultType: string;                  // 成功结果的 canvas type（如 'kol_cards'）
-  disclose?: boolean;                  // 结果是否回注模型上下文摘要
-  buildHarm?: (input: I, ctx: ToolContext) => Promise<HarmDisclosure>;  // outbound 必须实现（装载期校验）
-  execute: (input: I, ctx: ToolContext) => Promise<O>;                  // 真副作用（P0 outbound = devStubEffects）
-}
-
-/** 执行管线统一组装的前端信封（柱④ canvas 消费；CanvasComponentProps 与之一一对应）。 */
-export interface ToolResultPart {
-  type: string;
-  data: unknown;
-  meta: { toolName: string; toolClass: ToolKind; agentId: string; createdAt: string };
-}
-```
-
-### 6.2.3 执行器决策流（`executeTool()`，`src/lib/agent/runtime.ts`）
-
-```ts
-export async function executeTool(
-  name: string,
-  rawInput: unknown,
-  ctx: ToolContext,
-  ticket?: { pendingActionId: string; ticket: string },  // 仅 /api/actions/[id]/execute 会传
-): Promise<ToolOutcome>;
-```
-
-```mermaid
-flowchart TD
-    A["executeTool(name, input, ctx, ticket?)"] --> B{"注册表命中?"}
-    B -- 否 --> E1["forbidden: unknown_tool"]
-    B -- 是 --> C["inputSchema.safeParse(input)"]
-    C -- 失败 --> E2["invalid_input"]
-    C -- 通过 --> D{"tool.kind"}
-    D -- internal --> I1["tool.execute()"] --> I2["appendAuto(kind=auto, gateStatus=null)"] --> I3["executed → canvas"]
-    D -- outbound --> G{"携票?"}
-    G -- 无票 --> P1["buildHarm(input, ctx)"] --> P2["INSERT PendingAction(status=pending)"]
-    P2 --> P3["appendGatePending(kind=gate, gateStatus=pending)"] --> P4["pending: gate_confirm（loop 内=pending 结果；直调 HTTP 面=403）"]
-    G -- 有票 --> T1["consumeTicket: 原子条件 UPDATE 消费"]
-    T1 -- 失败 --> E3["forbidden 分码: ticket_used→409 / ticket_expired→410 / payload_mismatch→403（§6.3.1）"]
-    T1 -- 成功 --> X1["tool.execute() 真副作用"] --> X2["同一 DB 事务: status→executed + appendIrrev(kind=irrev, confirmedBy)"]
-    X2 --> X3["executed + resultRef"]
-```
-
-要点：
-
-- **internal 分支没有任何确认逻辑**——`search_kols` / `match_plan` / `draft_email` 点了即办，只追加 `kind=auto` 弱化日志（FR-11.14）。
-- **outbound 无票分支不触碰 `tool.execute`**：先算利害、落 `PendingAction`、落 `gate/pending` 日志，返回 `gate_confirm`。副作用代码一行不跑。
-- **有票分支先消费票再执行**（防重放优先于副作用），执行成功后在**同一 DB 事务**里把 `PendingAction` 置 `executed` 并追加 `irrev` 行（FR-8.6.7「确认与留痕同一事务」）。外部副作用无法进 DB 事务，因此顺序保证是：*irrev 行只在副作用成功返回后写*；而 gate 时刻的 pending 行已存在，任何时点都不存在「做了事但全无记录」的窗口。副作用成功与 finalize 之间崩溃 → 状态停在 `executing`，作为异常显式浮现在 `/admin/runs`（P0 人工对账；演进见 §6.9）。
-
-### 6.2.4 注册表装载期不变量（`src/lib/agent/tools/registry.ts`）
-
-```ts
-import { OUTBOUND_TOOL_NAMES } from 'lib/agent/tools/types';   // 白名单常量与类型同源（§6.2.2）：5 类语义 · 6 个工具名
-
-// register() 在模块装载时对每个工具断言，违反直接 throw（进程起不来，构建门就红）：
-// 1. name ∈ OUTBOUND_TOOL_NAMES ⇒ kind 必须是 'outbound'   —— 「outbound 一个都不能漏」(FR-10.6)
-// 2. kind === 'outbound' ⇒ buildHarm 必须定义                —— 没有利害清单的 outbound 不合法 (FR-10.5)
-// 3. 装载完成后 Object.freeze(registry)                      —— 运行期禁止动态改类
-```
-
-这把 FR-10.6 的两半都机制化了：漏标 outbound 在启动时爆炸；internal 加确认框在 executor 里根本没有代码路径。
-
-### 6.2.5 柱② 适配器：结构性无票（`toModelToolSet()`，`src/lib/agent/runtime.ts`）
-
-```ts
-import { tool as aiTool, type ToolSet } from 'ai';   // Vercel AI SDK v5（TS5 下选版）
-
-/** /api/agent/route.ts 唯一允许的工具来源。按当前专家 scopes 收窄工具子集（FR-12.17）。 */
-export function toModelToolSet(ctx: ToolContext, agentId: AgentId): ToolSet {
-  // 对每个工具包一层：execute: (input) => executeTool(def.name, input, ctx)
-  // 闭包签名里不存在 ticket —— 模型「决定」直调 payout 也只能收到 gate_confirm（FR-10.2）
-}
-```
-
-`src/app/api/agent/route.ts`（F004 已立柱）只做四件事：读 `getRequestContext()`；由请求体 `context`（`{pathname, env?, projectId?, gameId?}`）经 `resolveAgent` 在**服务端重解析**当前专家（不信任客户端指定的 agentId）；`streamText({ tools: toModelToolSet(ctx, agentId) })`；把 `ToolOutcome` 组装为 `ToolResultPart` 信封按 `type` 流回柱④。加新工具 = 注册表加条目，route 核心零改动（FR-12.6）。
-
-## 6.3 确认流全链路
-
-### 6.3.1 端点契约
-
-本表即**全案唯一的闸门确认契约**（两步票据：confirm 签票 → execute 消费票），各章一律引用本契约，不另设 `/api/agent/confirm`、`/api/gate/*`、单端点 `/api/actions/confirm` 等私有端点。票**仅在 confirm 响应中出现一次**（不变量 I3）；拦截时不下发任何令牌——禁止令牌随 SSE / data-gate 流下发。
-
-| 端点 | 方法/入参 | 行为 | 未经确认时 |
-|---|---|---|---|
-| `/api/agent` | POST `{ messages, context:{pathname, env?, projectId?, gameId?} }` | 柱② 流式 loop | outbound 工具结果=`gate_confirm`（pending），副作用 0 |
-| `/api/actions/[id]` | GET | 返回 pending 详情（status + harm + payload 摘要，**不含任何令牌**），供确认卡跨页/跨会话重渲染（§6.3.3） | — |
-| `/api/actions/[id]/confirm` | POST（空 body） | 校验 `status='pending'` → 条件 UPDATE 置 `confirmed`、签发一次性票 → 返回 `{ ticket, expiresAt }` | 已决（并发败者/已驳回）→ **409 `GATE_ALREADY_DECIDED`** |
-| `/api/actions/[id]/execute` | POST `{ ticket }` | **不接受任何工具入参**，服务端回放 `PendingAction.payload` 调 `executeTool(..., ticket)` | 无票/伪票/payload 不符/未确认 → **403 `GATE_TOKEN_INVALID`**；已决/票已用 → **409 `GATE_ALREADY_DECIDED`**；票过期 → **410 `GATE_EXPIRED`** |
-| `/api/actions/[id]/reject` | POST `{ reason? }` | 条件 UPDATE 置 `rejected` + 追加 `gate/rejected` 行 | 已决 → **409 `GATE_ALREADY_DECIDED`** |
-
-**HTTP 错误分码 envelope（定稿于本章，G 系测试断言引用此映射）**——响应体 `{ error: <code>, reason?: GateDenyReason }`：
-
-| HTTP | code | 场景 |
-|---|---|---|
-| 403 | `GATE_TOKEN_INVALID` | 无票 / 伪造票 / payloadHash 不符 / 未确认先执行 |
-| 409 | `GATE_ALREADY_DECIDED` | 已确认 / 已驳回 / 已执行 / 票已消费（重放）/ 并发败者 |
-| 410 | `GATE_EXPIRED` | 票 TTL 过期（`GATE_TICKET_TTL_MS`=5min，唯一定义于 `gate/ticket.ts`） |
-
-`execute` 端点不收工具入参是刻意设计：**执行的永远是确认卡上披露过的那份 payload**，「确认 A、执行 B」在接口形状上就不可能（§6.4 的 payloadHash 是纵深防御第二层）。
-
-### 6.3.2 全链路序列图
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor U as 操盘手
-    participant CP as CopilotPanel / canvas（柱③④）
-    participant AG as /api/agent（柱② streamText loop）
-    participant EX as executeTool()（gate 中间件）
-    participant DB as Postgres（PendingAction + OperationLog）
-    participant FX as 副作用 Provider（P0=StubDelivery）
-
-    U->>CP: 「把这 3 封外联邮件发出去」
-    CP->>AG: POST messages
-    AG->>EX: send_bulk_outreach(input)（adapter 通道，无票）
-    EX->>EX: kind=outbound 且无票 → buildHarm(input)
-    EX->>DB: INSERT PendingAction(status=pending, payload, payloadHash, harm)
-    EX->>DB: INSERT OperationLog(kind=gate, gateStatus=pending)
-    EX-->>AG: { status:'pending', type:'gate_confirm', pendingActionId, harm }
-    AG-->>CP: 流式回传 gate_confirm
-    CP->>U: canvas-registry → GateConfirm 卡（收件人全名单 · 对外·不可撤销）
-    U->>CP: 点击「确认发送」
-    CP->>DB: POST /api/actions/{id}/confirm → 条件 UPDATE pending→confirmed
-    DB-->>CP: { ticket（一次性明文，TTL 5min）, expiresAt }
-    CP->>EX: POST /api/actions/{id}/execute { ticket }（服务端回放 payload）
-    EX->>DB: consumeTicket：原子 UPDATE confirmed→executing（校验 ticketHash/TTL/未用/payloadHash）
-    EX->>FX: tool.execute() —— 真副作用（仅此一处）
-    FX-->>EX: 成功 + resultRef
-    EX->>DB: 同一事务：status→executed + INSERT OperationLog(kind=irrev, gateStatus=confirmed, confirmedBy)
-    EX-->>CP: { status:'executed', ... } → canvas 渲染结果
-    Note over U,DB: /admin/runs 出现 irrev 条目：「发起=reach Agent · 确认人=你 · 利害快照 · 确认时间」
-    opt 攻击面（F008 验收 1：不依赖前端）
-        Note over EX,DB: curl execute 无票/伪造票 → 403 GATE_TOKEN_INVALID；重放旧票 → 409 GATE_ALREADY_DECIDED；FX 调用次数不变，无 irrev 行
-    end
-```
-
-驳回分支：`reject` 后 `PendingAction` 终态 `rejected`，追加 `gate/rejected` 日志行；Agent 若要重试须产出**新的** `PendingAction`（新一轮披露、新的确认），不可逆动作严禁静默重试。
-
-### 6.3.3 pending 恢复流（刷新 / 跨会话）
-
-确认卡不是只活在一次 SSE 流里：`PendingAction` 落库即为持久事实，`GET /api/actions/[id]` 随时可取 pending 详情（status + harm，**不含任何令牌**）。「今天」页雷达卡与项目页从该端点重新渲染确认卡；用户点击确认时才走 `/confirm` 签票。两步设计因此天然支持页面刷新、跨会话恢复与多入口进入——恢复流不需要任何额外的状态同步机制。
-
-## 6.4 PendingAction 与确认票：数据结构与防重放
-
-### 6.4.1 PendingAction（Prisma 模型权威定义见 §7）
-
-`PendingAction` 的 Prisma 模型**唯一权威定义在 §7（数据章）**，本章只保留语义要点：状态机 7 态 `pending / confirmed / rejected / expired / executing / executed / failed`；关键列含 `payload`（zod 校验后的完整工具入参，如实不折叠）、`payloadHash`（`sha256(canonicalJson(payload))`）、`harm`（`GateConfirm` 卡渲染的唯一数据源）、`ticketHash`（只存 sha256，明文票不落库）、`ticketExpiresAt` / `ticketUsedAt`、`requestedBy`（发起 Agent id）、`confirmedBy` / `confirmedAt`；并发防护 = PendingAction 上的**条件 UPDATE**（§6.4.3）。数据访问收敛在 `src/lib/agent/gate/pending.ts`（落单 / 详情读取 / 条件 UPDATE）。
-
-### 6.4.2 HarmDisclosure（`src/lib/agent/gate/harm.ts`）
-
-本文件是**全案唯一的 harm 契约 zod 定义**；A2 `GateConfirmData`、A3 `HarmDisclosure`、A5 `harmSchema` 等一律 `z.infer` 引用本 schema，不得另行定义。
-
-```ts
-export const HarmDisclosureSchema = z.object({
-  title: z.string(),                                    // 「向 3 位创作者发送外联邮件」
-  irreversibleLabel: z.literal('对外·不可撤销'),          // 逐字符定死（无空格）；F008 验收 2 的机器可断言锚点
-  facts: z.array(z.string()),                           // 关键事实行（金额/授权范围/依据/有效期…）
-  recipients: z.array(z.object({                        // 批量发信：全名单逐一列出，禁止折叠（FR-8.2.3.5）
-    displayName: z.string(),
-    platform: z.string(),
-    handle: z.string().optional(),
-  })),
-  amount: z.object({ value: z.number(), currency: z.string().default('USD') }).optional(), // NFR-I4
-  scope: z.string().optional(),                         // 授权/分发范围
-  basis: z.string().optional(),                         // 动作依据（报价单/合同引用等）
-});
-export type HarmDisclosure = z.infer<typeof HarmDisclosureSchema>;
-```
-
-每个 outbound 工具的 `buildHarm` 是**服务端**函数（从 DB 读真实名单/金额，不信任模型转述）；`GateConfirm` 组件只做渲染，不参与任何判定（NFR-A1 的焦点陷阱/Escape/语义标签在 WORKBENCH-UI 落地）。
-
-### 6.4.3 票的生命周期与防重放（`src/lib/agent/gate/ticket.ts`）
-
-票 = `crypto.randomBytes(32).toString('base64url')` 的**不透明随机串**（非 JWT，无签名密钥可泄露）；DB 只存 `sha256(ticket)`；`GATE_TICKET_TTL_MS = 5 * 60_000`。
-
-```mermaid
-stateDiagram-v2
-    [*] --> pending: executor 拦截落单
-    pending --> confirmed: /confirm（条件 UPDATE，签发票）
-    pending --> rejected: /reject
-    confirmed --> executing: /execute consumeTicket（原子消费）
-    confirmed --> expired: TTL 过期（再确认=重新签发，追加日志）
-    executing --> executed: 副作用成功 + irrev 行（同一事务）
-    executing --> failed: 副作用失败（不自动重试，需新 PendingAction）
-    executed --> [*]
-    rejected --> [*]
-```
-
-消费必须是**单条原子条件 UPDATE**（天然免锁防并发）：
-
-```sql
-UPDATE pending_action
-SET status = 'executing', ticket_used_at = now()
-WHERE id = $1 AND tenant_id = $2
-  AND status = 'confirmed'
-  AND ticket_hash = $3                 -- timing-safe 比对在应用层先做一遍
-  AND ticket_used_at IS NULL
-  AND ticket_expires_at > now()
-RETURNING *;                            -- 0 行 = 拒绝，按 §6.3.1 分码映射（403/409/410 + GateDenyReason）
-```
-
-| 攻击 / 失效场景 | 防御 |
-|---|---|
-| 模型 loop 自我放行（含 prompt 注入「帮我确认」） | I2：adapter 无票形参；票只出现在 `/confirm` 的 HTTP 响应里，永不进入模型上下文 |
-| 重放同一张票（双击/重发/脚本） | 单次使用：`ticket_used_at IS NULL` 原子消费，第二次 0 行 → 409 `GATE_ALREADY_DECIDED` |
-| 票过期后使用 | `ticket_expires_at > now()`，TTL 5 分钟 → 410 `GATE_EXPIRED` |
-| 确认 A 执行 B（换包） | execute 端点不收入参、只回放库内 payload（结构性）+ executor 复核 `payloadHash`（纵深）→ 403 `GATE_TOKEN_INVALID` |
-| 伪造/枚举票 | 256-bit 随机 + 常数时间比对；DB 泄露也只有 hash，不可用 → 403 `GATE_TOKEN_INVALID` |
-| 并发双确认 / 并发双执行 | 两处均为条件 UPDATE（`status='pending'` / `status='confirmed'`），败者 409 `GATE_ALREADY_DECIDED` |
-| 跨租户拿票执行 | 消费条件含 `tenant_id`；票与 `pendingActionId` 一一绑定 |
-
-## 6.5 OperationLog：append-only 留痕
-
-### 6.5.1 模型（Prisma 权威定义见 §7.3.4）
-
-`OperationLog` 的 Prisma 模型**唯一权威定义在 §7.3.4**，本章只保留语义要点：枚举名 `OpLogKind { auto gate block irrev }`（FR-8.6.2 四类互斥），辅以 `ToolClass { internal outbound }` / `GateStatus` / `ActorType`；关键列含 `actorType` / `actorId`、`action`（= 工具名）、`reversible`（outbound ⇒ false，应用层强制）、`gateStatus`（internal 恒 null）、`confirmedBy` / `confirmedAt`（kind=irrev 必填，zod 校验）、`pendingActionId`、`payload`（利害快照 / 拦截原因 / 入参摘要）；索引集合为 `[tenantId, kind]` / `[tenantId, toolClass]` / `[tenantId, projectId]` / `[kolId]` / `[createdAt]`；行上刻意**没有 `updatedAt` / `deletedAt`**——本表任何行永不变更。本章只约定事件→行映射（6.5.2）与 append-only 双层强制（6.5.3）。
-
-### 6.5.2 事件 → 行的映射（谁在什么时机写哪种行）
-
-| 事件 | kind | gateStatus | 写入点（`append.ts` 函数） | 必填约束（`src/lib/oplog/schemas.ts` zod） |
-|---|---|---|---|---|
-| internal 工具执行 | `auto` | null | executor internal 分支 → `appendAuto` | `toolClass='internal' ⇒ gateStatus=null` |
-| outbound 被拦、产出确认卡 | `gate` | `pending` | executor 无票分支 → `appendGatePending` | `pendingActionId` 非空 |
-| 人驳回 | `gate` | `rejected` | `/reject` route → `appendGateRejected` | `actorType='human'`，payload 含驳回原因 |
-| 合规拦截（如放款前 `kind:block`） | `block` | null | 合规工具/交付流程 → `appendBlock` | `payload.reason` 非空（FR-8.6.5） |
-| 确认后执行成功 | `irrev` | `confirmed` | executor finalize 事务 → `appendIrrev` | `confirmedBy`/`confirmedAt`/`reversible=false`/payload=利害快照（FR-8.6.3「（你已确认）」归属四要素齐备） |
-
-**双行追加语义**（FR-11.12）：同一个 outbound 动作在日志里至少两行——gate/pending 行（拦下时）+ irrev/confirmed 行（执行后），中途驳回则是 gate/rejected 行。任何情况下不 UPDATE 既有行。
-
-### 6.5.3 只 INSERT 的双层强制
-
-**应用层**：`src/lib/oplog/append.ts` 只导出 `append*` 五个函数，不存在 update/delete 导出；写入前过对应 kind 的 zod schema（FR-11.20）。
-
-**DB 层**（随 F008 的 prisma migration 落 raw SQL，FR-11 命名约定要求）：
-
-```sql
--- prisma/migrations/<ts>_operation_log_append_only/migration.sql
-CREATE OR REPLACE FUNCTION operation_log_block_mutation() RETURNS trigger AS $$
-BEGIN
-  RAISE EXCEPTION 'operation_log is append-only: % blocked (id=%)', TG_OP, OLD.id;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER operation_log_append_only
-BEFORE UPDATE OR DELETE ON operation_log
-FOR EACH ROW EXECUTE FUNCTION operation_log_block_mutation();
-```
-
-> P0 dev 容器用 postgres 超级用户，触发器即是有效防线；**演进（M5）**：建专用应用 DB 角色并 `REVOKE UPDATE, DELETE ON operation_log`，双保险。
-
-## 6.6 认证与租户占位
-
-P0 无真实认证（D4 / NFR-S9），但**留出唯一接缝**，后期换真认证不改上层：
-
-```ts
-// src/lib/auth/context.ts —— 全部 Route Handler 的身份来源，P0 硬编码
-export const DEV_TENANT_ID = '00000000-0000-4000-8000-000000000001';  // 与 scripts/seed 建的 dev tenant 一致
-export const DEV_USER_ID   = '00000000-0000-4000-8000-000000000002';  // 唯一 dev 用户（单角色，无 role/scope）
-
-export interface RequestContext { tenantId: string; userId: string; }
-export async function getRequestContext(_req?: Request): Promise<RequestContext> {
-  return { tenantId: DEV_TENANT_ID, userId: DEV_USER_ID };            // M5：替换为 session 解析，签名不变
-}
-```
-
-RLS 就绪性由三条既有约束共同保证：① 运行时无状态（FR-12.9，对话状态在前端 `useChat`，服务端不跨请求缓存）；② 所有 repo/executor 函数显式接 `ctx.tenantId`，无模块级全局租户；③ 每张表带 `tenantId` 列。M5 开 RLS 时只需在事务入口 `SET LOCAL app.tenant_id = $1`，上层零改动。
-
-**P0 已知且接受的风险**（须写进 F008 验收报告）：`/api/actions/*` 在 dev 无会话鉴权，闸门证明的是「**AI 无法自我放行**」（票在 loop 内不可达），不是「网络上任何人都不能确认」——后者是 M5 真实认证的职责。P0 副作用全部是 stub（见 §6.7），实际 blast radius 为零；**真 provider 密钥（Resend/partner）接入前，`/api/actions/*` 必须先挂会话鉴权**，此为 P3 的硬前置。
-
-## 6.7 密钥管理与副作用 Provider
-
-env 唯一定义在 `src/lib/env.ts`（本章引用，不另行定义）：
-
-- **变量集**：`DATABASE_URL` / `AIGCGATEWAY_BASE_URL` / `AIGCGATEWAY_API_KEY` / `AIGC_CHAT_MODEL`（有默认值）/ `AIGC_EMBEDDING_MODEL`（有默认值）；P3+ 真 provider 密钥（`RESEND_API_KEY` 等）在此追加。
-- **导出形态**：惰性缓存函数 `serverEnv()`——首次调用做 zod 校验并缓存，缺失 fail fast、报错列出缺哪几个（NFR-S5）；不做模块装载期顶层 `parse` 副作用。
-- **启动校验入口**：`src/instrumentation.ts`（Next 15 启动钩子；本仓库有 `src/`，该文件不在根）的 `register()` 调一次 `serverEnv()`，进程起来第一件事就是验 env。
-
-- `.env.example` 只列变量名 + 说明，无明文值（§15.5 密钥门）；`.gitignore` 已有 `.env*` 排除。
-- **闸门本身不需要签名密钥**：票是不透明随机串 + DB hash 存储，无 `GATE_SECRET` 可硬编码、可泄露。
-- 副作用出口收敛在 `src/lib/agent/tools/effects.ts` 的 `OutboundEffects` 接口。**P0 实现 = `devStubEffects`**：把「已发生的副作用」写进 P0 专用表 `StubDelivery`（Prisma 模型权威定义见 §7；字段含 toolName / pendingActionId / payload）——这张表是测试的**地面真值**（§6.9 断言它的行数，而非 mock 内部计数）。**演进**：P3 Resend / P4 partner escrow 替换实现，且以 `pendingActionId` 作 provider 幂等键（Resend `Idempotency-Key` / Stripe idempotency key），把 §6.2.3 的 `executing` 悬置窗口收敛为可安全对账。
-
-## 6.8 审计与可查询
-
-- **查询面**：`src/lib/oplog/queries.ts` 的 `listOperationLogs({ tenantId, kind?, toolClass?, action?, projectId?, reversible?, cursor? })`，keyset 分页 on `(createdAt DESC, id DESC)`，筛选维度对应 §7.3.4 的索引集合（FR-11.13）。**P0 形态 = `/admin/runs` 以 RSC 直读 `oplog/queries.ts`**；HTTP `GET /api/operation-logs` **降为 P1+ 演进项**（路由清单已标注，P0 不建）。如 Copilot 需要，可加只读 internal 工具 `list_operation_log` 复用同一函数。
-- **UI**：`/admin/runs`（F006 建占位路由，WORKBENCH-UI 接真组件）。`irrev` 条目单独标注、必渲染归属四要素（发起 Agent / 确认人 / 利害快照 / 确认时间，FR-8.6.3）；`auto` 行弱化展示（FR-11.14）;「今天」页 KPI「待你确认」与徽标计数均经 **`list_pending_asks` 单一工具取数**——`Project.ask` 只是展示聚合层，其 outbound 条目由 `PendingAction(status=pending)` 派生，与雷达卡同源（FR-8.1.3）。
-- **完整证据链**：任一笔放款可从 `irrev` 行 → `pendingActionId` → `PendingAction.harm`（当时确认卡上写了什么）→ gate/pending 行（何时拦的、谁发起的）逐级回放——审计不依赖任何人的叙述，只依赖 append-only 行。
-
-## 6.9 闸门有效性验证（F008 验收 + 变异测试）
-
-### 6.9.1 F008 acceptance → 机制 → 测试映射
-
-| F008 验收项（features.json 原文） | 兑现机制 | 测试（`tests/gate/`，vitest；纯 HTTP/函数级，零前端依赖） |
-|---|---|---|
-| 直接调 API 触发 send/payout 不经人确认必须 403 或 pending | §6.2 executeTool + §6.3 execute 端点 | G1a：`executeTool('payout', input, ctx)` 无票 → `status='pending'`，`StubDelivery` 行数 0（地面真值），存在 gate/pending 日志行；G1b：`POST /api/actions/{id}/execute` 无票/伪票 → HTTP 403 `GATE_TOKEN_INVALID`，`StubDelivery` 行数不变 |
-| 确认卡含「对外·不可撤销」+ 具体利害 | `HarmDisclosureSchema.irreversibleLabel` 字面量 + `recipients` 全名单 | G2：对 `send_bulk_outreach(3 人)` 断言 `harm.irreversibleLabel==='对外·不可撤销'` 且 `harm.recipients.length===3`（断言数据结构，非 UI 截图） |
-| internal 动作不弹确认框 | executor internal 分支无 gate 路径 | G3：`executeTool('search_kols',…)` → `status='executed'`，`PendingAction` 零新增，日志 `kind='auto', gateStatus=null` |
-| 不可逆动作留痕可查 | §6.5 irrev 行 + §6.8 查询 | G5：完整确认流后断言 irrev 行存在、`confirmedBy` 非空、`listOperationLogs({kind:'irrev'})` 可筛出 |
-| （防重放，G1 推论） | §6.4 票机制 | 同票执行两次 → 第二次 409 `GATE_ALREADY_DECIDED` 且 `StubDelivery` 恰 1 行；过期票 → 410 `GATE_EXPIRED` |
-
-### 6.9.2 变异测试（D20 / FR-10.3 / §15.4 硬门）
-
-原则：**断言验行为（HTTP 状态 + DB 行数 + StubDelivery 地面真值），不验源码关键字**。变异测试回答的问题是：*如果有人把闸门拆了，测试套件会不会变红？* 不会变红的断言 = 无效断言，F008 拒收。
-
-落地为 patch 清单 + 机械 runner（Evaluator 在 verifying 阶段执行）：
-
-```
-scripts/test/gate-mutants/
-├── m1-drop-gate.patch          # runtime.ts executeTool: `tool.kind === 'outbound'` → `false`（整个闸门旁路）
-├── m2-drop-single-use.patch    # consumeTicket: 去掉 `ticket_used_at IS NULL` 条件（可重放）
-├── m3-drop-ttl.patch           # consumeTicket: 去掉 `ticket_expires_at > now()`（票永不过期）
-├── m4-drop-payload-bind.patch  # runtime.ts executeTool: 跳过 payloadHash 复核（换包）
-├── m5-misregister.patch        # payout 注册为 kind:'internal'（漏标；应被 6.2.4 装载断言当场炸掉）
-└── m6-drop-irrev-log.patch     # finalize: 不写 irrev 行（执行了但不留痕）
-scripts/test/run-gate-mutations.mjs
-```
-
-runner 逻辑（每个 mutant 一轮）：`git apply <patch>` → `vitest run tests/gate` → **期望退出码非 0**（套件必须变红）→ `git apply -R <patch>` 还原。任一 mutant 下套件仍绿 → runner 以非零退出并点名幸存 mutant。m5 特殊：期望的红可以是测试红**或**进程装载即抛错（两者任一即证明防线有效）。
-
-> **P0**：上述 6 个 mutant 手工 patch 清单 + runner 脚本，作为 F008 验收硬门由隔离 evaluator subagent 执行，结果写入 `docs/test-reports/`。**演进**：若闸门代码后续频繁变更，可评估 StrykerJS（支持 TS/vitest）把变异生成自动化；patch 清单仍保留为最小硬门。
-
-## 6.10 P0 落地 vs 后期演进汇总
-
-| 能力 | P0（F008 交付） | 后期演进 |
-|---|---|---|
-| executeTool 中间件（`runtime.ts`）+ 票 + 防重放 + 装载期不变量 | 全量落地（这是闸门本体，不存在简化版） | — |
-| outbound 副作用 | `devStubEffects` → `StubDelivery` 表（六工具至少落 `payout`+`send_outreach` 供测门） | P3 Resend / P4 partner，`pendingActionId` 作幂等键；接真密钥前 `/api/actions/*` 先挂会话鉴权 |
-| append-only | 应用层只 INSERT repo + DB 触发器 | M5 专用 DB 角色 REVOKE UPDATE/DELETE |
-| 认证/租户 | `getRequestContext()` 硬编码 dev tenant/user | M5 真实认证 + RLS（`SET LOCAL app.tenant_id`），上层零改动 |
-| 密钥 | `src/lib/env.ts` `serverEnv()` 惰性缓存 zod 校验 + `instrumentation.ts` 启动即验 | 密钥轮换、成本记账挂点（FR-12.31） |
-| `executing` 悬置（副作用后崩溃） | `/admin/runs` 显式浮现异常，人工对账 | provider 幂等键 + 对账 job（outbox 模式） |
-| 变异测试 | 6-mutant patch 清单 + runner，验收硬门 | StrykerJS 自动化（可选） |
-| 审计 UI | `/admin/runs` RSC 直读 `oplog/queries.ts` + kind/toolClass/项目筛选 | HTTP `GET /api/operation-logs`（P1+）、导出、留存策略、按 KOL 维度证据链视图 |
-
----
-
-# §7 数据架构
-
-> 本章负责：Prisma schema 全量设计（含 PendingAction 闸门状态表）、pgvector 检索、三重溯源中「数据溯源」的读取合并规则、seed 管道、迁移与演进策略。闸门的运行时流程（两步票据 confirm 签票 / execute 消费票、错误码语义）与工具注册表属另章，本章只交付它们依赖的表结构与数据面不变量。
-
-## 7.1 落点总览
-
-代码库现状：**无 `prisma/`、无 `src/lib/`、无任何 DB 依赖**（侦察确认）。本章全部产物为新建，落点如下（业务代码一律裸 src 导入、**不新增 `@/` 别名**；保留既有 `@/public/*` 静态资源映射——tsconfig paths 已存在）：
-
-| 落点 | 内容 | Feature |
-|---|---|---|
-| `prisma/schema.prisma` | 全部模型 + 枚举 | F001 |
-| `prisma/migrations/` | init 迁移 + 手补 raw SQL（append-only 触发器等） | F001 |
-| `docker-compose.dev.yml` | `pgvector/pgvector:pg16` 本地 DB（内容唯一权威见 A7 §9.2，含 healthcheck） | F001 |
-| `.env.example` | `DATABASE_URL` localhost 占位（非生产凭据；示例统一以 A7 §9.2 为准） | F001 |
-| `src/lib/db/prisma.ts` | PrismaClient 单例（dev 热重载缓存到 `globalThis`） | F001 |
-| `src/lib/kol/schemas.ts` | 5 个契约位的 zod schema——**jsonb 形状的唯一权威**（FR-11.20） | F001 |
-| `src/lib/kol/embedding.ts` | embedding 源文本构造 + sha256 hash | F003 |
-| `src/lib/kol/search.ts` | pgvector 检索 raw SQL（`search_kols` 工具消费） | F003/F004 |
-| `src/lib/provenance/resolve.ts` | dataSource/fieldProvenance 读取合并（`ProvenanceTag` 消费） | F001 |
-| `src/lib/compliance/flags.ts` | 合规 flag 词表——`brandSafety.flags` 与 `compliance_redline` 共用命名空间（FR-11.10） | F001 骨架 |
-| `src/lib/game/schemas.ts` | GameKnowledge `structured` 按 kind 的 zod | F001 |
-| `src/lib/oplog/append.ts` | OperationLog 追加 helper + 行不变量校验 | F008 |
-| `src/lib/agent/gate/pending.ts` | PendingAction 创建/签票/消费票的事务封装 | F008 |
-| `src/lib/db/tenant.ts` | `DEV_TENANT_ID` 硬编码常量（D4） | F001 |
-| `data/seed/kol-seed-enriched-final.csv` | seed 源（拷入 repo 入 git，可复现） | F003 |
-| `scripts/seed/import-kol-csv.ts` / `embed-kols.ts` / `country-map.ts` / `bootstrap-dev.ts` | 导入 / 嵌入 / 中文国名映射 / dev 租户引导 | F003 |
-
-**需新增依赖**（`.npmrc` 已有 `legacy-peer-deps=true`，React 19 RC 下安装无冲突）：
-
-- `prisma` + `@prisma/client`——**按 TS5 选版**（Prisma 6 要求 TS ≥5.1，可直接选用）。统一口径（ADR-008）：**TS 5.x 以独立微批次在 F002 启动前完成升级**（升级+构建门全绿，不与 F001–F008 混批），此后 zod / Prisma / AI SDK 均按 TS5 选版。
-- `zod`——同按 TS5 选版；jsonb 契约位形状仍由 zod 唯一定义（FR-11.20）。
-- `csv-parse`（seed 解析，理由见 §7.6）、`tsx`（devDep，脚本 runner，repo 现无 ts 执行器）。
-
-**设计总原则**（与 PRD §11 两统领对应）：
-
-1. **契约先行**：5 个深字段契约位建库即存在、全 nullable、seed 不填充；缺值是「显示态」不是错误态（FR-11.3/11.17）。
-2. **三重溯源**：数据（`dataSource`+`fieldProvenance`）/ 知识（`sourceMaterialIds`+`confidence`+`supersededById`）/ 动作（`OperationLog` append-only）。
-3. **单租户占位**：所有表带 `tenantId`，查询一律显式过滤；无 role/scope/Approval 列，**禁止回填**（D26/FR-11.16）。RLS 留 M5，上层不改（NFR-S9）。
-4. **命名约定**：Prisma camelCase / DB snake_case（`@map`）；uuid `gen_random_uuid()`（PG16 内建，OperationLog 例外用 bigint 自增）；`timestamptz` + `@updatedAt`；长生命周期实体带 `deletedAt` 软删。
-
-## 7.2 ER 总览
+| project（项目聚合） | 五环节容器与游标 | `Project`（**已建·最小占位**） | `cur` 流转有守卫；`owner` 是分工不是权限 | M1 |
+| brief | 目标与健康 | `Project.goal`(jsonb) | 健康度纯函数；阻塞处置=internal | M1 |
+| match | 筛查/评分/组合 | `MatchPlan` · `PlanKol` · `MatchCandidate` | 批准=internal 不弹框；低置信度入「待裁定」不显裸分 | M2 |
+| reach（CRM） | 对话/报价/跟进 | `OutreachThread` · `OutreachMessage` · `Quote` | CRM 状态事件推断；发送/报价=outbound | M3 |
+| delivery | 条款/交付/放款 | `Deal` · `Deliverable` · `GameKey` · `Payout` | 条件齐才可放款、无绕过；放款/发 Key=outbound | M3 |
+| insight | ROI/复盘/周报/分享 | `MetricSnapshot` · `WeeklyReport` · `ShareLink` | 证据缺口诚实标注；对外分享=outbound | M4 |
+| kol 资产 | 库/溯源/向量 | `Kol`（**已建·完整**） | 契约位 nullable；发现≠执行 | M0 ✅ / M2 消费 |
+| knowledge | 素材/特点 | `Game`（**已建·最小占位**）· `Material` · `GameKnowledge` | 知识溯源非空；supersede 链不物理删 | M1 |
+| audit | 留痕 | `OperationLog`（**已建**） | append-only（当前**应用层约定**，DB 触发器欠账见 §7.7） | M0 ✅ |
+| orchestration | 编排交接 | `Handoff`（**已建**）· `PendingAction`（**已建**） | 接收方按自身 scope 重读，不信任发送方结论 | M0 ✅ |
+| compliance | 合规判断 | `Kol.brandSafety` × 红线 | 被调用形态；拦截写 block 留痕 | M2/M3 |
+
+### 5.2 目标态领域模型（概念 ER · 演进目标）
+
+> **未实装**：下图是 M1–M4 逐批建表的目标形态。实装表见 §7.2.1。
 
 ```mermaid
 erDiagram
-    Tenant ||--o{ User : ""
-    Tenant ||--o{ Kol : ""
-    Tenant ||--o{ Game : ""
-    Tenant ||--o{ Project : ""
-    Tenant ||--o{ OperationLog : ""
-    Tenant ||--o{ PendingAction : ""
-    Tenant ||--o{ Handoff : ""
-    Tenant ||--o{ StubDelivery : ""
-    Game ||--o{ Material : ""
-    Game ||--o{ GameKnowledge : ""
-    GameKnowledge }o--o{ Material : "sourceMaterialIds 数组引用_应用层"
-    GameKnowledge |o--o| GameKnowledge : "supersededById 历史链"
-    Project }o--o| Game : "可选关联"
-    User |o--o{ Project : "owner 分工标记_非权限"
-    Project ||--o{ ProjectKol : ""
-    Kol ||--o{ ProjectKol : ""
-    Project |o--o{ OperationLog : "nullable"
-    Kol |o--o{ OperationLog : "nullable"
-    User |o--o{ OperationLog : "confirmedBy nullable"
-    PendingAction |o--o{ OperationLog : "闸门事件证据链_逐行追加"
-    PendingAction ||--o{ StubDelivery : "stub外呼落地_地面真值"
-    Project ||--o{ Handoff : "专家间交接"
-
-    Kol {
-        uuid id PK
-        enum platform "youtube|twitch|tiktok|instagram"
-        text handle "tenant+platform 内唯一"
-        text platformUserId "采集 upsert 稳定键_nullable"
-        int followerCount
-        jsonb audienceDemo "契约位_nullable"
-        jsonb credibility "契约位_nullable"
-        jsonb brandSafety "契约位_nullable"
-        jsonb dataSource "契约位_行级来源_nullable"
-        jsonb fieldProvenance "契约位_字段级覆盖_nullable"
-        vector embedding "vector(1024)_bge-m3_nullable"
-        text embeddingTextHash "重嵌入守卫"
-    }
-    GameKnowledge {
-        uuid id PK
-        enum kind "selling_point|audience|compliance_redline"
-        text content
-        jsonb structured
-        uuid_array sourceMaterialIds "非空=溯源_zod强制"
-        text confidence
-        uuid supersededById "旧条目指向替代者"
-    }
-    Material {
-        uuid id PK
-        enum type "lore|art|gameplay_doc|review|data|video"
-        enum parseStatus "pending|parsing|parsed|failed"
-        text storageRef
-    }
-    OperationLog {
-        bigint id PK "autoincrement_append-only"
-        enum actorType "agent|human"
-        enum toolClass "internal|outbound"
-        enum kind "auto|gate|block|irrev"
-        enum gateStatus "pending|confirmed|rejected_internal恒null"
-        bool reversible "outbound 恒 false"
-        uuid confirmedBy "irrev 必填"
-        jsonb payload "如实利害"
-    }
-    PendingAction {
-        uuid id PK
-        text toolName
-        jsonb payload "入参快照_payloadHash防偷换"
-        jsonb harm "确认卡披露结构_权威见闸门章harmSchema"
-        enum status "pending|confirmed|rejected|expired|executing|executed|failed"
-        text ticketHash "一次性票散列_票仅confirm响应出现一次"
-    }
-    Handoff {
-        uuid id PK
-        uuid projectId
-        text fromAgent
-        text toAgent
-        jsonb payload "交接上下文快照_P2起写入"
-    }
-    StubDelivery {
-        uuid id PK
-        uuid pendingActionId
-        text toolName
-        jsonb payload "P0stub外呼送达内容_测试地面真值"
-    }
-    Project {
-        uuid id PK
-        uuid ownerId "D29 分工非权限"
-        text cur "环节游标_骨架"
-        jsonb ask "雷达待办_骨架"
-    }
-    ProjectKol {
-        uuid id PK
-        enum status "to_send|sent|replied|negotiating|confirmed"
-    }
+    Tenant ||--o{ User : has
+    Tenant ||--o{ Kol : owns
+    Tenant ||--o{ Game : owns
+    Tenant ||--o{ Project : owns
+    Tenant ||--o{ WeeklyReport : owns
+    Tenant ||--o{ OperationLog : owns
+    Game ||--o{ Material : "上传素材"
+    Game ||--o{ GameKnowledge : "解析产出"
+    Material }o--o{ GameKnowledge : "sourceMaterialIds"
+    Project }o--|| Game : "关联游戏"
+    Project ||--o{ ProjectKol : "创作者进项目"
+    Kol ||--o{ ProjectKol : "被纳入"
+    Project ||--o{ MatchPlan : "组合方案"
+    MatchPlan ||--o{ PlanKol : "组合成员"
+    Kol ||--o{ PlanKol : "入选"
+    Project ||--o{ OutreachThread : "逐人谈判"
+    Kol ||--o{ OutreachThread : "对话对象"
+    OutreachThread ||--o{ OutreachMessage : "草稿/已发/来信"
+    OutreachThread ||--o{ Quote : "报价"
+    Kol ||--o{ Signal : "外部信号"
+    Project ||--o{ Deal : "成交条款"
+    Kol ||--o{ Deal : "合作方"
+    Deal ||--o{ Deliverable : "交付条件项"
+    Deal ||--o{ GameKey : "Key 分发"
+    Deal ||--o{ Payout : "放款"
+    Project ||--o{ MetricSnapshot : "效果度量"
+    Project ||--o{ ShareLink : "对外分享"
+    Project ||--o{ OperationLog : "动作归属(nullable)"
+    Kol ||--o{ OperationLog : "动作对象(nullable)"
+    User ||--o{ OperationLog : "confirmedBy(nullable)"
 ```
 
-## 7.3 Prisma schema 设计
+关键字段（示意，字段级以批次 spec 为准）：
 
-### 7.3.1 datasource / generator / 枚举
+| 实体 | 关键字段 | 说明 |
+|---|---|---|
+| `Project` | id · tenantId · gameId · name · owner · goal{目标曝光/预算/周期} · budgetTotal · currency · cur · status | `cur` = 环节游标；`owner` = 分工标记（D29）。**当前实装仅 id/publicId/slug/tenantId/name/owner/createdAt** |
+| `ProjectKol` | projectId · kolId · owner · status（5 态） | 状态由事件推断（§5.3），非手切 |
+| `MatchPlan` | id · projectId · name · metrics{触达/预算/风险/规模} · rationale · recommended · status(draft/approved/superseded) · approvedBy/At | 批准=internal 事件（D16 语义：选了就生效） |
+| `PlanKol` | planId · kolId · matchScore · reasons[] | 可解释依据必带 |
+| `MatchCandidate` | projectId · kolId · verdict(pending/kept/dropped) · doubts[] · preJudge | 「待你裁定」：存疑原因+初判，不显裸分 |
+| `OutreachThread` | id · projectId · kolId · owner · lastSignalAt | 一个创作者=一段关系=一个 thread |
+| `OutreachMessage` | threadId · direction(draft/sent/inbound) · body · language · gateLogId? · sentAt | 草稿改而非从零填；sent 必关联闸门记录 |
+| `Quote` | threadId · amount · currency · deliverables[] · scope · status(proposed/committed/rejected) · gateLogId | committed 必经闸门 |
+| `Signal` | id · tenantId · kolId · projectId? · type · source · externalId · payload · detectedAt | 规范化外部事件；externalId 唯一防重（§10.4） |
+| `Deal` | id · projectId · kolId · terms · contractRef · escrowRef · status | contract/escrow 是 partner 侧引用，不存资金细节 |
+| `Deliverable` | dealId · kind(content/key/contract/escrow/ad_disclosure) · status(pending/met/missing/na) · evidenceRef · verifiedBy | 对应台账「内容/Key/合同/托管/#ad」五列 |
+| `GameKey` | dealId · keyRef · status(reserved/distributed) · distributedAt | 分发=outbound |
+| `Payout` | dealId · payee · amount · currency · basis · status(prepared/released/blocked) · gateLogId | 放款=outbound，逐笔 |
+| `MetricSnapshot` | projectId · date · reach · spend · conversions · roi | ROI 计算底表 |
+| `WeeklyReport` | tenantId · period · draftContent · adopted · adoptedAt | 采纳=internal |
+| `ShareLink` | projectId · scope · payloadRef · expiresAt · revokedAt · gateLogId | 生成=outbound；scope 区分 project/quarterly（裁决 #3） |
 
-```prisma
-generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["postgresqlExtensions"]
-}
+### 5.3 状态机集（配变异测试，D20）
 
-datasource db {
-  provider   = "postgresql"
-  url        = env("DATABASE_URL")
-  extensions = [vector]        // migrate 自动生成 CREATE EXTENSION "vector"
-}
+**① 项目环节游标 `cur`**（责任链，FR-7.9；可回看已解锁、不可跳未解锁）— **演进目标（未实装，归 M1）**
 
-enum Platform      { youtube  twitch  tiktok  instagram }
-enum MaterialType  { lore  art  gameplay_doc  review  data  video }
-enum ParseStatus   { pending  parsing  parsed  failed }
-enum KnowledgeKind { selling_point  audience  compliance_redline }
-enum ActorType     { agent  human }
-enum ToolClass     { internal  outbound }
-enum OpLogKind     { auto  gate  block  irrev }              // FR-8.6.2 四类互斥；枚举名跨章统一 OpLogKind
-enum GateStatus    { pending  confirmed  rejected }
-enum PendingStatus { pending  confirmed  rejected  expired  executing  executed  failed }  // 7 态闸门状态机（闸门章两步票据契约）
-enum ProjectKolStatus { to_send  sent  replied  negotiating  confirmed }  // 待发送/已发送/已回复/谈判中/已确认
+| 流转 | 守卫（服务端校验，非仅前端隐藏） |
+|---|---|
+| → brief | 无（项目创建即入） |
+| → match | brief 目标已确认（存在已确认 Brief 草稿） |
+| → reach | 存在 `status=approved` 的 `MatchPlan` |
+| → delivery | ≥1 `Deal`（由 committed quote 生成） |
+| → insight | 全部 `Deal` 到 completed 或显式收尾 |
+
+**② `ProjectKol.status` CRM 5 态（事件推断，FR-8.2.3.4）— 演进目标（未实装，归 M3）**
+
+| 状态 | 进入事件 | 来源 |
+|---|---|---|
+| 待发送 | 加入已批准组合 | 内部动作 |
+| 已发送 | `send_outreach` 确认执行 | 闸门执行路径 |
+| 已回复 | `Signal(email_reply)` | 信号接入 |
+| 谈判中 | 报价交互（议价回复/报价建议被采纳） | 信号 + 推断规则 |
+| 已确认 | `commit_quote` 确认执行 | 闸门执行路径 |
+
+人工覆盖范围 = 开放问题 Q4（M3 前定）；覆盖本身也是事件、写留痕。
+
+**③ `Deal` 资金生命周期 — 演进目标（未实装，归 M3）**（D19：谈定条款→签署托管；交付审核→放款）
+
+`negotiating → signed（电子签回调）→ escrowed（托管入账回调）→ delivering → completed（全部必需 Deliverable=met 且 Payout=released）`；分支：`blocked`（合规拦截，可恢复）/ `defaulted`（违约，规则 M3 定）。
+
+**④ 闸门 `PendingAction.status` — as-built（已实装，3 态）**
+
+```
+pending ──confirm（人）──> executed        （confirmed 枚举值存在但当前路径未使用）
+   │
+   └──reject（人）──> 仍为 pending 但 expiresAt=epoch（失效），并写 block 留痕
 ```
 
-> **`DataSource` 6 值刻意不建 PG enum**：契约位统一落 jsonb，取值由 zod `z.enum` 定义（`src/lib/kol/schemas.ts`）。FR-11.20 明确「schema 是形状唯一权威」——将来新增来源值只改 zod，零 DB 迁移（PG enum 的 `ALTER TYPE ADD VALUE` 在事务内受限，是已知迁移坑）。
+详见 §9.3。**目标态 7 态**（`pending/confirmed/rejected/expired/executing/executed/failed`）= **演进目标（未实装，归 M3）**。
 
-### 7.3.2 Kol（完整字段）
+**⑤ `Material.parseStatus` — 演进目标（未实装，归 M1）**：`pending → parsing → parsed / failed`；failed 可重试回到 parsing。
 
-```prisma
-model Kol {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId        String   @map("tenant_id") @db.Uuid
-  platform        Platform
-  handle          String                                    // 小写规范化存储
-  displayName     String   @map("display_name")
-  profileUrl      String   @map("profile_url")
-  platformUserId  String?  @map("platform_user_id")         // 采集 upsert 稳定键（FR-11.2）
-  countryCode     String?  @map("country_code")             // ISO-3166-1 alpha-2
-  language        String?
-  followerCount   Int      @default(0) @map("follower_count")
-  avgViews        Int?     @map("avg_views")
-  engagementRate  Float?   @map("engagement_rate")
-  uploadsPerMonth Float?   @map("uploads_per_month")
-  lastUploadAt    DateTime? @map("last_upload_at") @db.Timestamptz(6)
-  isGaming        Boolean  @default(true) @map("is_gaming")
-  categories      String[] @default([])
-  email           String?
-  emails          String[] @default([])
-  relationshipStatus String? @map("relationship_status")    // 库层粗语义；取值 P3 REACH-CRM spec 定；
-                                                            // FR-11.1：与 ProjectKol.status 两列不同语义，禁止合并
-  tags            String[] @default([])
-  status          String?
-  metadata        Json?                                     // bio、seed 原始列（aiReasoning 等）暂存于此
+**⑥ `GameKnowledge` 版本链 — 演进目标（未实装，归 M1）**：新解析生成新条目，旧条目 `supersededById` 指向新条目（不物理删除，FR-11.11）；读取恒取链头。
 
-  // ── D15 契约位 ×5：建库即存在、全 nullable、seed 不填充（FR-11.3）；形状权威在 zod ──
-  audienceDemo    Json?    @map("audience_demo")            // audienceDemoSchema
-  credibility     Json?                                     // credibilitySchema {score,method,signals[],assessedAt}
-  brandSafety     Json?    @map("brand_safety")             // brandSafetySchema {rating,flags[],assessedAt}
-  dataSource      Json?    @map("data_source")              // jsonb 字符串字面量，如 "crawl"（行级来源）
-  fieldProvenance Json?    @map("field_provenance")         // { [field]: {source,confidence,fetchedAt,detail} }
+### 5.4 领域服务（`src/lib/domain/`，纯函数注册表）— 演进目标（未实装，归 M1+）
 
-  // ── 向量检索（FR-11.5）──
-  embedding         Unsupported("vector(1024)")?            // bge-m3；Prisma client 不生成此字段类型，读写走 raw SQL
-  embeddingTextHash String? @map("embedding_text_hash")     // sha256(源文本)，重嵌入守卫
-
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
-
-  tenant        Tenant         @relation(fields: [tenantId], references: [id])
-  projectKols   ProjectKol[]
-  operationLogs OperationLog[]
-
-  @@unique([tenantId, platform, handle], name: "kol_identity")        // FR-11.2 租户内唯一；seed upsert 键
-  @@unique([tenantId, platform, platformUserId], name: "kol_platform_uid") // 采集 upsert 稳定键（PG 多 NULL 不冲突）
-  @@index([tenantId, isGaming, followerCount])
-  @@map("kol")
-}
-```
-
-要点：
-
-- `Unsupported("vector(1024)")` 会在迁移里生成正确的 `embedding vector(1024)` DDL，但 Prisma Client **类型层不暴露该字段**——所有 embedding 读写强制走 `$queryRaw`/`$executeRaw`（§7.4），普通 `findMany` 不会误拖 4KB 向量，附带省流量。
-- 两个 unique 键分工：seed（CSV 无平台 UID）走 `kol_identity`；后期 Apify 采集走 `kol_platform_uid`（handle 可改名，platformUserId 稳定）。
-
-### 7.3.3 Game / Material / GameKnowledge
-
-```prisma
-model Game {
-  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId    String  @map("tenant_id") @db.Uuid
-  name        String
-  description String?
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
-
-  tenant    Tenant          @relation(fields: [tenantId], references: [id])
-  materials Material[]
-  knowledge GameKnowledge[]
-  projects  Project[]
-
-  @@unique([tenantId, name])
-  @@map("game")
-}
-
-model Material {
-  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId    String       @map("tenant_id") @db.Uuid
-  gameId      String       @map("game_id") @db.Uuid
-  type        MaterialType
-  source      String?                              // 来源说明（URL / "upload" / "paste"）
-  fileName    String?      @map("file_name")
-  storageRef  String?      @map("storage_ref")     // 【P0】本地路径占位；【演进】对象存储 key
-  uploadedBy  String?      @map("uploaded_by") @db.Uuid
-  parseStatus ParseStatus  @default(pending) @map("parse_status")  // FR-8.4.4 analyzing→done 的持久化载体
-  parsedAt    DateTime?    @map("parsed_at") @db.Timestamptz(6)
-  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  game Game @relation(fields: [gameId], references: [id])
-
-  @@index([gameId, type])
-  @@map("material")
-}
-
-model GameKnowledge {
-  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId          String        @map("tenant_id") @db.Uuid
-  gameId            String        @map("game_id") @db.Uuid
-  kind              KnowledgeKind                     // selling_point→喂触达 / audience→喂匹配 / compliance_redline→喂合规
-  content           String                            // 面向人的文本表述
-  structured        Json?                             // 面向工具调用的结构化 payload（src/lib/game/schemas.ts 按 kind 校验）
-  sourceMaterialIds String[]      @map("source_material_ids") @db.Uuid  // FR-11.9：空数组 = 应用层非法（zod min(1)）
-  confidence        String?                           // 'high'|'medium'|'low'（zod enum）
-  generatedBy       String?       @map("generated_by")                  // 模型/agent 标识
-  supersededById    String?       @map("superseded_by_id") @db.Uuid
-  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  game         Game            @relation(fields: [gameId], references: [id])
-  supersededBy GameKnowledge?  @relation("KnowledgeHistory", fields: [supersededById], references: [id])
-  predecessors GameKnowledge[] @relation("KnowledgeHistory")
-
-  @@index([gameId, kind, supersededById])
-  @@map("game_knowledge")
-}
-```
-
-要点：
-
-- **N—N 溯源刻意不建 join 表**：`sourceMaterialIds uuid[]` 是「生成那一刻用了哪些素材」的**快照语义**，不需要级联维护；反查「哪些知识引用素材 X」用 GIN（见 §7.7 手补 SQL）。完整性由 zod `min(1)` 在写入口强制。
-- **FR-11.11 历史链**：素材更新触发重新分析 → **插入新条目**，把旧条目 `supersededById` 指向新条目，永不物理删除。「现行知识」查询恒定为 `WHERE superseded_by_id IS NULL`——这是所有下游工具（FR-8.4.9：特点是工具调用输入）取知识的唯一入口条件。
-- 真实解析属 P1（F  R-8.4 本批预留 schema、UI 可 mock）——**表和 zod 本批建齐，`parseStatus` 流转本批可 mock**。
-
-### 7.3.4 OperationLog（append-only 动作溯源）
-
-本节为 OperationLog 的**唯一 Prisma 权威**（闸门章 A4 §6.5.1 改为引用本节）；索引集为跨章合并后的定稿。
-
-```prisma
-model OperationLog {
-  id              BigInt      @id @default(autoincrement())
-  tenantId        String      @map("tenant_id") @db.Uuid
-  actorType       ActorType   @map("actor_type")
-  actorId         String      @map("actor_id")        // agent 名（strategy/match/…）或 User.id
-  action          String                              // = 工具名（search_kols / send_outreach / …）
-  toolClass       ToolClass   @map("tool_class")
-  kind            OpLogKind                           // 派生规则见下表
-  reversible      Boolean                             // outbound ⇒ false（应用层不变量）
-  gateStatus      GateStatus? @map("gate_status")     // internal 恒 null（FR-11.12）
-  confirmedBy     String?     @map("confirmed_by") @db.Uuid   // kind=irrev 必填（应用层不变量）
-  confirmedAt     DateTime?   @map("confirmed_at") @db.Timestamptz(6)
-  projectId       String?     @map("project_id") @db.Uuid
-  kolId           String?     @map("kol_id") @db.Uuid
-  pendingActionId String?     @map("pending_action_id") @db.Uuid  // 串联同一闸门事件的全部日志行（gate pending/rejected/confirmed 与 irrev）
-  payload         Json                                // 如实利害快照（harm 结构，FR-10.5）
-  resultRef       String?     @map("result_ref")
-  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  tenant        Tenant         @relation(fields: [tenantId], references: [id])
-  project       Project?       @relation(fields: [projectId], references: [id])
-  kol           Kol?           @relation(fields: [kolId], references: [id])
-  confirmedUser User?          @relation(fields: [confirmedBy], references: [id])
-  pendingAction PendingAction? @relation(fields: [pendingActionId], references: [id])
-
-  @@index([tenantId, kind])                // FR-11.13 按类型筛（合并后定稿索引集）
-  @@index([tenantId, toolClass])
-  @@index([tenantId, projectId])
-  @@index([kolId])
-  @@index([createdAt])
-  @@map("operation_log")
-}
-```
-
-**`kind` 派生规则**（`src/lib/oplog/append.ts` 里以 zod `superRefine` 强制，写歪当场抛错）：
-
-| 场景 | toolClass | kind | gateStatus | 备注 |
+| 函数 | 输入 | 输出 | 消费方 | 批次 |
 |---|---|---|---|---|
-| internal 工具执行 | internal | `auto` | null | FR-11.14：也写日志，UI 弱化展示 |
-| outbound 拦截（创建 PendingAction） | outbound | `gate` | `pending` | 与 PendingAction 创建同事务；拦截时不下发任何令牌 |
-| outbound 被人拒绝 | outbound | `gate` | `rejected` | 追加新行，不改 pending 行 |
-| outbound 人确认（**确认=签票**） | outbound | `gate` | `confirmed` | 追加 gate 类日志行；票仅在 confirm 响应中出现一次（闸门章） |
-| 合规拦截 | internal/outbound | `block` | — | payload 必含拦截原因（FR-8.6.5） |
-| outbound **执行=消费票**、副作用成功 | outbound | `irrev` | `confirmed` | 与 PendingAction finalize(`executed`) **同一事务**插入；confirmedBy/confirmedAt 必填（FR-8.6.3）；副作用失败 → PendingAction=`failed`，**无 irrev 行** |
+| `health.compute` | goal · 预算消耗 · 时间进度 · 阻塞项 | 0–100 + 绿/橙/红分档 | Brief 画布 · 雷达 | M1 |
+| `matchScore.compute` | embedding cosine + `audienceDemo` + 知识受众画像 | 组合分 + 可解释依据（缺受众标「待核」） | Match · 创作者库 | M2 |
+| `envGuards.canEnter / canAdvance` | Project 聚合 | bool + 原因 | 环节导轨 · 工具层 | M1 |
+| `crmInfer.status` | thread 事件 + signals | `ProjectKol.status` | Reach | M3 |
+| `deliveryCheck.row` | Deal + Deliverables + 相关信号 | 每条件齐/缺/不适用 + 可放款标记 | Delivery 台账 | M3 |
+| `roi.compute` | MetricSnapshot + 花费 | ROI · 目标差异 · 达成方向 | Insight | M4 |
+| `attribution.gaps` | 快照 + 回传完整性 | 证据缺口清单（不强行归因） | Insight | M4 |
 
-**Append-only 是 DB 层强制，不是应用层自觉**（跨章铁律②）：迁移手补触发器阻断 UPDATE/DELETE（SQL 见 §7.7）。闸门事件的每次状态变化都**追加新行**（拦截 / 拒绝 / 签票 / irrev 各自成行，FR-11.12），以 `pendingActionId` 串联；可翻转的状态机在 PendingAction（条件 UPDATE，§7.3.5），不在本表。
+这些函数同时被三处复用：页面数据通道（渲染）、工具层（Agent 调用）、例程（巡检/核对）——**一个真相源**。
 
-### 7.3.5 PendingAction（闸门状态表，唯一可变的闸门状态机）
+### 5.5 领域事件与信号驱动 — 演进目标（未实装，归 M3）
 
-OperationLog 是不可变审计流水；但闸门需要一个**可查询、可翻转的当前状态**（「这张确认卡还有效吗」）。两者分工：PendingAction 存状态机，OperationLog 存证据链。本节为 PendingAction 的**唯一 Prisma 权威**（闸门章引用本节）；状态机 **7 态**，运行时流转按闸门章两步票据契约（confirm 签票 → execute 消费票）。
+事件词表（示意）：`plan.approved` · `outreach.sent` · `kol.replied` · `quote.committed` · `deal.signed` · `escrow.funded` · `deliverable.met` · `payout.released` · `keys.distributed` · `report.adopted` · `share.created`。来源两类：**内部动作**（工具执行成功，含闸门确认）与**外部信号**（Signal 规范化后解释）。
 
-> outbound 口径分辨（与 PRD 一致）：**语义类别 5 类**（发信/报价/放款/分发 Key/对外分享，批量发=发信类的批量形态）；**工具白名单 6 个工具名**（批量发因 harm 必须列全名单而独立成工具），`OUTBOUND_TOOL_NAMES` 共 6 名。
+与 `OperationLog` 的关系：`OperationLog` 是**动作审计**（谁/何时/做了什么/哪一类），领域事件是**状态推断的输入**。**刻意不建事件溯源框架**（无独立 EventStore）：Signal 表 + OperationLog + 领域表状态列已足够，推断是纯函数（ADR-21，KISS）。
+
+---
+
+## §6 前端架构
+
+### 6.1 信息架构与路由
+
+侧栏固定 6 入口（跨项目）+ 项目详情下钻（不进侧栏）。路由即 PRD §7.2 表：
+
+| 页 | 路由 | 常驻 Agent | 界面语法 | 主要构件（M0.5 口径） |
+|---|---|---|---|---|
+| 今天（雷达） | `/admin/today` | 编排 | KPI + 确认雷达 + 编队 + feed | KPI ×4（delta 有无两态不合并）· 「需要你确认」雷达卡（health pill 三态 / `irrev` 红标条件渲染 / 「进入项目」携 `data-goenv` 直落）· AgentSquad `grid` variant ×6 · Agent 活动 feed ×6 · 曝光趋势 chartcard · **团队负荷卡**（见下） |
+| 项目列表 | `/admin/campaigns` | 编排 | 卡片列表（只做「进入」） | — |
+| 项目详情（五环节） | `/admin/campaigns/[id]?env=` | 随环节切 | 项目头 + 环节导轨 + 落地面 | 五套语法互不相同（§6.3） |
+| 创作者库 | `/admin/creators` | 匹配 | KPI + 筛选 chips + 表 + 详情抽屉 | 筛选态 URL 化（§6.5） |
+| 游戏知识 | `/admin/knowledge` | 策略 | 游戏切换 + 上传 + 特点卡 | `kbGame` URL 化；ProvenanceTag `inline` variant |
+| 洞察 | `/admin/insight` | 洞察 | 跨项目 ROI 看板 + 周报 | 对外分享 = outbound 闸门（quarterly scope） |
+| Agent 记录 | `/admin/runs` | 编排 | 类型 chips + append-only 流 | `runFilter` URL 化；类型 pill 四态不合并 |
+
+**「今天」页团队负荷卡（M0.5 裁决 #8，v1.2 补入）**：today 页保留「团队负荷」区块（`load` 行 ×3：avatar + Progress track + 右对齐 %）。其 eyebrow 文案 **「团队负荷 · 单一角色，仅用于分工」为必须元素**——该免责句是本卡与 DP-1/D26（单角色、无角色分叉）共存的前提：负荷展示的是 `owner` 分工标记（Leo/Ada/Kai）的工作量分布，**不派生任何权限、不构成角色分叉**。实现时免责句不得省略或弱化，否则本卡与 ADR-06/ADR-09 冲突。
+
+- 原 5 个占位路由（`dashboards`/`dashboards/default`/`discovery`/`database`/`outreach`）**已收敛为 redirect 桩**（as-built：`redirect('/admin/today'|'/admin/creators'|'/admin/campaigns')`），**不是删除**——旧链接与外部书签仍可用。后续批次如需清理须显式立项。
+- 五环节是项目详情的页内 tab（`?env=brief|match|reach|delivery|insight`），无跨项目环节页；雷达待办卡带 `data-goenv` 直落卡住环节（FR-7.8）。
+- 环节流转守卫（§5.3①）在页面与工具层双重执行（**演进目标，归 M1**）。
+
+> **命名歧义警示（as-built）**：URL 查询参数 `?env=` 指**五环节**（brief/match/…）；而服务端 `ToolContext.env` 字段是**运行环境**（`'default' | 'sandbox' | 'production'`，见 `src/lib/agent/tools/types.ts`）。两者同名不同义，实现时不得互相赋值——环节在服务端由 `stage-routing.ts` 的 `Stage` 类型承载。
+
+### 6.2 三区外壳
+
+`admin/layout.tsx` 为固定三列：**侧栏 285px**（6 入口 + 底部「Agent 自动边界」CTA 卡，常驻不可关闭）· **主区弹性**（落地画布 + 悬浮玻璃 navbar 内嵌指令栏）· **常驻 Copilot 360px**。移动端 Copilot 退为 `fixed` 右滑抽屉。路由切换只重绘主区与 Copilot 上下文，侧栏/navbar 不重挂载（FR-7.1）。
+
+### 6.3 五环节界面语法 → 组件树
+
+五套语法**结构不同**（FR-7.10/7.11，不得退化成同一张表换数据），各为 `components/envs/` 下独立组件树：
+
+| 环节 | 语法 | 主组件 | 关键交互 |
+|---|---|---|---|
+| Brief | 仪表 glance | `HalfGauge`（ApexCharts radialBar −90/90）+ 4 tile + 阻塞卡 + 曝光趋势 + 推进 timeline | 看方向；**阻塞处置走 Copilot prompt 路径，blocker 卡不加按钮**（裁决 #1） |
+| Match | 对比矩阵 compare | `.cmatrix` 组合列×指标行矩阵（**独立组件非 DataTable**）+ 「待你裁定」候选表（DataTable） | 批准一组（internal，不弹框）；低置信度不显裸分；「待核」触发 = 字段缺失/契约层 null（裁决 #2） |
+| Reach | 对话收件箱 converse | `ConversationInbox`：左人列 280 / 中对话+草稿 1fr / 右档案 240 | 改草稿；「确认报价」钮**仅 `stage==='谈判中'` 条件渲染**（裁决 #6）；发送/报价=**outbound 闸门** |
+| Delivery | 条件台账 verify | 条件台账（内容/Key/合同/托管/#ad 齐缺状态）+ 放款按钮 | **反向 guardrail：刻意无 KPI/图表/推荐卡/批量按钮，不得补**（D8）；放款=**outbound 闸门** |
+| Insight | 对照账本 reconcile | 原目标 vs 实际差异表（三值三样式）+ 证据缺口卡 + 图 + 复盘草案 | 采纳=internal；对外分享=**outbound 闸门**（project scope，裁决 #3） |
+
+### 6.4 组件策略
+
+复用优先级（落地规范 §1）：① Horizon 现成组件 → ② 照 className/token 约定 → ③ 才新建（用 Horizon 原语拼）。**模板已提供的能力禁止在 `common/` 重新发明**（template-port-guide）。
+
+**既有 `common/` 10 件（as-built，恰好 10 个文件）**：`Badge` · `Button` · `ChatBubble` · `ComingSoon` · `DefinitionRow` · `HandoffCard` · `PageHeader` · `PanelHeader` · `SectionLabel` · `SurfaceCard`。
+
+**新建产品件（M0.5，FR-12.27）**：
+
+| 组件 | 职责 | 备注 |
+|---|---|---|
+| `CopilotPanel` | 常驻对话面：专家头 + 职责/隔离卡 + 刚刚完成 + 动作卡 + 协同交接 + 消息流 + 输入 | **已建** |
+| `canvas-registry.tsx` | 工具结果 → React 组件（柱四） | **已建**（`components/copilot/canvas/`） |
+| `GateConfirm` | 闸门确认卡：如实列全部利害 + 「对外·不可撤销」红标（Chakra Modal，焦点陷阱） | harm 行随 4 类动作与 scope 不同（裁决 #3） |
+| `ProvenanceTag` | 溯源徽标：读 `fieldProvenance`，可展开明细；来源区分辅以图标/文字（色盲友好）。**`variant: 'badge' \| 'inline'`**——`badge` 用于创作者抽屉胶囊态，`inline` 用于知识页 kb-prov 溯源行（裁决 #10，单组件双形态，不拆两件） | |
+| `AgentSquad` | 编队花名册。**`variant: 'grid' \| 'compact'`**——`grid` 用于 today 页 6 元卡片网格，`compact` 用于 Copilot 内嵌密度（裁决 #7，同一数据源两种密度，variant 优于拆分） | |
+| `Toast` | 全局轻提示：底部居中 · 绿 check · navy 底 · **2.4s 自动收** · **单例**。**自建轻量 `common/Toast`，不扩 Chakra 原语白名单**（裁决 #9）——语义简单，Chakra 拆包白名单是既定架构边界 | |
+| `ConversationInbox` | Reach 三栏收件箱 | |
+| `HalfGauge` | 半环健康度仪表（ApexCharts radialBar −90/90） | |
+| `DataTable` | @tanstack/react-table 通用封装（排序/筛选/分页） | |
+| `UploadZone` | react-dropzone 上传 + 解析状态二态（done 绿 / analyzing 琥珀） | |
+
+**port 件（自模板搬运，不重造）**：`MiniStatistics` · `LineAreaChart` · `BarChart` · `PieChart` · `CircularProgress` · `Progress`。
+
+图表全部 ApexCharts；表格全部 react-table（Match 矩阵除外——独立组件）；弹层走 Chakra 拆包（Modal/Drawer + `useDisclosure`）。
+
+### 6.5 状态管理（刻意从简）
+
+- **URL 即状态**（裁决 #4，四个状态位**全部** URL 化——可分享、可回退、可深链）：
+
+| # | 状态位 | 查询参数 | 落点 feature |
+|---|---|---|---|
+| 1 | 当前环节 | `?env=brief\|match\|reach\|delivery\|insight`（含 `?stage=` 兼容重写） | F007 项目详情 |
+| 2 | 创作者库筛选 | 平台 chips + 品类 chips | F013 创作者库 |
+| 3 | Agent 记录筛选 | `runFilter`（类型 chips ×5） | F016 记录 |
+| 4 | 知识页当前游戏 | `kbGame` | F014 知识 |
+
+> 裁决依据：kimi §6.5「URL 即状态」是架构权威；交互原型中这些状态是内存态，属**原型工具局限而非设计意图**，实现一律 URL 化。
+
+- **对话状态**：`useChat` 持有消息流；context key（`route:projectId:env:agentId`，见 `persona-router.ts`）变化时重置线程、注入新专家开场白（FR-8.7.9）。
+- **服务端数据**：读类 API + fetch / RSC 直读（需要时再引入 SWR/TanStack Query，不提前）。
+- **不引入全局 store**（Redux/Zustand）：URL + useChat + 局部 state 足够（ADR-18）。
+
+### 6.6 设计系统
+
+Tailwind + CSS 变量驱动（`AppWrappers` 注入 `--color-50..900`，品牌紫 `#422AFB`）；深浅色走 `body.dark` + `dark:` 变体；**禁止再写一套 CSS 变量或 `data-theme`**（FR-12.26）。DM Sans / Poppins 经 `next/font/local` 接线（`src/Fonts.tsx`）。
+
+### 6.7 mock 先行渲染契约
+
+M0.5（WORKBENCH-UI）以真组件 + mock 数据建满 UI：**渲染只依赖字段契约，不依赖数据来源**。所有深字段读取走统一契约层入口：
+
+- `null → 渲染「待接入 / 待补充 / 待核」`，**绝不抛错、绝不填 0 冒充实测**（FR-11.17/11.18，D2）；
+- 「待核」的唯一触发条件 = **字段缺失 / 契约层返回 null**；有值即显（含低可信度值）（裁决 #2，与 §7.5 语义统一，可机械判定）；
+- 数据到位后填真值，UI 零返工。
+
+---
+
+## §7 数据架构
+
+### 7.1 存储选型与通用约定
+
+PostgreSQL **16** + pgvector（dev：`docker-compose.dev.yml`，宿主端口 5434；prod：`docker-compose.prod.yml` 的 `pgvector/pgvector:pg16` 容器 + named volume `newkolmatrix-pgdata`，不暴露宿主端口）。Prisma **6.19.3**。
+
+**as-built 约定（与 v1.1 的差异已校准）**：
+
+| 约定项 | v1.1 表述 | **as-built（v1.2 权威）** |
+|---|---|---|
+| 主键 | uuid `gen_random_uuid()`；`OperationLog` 用 bigint autoincrement | **全表 `String @id @default(cuid())`**——含 `OperationLog`（**非 bigint**） |
+| 命名映射 | Prisma camelCase / DB snake_case（`@map`） | **无 `@map` / `@@map`**——DB 侧即 PascalCase 表名 + camelCase 列名（如 `"OperationLog"."tenantId"`）。写 raw SQL 时须加双引号 |
+| 时间戳 | `timestamptz` + `@updatedAt` | 各表 `createdAt @default(now())`；仅 `Kol` 有 `updatedAt @updatedAt`。**`OperationLog` 刻意无 `updatedAt`/`deletedAt`**（append-only 语义） |
+| 软删除 | 长生命周期实体带 `deletedAt` | **当前无任何 `deletedAt` 列**（演进目标，归 M1+） |
+| 租户 | 业务表带 `tenantId` 占位 | ✅ 一致：`Kol`/`Project`/`Game`/`User`/`PendingAction`/`OperationLog`/`Handoff` 均带 `tenantId` |
+| JSONB zod | 柔性字段必须有对应 zod schema | ✅ 原则不变；`src/lib/data/schemas/` 目录为**演进目标（未实装）**，当前 zod 集中在工具 IO 与 `gate/harm.ts` |
+
+**D-INTEROP 稳定对外标识（as-built）**：核心实体 `Tenant`/`Kol`/`Project`/`Game` 带 `publicId String @unique @default(cuid())`，`Tenant`/`Project`/`Game` 另带 `slug String? @unique`——为 GEO / 外部 agent 引用留插座；`fieldProvenance`/`dataSource` 兼作对外可信层。JSON-LD 具体字段 = EXTENSION POINT，未实装。
+
+建表节奏：**M0 已建 8 表**（下表）；§5.2 领域表随环节批次建（M1 project/brief/knowledge 域、M2 match 域、M3 reach/delivery 域、M4 insight 域）。
+
+### 7.2 数据模型
+
+#### 7.2.1 Prisma schema 权威（as-built 实物转录）
+
+> **本节是 schema 的唯一权威**，逐字对照 `prisma/schema.prisma`（2026-07-21）。任何其他章节的字段描述与本节冲突时，以本节为准；本节与实物冲突时，以实物为准并即刻修订本文。
+>
+> 迁移：`prisma/migrations/20260718000000_init`（建表 + `CREATE EXTENSION IF NOT EXISTS vector`）· `20260720000000_pendingaction_input`（`PendingAction.inputJson`）。
+
+**枚举（3 个）**
 
 ```prisma
-model PendingAction {
-  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId        String        @map("tenant_id") @db.Uuid
-  toolName        String        @map("tool_name")       // send_outreach / send_bulk_outreach / commit_quote / payout / distribute_keys / create_share_link
-  payload         Json                                  // 工具入参完整快照——确认后按此执行
-  payloadHash     String        @map("payload_hash")    // sha256(规范化 payload)——杜绝「确认的与执行的不是同一件事」
-  harm            Json                                  // 确认卡披露结构；形状唯一权威见闸门章 harmSchema（见下）
-  status          PendingStatus @default(pending)       // 7 态：pending|confirmed|rejected|expired|executing|executed|failed
-  sourceAgent     String?       @map("source_agent")    // 发起专家（FR-8.6.3 irrev 归属）
-  requestedBy     String?       @map("requested_by")    // 发起方运行标识（agent 运行/会话归属）
-  projectId       String?       @map("project_id") @db.Uuid
-  kolId           String?       @map("kol_id") @db.Uuid
-  ticketHash      String?       @map("ticket_hash")     // 一次性票 sha256；票本体仅在 confirm 响应中出现一次（不变量 I3），
-                                                        // 绝不进入工具结果/模型上下文；拦截时不下发任何令牌（FR-10.1）
-  ticketExpiresAt DateTime?     @map("ticket_expires_at") @db.Timestamptz(6)  // TTL 常量 GATE_TICKET_TTL_MS（5min）唯一定义于 src/lib/agent/gate/ticket.ts
-  ticketUsedAt    DateTime?     @map("ticket_used_at") @db.Timestamptz(6)
-  confirmedBy     String?       @map("confirmed_by") @db.Uuid
-  confirmedAt     DateTime?     @map("confirmed_at") @db.Timestamptz(6)
-  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  tenant         Tenant         @relation(fields: [tenantId], references: [id])
-  operationLogs  OperationLog[]
-  stubDeliveries StubDelivery[]
-
-  @@index([tenantId, status, createdAt])
-  @@map("pending_action")
-}
+enum PendingActionStatus { pending  confirmed  executed }
+enum OperationLogKind    { auto  gate  block  irrev }
 ```
 
-`harm` 列的形状**权威定义见闸门章 `src/lib/agent/gate/harm.ts` 的 `harmSchema`**（要点：`title: string` + `irreversibleLabel: z.literal('对外·不可撤销')` + `facts: string[]` + `recipients: [{displayName, platform, handle?}]` + 可选 `amount`/`scope`/`basis`；验收 G2 断言 `harm.irreversibleLabel === '对外·不可撤销'`）。本章及一切消费方一律以 `z.infer<typeof harmSchema>` 引用，不得另定义私有形状。
+（`Handoff` 无枚举；`artifactType` 为自由 `String?`。）
 
-**事务不变量（语义权威见闸门章，本章只陈述数据面结果；`src/lib/agent/gate/pending.ts` 封装，任何调用方不得绕过）：**
-
-1. **创建（拦截）**：`INSERT PendingAction(pending)` + `INSERT OperationLog(kind=gate, gateStatus=pending)` 同一 `prisma.$transaction`；拦截时不下发任何令牌。
-2. **确认=签票**：条件 `UPDATE`（`status: pending → confirmed`，写 `ticketHash`/`ticketExpiresAt`）+ 追加 gate 类日志行；票仅在 confirm 响应中出现一次（不变量 I3）。
-3. **执行=消费票**：条件 `UPDATE`（`confirmed → executing`，校验票散列匹配、未用、未过期）→ 执行副作用（P0 为 stub，落 StubDelivery 行）→ 成功则**同一事务** finalize（`executing → executed`、写 `ticketUsedAt`）+ `INSERT OperationLog(kind=irrev, gateStatus=confirmed, confirmedBy, payload=harm 快照)`；副作用失败 → `failed`，**不产生 irrev 行**。
-4. **并发防护 = PendingAction 条件 UPDATE**：状态翻转一律 `UPDATE … WHERE status = <期望前态>`，affected rows = 0 即判定竞争失败，按闸门章错误码映射返回。
-
-【演进】真实外呼（P3 起接 Resend 等）的一致性升级为 outbox 模式、回写 `resultRef`；P0 的 outbound 副作用均为 stub（写 StubDelivery 地面真值，§7.3.8），此简化无风险。
-
-### 7.3.6 Tenant / User
+**① `Tenant` / `User`（单租户 · 单角色）**
 
 ```prisma
 model Tenant {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  users User[]  kols Kol[]  games Game[]  projects Project[]
-  operationLogs OperationLog[]  pendingActions PendingAction[]
-  handoffs Handoff[]  stubDeliveries StubDelivery[]
-  @@map("tenant")
+  id        String   @id @default(cuid())
+  publicId  String   @unique @default(cuid())
+  slug      String?  @unique            // dev tenant = 'dev'
+  name      String?
+  createdAt DateTime @default(now())
+  users     User[]   ; kols Kol[] ; projects Project[] ; games Game[]
 }
 
-model User {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId    String    @map("tenant_id") @db.Uuid
-  email       String
-  displayName String    @map("display_name")
-  avatarUrl   String?   @map("avatar_url")
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
-
-  tenant        Tenant         @relation(fields: [tenantId], references: [id])
-  ownedProjects Project[]
-  confirmedLogs OperationLog[]
-
-  // D26/FR-11.16 硬约束：无 role、无 scope、无审批链列。任何迁移引入
-  // role/scope/Approval/allowedRoles 均属回填作废层，Evaluator 按此拒收。
-  @@unique([tenantId, email])
-  @@map("user")
+model User {                            // D26：无 role / scope / 权限字段
+  id        String   @id @default(cuid())
+  tenantId  String
+  email     String?  @unique
+  name      String?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@index([tenantId])
 }
 ```
 
-单租户引导：`src/lib/db/tenant.ts` 导出固定常量 `DEV_TENANT_ID`（写死 uuid 字面量，D4），所有服务端查询显式带 `tenantId: DEV_TENANT_ID`；`scripts/seed/bootstrap-dev.ts` 幂等 upsert 该 Tenant + **一个** dev User（F003 已作废三角色用户）。
-
-### 7.3.7 Project / ProjectKol（骨架，字段级留 P1/P3/P4）
+**② `Kol`（核心实体 · 含向量列 + D15 字段契约位）**
 
 ```prisma
-model Project {
-  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId  String  @map("tenant_id") @db.Uuid
-  gameId    String? @map("game_id") @db.Uuid
-  name      String
-  ownerId   String? @map("owner_id") @db.Uuid   // D29/FR-11.15：分工标记（防撞车），禁止参与任何权限判定
-  cur       String? // 环节游标 'brief'|'match'|'reach'|'delivery'|'insight'（zod 校验；FR-7.8 导轨/timeline 同源）
-  ask       Json?   // 驾驶舱「需要你确认」展示聚合层 {env,summary,urgency,…}；FR-8.1.1 ask≠null 才上雷达；形状 P1 spec 定；
-                    // 其 outbound 条目由 PendingAction(status=pending) 派生，KPI 与徽标计数均经 list_pending_asks 单一工具取数（跨章唯一口径）
-  status    String?
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+model Kol {
+  id              String   @id @default(cuid())
+  publicId        String   @unique @default(cuid())
+  tenantId        String
+  canonicalHandle String                        // F004 幂等 upsert 键（规范化 handle）
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  game   Game?  @relation(fields: [gameId], references: [id])
-  owner  User?  @relation(fields: [ownerId], references: [id])
-  kols   ProjectKol[]
-  operationLogs OperationLog[]
-  handoffs Handoff[]
+  displayName String? ; platform String? ; handle String? ; profileUrl String?
+  avatarUrl   String? ; country  String? ; language String?
+  followers   Int?    ; avgViews Int?    ; engagementRate Float?
+  categories  String[] @default([])
+  bio         String?
 
-  // 【留 P1/P3/P4】预算/时间线/KPI/健康度输入项——字段级 schema 由对应批次 spec 裁决后 additive migration 补列
-  @@map("project")
-}
+  embedding Unsupported("vector(1024)")?        // bge-m3；读写走 $queryRaw
 
-model ProjectKol {
-  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId  String           @map("tenant_id") @db.Uuid
-  projectId String           @map("project_id") @db.Uuid
-  kolId     String           @map("kol_id") @db.Uuid
-  status    ProjectKolStatus @default(to_send)   // 项目层细语义 5 态；与 Kol.relationshipStatus 禁止合并（FR-11.1）
-  owner     String?                              // D29 分工标记（防两人同发一位创作者）
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  // D15 契约位（nullable，本批不填充）
+  audienceDemo    Json?
+  credibility     Json?
+  brandSafety     Json?
+  dataSource      String?
+  fieldProvenance Json?
 
-  project Project @relation(fields: [projectId], references: [id])
-  kol     Kol     @relation(fields: [kolId], references: [id])
+  owner     String?                             // D29 分工标记，非权限
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  // 【留 P3/P4】报价/条款/交付条件/放款关联（Deal/Payout/Outreach 引用级实体届时新表，不改本表既有列）
-  @@unique([projectId, kolId])
-  @@index([projectId, status])
-  @@map("project_kol")
+  @@unique([tenantId, canonicalHandle])
+  @@index([tenantId]) ; @@index([platform])
 }
 ```
 
-FR-8.2.3.4（CRM 阶段从真实事件自动推断）的实现含义：`ProjectKol.status` 的写入口在 P3 收敛为「事件驱动的状态推导」，本批只建列与枚举，不建手动切换 UI。
+> **去重键 as-built 校准**：实装为**单键** `@@unique([tenantId, canonicalHandle])`。v1.1 描述的「双键」（`(tenantId, platform, handle)` + `(platform, platformUserId)`）**未实装**——`platformUserId` 列不存在。采集 upsert 稳定键 = **演进目标（未实装，归 M5）**。
 
-### 7.3.8 Handoff / StubDelivery（交接记录与 P0 地面真值）
+**③ `Project` / `Game`（最小占位）**
+
+```prisma
+model Project {                          // 五环节唯一容器（D22）。领域字段 → M1-M4
+  id String @id @default(cuid()) ; publicId String @unique @default(cuid())
+  slug String? @unique ; tenantId String ; name String
+  owner String?                          // D29
+  createdAt DateTime @default(now())
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@index([tenantId])
+}
+
+model Game {                             // 知识库实体。素材/解析 → M1
+  id String @id @default(cuid()) ; publicId String @unique @default(cuid())
+  slug String? @unique ; tenantId String ; name String
+  owner String?
+  createdAt DateTime @default(now())
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@index([tenantId])
+}
+```
+
+> ⚠️ `Project` **无 `cur` 环节游标列、无 `goal`/`budgetTotal`**；`Game` **无 `Material`/`GameKnowledge` 关联表**。§5.2/§5.3① 的相关设计均为演进目标。M0.5 六页工作台的这些数据一律走 mock 契约层（§6.7）。
+
+**④ `PendingAction`（AI→人闸门落点，F009）**
+
+```prisma
+model PendingAction {
+  id                    String              @id @default(cuid())
+  tenantId              String
+  kind                  String                       // 当前恒为 'gate'
+  toolName              String
+  payloadHash           String                       // sha256(toolName + 稳定序列化 input + tenantId)
+  inputJson             Json?                        // 冻结的工具入参（确认后据此执行）
+  harmJson              Json                         // harm 结构（gate/harm.ts 单一 zod）
+  status                PendingActionStatus @default(pending)
+  confirmationTokenHash String?                      // 只存 hash，明文令牌不落库
+  expiresAt             DateTime?
+  createdAt             DateTime            @default(now())
+  @@index([tenantId]) ; @@index([status])
+}
+```
+
+> **3 态 as-built**：枚举含 `pending / confirmed / executed`，但**执行路径只用 `pending → executed` 两态**——`confirmPendingAction` 直接置 `executed`（单步确认即执行，见 §9.3），**`confirmed` 枚举值当前未被任何代码写入**。`rejected` / `expired` / `executing` / `failed` **不存在**（演进目标，归 M3）。拒绝路径不改 `status`，而是把 `expiresAt` 置为 epoch(0) 使其失效。
+
+**⑤ `OperationLog`（留痕平面 · append-only）**
+
+```prisma
+model OperationLog {
+  id        String           @id @default(cuid())     // ⚠️ cuid 字符串，非 bigint
+  tenantId  String
+  kind      OperationLogKind                          // auto | gate | block | irrev
+  actor     String?                                   // 当前写入 agentId
+  summary   String?                                   // 人类可读一句话
+  ref       String?                                   // 关联引用（当前 = PendingAction.id）
+  createdAt DateTime         @default(now())
+  @@index([tenantId]) ; @@index([kind])
+}
+```
+
+> **7 列 as-built 校准（关键）**：实装**恰好 7 列**（`id` / `tenantId` / `kind` / `actor` / `summary` / `ref` / `createdAt`）。v1.1 §7.7 描述的 `actorType` · `action` · `toolClass` · `reversible` · `gateStatus` · `confirmedBy` · `confirmedAt` · `projectId` · `kolId` · `payload` · `resultRef` **全部不存在**。
+>
+> 后果与承接方式：
+> - 「谁/何时/做了什么/哪一类」由 `actor` + `createdAt` + `summary` + `kind` 承载；结构化字段级筛选（FR-11.13 的 `toolClass`/`reversible`/`projectId` 过滤）= **演进目标（未实装，归 M1）**，届时以**加列迁移**（expand-contract）扩展，不改已有行。
+> - `kind` 四态语义（as-built 写入点）：`auto`=工具直接执行的可逆动作（含 `send_outreach` mock 副作用的 `SENT_MARKER` 行）· `gate`=outbound 被闸门拦截落 pending · `block`=人拒绝 · `irrev`=人确认后不可逆执行完成。
+> - 「利害快照」当前存于 `PendingAction.harmJson`（经 `ref` 关联），**不在 OperationLog 行内**。
+
+**⑥ `Handoff`（多 Agent 编排交接落点，F006）**
 
 ```prisma
 model Handoff {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId  String   @map("tenant_id") @db.Uuid
-  projectId String   @map("project_id") @db.Uuid
-  fromAgent String   @map("from_agent")
-  toAgent   String   @map("to_agent")
-  payload   Json?                                  // 交接上下文快照（结论/待办/引用）
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
-  project Project @relation(fields: [projectId], references: [id])
-
-  @@index([projectId, toAgent, createdAt])
-  @@map("handoff")
-}
-
-model StubDelivery {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId        String   @map("tenant_id") @db.Uuid
-  pendingActionId String   @map("pending_action_id") @db.Uuid
-  toolName        String   @map("tool_name")
-  payload         Json                              // stub 外呼「已送达」内容快照
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  tenant        Tenant        @relation(fields: [tenantId], references: [id])
-  pendingAction PendingAction @relation(fields: [pendingActionId], references: [id])
-
-  @@index([pendingActionId])
-  @@map("stub_delivery")
+  id           String   @id @default(cuid())
+  tenantId     String
+  projectId    String?                    // 软引用，单租户下不强 FK
+  fromAgent    String   ; toAgent String
+  artifactType String?  ; artifactRef String?
+  summary      String?                    // 可审计摘要（非权威数据源）
+  messagesJson Json?
+  createdAt    DateTime @default(now())
+  @@index([tenantId]) ; @@index([projectId])
 }
 ```
 
-- **Handoff**：专家间交接记录。**F001 建齐表结构，P2（多专家编排）起才有写入路径**；本批零写入不影响迁移完整性。
-- **StubDelivery**：P0 outbound stub 副作用的**测试地面真值**——execute 消费票、副作用成功即插一行。G1 验收依赖它：无票/伪票 → 403 `GATE_TOKEN_INVALID`；pending 未确认 → StubDelivery 行数不变。
+> 语义（`src/lib/agent/handoff.ts`）：handoff 只携带 **artifact 引用 + 可审计摘要**；**接收方按自身 scope 重新读取数据，不信任发送方携带的金额 / 状态 / 结论**。当前 `receiveHandoff` 返回「重读指令 + 审计信封」，不代读（代读需各专家领域工具，M1–M4）。
 
-## 7.4 pgvector 检索设计
+#### 7.2.2 `Kol` 字段契约位（D15）
 
-### 7.4.1 vector 列在 Prisma 的落法
+浅字段由 seed 填（platform/handle/displayName/profileUrl/country/language/followers/avgViews/engagementRate/categories/bio）；深字段**建库即存在、全部 nullable、当前不填充**：
 
-- schema：`embedding Unsupported("vector(1024)")?`（§7.3.2）+ `extensions = [vector]`。`prisma migrate dev` 生成的 SQL 自带 `CREATE EXTENSION IF NOT EXISTS "vector"` 与 `embedding vector(1024)` 列。
-- Prisma Client 对 `Unsupported` 字段**不生成读写 API**——这是刻意的强约束面：embedding 只能经 `src/lib/kol/search.ts` 的两个函数触达，raw SQL 全部走 **参数化** `$queryRaw`/`$executeRaw` 标签模板（无 SQL 拼接注入面，NFR-S6）。
+| 契约位 | 形状（zod 权威，**schema 待建**） | 消费方 |
+|---|---|---|
+| `audienceDemo` | `{ageDist, genderDist, geoDist, interests[]}` | 匹配% 组合分、创作者抽屉① |
+| `credibility` | `{score 0-100, method, signals[](必带依据), assessedAt}` | 抽屉⑦、可信度分级 A/B/C |
+| `brandSafety` | `{rating safe/review/risk, flags[](必带), assessedAt}` | 合规比对基准（与 `compliance_redline` 同命名空间，FR-11.10） |
+| `dataSource` | 行级枚举（§7.5） | 行级溯源回退值 |
+| `fieldProvenance` | `{[field]: {source, confidence, fetchedAt, detail}}` | `ProvenanceTag` 逐字段 |
 
-```ts
-// src/lib/kol/search.ts —— 裸 src 导入：import { prisma } from 'lib/db/prisma'
-const EMBEDDING_DIM = 1024;                       // bge-m3
+铁律：`credibility.signals` / `brandSafety.flags` 空依据的分数 = 应用层 zod 判非法（「给分必给依据」，FR-11.4）——**该 zod refine 为演进目标（未实装，归 M2）**。`Kol.relationshipStatus`（库层粗粒度）与 `ProjectKol.status`（项目层 5 态）语义不同，不得合并（FR-11.1）；二者当前均未实装。
 
-const toVectorLiteral = (v: number[]): string => {
-  if (v.length !== EMBEDDING_DIM) throw new Error(`embedding dim ${v.length} !== ${EMBEDDING_DIM}`);
-  return `[${v.join(',')}]`;                      // pgvector 文本字面量，经 ::vector 参数化传入
-};
+### 7.3 向量检索
 
-export type KolSearchHit = {
-  id: string; platform: string; handle: string; displayName: string;
-  followerCount: number; countryCode: string | null; categories: string[];
-  score: number;                                  // = 1 − cosine 距离 ∈ [0,1]，越大越相关
-};
+- `embedding vector(1024)`：Prisma `Unsupported` 类型，经 `$queryRaw` 读写（表名/列名须双引号，见 §7.1 命名约定）。
+- 源文本 = displayName + categories + country + bio/metadata 摘要 → aigcgateway bge-m3（`EMBEDDING_DIMENSIONS=1024`，`embedText()` 直连 `/embeddings`，见 §7.3 附注）。
+- 检索：cosine（`<=>`）top-K。~2,500 行顺序扫即满足 NFR-P3（<200ms）；库规模增长后加 pgvector HNSW 索引，不改调用方（演进，M5）。
+- **匹配% = embedding 余弦 + `audienceDemo` 契合组合分**（`domain/match-score.ts`，演进 M2）；`audienceDemo` 为 null 时降级为纯向量分并标「受众数据待接入」（FR-11.6）。
+- `embeddingTextHash` 重嵌入守卫 = **演进目标（未实装）**——当前 schema 无此列，seed 幂等由 `@@unique([tenantId, canonicalHandle])` upsert 承担。
 
-export async function searchKolsByVector(
-  tenantId: string, queryEmbedding: number[], topK = 20,
-): Promise<KolSearchHit[]> {
-  const vec = toVectorLiteral(queryEmbedding);
-  return prisma.$queryRaw<KolSearchHit[]>`
-    SELECT id, platform, handle,
-           display_name   AS "displayName",
-           follower_count AS "followerCount",
-           country_code   AS "countryCode",
-           categories,
-           1 - (embedding <=> ${vec}::vector) AS score
-    FROM kol
-    WHERE tenant_id = ${tenantId}::uuid
-      AND deleted_at IS NULL
-      AND embedding IS NOT NULL
-    ORDER BY embedding <=> ${vec}::vector
-    LIMIT ${topK}`;
-}
+> **as-built 工程注记**：`search_kols` 工具内的 embedding **刻意不走 AI SDK 的 `embed()`**，而用 `gateway.ts` 的 `embedText()` 直连 fetch——因 AI SDK 的 `embed()` 与 `streamText` 的 chat 流并发时底层连接池会间歇返回 400（实测同请求体 curl 恒 200）。同因还有 `resilientFetch` 的三项修补：空 `content` 补丁（网关拒空 content，tool-call-only 的 assistant 消息被序列化为 `""`）、`keepalive:false`（SSE 流用完后污染连接池）、空体 400 重试。
 
-export async function writeKolEmbedding(kolId: string, embedding: number[], textHash: string) {
-  await prisma.$executeRaw`
-    UPDATE kol SET embedding = ${toVectorLiteral(embedding)}::vector,
-                   embedding_text_hash = ${textHash}
-    WHERE id = ${kolId}::uuid`;
-}
-```
+### 7.4 seed 管道（F004）
 
-`<=>` 是 pgvector 的 **cosine 距离**算子（升序 = 最相关在前）；cosine 对未归一化向量数学上自带归一，bge-m3 输出无需预归一化（若未来改用内积 `<#>` 才需要）。
+`scripts/seed/import-kol-csv.ts`（`npm run seed:kol`）：CSV（`scripts/seed/data/kol-seed-enriched-final.csv`，**2,524 条**，入 git 可复现）→ 解析规范化 → 批量 upsert（幂等，走 `(tenantId, canonicalHandle)`）→ 经 gateway 生成 bge-m3 向量 → 写 pgvector。验收数据门：DB ≥2,000 条真实 KOL 且 embedding 非空；cosine 对 NL query 返回相关 top-K；脚本幂等（跑两遍行数不变）。生产 seed 由 `scripts/deploy/migrate-seed.sh` 在 `migrate` one-shot 容器内条件执行（§13.3 R6）。
 
-### 7.4.2 索引策略：P0 不建向量索引
+### 7.5 溯源模型（差异化核心，平面一）
 
-| 阶段 | 数据量 | 策略 | 理由 |
-|---|---|---|---|
-| 【P0】 | ~2,524 行 | **顺序扫描，不建向量索引** | 2.5k×1024 float 暴力扫为毫秒级，NFR-P3（DB 侧 <200ms）余量一个数量级以上；且精确排序零召回损失，hello-agent 验收（cosine top-K 相关）不受近似索引噪声干扰 |
-| 【演进】≥5 万行（Apify 采集接入后） | — | HNSW：`CREATE INDEX kol_embedding_hnsw ON kol USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64) WHERE deleted_at IS NULL AND embedding IS NOT NULL;` | raw SQL 落独立迁移；partial index 缩体积。**不选 IVFFlat**：需数据先行训练 lists、增量插入后召回退化，与持续采集的写入模式相性差 |
+> **实现状态**：`Kol` 的两个契约位列**已实装**；`resolveProvenance` 解析函数与 `ProvenanceTag` 组件 = **演进目标（未实装，归 M0.5 UI / M2 真数据）**。本节定义其契约，M0.5 的 mock 契约层须按此形状产出。
 
-注意算子类必须与查询算子匹配：`<=>` ⇔ `vector_cosine_ops`，配错索引不生效（EXPLAIN 验证写进 F003 冒烟脚本）。
+`dataSource`（行级默认）× `fieldProvenance`（字段级覆盖）两层组合：
 
-### 7.4.3 embedding 源文本与重嵌入守卫（FR-11.5）
+- `DataSource` 枚举（可信度从高到低）：`platform_api`（平台一方✓）/ `optin`（主动入驻）/ `purchased`（外购评估）/ `crawl`（Apify 采集）/ `user_upload`（你上传）/ `ai_estimate`（AI 估算·未验证，最低）。
+
+#### 7.5.1 `resolveProvenance` 三级回退（FR-11.7）
+
+`ProvenanceTag` 的唯一数据源。规则：**字段级覆盖 → 行级 `dataSource` → 皆空视为 `ai_estimate`（保守下限，绝不冒充实测）**。
 
 ```ts
-// src/lib/kol/embedding.ts
-export function buildEmbeddingText(kol: {
-  displayName: string; categories: string[]; countryCode: string | null; metadata: unknown;
-}): string {
-  return [
-    kol.displayName,
-    kol.categories.join(' '),
-    kol.countryCode ?? '',
-    summarizeMetadata(kol.metadata),   // bio / seed 的 aiReasoning 摘要，截断 512 字符
-  ].filter(Boolean).join('\n');
-}
-
-export const hashEmbeddingText = (text: string) =>
-  createHash('sha256').update(text, 'utf8').digest('hex');
-```
-
-守卫规则：任何写 embedding 的路径必须先算 `hashEmbeddingText(buildEmbeddingText(kol))`，与 `embeddingTextHash` 相同则**跳过**（幂等 + 省 embedding 成本）。源文本构成变更（如未来把 `audienceDemo` 摘要纳入）＝改 `buildEmbeddingText` ＝ 全量 hash 失配 ＝ 自然触发全量重嵌入，无需额外迁移开关。
-
-### 7.4.4 查询链路与缓存挂点
-
-`search_kols` 工具（F004）：NL query → `src/lib/ai/gateway.ts` bge-m3 embed（1024 维）→ `searchKolsByVector` → 结果带 `type:'kol_cards'` 回流 canvas。匹配%组合分（向量 cosine + `audienceDemo`，FR-11.6）属 P2 MATCH；P0 hello-agent 用纯向量 `score`，`audienceDemo` 为 null 时 UI 标「受众数据待接入」。【演进】NFR-P7：同 query embedding 进程内 LRU 复用、`get_kol_detail` 短 TTL——挂点预留在 gateway 封装层，P0 不实现。
-
-## 7.5 溯源实现（数据维）
-
-### 7.5.1 六值 DataSource 与展示档位
-
-```ts
-// src/lib/kol/schemas.ts —— jsonb 形状唯一权威（FR-11.20）
-export const dataSourceSchema = z.enum([
-  'platform_api',   // 平台一方 API
-  'optin',          // KOL 授权直连
-  'purchased',      // 外购数据（第三方评估）
-  'crawl',          // 自建采集
-  'user_upload',    // 用户上传
-  'ai_estimate',    // AI 推断 —— 保守下限（FR-11.7 兜底值）
-]);
-export type DataSource = z.infer<typeof dataSourceSchema>;
-
-// ProvenanceTag 的四档可视区分（FR-12.14 / NFR-A4：不得仅靠颜色，档位配图标+文案）
-export const provenanceTier = (s: DataSource) =>
-  s === 'platform_api' || s === 'optin' ? 'first_party'   // 「平台一方数据 ✓」
-  : s === 'purchased'                   ? 'third_party'   // 「第三方评估」
-  : s === 'crawl' || s === 'user_upload'? 'collected'     // 「采集/自报」
-  :                                       'estimate';     // 「推断值，未验证」
-```
-
-### 7.5.2 契约位 zod（读时校验、降级不抛错）
-
-```ts
-export const fieldProvenanceEntrySchema = z.object({
-  source: dataSourceSchema,
-  confidence: z.enum(['high', 'medium', 'low']).nullable(),
-  fetchedAt: z.string().datetime(),          // FR-11.8 新鲜度，逐字段可查
-  detail: z.string().optional(),
-});
-export const fieldProvenanceSchema = z.record(z.string(), fieldProvenanceEntrySchema);
-
-export const audienceDemoSchema = z.object({  // gap §5.1 形状
-  ageDist: z.record(z.string(), z.number().min(0).max(1)),
-  genderDist: z.record(z.string(), z.number().min(0).max(1)),
-  geoDist: z.record(z.string(), z.number().min(0).max(1)),   // countryCode → 占比（NFR-I5 多区域）
-  interests: z.array(z.string()),
-});
-
-export const credibilitySchema = z.object({
-  score: z.number().min(0).max(100),
-  method: z.string(),
-  signals: z.array(z.string()).min(1),       // FR-11.4：空依据的分数非法
-  assessedAt: z.string().datetime(),
-});
-
-export const brandSafetySchema = z.object({
-  rating: z.string(),                        // 'A' | 'A-' | 'B+' …
-  flags: z.array(z.object({
-    code: complianceFlagSchema,              // ← src/lib/compliance/flags.ts，见 7.5.4
-    evidence: z.string().min(1),             // FR-11.4：flag 必带依据；「无风险」以明示 'clear' 条目表达，不用空数组
-    detail: z.string().optional(),
-  })).min(1),
-  assessedAt: z.string().datetime(),
-});
-```
-
-**读写不对称策略**（FR-11.17 缺值=显示态非错误态 vs NFR-S6 边界先校验）：
-
-- **写入口**：`schema.parse()` 严格失败抛错——坏形状不入库。
-- **读出口**：统一经 helper，坏形状**降级为 null**（等同「待接入」）并 server log，绝不把渲染层炸掉：
-
-```ts
-export function readContractSlot<T>(schema: z.ZodType<T>, raw: unknown, ctx: string): T | null {
-  if (raw == null) return null;
-  const r = schema.safeParse(raw);
-  if (!r.success) { console.warn(`[contract-slot] invalid ${ctx}`, r.error.flatten()); return null; }
-  return r.data;
-}
-```
-
-zod 默认 strip 未知 key——契约位内部**加字段**属向后兼容演进，旧数据读取不受影响（见 §7.7）。
-
-### 7.5.3 读取合并规则：resolveProvenance（FR-11.7 三级回退）
-
-`ProvenanceTag`（WORKBENCH-UI 新建件）的唯一数据源。规则：**字段级覆盖 → 行级 dataSource → 皆空视为 ai_estimate（保守下限）**。
-
-```ts
-// src/lib/provenance/resolve.ts
+// src/lib/data/provenance.ts（演进目标，未实装）
 export type ResolvedProvenance = {
   source: DataSource;
   confidence: 'high' | 'medium' | 'low' | null;
-  fetchedAt: string | null;                  // null = 新鲜度未知
+  fetchedAt: string | null;                    // null = 新鲜度未知
   detail?: string;
-  resolvedFrom: 'field' | 'row' | 'fallback'; // 展开明细（FR-8.3.11）时说明溯源层级
+  resolvedFrom: 'field' | 'row' | 'fallback';  // 展开明细时说明溯源层级（FR-8.3.11）
 };
 
 export function resolveProvenance(
   kol: { dataSource: unknown; fieldProvenance: unknown },
-  field: string,                             // 如 'followerCount' | 'audienceDemo.geoDist'
+  field: string,                               // 'followers' | 'audienceDemo.geoDist' …
 ): ResolvedProvenance {
   const fp = readContractSlot(fieldProvenanceSchema, kol.fieldProvenance, 'kol.fieldProvenance');
   const entry = fp?.[field];
-  if (entry) return { ...entry, resolvedFrom: 'field' };
+  if (entry) return { ...entry, resolvedFrom: 'field' };          // ① 字段级
 
   const row = readContractSlot(dataSourceSchema, kol.dataSource, 'kol.dataSource');
-  if (row) return { source: row, confidence: null, fetchedAt: null, resolvedFrom: 'row' };
+  if (row) return { source: row, confidence: null, fetchedAt: null, resolvedFrom: 'row' };  // ② 行级
 
-  return { source: 'ai_estimate', confidence: null, fetchedAt: null, resolvedFrom: 'fallback' };
+  return { source: 'ai_estimate', confidence: null, fetchedAt: null, resolvedFrom: 'fallback' }; // ③ 保守下限
 }
 ```
 
-两个务必分清的语义（FR-7.21/11.17/11.19 的组合）：
+`readContractSlot` 语义：契约位是**外部/历史数据**，读时校验失败**降级不抛错**（返回 undefined 走下一级回退），保证脏数据不打死页面（NFR-S6 的读侧应用）。
 
-| 情形 | 渲染 |
-|---|---|
-| 字段**值**为 null（如 `audienceDemo` 未填充） | 「待接入」占位，不渲染数据点，也就无溯源徽标 |
-| 字段值存在、溯源链空 | 正常渲染数据点 + `ai_estimate` 徽标（「推断值，未验证」）——**永不出现裸数据点** |
+#### 7.5.2 读写不对称（务必分清的两个语义）
 
-### 7.5.4 flags 命名空间对齐（FR-11.10）
-
-`Kol.brandSafety.flags[].code` 与 `GameKnowledge(kind=compliance_redline).structured` 的 flag 码共用**同一常量出处**：
-
-```ts
-// src/lib/compliance/flags.ts —— 唯一出处；P1 合规环节按真实规则扩充，两侧自动同步
-export const COMPLIANCE_FLAGS = [
-  'gambling', 'alcohol', 'adult_content', 'political', 'profanity',
-  'competitor_collab', 'undisclosed_sponsorship', 'clear',
-] as const;
-export const complianceFlagSchema = z.enum(COMPLIANCE_FLAGS);
-```
-
-`src/lib/game/schemas.ts` 中 `compliance_redline` 的 `structured` 按 kind 走 discriminated union，其 `flag` 字段同样引 `complianceFlagSchema`——「游戏红线」与「KOL 安全标记」在 P2 匹配/合规判定时可直接做集合运算，无需字符串映射层。
-
-## 7.6 Seed 管道（F003）
-
-### 7.6.1 源文件实测
-
-源：`/Users/yixingzhou/project/joyce/docs/kol-seed-enriched-final.csv`（旧仓库产物，**拷入本 repo `data/seed/` 并入 git**——F003 可复现性验收）。实测：**2,525 行含表头 = 2,524 条**；**UTF-8 带 BOM**；中文表头 `idx,平台,昵称,频道链接,地区,粉丝数,是否游戏,类目,置信度,AI 判断理由,阶段`；「AI 判断理由」含逗号引号包裹字段——**必须用 `csv-parse`（`bom: true`）解析，naive split 会错列**（实测验证过错位）。平台全部为 `Youtube`；地区为中文国名（美国 1,585 / 英国 320 / 巴基斯坦 284 / …）；类目以 `Other`(2,097)/`Casual`/`FPS` 等为主；置信度 高/中/低。
-
-### 7.6.2 规范化规则（`scripts/seed/import-kol-csv.ts`）
-
-| CSV 列（实测） | 目标字段 | 规则 |
+| 情形 | 渲染 | 理由 |
 |---|---|---|
-| `平台` | `platform` | 白名单映射 `{Youtube→youtube, Twitch→twitch, …}`；未知值 **fail fast** 整行报错（NFR-S6 外部数据不可信） |
-| `频道链接` | `profileUrl` + `handle` 主提取源 | `youtube.com/@SKIFler_WOT` → handle `skifler_wot`（**小写规范化**，稳定 unique 键）；提取失败回退昵称 slug |
-| `昵称` | `displayName` | 原样保留大小写 |
-| `地区`（中文） | `countryCode` | `scripts/seed/country-map.ts` 中文国名→ISO alpha-2（美国→US、英国→GB、巴基斯坦→PK、台湾→TW…）；未命中 → **null + 计数入尾部报告，不编造**（FR-11.18 精神） |
-| `粉丝数` | `followerCount` | parseInt；非法 → 0 + 警告计数 |
-| `是否游戏` | `isGaming` | 是→true / 否→false（保留非游戏行，不过滤） |
-| `类目` | `categories` | `[值]` 单元素数组，`Other` 原样保留 |
-| `idx`/`置信度`/`AI 判断理由`/`阶段` | `metadata.{seedIdx, seedConfidence, aiReasoning, stage}` | 原样留档（`aiReasoning` 同时进 embedding 源文本摘要） |
-| — | 5 个契约位 | **一律不填**（FR-11.3）；读取合并规则自然兜底为 `ai_estimate` 保守下限 |
+| 字段**值**为 null（如 `audienceDemo` 未填充） | 「**待接入 / 待核**」占位，**不渲染数据点**，因而也无溯源徽标 | 没有值就没有出处可标（裁决 #2：字段缺失/契约层 null → 待核） |
+| 字段值存在、但溯源链空 | 正常渲染数据点 **+ `ai_estimate` 徽标**（「推断值·未验证」） | **永不出现裸数据点**（FR-11.19：无溯源不展示） |
 
-### 7.6.3 幂等设计（两阶段）
+**不对称的本质**：*写*入侧允许溯源缺失（历史/外部数据不可强求），*读*取侧绝不允许「无标数据点」——缺失被强制降级为最低可信档而非静默通过。这是「保守下限」原则的机制化落点。
 
-```
-scripts/seed/bootstrap-dev.ts   # 阶段0：upsert DEV_TENANT + 单个 dev User（固定 uuid，重跑无副作用）
-scripts/seed/import-kol-csv.ts  # 阶段1：CSV → 规范化 → prisma.kol.upsert(where: kol_identity)
-scripts/seed/embed-kols.ts      # 阶段2：增量 embedding
-```
+- `fetchedAt` 兼作新鲜度（FR-11.8），「字段已过期」是可判定态。
+- UI 一律经 `ProvenanceTag` 渲染；低置信度渲染「推断值·未验证」，不作行动依据静默展示。
 
-- **阶段1 幂等键** = `@@unique([tenantId, platform, handle], name: "kol_identity")`——CSV 无 platformUserId，走 handle 键；重跑 = 更新非重复插入。~2.5k 条用逐条 upsert + 并发上限（p-limit 10）即可，无需 COPY 优化。
-- **阶段2 幂等键** = `embeddingTextHash`：只处理 `embedding IS NULL OR embedding_text_hash <> 当前源文本 hash` 的行；批量调 gateway bge-m3（batch 32–64，指数退避重试，成本记账挂点走 FR-12.31 的 gateway 封装）。
-- **失败清晰不静默吞**（F002 同款纪律）：逐批 try/catch 收集失败行，尾部输出摘要（导入 n / 更新 m / 国家未映射 k / embed 失败 j）；任何失败 → 非零 exit code。
-- **收尾断言**（对齐 15.5 数据门）：`COUNT(embedding IS NOT NULL) >= 2000` 不满足即失败；再跑一条固定 NL query 的 `<=>` top-5 抽查输出，供人工核对相关性。
+### 7.6 游戏知识平面（平面二）— 演进目标（未实装，归 M1）
 
-npm scripts（`package.json` 新增）：
+`Game` 1—N `Material`、`Game` 1—N `GameKnowledge`、`GameKnowledge` N—N `Material`（经 `sourceMaterialIds[]`）：
 
-```json
-"db:up":      "docker compose -f docker-compose.dev.yml up -d",
-"db:migrate": "prisma migrate dev",
-"seed:dev":   "tsx scripts/seed/bootstrap-dev.ts",
-"seed:kols":  "tsx scripts/seed/import-kol-csv.ts",
-"seed:embed": "tsx scripts/seed/embed-kols.ts"
-```
+- `Material`：type（lore/art/gameplay_doc/review/data/video）· source · fileName · storageRef · parseStatus · parsedAt。
+- `GameKnowledge`：kind（selling_point/audience/compliance_redline）· content · structured(jsonb) · `sourceMaterialIds[]`（**非空即知识溯源**，空则非法，FR-11.9）· confidence · generatedBy=strategy · supersededById。
+- 重解析不物理删除：新条目生成、旧条目 `supersededById` 指向新条目（FR-11.11）。
+- 下游消费映射（FR-8.4.8）：受众→匹配、卖点→触达、红线→合规；特点是**工具调用输入**（运行时注入），非硬编码——特点更新后下游下次调用即感知（FR-8.4.9，见 §8.3 第⑤层）。
+- **flags 命名空间对齐**（FR-11.10）：`Kol.brandSafety.flags[].code` 与 `GameKnowledge(kind=compliance_redline).structured` 的 flag 码共用同一常量出处（`src/lib/compliance/flags.ts`，演进），使「游戏红线」与「KOL 安全标记」可直接做集合运算，无需字符串映射层。
 
-`docker-compose.dev.yml`（`pgvector/pgvector:pg16`；现仓库只有 prod compose 且无 DB 服务——此文件为新建）与 `.env.example` 的内容**唯一权威定义见 A7 §9.2（含 healthcheck）**，本章不重复定义；`DATABASE_URL` 示例统一以该节为准（凭据仅本机 dev 抛弃值，生产凭据不入 git——15.5 密钥门）。
+### 7.7 `OperationLog`（平面三 · append-only）与触发器欠账
 
-## 7.7 迁移与演进策略
+全编队动作留痕表，**只 INSERT，永不 UPDATE/DELETE**。字段见 §7.2.1 ⑤（7 列）。
 
-### 7.7.1 迁移工作流
+- **写入点（as-built）**：`gate.ts` 三处（拦截 `gate` / 确认 `irrev` / 拒绝 `block`）+ `send-outreach.ts` 一处（mock 副作用 `auto`）。所有写入均为 `prisma.operationLog.create`，**代码中不存在任何 `operationLog.update` / `delete` 调用**。
+- internal 动作也写日志，UI 默认弱化、突出 outbound 与不可逆（FR-11.14）。
+- 它是三个产品面的**同一数据源**：Agent 记录页 · 今天雷达「Agent 今日完成」· Copilot「刚刚完成」（FR-8.1.4）。
 
-1. 改 `prisma/schema.prisma` → `npx prisma migrate dev --create-only --name <name>`。
-2. **手补 raw SQL** 追加到生成的 `migration.sql` 尾部（Prisma 表达不了的三类）：
+> #### ⚠️ 欠账登记：append-only 的 DB 层强制**未落地**
+>
+> v1.1 §7.7 / ADR-12 / NFR-S4 要求 **DB 触发器（或撤销 UPDATE/DELETE 权限）阻断改写**，「不只靠应用层自觉」。
+>
+> **as-built 实况**：`prisma/migrations/` 两个 migration 中 **`grep -in "trigger\|rule\|revoke"` 零命中**——append-only 目前**仅由应用层约定与代码评审保证**，DB 层可被任意 UPDATE/DELETE。
+>
+> | 项 | 状态 |
+> |---|---|
+> | 应用层 append-only（只 create，无 update/delete） | ✅ 已满足 |
+> | DB 触发器 / 权限撤销强制 | ❌ **未落地** |
+> | 防双花部分唯一索引（`UNIQUE (gateId) WHERE confirmed`） | ❌ 未落地——当前单次性由 `PendingAction.status !== 'pending'` 检查保证（应用层） |
+> | 对既有行 UPDATE/DELETE 被拒的集成测试断言 | ❌ 未落地（无 vitest，见 §12.6） |
+>
+> **处置**：转 **backlog 候选**（`backlog.json`），不在 ARCH-M05 范围内解决。补齐动作 = 一个 migration（`CREATE RULE`/`CREATE TRIGGER` 阻断 UPDATE/DELETE，或对应用角色 `REVOKE UPDATE, DELETE ON "OperationLog"`）+ 一条集成测试断言被拒。**在补齐之前，NFR-S4「DB 层强制」不得声称已满足**——涉及审计可信度，不得由文档口径掩盖。
 
-```sql
--- (a) OperationLog append-only：DB 层阻断，不靠应用层自觉（跨章铁律②）
-CREATE OR REPLACE FUNCTION forbid_mutation() RETURNS trigger AS $$
-BEGIN RAISE EXCEPTION 'operation_log is append-only'; END;
-$$ LANGUAGE plpgsql;
-CREATE TRIGGER operation_log_append_only
-  BEFORE UPDATE OR DELETE ON operation_log
-  FOR EACH ROW EXECUTE FUNCTION forbid_mutation();
+### 7.8 数据层演进（契约解耦的价值兑现）
 
--- (b) GameKnowledge 反查「哪些知识引用素材 X」
-CREATE INDEX game_knowledge_source_materials_gin
-  ON game_knowledge USING gin (source_material_ids);
+产品层只依赖字段契约（gap-data-layer §5）：Apify 采集 / 外购评估 / opt-in 入驻 / 平台一方 API 任何路径到位，产出都落同一组契约字段、带各自 `dataSource` + `fieldProvenance` 入表——**与 seed 共存、UI 不变、逻辑不变**（NFR-D1/D2）。效果追踪（Insight）对平台收权最敏感，预留一方授权架构位（NFR-S10）。
 
--- (c)【演进，本批不建】HNSW 向量索引 —— 见 §7.4.2，届时独立迁移
-```
-
-3. `prisma migrate dev` 应用；`CREATE EXTENSION "vector"` 由 `postgresqlExtensions` 的 `extensions = [vector]` 自动生成（previewFeatures），无需手写。**F001 验收项：检查生成的 `migration.sql` 含 `CREATE EXTENSION vector`**（此为跨章定稿口径，A7 改为引用本节）。
-4. 触发器行为写进变异测试（D20/15.4 精神）：测试尝试 `UPDATE operation_log` 断言必然抛错——把触发器删掉这条断言必须变红。
-5. 【演进】生产 `prisma migrate deploy` 接入 CD 属 CICD 全栈化改造批次；schema 侧无阻塞项。
-
-### 7.7.2 nullable 契约位的零返工填充路径（gap §5.3 的落地）
-
-功能层只依赖**字段契约**不依赖数据来源，因此数据到位的动作全部是 `UPDATE`，不是迁移：
-
-| 演进事件 | 需要的操作 | schema/UI/工具改动 |
-|---|---|---|
-| Apify 采集接入 | 采集帧 zod 校验 → `UPDATE kol SET audience_demo=…, field_provenance = field_provenance ∥ {…source:'crawl'…}`，upsert 走 `kol_platform_uid` 稳定键 | **零**——UI 从「待接入」自动变实值+徽标 |
-| 外购数据（Modash 类） | 同上，source=`purchased` | 零 |
-| KOL 授权直连 | 同上，source=`optin`/`platform_api`，`fieldProvenance` 字段级覆盖行级来源 | 零（合并规则 §7.5.3 天然支持混源共存，NFR-D1） |
-| 契约位内部加 key | 改 zod schema（宽松读旧数据，strip 未知 key 向后兼容） | 零迁移 |
-| 新增契约位 / P1~P4 补列（Project 预算、ProjectKol 报价等） | additive migration 加 **nullable** 列——PG11+ 加空列是 metadata-only，无重写无锁表 | 旧行自动为「待接入」显示态 |
-| 新增 DataSource 取值 | 只改 `dataSourceSchema`（jsonb 无 DB enum，§7.3.1 决策的兑现） | 零迁移 |
-
-### 7.7.3 P0 落地 vs 后期演进总表
-
-| 事项 | 【P0 落地】（F001–F008） | 【演进】 |
-|---|---|---|
-| 表 | 全部 12 表建齐（含 PendingAction 7 态闸门表、Handoff——F001 建齐 P2 起写入、StubDelivery——P0 地面真值；Project/ProjectKol 为骨架列） | Deal/Payout/Outreach 引用级实体 P3/P4 spec 后新表 |
-| 契约位 | 5×jsonb nullable + zod，seed 不填充 | 采集/外购/授权管道回填 + fieldProvenance |
-| 向量 | vector(1024) 列 + 顺序扫描 top-K | ≥5 万行建 HNSW（partial index） |
-| 租户 | `DEV_TENANT_ID` 硬编码 + 显式过滤 | M5 RLS（`app.tenant_id` GUC）；依赖运行时无状态（FR-12.9），上层不改 |
-| 认证 | 单 dev User，无登录 | M5 真实认证 |
-| OperationLog | 触发器阻断 UPDATE/DELETE + 闸门事件逐行追加（以 pendingActionId 串联） | 外呼一致性升级 outbox；日志表分区（量大后） |
-| Material 存储 | `storageRef` 本地占位 | 对象存储 + 解析管道（P1 真解析） |
-| 部署 | dev docker compose；prod compose 仍前端-only | CICD 批次补 prod DB 服务 + migrate deploy + env 注入 |
-
-**红线复述**（Evaluator 将按此拒收）：任何迁移不得引入 `role`/`scope`/`Approval`/`allowedRoles`/阈值分级列（FR-11.16，作废层禁止回填）；`operation_log` 不得出现 UPDATE 路径；`Kol.relationshipStatus` 与 `ProjectKol.status` 不得合并。
+**迁移纪律（expand-contract）**：生产已有数据，迁移一律先加列/表（兼容旧镜像）再收缩——保证回滚到上一个 `IMAGE_TAG` 时 schema 仍兼容（§13.3 R4）。
 
 ---
 
-# 8. API 设计与集成
+## §8 Agent 架构（四柱 + 编队 + 例程）
 
-> 本章约定全部后端 HTTP 面。现状：仓库**零后端路由**（无 `src/app/api/`、无 `src/lib/`），本章所有路径均为新建；导入一律走裸 src 导入（`tsconfig baseUrl: "src"`，如 `import { serverEnv } from 'lib/env'`）；**不新增 `@/` 别名**，保留既有 `@/public/*` 静态资源映射（tsconfig paths 已存在）。所有 route handler 跑 Node.js runtime（Prisma + pgvector 依赖），且**运行时无状态**（FR-12.9）：对话状态由前端 `useChat` 逐轮回传，服务端不做任何跨请求会话缓存——这是后期 RLS 的边界前提（NFR-S9）。
+### 8.1 四柱总览（as-built）
 
-## 8.1 路由清单
+| 柱 | 职责 | 载体（实物路径） | 状态 |
+|---|---|---|---|
+| ① 工具层 | 原子能力注册表，zod 校验 IO，按 `class` internal/outbound 二分 | `src/lib/agent/tools/`（`types.ts` · `registry.ts` · `index.ts` + 3 个工具） | ✅ 已建 |
+| ② Agent 运行时 | NL → 规划 → 调工具 → 流式产出的服务端 loop | `src/app/api/agent/route.ts` + `persona-router.ts` + `context.ts` + `to-ai-sdk-tools.ts` + `execute.ts` | ✅ 已建 |
+| ③ 常驻对话面 | 用户与 Agent 唯一入口 | `useChat`（`@ai-sdk/react`）+ `components/copilot/CopilotPanel.tsx` | ✅ 已建 |
+| ④ Generative Canvas | 工具结果 → React 组件 | `components/copilot/canvas/canvas-registry.tsx` | ✅ 已建 |
+| ＋ 闸门 | outbound 的服务端信任边界 | `src/lib/agent/gate/{gate,harm}.ts` + `/api/gate/{confirm,reject}`（§9） | ✅ 已建 |
+| ＋ 编排框架 | 人格路由 / 交接 / pending 聚合 | `registry.ts` · `orchestrator.ts` · `handoff.ts` · `stage-routing.ts` | ✅ 已建 |
 
-| 路由 | 方法 | 职责 | 归属 | 阶段 |
-|---|---|---|---|---|
-| `/api/agent` | POST | Agent 运行时流式 loop（四柱②）：NL → 工具调用 → 流式产出 | F004 | **P0** |
-| `/api/actions/[id]` | GET | pending 详情：today 雷达卡/项目页据此重新渲染确认卡（刷新/跨会话恢复，见 §8.1.2） | F008 | **P0** |
-| `/api/actions/[id]/confirm` | POST | AI→人闸门第一步：人拍板 → 签发一次性票据（票**仅在本响应出现一次**，不变量 I3） | F008 | **P0** |
-| `/api/actions/[id]/execute` | POST | AI→人闸门第二步：消费票据 → 执行副作用 → 同事务留痕 | F008 | **P0** |
-| `/api/actions/[id]/reject` | POST | 拒绝 pending 动作，零副作用 | F008 | **P0** |
-| `/api/operation-logs` | GET | append-only 操作日志查询（按 toolClass/action/projectId/reversible 筛，FR-11.13）；**P0 形态 = `/admin/runs` 以 RSC 直读 `lib/oplog/queries.ts`，不经 HTTP** | — | 演进（P1+） |
-| `/api/health` | GET | 健康检查（DB 连通 + env 校验状态）；替换现 compose healthcheck 打页面路由（F006 起改指 `/admin/today`）的做法 | — | 演进（M5 生产硬化，需同步改 `docker-compose.prod.yml`） |
-| `/api/kols`、`/api/kols/[id]` | GET | 创作者库兜底 REST（D5：对话面为主轴，表格/筛选为兜底） | — | 演进（WORKBENCH-UI/P2） |
-| `/api/projects`、`/api/projects/[id]`、`/api/projects/[id]/kols` | GET/POST/PATCH | 项目与 ProjectKol（5 态）资源 | — | 演进（P1–P3） |
-| `/api/games`、`/api/games/[id]/materials` | GET/POST | 游戏知识库素材上传（`UploadZone` 后端） | — | 演进（P1，schema P0 预留） |
-| `/api/ingest/apify` | POST | Apify 采集回调 webhook（见 §8.3.1） | — | 演进（M5） |
-| `/api/webhooks/partner` | POST | partner 电子签/托管状态回写（见 §8.3.2） | — | 演进（P4） |
+> 编队运行时是**四柱之上的调度视图，非独立第五柱**：每个 Agent = 注入同一 `streamText` runtime 的 system prompt 人格 + 按环节收窄的工具子集 + 界面语法。
 
-目录落位：
-
-```
-src/
-├── instrumentation.ts               # §8.4 启动校验入口（register() 调一次 serverEnv()）
-├── app/
-│   ├── admin/runs/                  # F008：留痕可查 P0 形态——RSC 直读 lib/oplog/queries.ts（不经 HTTP）
-│   └── api/
-│       ├── agent/route.ts           # F004：streamText 流式 loop
-│       └── actions/[id]/            # F008：闸门两步契约（权威定义见闸门章 A4）
-│           ├── route.ts             # GET pending 详情（恢复渲染确认卡）
-│           ├── confirm/route.ts     # 人确认 → 签发一次性票据
-│           ├── execute/route.ts     # 消费票据 → 执行副作用 + 同事务留痕
-│           └── reject/route.ts      # 拒绝，零副作用
-└── lib/
-    ├── env.ts                       # §8.4 环境变量唯一权威（serverEnv() 惰性缓存）
-    ├── api/
-    │   ├── envelope.ts              # ok()/err() 响应构造器
-    │   └── errors.ts                # ApiErrorCode 枚举 + HTTP 映射
-    ├── ai/
-    │   ├── gateway.ts               # F002：aigcgateway provider（§8.2）
-    │   ├── embed.ts                 # embedding 封装（重试/超时/维度断言）
-    │   ├── errors.ts                # GatewayError 分类
-    │   └── cost.ts                  # 成本记账挂点（FR-12.31）
-    ├── agent/
-    │   ├── runtime.ts / resolve.ts / prompt.ts   # 运行时组装 · context→专家重解析（同构纯函数）· 五层 prompt 管线
-    │   ├── experts/                 # 七个专家定义（P0 全量落地，见 §8.1.1）
-    │   ├── gate/                    # 闸门模块：ticket.ts（GATE_TICKET_TTL_MS、票据签发/校验）· harm.ts（利害 zod 唯一权威）· pending.ts（PendingAction 读写/条件 UPDATE）
-    │   └── tools/                   # 工具注册表（types.ts / registry.ts / 各工具.ts；四柱①，internal/outbound 二分）
-    ├── oplog/                       # append.ts / queries.ts / schemas.ts（append-only 留痕读写）
-    ├── actions/outbound/            # 副作用实现（send-outreach.ts / payout.ts …）
-    │   │                            # 只允许被 gate 执行管线（execute 路由）导入（建议配 eslint no-restricted-imports 强制）
-    ├── ingest/types.ts              # §8.3.1：Apify 契约预留（P0 只有类型+zod）
-    └── partner/escrow.ts            # §8.3.2：支付边界接口（P0 Mock 实现）
-```
-
-### 8.1.1 POST /api/agent（Agent 运行时）
-
-**请求**（zod 校验，NFR-S6：API 入参一律不可信）：
-
-```json
-{
-  "messages": [
-    { "role": "user", "parts": [{ "type": "text", "text": "找 5 个东南亚原神向的 YouTube KOL" }] }
-  ],
-  "context": {
-    "pathname": "/admin/campaigns/prj_01",
-    "env": "match",
-    "projectId": "prj_01",
-    "gameId": "game_01"
-  }
-}
-```
-
-- `messages`：`useChat` 的完整对话历史（无状态，逐轮回传）。
-- `context`：统一 `{ pathname, env?, projectId?, gameId? }`；服务端 `resolveAgent`（`src/lib/agent/resolve.ts`，同构纯函数）按 `pathname` **重解析**当前专家（system prompt + 工具子集，FR-8.7.8/FR-12.17），**不信任客户端声明**。**P0 全量落地五层 prompt 管线 + `experts/` 七个专家定义；P0 仅 match/orchestrator 挂真工具**，其余专家的工具随后续批次挂载，`context` 契约从 P0 起不变。
-
-**响应**：Vercel AI SDK UI Message Stream（SSE）。首 token 即出（FR-12.10，NFR-P1 TTFT < 2s）。三类流内容：
-
-1. 文本增量（模型回复）；
-2. 工具结果 part —— 带 `type` 字段的结构化产物（`kol_cards` / `match_plan` / …），前端经 `canvas-registry.tsx` 路由到组件（四柱④）；
-3. **闸门数据 part**（`data-gate`）——outbound 被拦截时，携确认卡 payload（`actionId` + `harm`）**直达 UI**，绕过模型上下文；**不含任何令牌**——票据仅在 `POST /api/actions/[id]/confirm` 响应中出现一次（不变量 I3，见 8.1.2）。
-
-**错误面**：流开始前失败（zod 400、gateway 不可达 502）→ 标准 JSON envelope（§8.1.4）；流中途失败 → SSE error part，前端展示用户可读错误，服务端记完整上下文（requestId + 原始 cause），**绝不静默断流**。
-
-Route 骨架（扩展性硬约束 FR-12.6：加工具只动注册表，不动此文件）：
+### 8.2 柱一 · 工具层
 
 ```ts
-// src/app/api/agent/route.ts
-import { streamText, convertToModelMessages } from 'ai';
-import { chatModel } from 'lib/ai/gateway';
-import { resolveAgent } from 'lib/agent/resolve';   // 服务端重解析 context，不信任客户端声明
-import { getToolsFor } from 'lib/agent/tools';      // 注册表：按专家给出工具子集，outbound 已被 gate/ 包裹
-import { agentRequestSchema } from 'lib/agent/schemas';
+// src/lib/agent/tools/types.ts —— as-built 实物转录
+export type ToolClass  = 'internal' | 'outbound';
+export type ToolSource = 'native'   | 'mcp';       // mcp = 扩展点，本批不实装
 
-export const runtime = 'nodejs';
-export const maxDuration = 60;
+export interface ToolDefinition<TInput = unknown, TOutput = unknown> {
+  name: string;
+  description: string;
+  class: ToolClass;                                 // ⚠️ 字段名是 class，不是 kind
+  source: ToolSource;
+  inputSchema: z.ZodType<TInput>;                   // IO 一律 zod（FR-12.6）
+  buildHarm?: (input: TInput, ctx: ToolContext) => Harm;   // outbound 必须提供
+  execute: (input: TInput, ctx: ToolContext) => Promise<TOutput>;
+}
 
-export async function POST(req: Request) {
-  const parsed = agentRequestSchema.safeParse(await req.json());
-  if (!parsed.success) return err('VALIDATION_FAILED', 400, parsed.error.flatten());
-
-  const { messages, context } = parsed.data;
-  const agent = resolveAgent(context);               // pathname → 专家（src/lib/agent/resolve.ts 同构纯函数）
-  const result = streamText({
-    model: chatModel(),
-    system: buildSystemPrompt(agent),                // 五层 prompt 管线 + 否定式护栏注入（FR-10.7/FR-12.8）
-    messages: convertToModelMessages(messages),
-    tools: getToolsFor(agent),
-    stopWhen: stepCountIs(8),
-    onFinish: ({ usage }) => recordCost({ usage, route: 'agent' }),  // §8.2.5 成本挂点
-  });
-  return result.toUIMessageStreamResponse({ onError: toUserFacingError });
+export interface ToolContext {
+  tenantId: string;
+  agentId: AgentId;                                 // F006 persona router 注入
+  projectId?: string | null;
+  env?: 'default' | 'sandbox' | 'production';       // 运行环境，非五环节（见 §6.1 警示）
+  confirmationToken?: string;                       // 只由 gate.confirmPendingAction 注入
 }
 ```
 
-### 8.1.2 闸门端点 /api/actions/[id]/{confirm,execute,reject}（AI→人闸门，架构级铁律①）
+> **as-built 校准**：v1.1 §8.2 写的是 `kind: 'internal' | 'outbound'` 与 `agents: AgentKey[]` 字段。实物字段名为 **`class`**，且**工具定义上没有 `agents` 字段**——可见性收窄由**人格侧**承担（`registry.ts` 的 `AgentPersona.tools: string[]` 白名单 + `persona-router.personaToolSubset()`），而非工具侧声明。`output` 也无独立 zod schema（输出形状由 `execute` 返回类型承载）。
 
-闸门不是前端 if，是**服务端运行时硬约束**（FR-10.1/10.2、NFR-S1）。**契约权威定义见闸门章（A4）的两步票据设计**：`PendingAction(uuid)` → `POST /api/actions/[id]/confirm`（人确认→签发一次性票）→ `POST /api/actions/[id]/execute {ticket}`（消费票执行）→ `POST /api/actions/[id]/reject`；本节只落 HTTP 面与验收对齐，不另立私有端点设计。完整链路：
+**已实装工具（3 个）**：
+
+| 工具 | class | 归属人格 | 说明 |
+|---|---|---|---|
+| `search_kols` | internal | match | NL query → `embedText` → pgvector cosine top-K |
+| `get_kol_detail` | internal | strategy · match · reach | KOL 详情 |
+| `send_outreach` | **outbound** | reach | **唯一 outbound**；`buildHarm` 列全收件人不折叠；`execute` 是 mock 副作用（写 `SENT_MARKER` 的 `auto` 日志行，供闸门/变异测试观测「副作用是否发生」） |
+
+**目标态 outbound 六工具白名单**（`OUTBOUND_TOOL_NAMES`）= **演进目标（未实装，归 M3/M4）**：`send_outreach`（✅已建）· `send_bulk_outreach` · `commit_quote` · `payout` · `distribute_keys` · `create_share_link`。
+
+> **口径分辨**：outbound **语义类别 5 类**（发信 / 报价 / 放款 / 分发 Key / 对外分享），**工具名白名单 6 个**——批量发信独立成工具，因其 harm 必须列全收件人名单。
+
+**注册纪律（as-built）**：
+- `registerTool` 对**重名直接抛错**（禁止双语义并存）；
+- `tools/index.ts` 是唯一 native 装配入口，加工具 = 往 `NATIVE_TOOLS` 加一条，**不改 `route.ts`**（FR-12.3）；
+- 注册幂等（`ensureNativeToolsRegistered`），防 Next dev HMR 模块重估导致重名报错。
+
+### 8.3 柱二 · Agent 运行时与 system prompt 装配
+
+`POST /api/agent`（`runtime='nodejs'`，`maxDuration=60`）→ `streamText` 驱动「模型 ↔ 工具」多轮 loop：
+
+1. **上下文解析（服务端权威）**：请求体 `{ prompt | messages, context?: { route, projectId?, env?, agentId? } }` → `resolveContext()` 在**服务端**重新解析并校验，`agentId` 显式指定须合法、否则由 `defaultAgentForRoute(route)` 推导、最后回落 `orchestrator`——**不信任客户端指定的工具名单**。
+2. **人格选取与工具收窄**：`selectPersona(copilot)` → `personaToolSubset(persona)` → `toAiSdkTools(toolNames, ctx)`。不同人格看到不同工具。
+3. **system prompt 装配**（运行时注入，非硬编码在页面）——见下「五层装配管线」。
+4. **执行与拦截**：一切工具调用经**唯一入口** `executeTool()`；`internal` 直接执行；`outbound` 无令牌 → §9 拦截路径（`stopWhen: stepCountIs(5)` 限制 loop 步数）。
+5. **流式回传**：`toUIMessageStreamResponse()`，token + 工具结果边收边传（NFR-P2）；人格身份经响应头 `X-Agent-Id` / `X-Agent-Tools` 暴露。
+
+#### 8.3.1 五层 system prompt 装配管线
+
+**目标态设计（增量自 f5 §5.3.3）**：
+
+```ts
+// src/lib/agent/prompt.ts（演进目标，未实装）
+export async function buildSystemPrompt(persona: AgentPersona, ctx: AgentRequestContext) {
+  return [
+    BASE_PROMPT,                                            // ① 基座层
+    dutySection(persona),                                   // ② 职责层
+    isoSection(persona),                                    // ③ 隔离层（D13 否定式护栏）
+    await stageContext(ctx),                                // ④ 环节上下文层
+    await gameKnowledgeSection(ctx, persona.knowledgeKinds), // ⑤ 游戏知识注入层
+  ].filter(Boolean).join('\n\n---\n\n');
+}
+```
+
+| 层 | 内容 | 数据来源 | as-built 状态 |
+|---|---|---|---|
+| ① 基座 | 产品世界观（单角色操盘手、AI 主驾人拍板）；工具结果协议（结构化产出必经工具，不徒手编数据）；**溯源诚实规则**（缺值=「待接入」，绝不用 0 或编造冒充，FR-11.17）；语言约定（UI 中文，触达邮件按 KOL 语言，NFR-I2） | 常量 | **部分**：`registry.ts` 的 `BASE_SYSTEM` 已含「基于工具返回的真实数据作答，不编造」；溯源/语言约定**未注入** |
+| ② 职责 | `persona.duty` + 环节界面语法（`uiSyntax`，约束产出形态：match 出对比矩阵、reach 出单人纵向流） | `AgentPersona` | **已建**（duty 已注入；`uiSyntax` 已定义但**未注入 prompt**） |
+| ③ 隔离 | 否定式护栏（见 §8.6） | `AgentPersona.isolation` | **已建**（含越界指路句：「越出边界的请求应说明不属于你的职责并建议交接给对应专家」） |
+| ④ 环节上下文 | 项目快照：`cur` 游标、ProjectKol 5 态计数、阻塞项、**指向本专家的最近 Handoff 摘要** | 现查 DB | **未实装**（依赖 M1 领域表） |
+| ⑤ 游戏知识 | `gameId` → `GameKnowledge` where `kind in persona.knowledgeKinds` and `supersededById is null`，逐条附 `sourceMaterialIds` 溯源标注 | 现查 DB | **未实装**（依赖 M1 knowledge 域） |
+
+**当前 as-built 装配**（`route.ts`）= `persona.systemPrompt`（①②③的最小形态）+ **可用工具清单**（工具名 + description 逐行）；无工具时注入「你当前没有可调用的工具，只做本职分析与建议」。
+
+⑤ 每轮请求**现查现组**（无服务端缓存，FR-12.9）——这正是 FR-8.4.9「特点是工具调用输入非硬编码」的实现：知识更新后，下一轮对话自动用新值，**无需任何失效逻辑**。知识条目量小时全量注入；后期演进为按 token 预算裁剪 top-N + embedding 相关性排序。
+
+**硬性约束**：经 aigcgateway 走 chat tool-calling（FR-12.7）；失败给清晰错误不静默吞（`describeGatewayError` + `onError` 双钩子，服务端 log 真实错误并透传前端——AI SDK 默认会把工具错误脱敏为 "An error occurred."）；**无状态**（FR-12.9）；**模型路由挂点**（NFR-P8：轻量解析→小模型、长文周报→大模型；`chatModel(modelId)` 已支持传参，成本记账见 `logUsage`）。
+
+### 8.4 柱三 · 常驻对话面
+
+`CopilotPanel`（右栏常驻）+ 顶部指令栏（全局唯一 NL 入口）：
+
+- **上下文随 route+env 切换**（FR-7.12/8.7.8）：context key = `route:projectId:env:agentId`（`buildContextKey`）；**key 变化 = 线程重置 + 新专家开场白**（避免串味）。同一专家在同一项目内跨页 key 不变则线程保持。
+- **首屏五构件**（PRD §7.5）：① 职责/隔离卡（否定式，`ExpertScope.tsx`，数据源 = `personaBoundary()`，**与 prompt 同源防漂移**）②「刚刚完成」汇报（读 `OperationLog` 该 actor 近期动作，与雷达/记录页同源）③ 生成式动作卡 ④ 协同交接（`HandoffCollab.tsx`，默认折叠）⑤ 建议追问 chips + 输入框。
+- **动作卡协议**：`{icon, title, sub, go}`，`go` 前缀驱动：`enter:<projectId>` / `env:<env>` / `pick:<kolId>`——点击即导航/办事（FR-7.14；解析见 `parseOrchestratorDirective`）。
+- a11y：流式 `aria-live="polite"`；全键盘可达。
+
+### 8.5 柱四 · Generative Canvas
+
+`canvas-registry.tsx` 维护渲染器映射。**as-built 路由键 = 工具名（`toolName`），不是结果 `type`**：
+
+```tsx
+// src/components/copilot/canvas/canvas-registry.tsx —— as-built
+const CANVAS_REGISTRY: Record<string, ComponentType<{ output: never }>> = {
+  search_kols: KolResultCards,
+};
+export function hasCanvasRenderer(toolName: string): boolean;
+export function renderToolResult(toolName: string, output: unknown);  // 未注册 → 返回 null（对话面回退文本）
+```
+
+| 路由键（工具名） | 渲染组件 | 状态 |
+|---|---|---|
+| `search_kols` | `KolResultCards`（KOL 卡片流，带匹配理由 + 溯源） | ✅ 已建 |
+| `get_kol_detail` | 七分区详情（逐区 ProvenanceTag） | 演进（M2） |
+| `match_plan` | 对比矩阵（组合列×指标行） | 演进（M2） |
+| `gate_confirm` | 待确认动作卡（harm 结构） | 演进（M0.5 UI，见 §9.5） |
+| `compute_roi` | 图表卡（ApexCharts） | 演进（M4） |
+| — | 新类型 = 注册一个组件，**不改对话面与运行时**（FR-12.13） | |
+
+> **as-built 与目标态的差异**：v1.1 §8.5 与 f5 §4.5 均描述「结果 `type` → 组件」并配 `registerCanvasRenderer(type, component)` 受控 register API。实装是**工具名 → 组件的静态对象字面量**。二者可扩展性等价（加类型只改这一个文件），但**测试注入能力（运行时 register）尚不具备**——`tests/unit/canvas-registry.test.ts` 类断言 = 演进目标。改为 `type` 路由 + register API 需在引入第二个工具的多结果形态时一并做（建议 M2）。
+>
+> 未注册键返回 `null` 而**不抛错**（模型输出是不可信输入，NFR-S6）——这条已满足。
+
+**安全红线（FR-12.16）**：canvas 只渲染**受控 React 组件树**，模型输出/工具结果一律作为数据 props 传入，**禁止 `dangerouslySetInnerHTML` 承接模型文本**；上传素材解析后展示文本同样净化。每个渲染数据点必带 `ProvenanceTag`（FR-12.14，非可选装饰）。性能：大结果集按类型增量渲染，虚拟化/分页留精调层（R8）。
+
+> 建议机制化：`react/no-danger` 提为 **error 级** lint 规则覆盖 `src/components/copilot/**`（当前未配置，backlog 候选）。
+
+### 8.6 多 Agent 编队名册（`src/lib/agent/registry.ts`，as-built）
+
+每个专家 Agent = **一套 system prompt 人格 + 一个工具子集 + 一套界面语法**，不是新角色、不是新用户（FR-12.17）。7 人格共享单一 `/api/agent` 端点，**不起独立进程**（PRD §12.6/FR-12.1）。
+
+| key | 中文名 | 归属 stage | **as-built `tools`** | 隔离（否定式护栏 `isolation`） | uiSyntax |
+|---|---|---|---|---|---|
+| `orchestrator` | 编排 Agent | 工作区层 | `[]` | 不亲自执行环节工作，只分派与汇总 | 今天/雷达 |
+| `strategy` | 策略 Agent | ① Brief | `[get_kol_detail]` | 不联系创作者、不放款——交给触达/交付 | 仪表 |
+| `match` | 匹配 Agent | ② Match | `[search_kols, get_kol_detail]` | 只做发现与匹配，不发起触达、不谈价 | 对比矩阵 |
+| `reach` | 触达 Agent | ③ Reach | `[get_kol_detail, send_outreach⛔]` | 不批预算、不放款；报价与发送需你确认 | 对话收件箱 |
+| `delivery` | 交付 Agent | ④ Delivery | `[]` | 不选人、不谈判；放款需你逐笔确认 | 条件台账 |
+| `insight` | 洞察 Agent | ⑤ Insight | `[]` | 只读结果数据，不改动执行动作 | 对照账本 |
+| `compliance` | 合规 Agent | 跨环节（被调用） | `[]` | 跨环节被调用，只做合规判断 | 嵌入各环节 |
+
+（⛔ = outbound，经闸门。空 `tools` = EXTENSION POINT，各人格领域工具随 M1–M4 落地时补入。）
+
+**目标态工具子集**（演进，随批次补入 `tools`）：strategy += `parse_material`/`draft_brief`/`compute_health`；match += `evaluate_creator`/`match_plan`；reach += `draft_email`/`refine_email`/`get_active_plan`/`send_bulk_outreach⛔`/`commit_quote⛔`；delivery += `track_delivery`/`check_deliverables`/`distribute_keys⛔`/`payout⛔`；insight += `compute_roi`/`draft_report`/`create_share_link⛔`；compliance += `check_brand_safety`/`check_platform_compliance`；orchestrator += `list_pending_asks`/`summarize_squad`。
+
+**隔离的两个语义维度**（PRD §9.3）：
+- **横向 = Agent 间分工**（越车道的事交接下游）。越界请求的回应模式已写进 prompt 组装：**不是拒答，而是指路**（「说明不属于你的职责并建议交接给对应专家」）。
+- **纵向 = AI→人行为边界**（任何专家对 outbound 都只能备好）。护栏是**自然语言镜像**，§9 服务端强制是**兑现**，二者必须一致（FR-10.7）。
+
+**文案单源防漂移（as-built）**：`personaBoundary()` 导出 `{id, name, duty, isolation, uiSyntax}` 供 UI 职责/隔离卡直接消费；`buildSystemPrompt()` 由同一 `duty`/`isolation` 组合注入模型——**prompt 与 UI 卡片同源，不可能各说各话**。
+
+#### 8.6.1 承诺-兑现一致性断言（FR-10.7）— 演进目标（未实装）
+
+**机制**：单测断言「每个专家 `isolation` 中提及的 outbound 行为 ⊆ 该专家 `tools` 中 `class==='outbound'` 的工具集合，且注册表中该工具确实走 `executeTool` 的 pending 分支」。
+
+- prompt 说「我不会直接发」与服务端 pending 拦截**必须指向同一批工具**，任何一侧漂移测试即红；
+- 配合 D20 变异测试（把 `send_outreach.class` 改成 `internal`，断言必须变红）；
+- **当前状态**：`scripts/test/gate-smoke.ts`（`npm run gate:smoke`）覆盖 G1–G5 + D20 变异测试的服务端行为面，但**「iso 文案 ⊆ outbound 工具集」这条文本-行为一致性断言尚未实装**（需 vitest，见 §12.6）。列为 backlog 候选。
+
+此外对话面顶部常驻「只做可撤销的事…」声明（FR-7.16）由柱③渲染，文案同样取自单一常量源。
+
+### 8.7 编排 Agent 与「今天雷达」聚合
+
+编排 Agent 只做两件事（FR-9.6）：**待办汇总** + **环节调度**。
+
+- **待办汇总（as-built）**：`orchestrator.aggregatePending(ctx)` 查 `PendingAction where status='pending'`（按 `createdAt desc`），**原样返回 `{id, kind, toolName, status, harm, createdAt}`，不改写 `harm`、不软化任何专家/闸门结论**。
+- **不改写铁律的双保险**（FR-9.6 + FR-10.8）：① **数据层**——聚合接口只做 SELECT 透传，签名中**没有任何改写/过滤/摘要参数**；② **prompt 层**——orchestrator 的 `isolation` 声明「不亲自执行环节工作，只分派与汇总」。
+- **目标态**：`ask` = 派生计算（非手工打标），来源三类：① `PendingAction(status='pending')` 的 outbound 待确认（✅已建）② 合规 `block` 待补件（演进 M2）③ 健康度/阻塞报警（演进 M1）。KPI「待你确认」计数与卡数**必须同源**（FR-8.1.3）——经同一取数函数，不得各查各的。
+- **环节调度（as-built）**：`stage-routing.ts` 提供 client-safe 纯函数 `routeToStage()` / `STAGE_AGENT`（brief→strategy, match→match, reach→reach, delivery→delivery, insight→insight）/ `parseOrchestratorDirective()`（`enter:` / `env:` / `pick:`）。抽为独立 client-safe 模块是**刻意的**——避免页面 client bundle 拉入 prisma。
+- 编排不持有对话之外的写能力；跨环节跳转只产动作卡。
+- **squad 卡固定 6 元入卡**（5 环节专家 + 合规）；orchestrator 是汇报者，**不入卡**（FR-8.1.4）。
+
+### 8.8 领域计算的 Agent 消费
+
+§5.4 的纯函数同时是工具的执行体（如 `compute_health` 工具 = `health.compute` 的薄封装）——Agent 拿到的数字与页面渲染的数字同源，**不会出现「画布一个数、Agent 嘴里另一个数」**（DP-6 推论）。演进目标（随 M1+ 领域层落地）。
+
+### 8.9 协同交接（handoff，as-built 框架已立）
+
+典型链（FR-9.5）：匹配→触达（定稿组合→N 封草稿）· 触达→交付（谈定条款→合同/托管/披露待办）· 交付→合规（交付凭证→合规判断）· 交付→洞察（交付与花费→ROI 归因）。
+
+**两种实现形态**：
+
+| 维度 | 工具级共享（主用） | 子 Agent 调用（演进） |
+|---|---|---|
+| 形态 | 上游把产物**持久化到 DB**，下游经自己作用域内的读工具取用 | 某工具 `execute` 内部再起一次 `generateText`（子专家 prompt + 子工具集） |
+| 状态 | `Handoff` 表 + `handoff.ts` 信封协议 ✅已建 | 未实装 |
+
+**信封协议（as-built）**：
+
+```ts
+interface HandoffEnvelope {
+  projectId: string | null;
+  fromAgent: AgentId; toAgent: AgentId;
+  artifactType: 'brief' | 'match_plan' | 'outreach_thread' | 'deal' | 'report';
+  artifactRef: string;   // 接收方据此按自身 scope 重读
+  summary: string;       // 可审计摘要——仅供人看 / 审计，非权威数据源
+  messages: HandoffMessage[];
+}
+```
+
+**核心语义（不可让渡）**：handoff 只携带 **artifact 引用 + 可审计摘要**；**接收方按自身 scope 重新读取数据，不信任发送方携带的金额 / 状态 / 权限结论**——防止「结论沿交接链层层失真」。交接三要素（交接对、来回消息、交接物+结果）写入上下文并在 Copilot「本环节协同」区（`HandoffCollab.tsx`）可展开核验。合规 Agent 恒以「被调用」形态出现在其它 Agent 的 collab 里（FR-7.15）。
+
+### 8.10 主动式 Agent（例程调度）— 演进目标（未实装，归 M1）
+
+PRD 的核心体验（J1：夜间筛查 3,100 位、为 6 位起草邀约、同步 14 条信号、拦下 2 笔放款）要求 Agent **在无人值守时推进工作**。请求-响应式 loop 回答不了这个——架构上增加与「应答」并列的第二种触发形态：
+
+| | Reactive 应答（✅已建） | Proactive 例程（**未实装**） |
+|---|---|---|
+| 触发 | 用户消息 → `/api/agent` | `jobs/scheduler` 定时触发 |
+| 人格 | 当值专家（按 route+env） | 例程指定专家 |
+| 工具 | 该专家工具子集 | **同一注册表**的 internal 子集（outbound 照样被闸门拦） |
+| 产出 | 流式回话 + 画布卡 | `OperationLog(kind=auto)` + ask 聚合 + 备好物（草稿/候选/待确认卡） |
+| 可见面 | Copilot 对话流 | 雷达「Agent 今日完成」· 记录页 · Copilot「刚刚完成」 |
+
+**例程清单（规划值）**：
+
+| 例程 | 频率（示意） | 专家 | 干什么 |
+|---|---|---|---|
+| `nightly-screen` | 每夜 | match | 对在跑项目重跑筛查/评估，刷新候选与待裁定 |
+| `signal-sync` | 每 15–30 min | reach | 拉入站信号 → 规范化（§10.4）→ CRM 推断 → 跟进草稿备好 |
+| `health-scan` | 每小时 | strategy | 重算各项目健康度，新阻塞 → ask |
+| `delivery-watch` | 每 30 min | delivery | 新信号核对交付条件；达标 → 备好放款（停闸门） |
+| `weekly-draft` | 每周 | insight | 汇总跨项目数据起草周报草案 |
+
+实现要点：
+
+- **能力复用**：例程函数 = repositories + 领域纯函数 +（需要生成时）gateway chat 的组合，与工具执行体同源（§8.8）；筛查/巡检多为纯计算，起草才调模型（成本克制，NFR-P8）。
+- **调度器**：`node-cron` 进程内调度（或系统 cron 打内部端点，二选一）；**单实例运行 + 例程互斥锁**防重复执行；不引入队列框架（ADR-20）。
+- **安全**：例程没有任何 outbound 直通——要发信/放款只能备好进 pending（§9），与人在场时同一道闸。**例程路径的闸门断言必须与应答路径同等覆盖**（§9.7）。
+- **克制**：例程产出经雷达聚合呈现，频率与数量设上限，避免「今日完成」变噪音流（R11）。
+
+---
+
+## §9 AI→人闸门架构（安全核心）
+
+### 9.1 设计目标与威胁模型
+
+原则（D27）：**凡对外、不可逆、花钱的动作，AI 只能走到「已备好，等你按」，绝不自动执行。**
+
+要防的不是「恶意用户」，而是**模型自己**：即使模型在自主 loop 或例程中「决定」直接调 outbound 工具，服务端也必须拦住（FR-10.2）——**闸门是运行时硬约束，不是 system prompt 建议**。
+
+判定标准只有一问：执行后能不能撤销、会不会对外、要不要花钱/承诺——任一为是 → outbound（**纯粹二分，无阈值无角色**，D28）。
+
+**系统不变量**：
+- **I1** 拦截点在**工具执行层**（`executeTool`），不在 Next middleware、不在前端、不在 prompt——伪造 `/api/agent` 请求体夹带工具调用同样过不了闸。
+- **I2** 模型 loop 的 `ToolContext` **永远没有 `confirmationToken`**（`buildToolContext()` 不设该字段），故模型**无法自我放行**。
+- **I3** 确认令牌**从不下发到客户端**（as-built 强化版，见 §9.3）。
+
+### 9.2 拦截点：工具执行器统一入口
+
+运行时执行任一工具前查注册表 `class`（`src/lib/agent/execute.ts`）：
+
+```ts
+// (1) zod 入参校验（边界校验，失败快、错误清晰）
+const parsed = tool.inputSchema.safeParse(rawInput);
+if (!parsed.success) throw new Error(`[tools] ${name} 入参校验失败: …`);
+
+// (2) class 分流：outbound 服务端强制门控
+if (tool.class === 'outbound' && !ctx.confirmationToken) {
+  if (!tool.buildHarm) throw new Error(`[gate] outbound 工具 ${name} 未声明 buildHarm，无法披露利害`);
+  const harm     = tool.buildHarm(parsed.data, ctx);
+  const envelope = await createPendingAction(name, parsed.data, harm, ctx);
+  return { toolName: name, output: envelope };     // 副作用未发生
+}
+return { toolName: name, output: await tool.execute(parsed.data, ctx) };
+```
+
+- `internal` → 直接执行（不写 gate 类日志）；
+- `outbound` 且**无确认令牌** → 落 `PendingAction(pending)` + 写 `OperationLog(kind='gate')`，返回 **pending 信封**（含 harm，**不含令牌**），**副作用不发生**；
+- outbound 工具**未声明 `buildHarm` 即抛错**——「无法披露利害就不许执行」是结构性保证，不靠自觉。
+
+### 9.3 端点契约与令牌（as-built：单步确认即执行）
+
+> **as-built 校准（关键，与 v1.1 / f5 均不同）**：实装是**单步确认**，非两步票据。
+
+| 端点 | 方法 / 入参 | 行为（as-built） | 失败 |
+|---|---|---|---|
+| `/api/agent` | POST `{ prompt\|messages, context }` | 柱二流式 loop；outbound 工具结果 = pending 信封，副作用 0 | 500 + `describeGatewayError` |
+| `/api/gate/confirm` | POST `{ pendingActionId }` | ① 校验 PA 存在且 `tenantId` 匹配 ② `status==='pending'` ③ 未过期（TTL）④ 复核 `payloadHash` ⑤ **服务端内部生成令牌** → 以带令牌的 ctx 再入 `executeTool` **执行副作用** ⑥ 同事务 `status='executed'` + 写 `OperationLog(kind='irrev')` | **409** + `{ error }` |
+| `/api/gate/reject` | POST `{ pendingActionId }` | 同事务：`expiresAt = epoch(0)`（失效）+ 写 `OperationLog(kind='block')` | **409** + `{ error }` |
+
+**令牌机制（as-built）**：
+
+| 项 | 实装 | 与 v1.1/f5 设计的差异 |
+|---|---|---|
+| 生成 | `crypto.randomBytes(32).toString('hex')`，**不透明随机串** | v1.1 写 `HMAC_SHA256(GATE_TOKEN_SECRET, …)`。**as-built 无 HMAC、无 `GATE_TOKEN_SECRET` env**——随机串无签名密钥可泄露，安全性等价或更优 |
+| 存储 | 仅存 `sha256(token)` 于 `confirmationTokenHash`，明文不落库 | ✅ 一致 |
+| **流向** | **令牌只在 `confirmPendingAction` 函数内部存活**：生成 → 注入 ctx → 调 `executeTool` → 写 hash。**从不返回给任何 HTTP 响应，从不经网络传输** | 比两步票据**更强**：客户端根本拿不到令牌，重放/伪造/窃取攻击面在设计上消失 |
+| TTL | `TOKEN_TTL_MS = 15 * 60 * 1000`（15 分钟），由 `PendingAction.expiresAt` 承载 | v1.1 写 ≤10 分钟、f5 写 5 分钟。**as-built 为 15 分钟** |
+| 单次性 | `status !== 'pending'` 即拒（应用层检查） | v1.1 的部分唯一索引防双花 **未实装** |
+| payload 绑定 | `payloadHashOf(toolName, stableStringify(input), tenantId)`，确认时**二次复核**；执行入参**只从库内 `inputJson` 回放**，不接受客户端供给 | ✅ 一致（「确认 A 执行 B」结构性不可能） |
+
+`stableStringify` 递归排序 object key——因 JSONB 存储会重排 key，`payloadHash` 必须 order-independent。
+
+**无 `/api/gate/execute` 端点**：确认与执行在服务端同一函数内完成。这消除了「已确认但未执行」的中间态，代价是**失去了 pending 恢复流之外的重试粒度**（副作用失败时整个 confirm 请求失败，PA 停在 `pending` 可重新确认）。
+
+#### 9.3.1 攻击面与防御矩阵（as-built）
+
+| 攻击 / 失效场景 | as-built 防御 | 强度 |
+|---|---|---|
+| 模型 loop 自我放行（含 prompt 注入「帮我确认」） | **I2**：`buildToolContext()` 不设 `confirmationToken`；令牌只由 `confirmPendingAction` 内部注入 | ✅ 强（结构性） |
+| 令牌被窃取 / 重放 | **I3**：令牌从不出服务端进程，无网络传输面 | ✅ 强（结构性，优于两步票据） |
+| 伪造 `/api/agent` 请求体夹带工具调用 | 拦截点在 `executeTool`（工具执行层），不在 prompt 层 | ✅ 强 |
+| 「确认 A、执行 B」（换包） | confirm 端点**不收工具入参**，只回放库内 `inputJson` + 复核 `payloadHash` | ✅ 强（结构性 + 纵深） |
+| 重复确认（双击 / 脚本重放） | `status !== 'pending'` → 抛错 → 409 | ⚠️ **应用层检查，非原子条件 UPDATE**——理论上存在并发窗口（见下） |
+| 并发双确认（两请求同时通过 status 检查） | **无原子防护**：`findFirst` 与 `update` 之间无事务锁 | ❌ **已知缺口** |
+| 令牌过期后使用 | `expiresAt < now()` → 抛错 | ✅ |
+| 跨租户操作 | `findFirst({ where: { id, tenantId } })` | ✅ |
+| 伪造 / 枚举令牌 | 256-bit 随机 + 只存 hash；且无外部输入面 | ✅ |
+
+> **⚠️ 已知缺口（backlog 候选）**：防并发双确认应改为**单条原子条件 UPDATE**（`UPDATE "PendingAction" SET status='executed' WHERE id=$1 AND tenantId=$2 AND status='pending' RETURNING *`，0 行 = 拒绝）。当前实现在极端并发下可能双执行。**当前单人操盘手 + UI 单例确认卡的使用形态下风险极低**，但不得声称「并发安全已保证」。
+
+#### 9.3.2 目标态：两步票据 + 7 态状态机 — 演进目标（未实装，归 M3）
+
+M3 引入**真实副作用**（真发信 / 真放款）后，需要更细的失败与恢复粒度，届时演进为：
+
+- **端点**：`GET /api/actions/[id]`（pending 详情，供刷新/跨会话恢复确认卡）· `POST …/confirm`（签票，票仅在此响应出现一次）· `POST …/execute { ticket }`（消费票执行）· `POST …/reject`。
+- **状态机 7 态**：`pending → confirmed → executing → executed / failed`；`pending → rejected`；`confirmed → expired`。
+- **并发防护**：两处均为原子条件 UPDATE（`WHERE status='pending'` / `WHERE status='confirmed' AND ticket_used_at IS NULL AND ticket_expires_at > now()`），败者 409。
+- **事务语义**：确认 = 签票（写 gate 日志）；执行 = 消费票 → 副作用成功 → **同一事务** `executed` + INSERT `irrev` 行 + 业务状态变更；副作用失败 → `failed`、**无 irrev 行**。外部副作用无法进 DB 事务，用 `actionId` 作 **idempotency key** 传给适配器——crash 后重放不重复发信（**日志至少一次、副作用恰好一次**）。
+- **HTTP 错误分码 envelope**（G 系测试断言引用）：
+
+| HTTP | code | 场景 |
+|---|---|---|
+| 403 | `GATE_TOKEN_INVALID` | 无票 / 伪票 / payloadHash 不符 / 未确认先执行 |
+| 404 | `GATE_NOT_FOUND` | actionId 不存在 |
+| 409 | `GATE_ALREADY_DECIDED` | 已确认 / 已驳回 / 已执行 / 票已消费 / 并发败者 |
+| 410 | `GATE_EXPIRED` | 票 TTL 过期 |
+
+> **迁移纪律**：从单步演进到两步时，`PendingActionStatus` 枚举扩容走 expand-contract（加值不删值），`confirmed` 枚举值届时才真正投入使用。
+
+### 9.4 闸门时序（as-built）
 
 ```mermaid
 sequenceDiagram
-    participant M as 模型 loop（/api/agent 内）
-    participant G as gate/（服务端拦截层）
-    participant PA as PendingAction（Prisma 权威见 §7）
-    participant UI as 前端（GateConfirm 卡）
-    participant C as POST /api/actions/[id]/confirm
-    participant E as POST /api/actions/[id]/execute
-    participant X as 副作用实现（lib/actions/outbound/*）
+    participant M as 模型 loop / 例程
+    participant EX as executeTool（唯一执行入口）
+    participant DB as Postgres
+    participant FE as 前端 Copilot/画布
+    participant H as 操盘手
 
-    M->>G: 调用 outbound 工具（如 send_outreach）
-    G->>PA: INSERT PendingAction(uuid, status=pending, payload/payloadHash/requestedBy)
-    G-->>UI: stream data-gate part：{actionId, harm}（确认卡 payload，不含任何令牌）
-    G-->>M: 工具结果 {status:'pending', actionId}（模型永远拿不到票）
-    UI->>UI: 渲染确认卡：「对外·不可撤销」+ 收件人全名单/金额
-    UI->>C: 人拍板确认
-    C->>PA: 条件 UPDATE pending→confirmed + 签票（存 ticketHash/ticketExpiresAt）+ gate 类日志
-    C-->>UI: 200 {ticket}（票仅在此响应出现一次，不变量 I3）
-    UI->>E: POST {ticket}
-    E->>PA: 校验票 hash/TTL/未用 → 条件 UPDATE confirmed→executing
-    E->>X: 执行副作用（idempotencyKey = actionId）
-    E->>PA: 成功：同一事务 finalize(executed)+INSERT irrev 留痕行；失败：failed、无 irrev 行
-    E-->>UI: 200 envelope（执行结果）
+    M->>EX: 调用 outbound 工具（如 send_outreach）
+    EX->>EX: class=outbound 且 ctx 无 confirmationToken
+    EX->>EX: buildHarm(input) —— 服务端构造利害，不信任模型转述
+    EX->>DB: INSERT PendingAction(pending, inputJson 冻结, payloadHash, harmJson)
+    EX->>DB: INSERT OperationLog(kind='gate')
+    EX-->>FE: pending 信封 { status:'pending', pendingActionId, toolName, harm }（无令牌，副作用未发生）
+    FE->>H: 渲染 GateConfirm 卡（如实列全部利害 + 「对外·不可撤销」红标）
+    H->>FE: 点击「确认发送」
+    FE->>EX: POST /api/gate/confirm { pendingActionId }
+    EX->>DB: 校验 pending + 未过期 + payloadHash 复核
+    EX->>EX: 服务端内部生成令牌 → ctx.confirmationToken（不出进程）
+    EX->>EX: executeTool(toolName, 库内 inputJson, ctx+token) → 真副作用
+    EX->>DB: 同事务：status='executed' + confirmationTokenHash + INSERT OperationLog(kind='irrev')
+    EX-->>FE: { executed: true, output } → 画布更新 + Agent 记录出现 irrev 行
 ```
 
-**票据机制（关键设计）：**
+**拒绝路径**：人点「取消」→ `POST /api/gate/reject` → 同事务 `expiresAt=epoch(0)`（失效）+ 追加 `OperationLog(kind='block')`。**留痕同样 append-only**；备好物（`inputJson`）保留，Agent 若要重试须产出**新的** `PendingAction`（新一轮披露、新的确认）——**不可逆动作严禁静默重试**。
 
-- **拦截时不下发任何令牌**（禁止令牌随 SSE/`data-gate` 流下发）：`data-gate` part 只携确认卡 payload（`actionId` + `harm`）。一次性票据（256-bit 随机）在 `confirm` 时才签发，且**仅在 confirm 响应中出现一次**（不变量 I3），DB 只存 sha256（`PendingAction.ticketHash`）与 `ticketExpiresAt`/`ticketUsedAt`。回灌进模型上下文的工具结果只有 `{status:'pending', actionId}`——模型 loop 无法自我放行；伪造 `/api/agent` 请求体夹带工具调用同样过不了 gate（拦截点在工具执行层，不在 prompt 层）。
-- TTL：常量 `GATE_TICKET_TTL_MS = 5 * 60_000`，唯一定义于 `src/lib/agent/gate/ticket.ts`（不做 env 开关）。票据过期执行 → `410 GATE_EXPIRED`，需回对话面重新起草。
-- 状态机与并发防护：`PendingAction` 七态 `pending/confirmed/rejected/expired/executing/executed/failed`，表结构 **Prisma 唯一权威见 §7（数据章）**（列含 `payload/payloadHash/ticketHash/ticketExpiresAt/ticketUsedAt/requestedBy`）；并发双击/重放由 **PendingAction 条件 UPDATE**（`WHERE status = 期望态`）兜底。
-- **执行与留痕的事务语义**（FR-8.6.7）：确认=签票（留 gate 类日志）；执行=消费票→副作用成功→**同一事务** `finalize(executed)` + INSERT irrev 留痕行 + 业务状态变更（如 `ProjectKol.status → 已发送`）；副作用失败→`failed`、**无 irrev 行**。外部副作用（真实发信/放款）无法进 DB 事务，用 `actionId` 作幂等键传给适配器——crash 后重放不会重复发信，日志至少一次、副作用恰好一次。
-- **pending 恢复**：`GET /api/actions/[id]` 返回 pending 详情，today 雷达卡/项目页据此**重新渲染确认卡**（刷新/跨会话均可恢复）；确认时才签票，两步设计天然支持恢复流。
-- P0 单租户无认证（D4）：`requestedBy`/确认主体 = 硬编码 dev 用户 id；M5 真实认证后自然获得可追责主体，契约不变。
+### 9.5 确认卡：如实披露，无阈值
 
-**请求/响应示例：**
-
-```json
-POST /api/actions/0b8e42d1-….-uuid/confirm
-→ 200
-{ "success": true, "error": null,
-  "data": { "actionId": "0b8e42d1-….-uuid", "status": "confirmed",
-            "ticket": "gtk_f3a9…", "ticketExpiresAt": "2026-07-17T09:35:00Z" } }
-// 票仅在本响应出现这一次（不变量 I3）
-
-POST /api/actions/0b8e42d1-….-uuid/execute
-{ "ticket": "gtk_f3a9…" }
-→ 200
-{ "success": true, "error": null,
-  "data": { "actionId": "0b8e42d1-….-uuid", "status": "executed",
-            "result": { "provider": "resend", "messageId": "msg_…" } } }
-```
-
-`POST /api/actions/[id]/reject` → 200，`status = rejected`，零副作用。失败面（全部走 §8.1.4 envelope）：
-
-| 场景 | 状态码 | code |
-|---|---|---|
-| actionId 不存在 | 404 | `GATE_NOT_FOUND` |
-| execute 无票/伪票（hash 不匹配/缺失/已用） | 403 | `GATE_TOKEN_INVALID` |
-| 票据超过 TTL / pending 过期 | 410 | `GATE_EXPIRED` |
-| 已确认/已拒绝/已执行后重放 | 409 | `GATE_ALREADY_DECIDED`（data 引用既有决断） |
-
-**验收对齐（15.4 G1，D20 变异测试）**：`POST /api/actions/[id]/execute` 无票/伪票 → 断言 `403 GATE_TOKEN_INVALID`；pending 未确认 → 断言 `StubDelivery` 行数不变（地面真值，无副作用）；把 gate 拦截逻辑退回原状，断言必须变红。副作用函数（`lib/actions/outbound/*`）**只允许被 gate 执行管线（execute 路由）导入**，用 eslint `no-restricted-imports` 机制化，不靠自觉。
-
-### 8.1.3 REST 资源约定
-
-REST 是兜底面（D5），不是主轴——大部分读写走 Agent 工具。约定（对齐后期演进路由）：
-
-- **命名**：复数名词、kebab-case 路径段（`/api/operation-logs`）；JSON 字段 camelCase（与 Prisma 模型一致，DB 层 `@map` snake_case）。
-- **分页**：`?page=1&limit=20`（limit 上限 100），响应 `meta: { total, page, limit }`。
-- **筛选**：白名单 query 参数，zod 校验后转 Prisma where；如演进期（P1+）的 `GET /api/operation-logs?toolClass=outbound&reversible=false&projectId=prj_01`（FR-11.13；P0 同筛选逻辑由 `/admin/runs` RSC 直调 `lib/oplog/queries.ts`，不经 HTTP）。
-- **写操作**：POST 建、PATCH 部分更新（**OperationLog 例外：只 GET，写入只经 gate/工具层，HTTP 面不暴露写端点**）。
-- **深字段**：`Kol` 五契约位 null 原样返回 null——「待接入」是**显示态**，由前端 `ProvenanceTag` 兜底，API 不编造默认值（FR-11.17，绝不用 0 冒充实测）。
-- **所有入参先 zod 再落库**（NFR-S6）；jsonb 契约字段的 zod schema 落 `src/lib/*/schemas.ts`，是形状唯一权威（FR-11.20）。
-
-### 8.1.4 错误响应统一格式
-
-Envelope（`src/lib/api/envelope.ts`，全部非流式端点强制）：
+**harm 单一 zod 权威**（`src/lib/agent/gate/harm.ts`，as-built）——所有 outbound 的利害结构由此单一 schema 定义，其他地方一律 `z.infer` 引用，不得另立：
 
 ```ts
-// src/lib/api/errors.ts
+export const HARM_LABEL = '对外·不可撤销';          // 逐字符定死；机器可断言锚点
+
+export const harmSchema = z.object({
+  action:       z.string().min(1),                 // send_outreach / commit_quote / payout / …
+  summary:      z.string().min(1),                 // 一句话人类可读描述
+  targets:      z.array(z.string()).min(1),        // 对象全名单——批量必须列全，不折叠
+  amount:       z.number().nonnegative().optional(),
+  currency:     z.string().optional(),             // NFR-I4：金额带币种
+  quantity:     z.number().int().nonnegative().optional(),
+  scope:        z.string().optional(),             // 授权/分享范围（裁决 #3：project vs quarterly）
+  irreversible: z.boolean(),
+  evidence:     z.string().min(1),                 // 依据（供人核对）
+  expiresAt:    z.string(),                        // ISO 8601；由 gate 以 TTL 覆盖
+  label:        z.literal(HARM_LABEL),             // 统一红标，强制
+});
+```
+
+`createPendingAction` 强制覆盖 `label` 与 `expiresAt`（与 PA 的 TTL 一致），保证披露的过期时间与实际一致、红标不可被工具侧绕过。
+
+每张确认卡必须列全该动作**全部利害**（FR-10.5，「不撒谎」而非分级）：
+
+| 动作 | 披露内容 | harm 字段映射 |
+|---|---|---|
+| 发信 / 批量发 | **全部收件人名单（逐一不折叠）** · 封数 · 「发出后不可撤销」 | `targets[]` · `quantity` |
+| 报价 | 金额（带币种）· 交付内容 · 授权范围 · 「承诺后不可撤销」 | `amount` · `currency` · `scope` |
+| 分发 key | 领取方 · key 数量 · 「一经发放不可回收」 | `targets[]` · `quantity` |
+| 放款 | 收款方 · 金额（带币种）· 依据（合同+托管+披露证据）· 「不可逆·逐笔确认」 | `targets[]` · `amount` · `evidence` |
+| 对外分享 | 被分享内容 · **可见范围** · 有效期 · 「链接一经生成即暴露」 | `scope` · `expiresAt` |
+
+**`buildHarm` 是服务端函数**（从 DB 读真实名单/金额，**不信任模型转述**）；`GateConfirm` 组件**只做渲染，不参与任何判定**。
+
+**M0.5 闸门 UI 边界（D6）**：本批只做**触发与确认卡 UI**——`GateConfirm` 接既有 `/api/gate` 链路，或 mock pending 流并**显式 stub 标注**；真实 `send`/`quote`/`payout`/`share` 工具实装归 M3/M4。确认卡 harm 行随 4 类动作与 scope 不同（裁决 #3）。
+
+> **internal 动作一个确认框都不加**（FR-10.6）——**outbound 一个不漏、internal 一个不加，两条边同等重要**（假闸门稀释真闸门，K10=0）。
+
+### 9.6 留痕闭环
+
+- **确认与留痕同事务**（as-built）：`prisma.$transaction([PA.update(executed), OperationLog.create(irrev)])`——要么都成功要么都回滚（FR-8.6.7，不得漏记）。
+  - ⚠️ **注意**：真副作用（`tool.execute`）在事务**之外**先执行。当前 `send_outreach` 的副作用是写库（mock），M3 接真实投递后须按 §9.3.2 的 idempotency key 语义处理「副作用成功但留痕事务失败」。
+- 防双花：见 §9.3.1 已知缺口。
+- `irrev` 行携带归属：`actor`（发起 Agent）· `createdAt`（确认时间）· `ref`（→ `PendingAction.id`，经其取 `harmJson` 利害快照）。**「确认人」字段当前不存在**（无认证，单租户）——M5 真实认证后加 `confirmedBy` 列（expand 迁移）。
+- 合规拦截（如缺 #ad）写 `kind:'block'` 记录并带原因，拦截即暂停放款退回补件（FR-8.2.4.4/8.6.5）——演进 M2/M3。
+
+### 9.7 闸门测试策略（硬性）
+
+**G1–G5 服务端行为断言**（PRD §15.4，载体 `scripts/test/gate-smoke.ts`，`npm run gate:smoke`）：
+
+| # | 断言 |
+|---|---|
+| G1 | 直调触发 outbound 未确认 → 返回 pending 信封且**副作用未发生**（`SENT_MARKER` 日志行数不变——地面真值） |
+| G2 | 确认卡含全部利害：`harm.label === '对外·不可撤销'`（逐字符）且 `harm.targets` 含全部收件人 |
+| G3 | internal（`search_kols`）响应不含 harm/确认卡结构，且**不产生 `PendingAction`** |
+| G4 | 1 位与 N 位收件人 → 同样单次确认，响应**无任何 threshold/tier 字段**（无阈值） |
+| G5 | 不可逆留痕可查可筛（按 `kind` 过滤）；确认与留痕同事务 |
+
+**变异测试（D20，已实装）**：把拦截退回原状（允许直接执行），G1 断言**必须变红**——未变红视为无效断言。**断言验行为不验源码关键字。**
+
+- 首批 mutant：① `send_outreach.class` 改成 `internal`；② `executeTool` 的 outbound 分支删除；③ 令牌校验改为恒通过；④ `createPendingAction` 落单语句删除。
+- **红线**：绝不在产品代码里留 `GATE_BYPASS` 之类的 env 开关来「方便测试」——**那本身就是闸门泄漏**。变异永远发生在测试脚本对源码副本的补丁上。
+- **例程路径同样覆盖**（M1 起）：例程触发 outbound 必须停在 pending。
+
+### 9.8 副作用适配器（`src/lib/ops/`）— 演进目标（未实装，归 M3）
+
+闸门机制 ≠ 投递集成。outbound 工具的执行体应面向适配器接口：`EmailSender.send()` / `EscrowPartner.payout()` / `KeyDistributor.distribute()` / `ShareLinkService.create()`；适配器负责幂等（外部调用带 idempotency key）、失败分类（可重试 vs 终态）、`resultRef` 回写。
+
+**当前 as-built**：`send_outreach.execute` 直接写一条 `SENT_MARKER` 的 `auto` 日志行代表「已对外发生」——**这是刻意的测试地面真值**，让闸门/变异测试能观测副作用是否发生。M3 抽出 `ops/` 适配器层时，此 mock 成为 `EmailSender` 的一个实现。
+
+> **「闸门、留痕、确认卡从第一天就是真的」**——这正是「机制化守门优先」的含义：先建强制层，再接真实投递。
+
+---
+
+## §10 API 契约与信号集成架构
+
+> **v1.2 新增 §10.1**（f5 增量③）。原 §10.1–§10.4 顺延为 §10.2–§10.5。
+
+### 10.1 API 契约
+
+#### 10.1.1 路由清单（as-built）
+
+| 端点 | 方法 | 运行时 | 职责 | 响应形态 |
+|---|---|---|---|---|
+| `/api/agent` | POST | nodejs（`maxDuration=60`） | 柱二流式 loop | **SSE 流**（`toUIMessageStreamResponse`）+ 头 `X-Agent-Id` / `X-Agent-Tools`；错误 `Response.json({error}, {status:400\|500})` |
+| `/api/gate/confirm` | POST | nodejs | 确认并执行 outbound | `{ executed: true, output }`；错误 `{ error }` **409** |
+| `/api/gate/reject` | POST | nodejs | 拒绝 outbound | `{ rejected: true }`；错误 `{ error }` **409** |
+| `/api/handoffs` | — | nodejs | 协同交接读写 | JSON |
+| `/api/health` | GET | nodejs（`dynamic='force-dynamic'`） | **纯 liveness** 探针 | `{ ok: true }` 200 |
+
+> **`/api/health` 刻意不查 DB / 不探网关**（GO-LIVE D-GL5）：DB 就绪由 compose `depends_on: db healthy` 保证；探测外部依赖会让瞬态抖动误判 app unhealthy、打死容器。**这条与 f5 R5 建议的 `SELECT 1` 相反，以 as-built 为准**（理由更充分：健康检查的语义是「进程是否在服务」，不是「全链路是否可用」）。
+
+#### 10.1.2 统一响应 envelope 与错误码 — 演进目标（未实装）
+
+**当前 as-built**：各端点返回**裸 JSON**（`{executed}` / `{error}`），无统一信封；错误码用 HTTP status 表达（400 参数缺失 / 409 闸门冲突 / 500 内部）。随 REST 资源面（M1+）开放，收敛为：
+
+```ts
+// src/lib/api/errors.ts（演进目标）
 export type ApiErrorCode =
   | 'VALIDATION_FAILED'      // 400 — zod 边界校验失败，details 带 flatten 后的字段错误
   | 'NOT_FOUND'              // 404
-  | 'GATE_PENDING'           // 403 — outbound 未经人确认（闸门语义，见下）
+  | 'GATE_PENDING'           // 403 — outbound 未经人确认（闸门语义）
   | 'GATE_TOKEN_INVALID'     // 403
   | 'GATE_ALREADY_DECIDED'   // 409
   | 'GATE_EXPIRED'           // 410
-  | 'UPSTREAM_AI_ERROR'      // 502 — aigcgateway 4xx/5xx/坏响应（§8.2.4）
+  | 'UPSTREAM_AI_ERROR'      // 502 — aigcgateway 4xx/5xx/坏响应
   | 'UPSTREAM_AI_TIMEOUT'    // 504 — aigcgateway 超时熔断
   | 'INTERNAL';              // 500 — message 用户友好，完整 cause 只进服务端日志
 
-export interface ApiOk<T>  { success: true;  data: T;    error: null; meta?: { total: number; page: number; limit: number } }
-export interface ApiErr    { success: false; data: null;
-                             error: { code: ApiErrorCode; message: string; details?: unknown };
-                             gate?: GatePendingInfo }   // 仅 GATE_PENDING 携带
+// src/lib/api/envelope.ts —— 全部非流式端点强制
+export interface ApiOk<T> {
+  success: true;  data: T;    error: null;
+  meta?: { total: number; page: number; limit: number };
+}
+export interface ApiErr {
+  success: false; data: null;
+  error: { code: ApiErrorCode; message: string; details?: unknown };
+  gate?: GatePendingInfo;    // 仅 GATE_PENDING 携带
+}
 ```
 
-**闸门 403/pending 响应体**（`GATE_PENDING` 专属 `gate` 块——任何绕过 UI 的直调都会拿到它，且**不含票据**——票仅在 `confirm` 响应出现一次，不变量 I3）：
+**闸门 403/pending 响应体**（`GATE_PENDING` 专属 `gate` 块——任何绕过 UI 的直调都会拿到它，且**不含令牌**）：
 
 ```json
 {
   "success": false, "data": null,
-  "error": { "code": "GATE_PENDING", "message": "该动作对外且不可撤销，须由操盘手在确认卡上拍板后才会执行" },
+  "error": { "code": "GATE_PENDING",
+             "message": "该动作对外且不可撤销，须由操盘手在确认卡上拍板后才会执行" },
   "gate": {
-    "actionId": "0b8e42d1-….-uuid",
+    "pendingActionId": "clx…",
     "tool": "send_outreach",
     "toolClass": "outbound",
-    "harm": {
-      "title": "向 3 位创作者发送触达邮件",
-      "irreversibleLabel": "对外·不可撤销",
-      "facts": ["邮件发出后不可撤回", "3 位收件人均为首次触达"],
-      "recipients": [
-        { "displayName": "PixelNoob", "platform": "youtube", "handle": "…" },
-        { "displayName": "…", "platform": "twitch", "handle": "…" },
-        { "displayName": "…", "platform": "tiktok", "handle": "…" }
-      ]
-    },
-    "expiresAt": "2026-07-17T09:30:00Z"
+    "harm": { "action": "send_outreach", "summary": "批量发送邀约给 3 位创作者",
+              "targets": ["PixelNoob", "…", "…"], "quantity": 3,
+              "irreversible": true, "evidence": "邀约正文：…",
+              "expiresAt": "2026-07-21T09:30:00Z", "label": "对外·不可撤销" },
+    "expiresAt": "2026-07-21T09:30:00Z"
   }
 }
 ```
 
-`harm` 的唯一 zod 权威在 `src/lib/agent/gate/harm.ts`（`{ title: string, irreversibleLabel: z.literal('对外·不可撤销'), facts: string[], recipients: [{ displayName, platform, handle? }], amount?, scope?, basis? }`，本例即其 `z.infer` 序列化），内容**如实列全**（FR-10.5/D28：批量发信收件人逐一不折叠；`commit_quote` 带金额/交付内容/授权范围；`payout` 带收款方/金额/依据；`create_share_link` 带内容/可见范围/有效期）。口径分辨：outbound **语义类别 5 类**（发信/报价/放款/分发 Key/对外分享，批量发=发信类的批量形态），**工具白名单 6 个工具名**（`OUTBOUND_TOOL_NAMES`：`send_outreach`/`send_bulk_outreach`/`commit_quote`/`payout`/`distribute_keys`/`create_share_link`）。无阈值分级——所有 outbound 一律一次确认。internal 工具**永远不产生** `GATE_PENDING`（FR-10.6，假闸门稀释真闸门）。
+**状态码语义**：无认证故**无 401**；**403 在本系统专属闸门语义**；500 遵守 NFR「error messages 不泄漏敏感数据」——`details` 只在 4xx 校验错误时回传，完整 cause 只进服务端日志（as-built `describeGatewayError` 已遵守此纪律）。
 
-状态码语义补充：P0 无认证故无 401；403 在本系统**专属闸门语义**；500 遵守 NFR「error messages 不泄漏敏感数据」——`details` 只在 4xx 校验错误时回传。
+`internal` 工具**永远不产生 `GATE_PENDING`**（FR-10.6，假闸门稀释真闸门）。
 
-## 8.2 aigcgateway 集成（F002）
+#### 10.1.3 REST 资源约定 — 演进目标（未实装）
 
-### 8.2.1 Provider 封装
+REST 是兜底面（D5），不是主轴——大部分读写走 Agent 工具。约定：
 
-aigcgateway 是唯一 AI 出口（D2），OpenAI 兼容 baseURL。用官方 `@ai-sdk/openai-compatible` 包装成 Vercel AI SDK provider，全项目**只从 `src/lib/ai/gateway.ts` 拿模型实例**，任何文件不得自行 `fetch` 网关或硬编码 URL/key：
+- **命名**：复数名词、kebab-case 路径段（`/api/operation-logs`）；JSON 字段 camelCase。
+- **分页**：`?page=1&limit=20`（limit 上限 100），响应 `meta: { total, page, limit }`。
+- **筛选**：白名单 query 参数，zod 校验后转 Prisma where。
+- **写操作**：POST 建、PATCH 部分更新。**`OperationLog` 例外：只 GET，写入只经 gate/工具层，HTTP 面不暴露写端点**（append-only 的 HTTP 面镜像）。
+- **深字段**：`Kol` 五契约位 **null 原样返回 null**——「待接入」是**显示态**，由前端 `ProvenanceTag` 兜底，**API 不编造默认值**（FR-11.17，绝不用 0 冒充实测）。
+- **所有入参先 zod 再落库**（NFR-S6）；jsonb 契约字段的 zod schema 是形状唯一权威（FR-11.20）。
 
-```ts
-// src/lib/ai/gateway.ts
-import 'server-only';                                  // 防 key 进客户端 bundle
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import { serverEnv } from 'lib/env';
+### 10.2 集成总览
 
-const env = serverEnv();
-const aigc = createOpenAICompatible({
-  name: 'aigcgateway',
-  baseURL: env.AIGCGATEWAY_BASE_URL,                   // 如 https://gateway.example.com/v1
-  apiKey: env.AIGCGATEWAY_API_KEY,
-});
-
-/** 链路一：chat（tool-calling），/api/agent 用 */
-export const chatModel = (id: string = env.AIGC_CHAT_MODEL) => aigc.chatModel(id);
-
-/** 链路二：embedding（bge-m3），维度与 Kol.embedding vector(1024) 锁死 */
-export const EMBEDDING_DIMENSIONS = 1024;
-export const embeddingModel = () => aigc.textEmbeddingModel(env.AIGC_EMBEDDING_MODEL);
-```
-
-新增依赖：`ai` + `@ai-sdk/openai-compatible` + `zod`（均未装）。**落地注意**：AI SDK v5 的类型要求 TS ≥ 5。TS 升级走**独立微批次，在 F002 启动前完成**（升级 + `npm run build + tsc --noEmit + next lint` 构建门全绿，不与 F001–F008 混批，ADR-008）；之后 zod/Prisma/AI SDK 均按 TS5 选版。`.npmrc legacy-peer-deps=true` 已就位，React 19 RC peer 冲突可控。
-
-### 8.2.2 双链路消费面
-
-| 链路 | 消费方 | 入口 |
-|---|---|---|
-| chat（tool-calling） | `/api/agent` streamText loop | `chatModel()` |
-| embedding（bge-m3, 1024 维） | `search_kols` 工具（NL→向量→pgvector `<=>` top-K）；`scripts/seed/import-kol-csv.ts`（~2,524 条批量嵌入）；重嵌入守卫（`embeddingTextHash` 变更时） | `lib/ai/embed.ts` |
-
-```ts
-// src/lib/ai/embed.ts
-import { embed, embedMany } from 'ai';
-import { embeddingModel, EMBEDDING_DIMENSIONS } from 'lib/ai/gateway';
-import { GatewayError } from 'lib/ai/errors';
-
-export async function embedText(text: string): Promise<number[]> {
-  const { embedding } = await embed({
-    model: embeddingModel(),
-    value: text,
-    maxRetries: 3,                                     // 指数退避，仅 429/5xx/网络错误
-    abortSignal: AbortSignal.timeout(10_000),
-  });
-  if (embedding.length !== EMBEDDING_DIMENSIONS)       // 失败不静默的典型点：
-    throw new GatewayError('EMBEDDING_DIM_MISMATCH',   // 网关换模型/配错时立刻炸，
-      `expected 1024, got ${embedding.length}`);       // 绝不让错维向量污染 pgvector
-  return embedding;
-}
-// seed 批量：embedMany 每批 ≤64 条；失败条目记录 kolId+原因，脚本以非零退出码结束（幂等可重跑）
-```
-
-### 8.2.3 重试与超时策略
-
-| 链路 | 超时（硬熔断） | 重试 | 备注 |
+| 系统 | 方向 | 模式 | 状态 |
 |---|---|---|---|
-| chat 流式 | 首 token 30s（`abortSignal`）；`maxDuration = 60` 兜底整请求 | SDK `maxRetries: 2` | 目标 TTFT < 2s（NFR-P1），30s 是故障熔断不是目标 |
-| embedding 单条 | 10s | 3 次指数退避（1s/2s/4s + jitter） | 仅可重试错误（429/5xx/网络）；401/403 鉴权错**立刻失败**不重试 |
-| seed 批量 | 每批 30s | 批级重试 3 次，条目级记录失败清单 | 幂等（F003 验收），重跑只补失败条目 |
-| smoke 脚本 | 20s | 0 次 | 就是要暴露问题，不重试 |
+| aigcgateway | 出站 | OpenAI 兼容 SDK（chat + embedding） | ✅ 已接（M0） |
+| 邮件投递（Resend 等） | 出站 + 入站 | 适配器调用；inbound webhook / IMAP 轮询 | 演进 M3 |
+| partner（电子签 + escrow） | 出站 + 入站 | 适配器调用；signed/funded 回调 webhook | 演进 M3 |
+| 平台发布信号 | 入站 | 频道轮询（RSS/API）；手动上传兜底 | 演进 M3+ |
+| Apify / 外购 / 一方 API | 入站 | 采集管道 → 同一字段契约入库 | 演进 M5 |
 
-### 8.2.4 失败不静默（F002 验收 + NFR）
+### 10.3 出站集成（ops 适配器）— 演进目标（未实装，归 M3）
 
-错误分类落 `src/lib/ai/errors.ts`：
+§9.8：接口先行、mock 起步；真实集成只换适配器实现，**工具/闸门/留痕不变**。适配器负责：幂等（外部调用带 idempotency key = `pendingActionId`）、失败分类（可重试 vs 终态）、`resultRef` 回写。
 
-```ts
-export type GatewayErrorCode = 'AUTH' | 'RATE_LIMIT' | 'TIMEOUT' | 'UPSTREAM_5XX' | 'BAD_RESPONSE' | 'EMBEDDING_DIM_MISMATCH';
-export class GatewayError extends Error {
-  constructor(readonly code: GatewayErrorCode, message: string, options?: { cause?: unknown }) { … }
-}
+**aigcgateway 集成要点（as-built，`src/lib/ai/gateway.ts`）**：
+
+- **唯一出口**：全项目只从 `gateway.ts` 拿模型实例，任何文件**不得自行 fetch 网关或硬编码 URL/key**。
+- **懒初始化**：env 校验在 `getGateway()` 工厂内（非模块顶层）——`/api/agent` import 本模块后，`next build` / CI 在无 secret 时不因顶层 throw 而构建失败。
+- **必用 `.chat(modelId)`**：provider 默认 callable 走 OpenAI Responses API，**网关不支持**。
+- **`resilientFetch` 三职**：① 空 `content` 补丁（网关拒空 content，tool-call-only 的 assistant 消息被序列化为 `""` → 400；补成 `" "`）② `keepalive:false`（SSE 流用完后 undici 归还坏连接污染池）③ 空体 400 重试（≤2 次，150ms）。**只对「400 + 空响应体」重试**，有体的 400（真实坏请求）直接返回，不掩盖真错误。
+- **双保险**：SDK 中间件（`emptyAssistantContentMiddleware`，结构层）+ `resilientFetch`（wire 层）互为兜底——实测网关对空 content 一律 400，漏修致命。
+- **成本记账挂点**：`logUsage(model, usage)` → token 用量 + 估算成本打控制台（单价表 `MODEL_PRICE_PER_MTOKEN`）。**真实成本持久化 / 预算闸门 = EXTENSION POINT**（FR-12.31）。
+- **失败不静默**：`describeGatewayError` 给清晰可诊断信息（含 cause），调用方 catch 后向上抛或返回明确错误状态（FR-12.7）。
+
+### 10.4 入站信号（Signal ingestion）— 演进目标（未实装，归 M3）
+
+外部世界是 CRM 推断（FR-8.2.3.4）与交付核对（FR-8.2.4）的输入。统一接入层：
+
+```
+源（邮件回复 / partner 回调 / 平台轮询 / 手动上传）
+ → signals/sources/* 适配解析
+ → normalize.ts 规范化为 Signal{type, source, externalId, kolId, projectId?, payload, detectedAt}
+ → 入库（externalId 唯一防重）
+ → 解释器映射为领域事件（§5.5）
+ → crmInfer.status / deliveryCheck.row 重算
+ → OperationLog(kind=auto) 留痕（「同步 14 条信号」即此）
 ```
 
-- AI SDK 的 `APICallError` 等在 `gateway.ts`/`embed.ts` 边界统一映射成 `GatewayError`（保留 `cause` 链），route 层再映射 envelope：`TIMEOUT → 504 UPSTREAM_AI_TIMEOUT`，其余 → `502 UPSTREAM_AI_ERROR`。
-- 禁令清单：不吞异常返回空结果当成功；不把 embedding 失败降级成零向量入库；流中断必发 error part；服务端日志必含 requestId + 模型名 + 原始响应片段（脱敏 key）。
-- smoke：`scripts/test/ai-gateway-smoke.ts`（`npx tsx` 运行，tsx 进 devDeps；现有 `scripts/test/` 为 .mjs/.js，TS 脚本从此开始）——经网关跑 1 次 chat（prompt 设计成必触发 tool-call）+ 1 次 bge-m3 embedding，打印 TTFT/维度/usage，任一失败非零退出（F002/15.5 AI 门）。
+| 源 | 方式 | `Signal.type`（词表） | 说明 |
+|---|---|---|---|
+| 邮件回复 | 投递服务 inbound webhook / IMAP 轮询 | `email_reply` | 自有通道，最稳；M3 主路径 |
+| partner 回调 | e-sign / escrow webhook | `contract_signed` / `escrow_funded` | 驱动 Deal 状态机（§5.3③） |
+| 平台发布 | 频道轮询（RSS/API）或手动上传 | `post_published` | 交付物「内容」条件达成候选；受平台收权影响（NFR-S10），断供降级手动上传/一方授权位 |
+| 合作信号 | 手动标注/后期 | `collab_signal` | 关系资产回流 |
 
-### 8.2.5 成本记账挂点（FR-12.29~12.31 / NFR-P8）
+**合规与韧性**：平台信号只是 Signal 的一个 source——**平台收权堵死某源时，信号架构不塌**（R12）；webhook 一律验签（partner/邮件服务签名）+ zod 校验后处理（NFR-S6）。
 
-`src/lib/ai/cost.ts` 暴露 `recordCost({ model, usage, route, toolName? })`，P0 实现 = 结构化日志行；挂点已埋在 `streamText.onFinish` 与 embed 封装内。演进：落库成本表 + 按任务复杂度路由模型（env 预留 `AIGC_CHAT_MODEL_FAST`，如摘要/改写类走轻模型，不得全打最大模型）。
+### 10.5 数据采集管道（KOL 深字段）— 演进目标（未实装，归 M5）
 
-## 8.3 外部集成边界
+Apify 爬取 / 外购评估 API / opt-in 入驻 / 平台一方 API → 规范化入 `Kol` 契约位（§7.2.2），逐帧携带 `dataSource` + `fieldProvenance`（NFR-D1）。管道与产品层经字段契约解耦，**到位即填、UI 不变**（§7.8）。效果追踪类数据（Insight）最敏感，预留一方授权架构位。
 
-### 8.3.1 Apify 采集管道（后期，接口预留）
+---
 
-Apify 是后期数据管道（NFR-D1，暂缓），P0 **不装 `apify-client`、不建 webhook 路由**，只落契约，保证到位不返工（D15/NFR-D2）：
+## §11 关键流程时序
 
-- `src/lib/ingest/types.ts`：`IngestFrame` zod schema —— 一帧采集数据 = 浅字段增量 + `dataSource: 'crawl'` + 逐字段 `fieldProvenance`（`{source:'crawl', confidence, fetchedAt, detail}`）。**seed 脚本（F003）就是第一个 ingest 客户端**：CSV 规范化走同一 `normalizeToIngestFrame()`，未来 Apify/外购/一方 API 帧共用同一契约入同一 `Kol` 表。
-- Upsert 稳定键 = `platform + platformUserId`（FR-11.2）；缺 `platformUserId` 的帧回退 `platform + handle` 并标低置信。
-- 演进路由 `POST /api/ingest/apify`：Apify webhook 回调，`x-webhook-secret` 头对 `APIFY_WEBHOOK_SECRET` 定值比较；payload 视为不可信输入先 zod 再落库（NFR-S6），文本字段净化（NFR-S7）。
-- 合规红线（NFR-S10/S11）：采集遵守平台条款（TikTok 2026-02-17 起禁第三方关键词追踪；YouTube 一方 API 无自助通道）；KOL 联系方式存储可删除（`deletedAt` 软删）、可溯源、最小化。
+### 11.1 hello-agent（M0 验收基线，✅已跑通）
 
-### 8.3.2 partner 支付边界（产品不碰资金，NFR-S8）
-
-合同电子签 + Stripe escrow 全部在 partner 侧。本产品职责**只有三件**：触发条件（Delivery 条件台账全绿才渲染放款按钮，FR-8.2.4.2）、AI→人闸门（`payout` 是 outbound，403/pending + 逐笔确认）、状态追溯（OperationLog irrev 留痕）。
-
-```ts
-// src/lib/partner/escrow.ts — 边界接口，P0 唯一实现是 Mock
-export interface EscrowProvider {
-  createEscrow(input: { dealRef: string; amount: number; currency: string }): Promise<{ partnerRef: string }>;
-  releasePayout(input: { partnerRef: string; idempotencyKey: string }): Promise<{ status: 'released'; receiptRef: string }>;
-  getStatus(partnerRef: string): Promise<'pending' | 'funded' | 'released' | 'failed'>;
-}
-export const escrow: EscrowProvider = new MockEscrowProvider();  // P4 换真实现，调用方零改动
+```
+用户在指令栏输入「找东南亚原神向 KOL」
+ → useChat POST /api/agent（context: 当前 route）
+ → resolveContext 服务端解析 → selectPersona → match 专家
+ → buildSystemPrompt（persona + 工具清单）→ streamText → 模型规划 → 调 search_kols({query})
+ → executeTool：zod 校验 → class=internal 直接执行
+ → query 文本 → gateway.embedText() → pgvector cosine top-K（$queryRaw）
+ → 工具结果流式回传 → useChat 接住 → canvas-registry['search_kols'] → KolResultCards 渲染
 ```
 
-硬边界：我方 DB **不存**卡号/银行账户/税务信息，`Deal`/`Payout`（字段级 schema 留 P3/P4 spec）只存 `partnerRef` + 状态 + 展示用金额币种（默认 USD 显式标注，NFR-I4）；`payout` 副作用 = `escrow.releasePayout(idempotencyKey = actionId)`，且只能经 gate 两步契约（confirm 签票 → execute 消费票）到达。演进 `POST /api/webhooks/partner` 做状态回写（签名校验，同 8.3.1 的不可信输入原则）。
+全程无表单/翻页/手填筛选；TTFT < 2s（NFR-P1），端到端 < 3.5s（NFR-P4）。E2E 载体：`npm run f010:e2e`（需 dev server + 网关）。
 
-## 8.4 环境变量清单与启动校验
+### 11.2 一句话跨环节（J3：Match+Reach 串联）— 演进目标（归 M2/M3）
 
-现 `.env.example` 是前端-only（仅 `NEXT_PUBLIC_BASE_PATH` / `NEXT_TELEMETRY_DISABLED`），F001/F002 起按下表扩充。**`.env.example` 只放占位符不放明文真值**（15.5 密钥门），`.env` 已 gitignore。
+「给我上周为『料理次元日本区』推荐的、粉丝 10 万以上女性向创作者，起草触达邮件」→ 编排解析意图 → 串调 `match_plan`（取历史推荐）→ 过滤 → `draft_email`（逐人生成，消费游戏知识卖点）→ 画布出 N 封草稿卡 → **发送停在闸门**（§9.4）。无需切页/手填（FR-8.7.7）。
 
-| 变量 | 引入 | 必填 | 校验规则 | 说明 |
+### 11.3 游戏知识上传解析 — 演进目标（归 M1）
+
+上传素材 → 写 `Material(parseStatus=parsing)` → 策略 Agent 抽取（同步解析 + 前端轮询状态；量大再升级队列）→ 生成 `GameKnowledge`（三类 kind，`sourceMaterialIds` 非空）→ 特点卡刷新「基于 N 份素材分析」→ 受众/卖点/红线作为**运行时输入**注入 match/reach/compliance 的工具调用（FR-8.4.9，§8.3 第⑤层）。
+
+### 11.4 交付放款（outbound 最密环节）— 演进目标（归 M3）
+
+交付 Agent 逐笔核对条件（`track_delivery` + `deliveryCheck.row`）→ 条件齐的行出现放款按钮 → 点放款 → `payout` 未携带令牌 → pending + 冻结载荷 → `GateConfirm` 列收款方/金额/依据 → 人确认 → 服务端内部执行（M3 起调 partner escrow 适配器）→ `irrev` 留痕。
+
+同屏：条件未齐的行只显「条件未齐」，**无推荐卡、无绕过入口**（D8 反向 guardrail）；合规拦截先行写 `block` 记录。
+
+### 11.5 晨间雷达（最高频动线）
+
+打开「今天」→ `aggregatePending` 聚合 pending（+ M1 起的 block / 阻塞）→ 「需要你确认」卡按紧急度排序 → 点卡直落 `ask.env`（携 `data-goenv`，Copilot 已切对应专家、备好物已就位）→ **人只做三件事：读、判、按。**
+
+### 11.6 夜间例程（Agent 主动推进）— 演进目标（归 M1）
+
+```
+scheduler 触发 nightly-screen / signal-sync / health-scan …
+ → 例程以 agent 身份调同一工具注册表（internal）
+ → 结果落库（候选刷新 / Signal 入库 / 健康度重算 / 草稿备好）
+ → 全部写 OperationLog(kind=auto)；outbound 需求 → pending 停闸门
+ → 次日雷达：「Agent 今日完成 24 件」+「需要你确认 3」同源呈现
+```
+
+---
+
+## §12 非功能架构
+
+### 12.1 性能
+
+| 目标（P95） | 手段 |
+|---|---|
+| TTFT < 2.0s | `streamText` 边收边传；prompt 装配轻量化（知识摘要有界） |
+| `search_kols` E2E < 3.5s | embedding 缓存（同 NL query 按文本 hash 复用，演进）；pgvector 现规模顺序扫，HNSW 预留 |
+| 页面 TTI < 2.5s | App Router 流式 SSR；图表按需；外壳不重挂载 |
+| canvas 30 卡 < 500ms / 60fps | 增量渲染；大结果集虚拟化/分页留精调层 |
+| 模型成本可控 | 模型路由（NFR-P8）：解析/巡检→小模型或纯计算，周报/长文→大模型；`logUsage` 成本记账挂点已在位 |
+| 热点读取 | `get_kol_detail` 短 TTL 缓存（NFR-P7，演进）；失效随 `updatedAt` |
+| 网关超时 | `AIGC_TIMEOUT_MS` 默认 15s（CJK/长文本下网关 P95 可达 5–10s）；`DEFAULT_MAX_OUTPUT_TOKENS` 默认 2000，调用方按用例覆盖 |
+
+知识解析等长任务：M1 同步解析 + `parseStatus` 轮询（文件小、量小）；若实测超 route handler 时限，再升级后台 worker/队列——**不提前建队列**（ADR-19）。
+
+### 12.2 安全与合规
+
+- **闸门服务端强制**（§9，NFR-S1/S2/S3）✅；append-only 留痕（NFR-S4）**应用层已满足、DB 层欠账见 §7.7**；例程无 outbound 直通（§8.10，演进）。
+- **密钥全走 env**（`DATABASE_URL` / `AIGCGATEWAY_BASE_URL` / `AIGCGATEWAY_API_KEY`），无硬编码；`.env.example` 无明文真值（NFR-S5）。✅ **注意：`GATE_TOKEN_SECRET` 不存在**（as-built 令牌为随机串，无签名密钥，§9.3）。
+- **一切边界输入不可信**：API 入参、模型输出、上传素材、外部采集、信号 webhook → **先 zod 校验后处理**（NFR-S6）。`executeTool` 的入参 zod 校验是这条的核心落点。
+- **XSS**：canvas 只走受控组件树，禁 HTML 注入；素材文本净化（NFR-S7）。
+- **数据保护**：KOL 公开画像/联系方式最小化采集、可删除、可溯源（NFR-S11）；采集遵守平台条款并持续评估（NFR-S10）。
+- **多租户预留**：运行时无状态 + 全表 `tenantId` → M5 启用 RLS 不改上层（NFR-S9）。当前所有查询已带 `tenantId` 条件（`buildToolContext` 统一注入）——**这是 RLS 平滑切换的前提，不得绕过**。
+
+### 12.3 可观测性
+
+- **业务审计** = `OperationLog`（四态 `auto`/`gate`/`block`/`irrev`）——Agent 记录页、雷达、「刚刚完成」同源。
+- **运行追踪**：Agent loop 的 model/latency/tool-calls/成本（`logUsage` 已在位）；交接链三要素可查（`Handoff` 表）；例程执行历史 = `OperationLog` 按 `actor` 过滤。
+- **闸门健康指标**（K9 越权拦截率=100%、K10 假闸门=0、K11 撤销率、K12 溯源覆盖率≥95%）可由 `OperationLog` + `PendingAction` + 溯源字段直接计算。
+  - ⚠️ 部分指标依赖 §7.2.1 ⑤ 未实装的结构化列（如按 `toolClass` 统计），届时加列后方可精确计算。
+
+### 12.4 国际化
+
+UI 文案外置（默认中文，架构支持切换，不硬编码）；Reach 起草按 KOL 语言/地区生成对应语种（NFR-I2，`Kol.language` 列已在位）；时间 UTC 存储、按用户时区展示；金额带币种（默认 USD），闸门卡（`harm.currency`）与 ROI 显式标注（NFR-I4）。
+
+### 12.5 可访问性（WCAG 2.1 AA）
+
+`GateConfirm` 焦点陷阱 + Escape + 明确焦点顺序（确认按钮有语义标签，**不仅靠红色**）；流式 `aria-live="polite"`；全键盘可达 + 焦点可见；对比度 ≥4.5:1；`ProvenanceTag` 来源区分**辅以图标/文字**（色盲友好）；图表提供文本替代/数据表兜底。
+
+### 12.6 可测试性与测试架构
+
+#### 12.6.1 质量门总览
+
+原则：**每道门验行为不验源码关键字（D20）**；Evaluator 在隔离上下文执行验收，结论原样落盘。
+
+| 门 | 载体 | 执行位置 | 状态 |
+|---|---|---|---|
+| 构建门 | `next build` + `tsc --noEmit`（`npm run typecheck`）+ `next lint` 全绿 0 error | 本地 + `ci.yml` | ✅ 生效 |
+| Visual baseline 门 | Playwright 截图对比（chromium 1512×982，darwin/linux 双 baseline，CI/linux 重生） | `ci.yml` visual job | ✅ 生效；**新增页面必补 baseline** |
+| 闸门服务端测试门 | G1–G5 + D20 变异测试 → `npm run gate:smoke` | 本地 + Evaluator | ✅ 生效（F009 起硬性） |
+| 编排框架门 | `npm run orch:smoke`（多 Agent 编排框架） | 本地 + Evaluator | ✅ 生效 |
+| 工具层门 | `npm run agent:smoke`（`executeTool` 直调） | 本地 + Evaluator | ✅ 生效 |
+| 数据门 | migrate 成功、seed ≥2,000 条非空 embedding、cosine top-K 相关、幂等 → `npm run db:smoke` | 本地 + Evaluator | ✅ 生效 |
+| AI 门 | `npm run ai:smoke`：1 chat（含 tool-call）+ 1 embedding，失败清晰 | 本地/Evaluator（**花钱，不进 CI**） | ✅ 生效 |
+| E2E/交互门 | `npm run f010:e2e`（hello-agent 端到端浏览器实测，需 dev server + 网关） | 本地 + Evaluator | ✅ 生效 |
+| 前端审计 | `fe-audit-component-matrix.mjs` · `fe-audit-dup-scan.sh` · `fe-audit-token-scan.mjs` | 本地 + Evaluator | ✅ 生效（FE-REFACTOR 起） |
+| 密钥门 | 无硬编码、走 env、`.env.example` 无明文 | Evaluator + security-review | ✅ 生效 |
+| **单元/集成门** | **vitest，覆盖率 ≥80%** | 本地 + CI | ❌ **未装**（见 12.6.3） |
+
+#### 12.6.2 as-built 测试形态
+
+**当前无测试 runner**——`package.json` 无 vitest/jest，无 `vitest.config.ts`。测试由三类载体承担：
+
+| 载体 | 目录 | 形态 |
+|---|---|---|
+| tsx smoke 脚本 | `scripts/test/*.ts` | `node --env-file=.env --import tsx …`，直连真 DB + 真网关，**断言行为与副作用** |
+| 浏览器 check 脚本 | `scripts/test/*.mjs` | 起浏览器打真页面（`f007`/`f008`/`f010`/`ds-*`） |
+| Playwright visual | `tests/visual/*.spec.ts` | `dashboard.spec.ts` · `agent-canvas.spec.ts` |
+
+> **取舍说明**：smoke 脚本走**真 DB + 真网关**，因此天然满足「验行为不验源码关键字」，且闸门变异测试已在此形态下实装（`gate-smoke.ts`）。代价是**跑得慢、要 env、不能进 CI**（AI 门花钱），且**无覆盖率度量**。
+
+#### 12.6.3 vitest 单元/集成层 — 演进目标（未实装，规划态）
+
+> 以下为**规划设计**，当前仓库中不存在。引入时机建议：M1（领域纯函数落地）——纯函数层正是单测收益最高处。
+
+**安装与配置**（新增 devDeps：`vitest` + `@vitest/coverage-v8` + `vite-tsconfig-paths`）：
+
+```ts
+// vitest.config.ts（规划）
+import { defineConfig } from 'vitest/config';
+import tsconfigPaths from 'vite-tsconfig-paths';
+
+export default defineConfig({
+  plugins: [tsconfigPaths()],        // 吃 tsconfig baseUrl:src，覆盖全部裸导入，不手写 alias
+  test: {
+    environment: 'node',             // 只测服务端/lib 层
+    include: ['tests/unit/**/*.test.ts', 'tests/integration/**/*.test.ts'],
+    coverage: { provider: 'v8', include: ['src/lib/**'], thresholds: { lines: 80 } },
+  },
+});
+```
+
+| 目录 | 环境 | 测什么 |
+|---|---|---|
+| `tests/unit/` | node，无 DB/网络 | 契约位 zod（含 FR-11.4「空依据分数非法」）；**工具注册表完整性**（每工具有 `class`、zod IO；outbound 集合 = `OUTBOUND_TOOL_NAMES` 六工具名白名单**恰好相等**，多一少一都红）；**承诺-兑现一致性断言**（§8.6.1）；闸门判定纯函数；健康度加权算法（DP-6）；**provenance 三级回退链**（§7.5.1） |
+| `tests/integration/` | node + 真 docker pg | `prisma migrate` 后 schema 断言；seed 幂等（跑两遍行数不变）；pgvector `<=>` top-K；**`OperationLog` append-only**（对既有行发 UPDATE/DELETE，**断言被 DB 触发器拒绝**——依赖 §7.7 欠账补齐）；**`PendingAction` 并发防护**（同一动作只成功执行一次——依赖 §9.3.1 缺口补齐）；闸门 G1–G5 |
+| `scripts/test/` | node 直跑冒烟 | 保留既有 smoke（花钱类 AI 门人工触发） |
+
+**组件级单测的取舍（务实约束）**：已装 `@testing-library/react ^13` 与 React 19 **不兼容**（需 ^16）。当前不做 jsdom 组件单测——**组件正确性由 Playwright（visual + E2E）兜底**；若需组件单测，先升 `@testing-library/react` 再开 jsdom 环境。
+
+#### 12.6.4 canvas 协议可扩展性断言
+
+两层验证「新结果类型 = 只加组件，不改 route 核心」：
+
+1. **单测（机械，演进）**：注册表须改为**受控 register API**（`registerCanvasRenderer(type, component)`）方可注入 fixture 断言；当前是静态对象字面量（§8.5），**注入能力尚不具备**。`resolve('unknown_type')` 返回兜底而**不抛错** ✅ 已满足。
+2. **验收（流程，已生效）**：Evaluator 对「新增一个结果类型」的交付 commit 做 **diff 范围断言**——改动集合 ⊆ {`canvas-registry.tsx` 注册行, 新组件文件, 工具注册表新条目}，`src/app/api/agent/route.ts` **核心零改动**；违反即 FAIL。
+
+3. **lint 兜底（建议，未配置）**：`react/no-danger` 提 **error 级**覆盖 `src/components/copilot/**`——禁 `dangerouslySetInnerHTML` 由规则而非测试保证（backlog 候选）。
+
+#### 12.6.5 执行位置汇总
+
+```mermaid
+flowchart LR
+  A["本地：build + typecheck + lint<br/>（+ vitest unit，演进）"] --> B["CI push main：<br/>lint / typecheck / build / visual"]
+  B --> C["Evaluator 隔离验收：<br/>smoke 全套 + E2E 黄金路径<br/>+ G1-G5 + 变异测试 + 数据/AI/密钥门"]
+  C --> D["人类闸门：<br/>workflow_dispatch 部署"]
+```
+
+### 12.7 度量架构（KPI 从哪来）
+
+原则：**只算不埋**——业务动作已在 `OperationLog` 与领域表中，度量层是查询与派生，不是另一套埋点系统（ADR-23）。
+
+| 指标 | 计算来源 | 可算性 |
+|---|---|---|
+| 北极星 · 操盘手杠杆 | 环节推进事件计数 × 周活操盘手 | 演进（需领域表） |
+| K1 Agent 自主完成率 | `OperationLog`：`kind='auto'` 占比 | ✅ 现可算 |
+| K2 一句话入口占比 | 任务入口来源标记（指令栏 vs 表单，请求带 `origin` 字段——**唯一轻量埋点**） | 演进 |
+| K3 推荐采纳率 | `MatchCandidate.verdict` / plan 批准记录 | 演进（M2） |
+| K8 交付达标放款率 | `Payout` released 中条件齐占比（`delivery-check` 保证 =100%） | 演进（M3） |
+| K9 越权拦截率 | **运行时不变量**：无令牌 outbound 执行成功数 = 0（告警 + `gate:smoke` 断言） | ✅ 现可算 |
+| K10 假闸门数 | internal 产生 `PendingAction` 的数量 = 0（G3 断言） | ✅ 现可算 |
+| K12 溯源覆盖率 | 展示字段有 `fieldProvenance` 占比 | 演进（需填充数据） |
+| K14 复盘完成率 | `WeeklyReport.adopted` / 完结项目数 | 演进（M4） |
+
+---
+
+## §13 部署与环境架构
+
+### 13.1 环境总览（as-built）
+
+| 环境 | 形态 | 说明 |
+|---|---|---|
+| dev | `next dev` :3000 + `docker-compose.dev.yml`（Postgres 16 + pgvector，宿主 :5434） | `npm run db:up` → `npm run db:migrate` → `npm run seed:kol` |
+| CI | GitHub Actions `ci.yml`：install → typecheck → lint → build → visual baseline（linux 重生） | push 触发；**deploy 永留人类闸门**；进度类文件 paths-ignore |
+| prod | VPS `newkol.guangai.ai:3300`：ghcr 镜像 + `docker-compose.prod.yml` + nginx 反代 | **全栈**：`db`（pgvector/pg16 容器 + named volume）+ `migrate`（one-shot）+ `app`（standalone） |
+
+**镜像与管线**：`build-push.yml` 构建**两个**镜像推 ghcr——`newkolmatrix`（app runner，最小，不含 prisma CLI）与 `newkolmatrix-tools`（含 prisma CLI + migrations + seed 脚本 + CSV）。Dockerfile 四阶段：`deps` → `build` → `tools`（`CMD sh scripts/deploy/migrate-seed.sh`）→ `runner`（node 20-alpine，非 root `nextjs:nodejs`，`CMD node server.js`）。
+
+**部署流程**（`deploy-prod.yml`，仅 `workflow_dispatch`）：SSH → `compose pull` → `up -d --wait --wait-timeout 600`（compose `depends_on` 先跑 `migrate` one-shot：`migrate deploy` + 首次/幂等 seed → 再起 `app`）→ curl `/api/health` 重试 10×3s。**回滚 = 同一入口填上一个 good SHA**（因迁移走 expand-contract，旧镜像对新 schema 向后兼容，**回滚不需要逆向迁移**）。
+
+### 13.2 环境变量清单与启动校验
+
+**as-built 变量表**（`.env.example` 为模板，只放占位符不放明文真值；`.env` 已 gitignore）：
+
+| 变量 | 引入 | 必填 | 默认 / 校验 | 说明 |
 |---|---|---|---|---|
-| `DATABASE_URL` | F001 | **P0 必填** | `z.string().url()`，scheme 必须 `postgresql://` | dev 指 `docker-compose.dev.yml` 的 pg+pgvector |
-| `AIGCGATEWAY_BASE_URL` | F002 | **P0 必填** | `z.string().url()` | OpenAI 兼容端点 |
-| `AIGCGATEWAY_API_KEY` | F002 | **P0 必填** | `z.string().min(16)` | 无硬编码（NFR-S5） |
-| `AIGC_CHAT_MODEL` | F002 | 可选 | 有默认值（网关 canonical 名） | 主 chat 模型 |
-| `AIGC_EMBEDDING_MODEL` | F002 | 可选 | 默认 `'bge-m3'` | 换模型必配合 `EMBEDDING_DIMENSIONS` 断言与全量重嵌入 |
-| `AIGC_CHAT_MODEL_FAST` | 演进 | 可选 | — | NFR-P8 模型路由预留 |
-| `NEXT_PUBLIC_BASE_PATH` | 已有 | 可选 | — | next.config.js basePath/assetPrefix |
-| `APIFY_TOKEN` / `APIFY_WEBHOOK_SECRET` | 演进 M5 | — | 建路由时转必填 | §8.3.1 |
-| `PARTNER_ESCROW_API_KEY` 等 | 演进 P4 | — | 真实现时定义 | §8.3.2 |
+| `DATABASE_URL` | F002 | **必填** | 无默认；Prisma 侧校验 | dev 指 compose 的 pg+pgvector（:5434）；prod 由 `POSTGRES_*` 派生指向容器网内 `db:5432` |
+| `AIGCGATEWAY_BASE_URL` | F003 | **必填** | `requireEnv` 非空校验 | OpenAI 兼容端点（`https://aigc.guangai.ai/v1`） |
+| `AIGCGATEWAY_API_KEY` | F003 | **必填** | `requireEnv` 非空校验 | 无硬编码（NFR-S5） |
+| `AIGCGATEWAY_CHAT_MODEL` | F003 | 可选 | 默认 `'deepseek-v3'` | ⚠️ **非** f5 稿的 `AIGC_CHAT_MODEL`。模型须在网关已配 active channel，否则 503 |
+| `AIGCGATEWAY_EMBEDDING_MODEL` | F003 | 可选 | 默认 `'bge-m3'` | 换模型须配合 `EMBEDDING_DIMENSIONS` 断言与**全量重嵌入** |
+| `AIGC_TIMEOUT_MS` | F003 | 可选 | 默认 `15000` | CJK/长文本网关 P95 可达 5–10s |
+| `AIGC_MAX_OUTPUT_TOKENS` | F003 | 可选 | 默认 `2000` | 调用方按用例覆盖 |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | GO-LIVE | prod 必填（密码） | compose 插值，`?:` 强制 | **密码是派生 `DATABASE_URL` 的单一来源**，避免重复两处 |
+| `IMAGE_TAG` | GO-LIVE | 可选 | 默认 `latest` | 回滚填上一个 good SHA |
+| `NEXT_PUBLIC_BASE_PATH` | 既有 | 可选 | — | 子路径部署 |
+| `NEXT_TELEMETRY_DISABLED` | 既有 | 可选 | `1` | — |
+| `APIFY_TOKEN` / `PARTNER_ESCROW_API_KEY` 等 | 演进 M3/M5 | — | 真实现时定义 | — |
 
-**启动校验**（NFR-S5「env + 启动校验」的机制化落点）：
+> **`GATE_TOKEN_SECRET` 不存在**（v1.1 曾列入）——as-built 闸门令牌为 `randomBytes(32)` 随机串，**无签名密钥**（§9.3）。
+
+**启动校验现状（as-built）**：**无集中 `serverEnv()`、无 `src/instrumentation.ts`**。校验为**分散的懒校验**——`gateway.ts` 的 `requireEnv(name)` 在 `getGateway()` 工厂内首次调用时检查，缺失则抛出带变量名与 `.env.example` 指引的清晰错误。
+
+- **为何懒校验**（刻意设计）：`/api/agent` route import `gateway.ts` 后，若模块顶层 throw，`next build` / CI 在无 secret 环境下会**构建失败**。懒初始化把校验推迟到首次真实调用。
+- **代价**：配错的 env 在**首个请求时**才暴露，而非启动时。
+
+**演进目标（未实装）——集中式 fail-fast**：
 
 ```ts
-// src/lib/env.ts — 全项目读 env 的唯一入口，禁止散落 process.env.X
-import { z } from 'zod';
-
+// src/lib/env.ts —— 全项目读 env 的唯一入口，禁止散落 process.env.X
 const serverEnvSchema = z.object({
-  DATABASE_URL: z.string().url(),
-  AIGCGATEWAY_BASE_URL: z.string().url(),
-  AIGCGATEWAY_API_KEY: z.string().min(16),
-  AIGC_CHAT_MODEL: z.string().default('claude-sonnet-4'),
-  AIGC_EMBEDDING_MODEL: z.string().default('bge-m3'),
+  DATABASE_URL:                 z.string().url(),
+  AIGCGATEWAY_BASE_URL:         z.string().url(),
+  AIGCGATEWAY_API_KEY:          z.string().min(16),
+  AIGCGATEWAY_CHAT_MODEL:       z.string().default('deepseek-v3'),
+  AIGCGATEWAY_EMBEDDING_MODEL:  z.string().default('bge-m3'),
 });
 let cached: z.infer<typeof serverEnvSchema> | null = null;
 export function serverEnv() {
@@ -2834,427 +1765,143 @@ export function serverEnv() {
 }
 ```
 
-- **fail-fast 时机**：`src/instrumentation.ts`（本仓库有 `src/`，故不在仓库根；Next 15 stable）的 `register()` 调一次 `serverEnv()`——standalone `node server.js` 启动即校验，配错秒退并列出缺失变量名（不打印值）；seed/smoke 脚本 import 同一模块，脚本与服务共享同一权威。
-- **部署衔接**：`docker-compose.prod.yml` 现无 env 注入也无 DB 服务（前端-only 部署）；全栈化改造（M5）时给 `app` 服务加 `env_file` 并接 VPS Postgres——属生产硬化批次，P0 不动 CD 链路。deploy/prod 永留人类闸门（workflow_dispatch）不变。
+fail-fast 时机：`src/instrumentation.ts`（**本仓库有 `src/`，故不在仓库根**）的 `register()` 调一次 `serverEnv()`——standalone `node server.js` 启动即校验，配错秒退并**只列缺失变量名、不打印值**；seed/smoke 脚本 import 同一模块，脚本与服务共享同一权威。**引入时须保留 `build` 阶段豁免**（构建期无 secret），否则重蹈懒校验要解决的问题。
 
----
+**当前散落的 `process.env` 读取点**（引入 `env.ts` 时须一并收口）：`gateway.ts`（4 处）· `db/prisma.ts`（`NODE_ENV`）· `Fonts.tsx` / `image/Image.tsx`（`NEXT_PUBLIC_BASE_PATH`，客户端侧，不入 `serverEnv`）。
 
-**P0 落地 vs 后期演进小结**：P0 交付 = `/api/agent` + 闸门四端点（GET `/api/actions/[id]` 详情 + `confirm`/`execute`/`reject`）、`/admin/runs` RSC 直读 `lib/oplog/queries.ts` 的留痕可查面、`gateway.ts` 双链路封装 + smoke、envelope/错误码体系、`env.ts` 启动校验（`src/instrumentation.ts` fail-fast）、Apify/partner 两个纯接口预留（types + Mock）。演进 = REST 资源面（随 WORKBENCH-UI/P1–P4 逐批开）、`GET /api/operation-logs`（P1+）、`/api/health` + compose 健康检查切换、两个 webhook 路由、成本落库与模型路由、真实 EscrowProvider（M5/P4）。
+### 13.3 生产化清单 R1–R7（销项状态）
 
----
+> f5 §9.3 提出的生产全栈化改造七项。**R1–R6 已于 GO-LIVE 批次完成**；R7 未做。
 
-# §9 部署与运维架构
-
-## 9.1 环境总览
-
-三套环境，一条镜像流。生产链路（CICD-VPS 批次）已建成且验收通过，当前为**前端-only 形态**；P0（AGENT-FOUNDATION F001）先改造 dev 环境，生产全栈化是后期改造项。
-
-```mermaid
-flowchart LR
-  subgraph DEV["本地 dev（P0 落地）"]
-    NEXT["next dev :3000"] --> PGD[("docker-compose.dev.yml<br/>postgres + pgvector :5432")]
-    NEXT --> GW1["aigcgateway<br/>（远端，OpenAI 兼容）"]
-  end
-  subgraph CI["GitHub Actions"]
-    CIJOBS["ci.yml<br/>lint / typecheck / build / visual"]
-    BP["build-push.yml<br/>Docker 镜像 → GHCR<br/>tag = git SHA + latest"]
-  end
-  subgraph PROD["deploysvr 194.238.26.173"]
-    NGINX["nginx<br/>newkol.guangai.ai 443"] --> APP["newkolmatrix-app<br/>127.0.0.1:3300 → :3000"]
-    APP -.->|"后期全栈化"| PGP[("db 服务<br/>pgvector/pgvector:pg16")]
-    APP -.-> GW2["aigcgateway"]
-  end
-  DEV -->|"git push main"| CI
-  BP -->|"手动 workflow_dispatch<br/>（deploy 人类闸门）"| PROD
-```
-
-## 9.2 本地开发环境：docker compose dev（P0 · F001）
-
-现状：仓库**没有** `docker-compose.dev.yml`、没有 Prisma、没有 `src/lib/`。F001 建立以下三件套：
-
-**（1）`docker-compose.dev.yml`（新建，repo 根）：**
-
-```yaml
-# AGENT-FOUNDATION F001 — 本地开发 DB（仅 dev；prod 全栈化另行改造）
-services:
-  db:
-    image: pgvector/pgvector:pg16       # 自带 vector 扩展的官方镜像
-    container_name: newkolmatrix-dev-db
-    ports:
-      - "127.0.0.1:5432:5432"
-    environment:
-      POSTGRES_USER: kolmatrix
-      POSTGRES_PASSWORD: kolmatrix       # 仅本地 dev，非密钥
-      POSTGRES_DB: kolmatrix
-    volumes:
-      - newkolmatrix_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kolmatrix -d kolmatrix"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-volumes:
-  newkolmatrix_pgdata:
-```
-
-> 本节的 `docker-compose.dev.yml`（含 healthcheck）与 `.env.example` 为全文档**唯一权威定义**——数据章（§7.6.3）改为引用此处，`DATABASE_URL` 示例以本节为准。
-
-vector 扩展的建立**不手写 SQL、不放 init 脚本**：权威定义见 §7（数据章）——Prisma `previewFeatures` 开启 `postgresqlExtensions = [vector]`，由 `prisma migrate` 自动生成进 migration；F001 验收项 = 检查生成的 `migration.sql` 含 `CREATE EXTENSION vector`，保证「migrate 即建扩展」在 dev / CI / prod 三处行为一致。
-
-**（2）`.env.example`（新建，无明文密钥）：**
-
-```bash
-# DB（dev 指向 docker-compose.dev.yml）
-DATABASE_URL="postgresql://kolmatrix:kolmatrix@127.0.0.1:5432/kolmatrix"
-# AI 出口（aigcgateway，OpenAI 兼容）——密钥留空，本地填 .env（gitignore）
-AIGCGATEWAY_BASE_URL=""
-AIGCGATEWAY_API_KEY=""
-# 模型名（可选，有默认值——见 src/lib/env.ts serverEnv()）
-# AIGC_CHAT_MODEL=""
-# AIGC_EMBEDDING_MODEL=""
-# 既有：子路径部署用（保持不动）
-# NEXT_PUBLIC_BASE_PATH=""
-```
-
-**（3）`src/lib/env.ts` + `src/instrumentation.ts`（新建，启动校验，NFR-S5）：**
-
-权威定义为唯一的 `src/lib/env.ts`（本节不重复其 zod schema，改为引用）。要点：变量集 `DATABASE_URL` / `AIGCGATEWAY_BASE_URL` / `AIGCGATEWAY_API_KEY` / `AIGC_CHAT_MODEL`（有默认值） / `AIGC_EMBEDDING_MODEL`（有默认值）；导出形态为**惰性缓存函数 `serverEnv()`**（非模块顶层 parse）；启动校验入口为 `src/instrumentation.ts`（本仓库有 `src/`，instrumentation 不在根）——缺失 → 启动即抛清晰错误，不静默降级。
-
-`src/lib/db/prisma.ts`、`src/lib/ai/gateway.ts` 一律 `import { serverEnv } from 'lib/env'`（业务代码一律**裸 src 导入**（`baseUrl: "src"`）、**不新增 `@/` 别名**；保留既有 `@/public/*` 静态资源映射——tsconfig paths 已存在），全库禁止直接读 `process.env.AIGCGATEWAY_*`。
-
-**dev 日常命令（写入 README）：**
-
-```bash
-docker compose -f docker-compose.dev.yml up -d   # 起 DB
-npx prisma migrate dev                            # 迁移（含 CREATE EXTENSION vector）
-npx tsx scripts/seed/import-kol-csv.ts            # F003 幂等 seed（~2,524 条 + embedding）
-npm run dev
-```
-
-## 9.3 生产全栈化改造：前端-only → 加 DB / 迁移 / env
-
-**现状（CICD-VPS done，作为改造基线）：**
-
-| 件 | 现状 |
-|---|---|
-| `Dockerfile` | node 20-alpine 三阶段（deps→build→runner），standalone 输出，非 root（nextjs:1001），`node server.js` |
-| `docker-compose.prod.yml` | 单 `app` 服务，GHCR 只 pull 不 build，`127.0.0.1:3300→3000`，healthcheck 打 `/admin/dashboards/default`，**无 DB** |
-| `deploy/nginx/newkol.guangai.ai.conf` | 443 反代 3300，与旧 kolmatrix（:3001）完全隔离 |
-| 部署目录 | deploysvr `/opt/apps/newkolmatrix` |
-
-**改造清单（标注时机；全部落地前，生产保持前端-only 可部署——Agent 功能只在 dev 演示，D6）：**
-
-| # | 改造项 | 内容 | 时机 |
-|---|---|---|---|
-| R1 | compose 加 `db` 服务 | `pgvector/pgvector:pg16` + named volume `pgdata` + 内部网络；**不暴露宿主端口**（或仅 `127.0.0.1`）；app `depends_on: db: condition: service_healthy` | 后期（首次需线上真 Agent 时，最迟 P5） |
-| R2 | env 注入 | `docker-compose.prod.yml` 的 app 服务加 `env_file: .env`；`/opt/apps/newkolmatrix/.env` 手工放置（`DATABASE_URL=postgresql://…@db:5432/kolmatrix`、`AIGCGATEWAY_*`），不入 git、不进镜像 | 随 R1 |
-| R3 | Dockerfile 加 Prisma | build 阶段 `npx prisma generate`；runner 阶段确认 standalone 产物含 `.prisma` 引擎（不含则补 `COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma`，或 next.config.js 配 `outputFileTracingIncludes`）；新增 **`migrate` stage**（仅 `prisma/` + prisma CLI），供 R4 使用 | 随 R1 |
-| R4 | 迁移步骤进 deploy workflow | `deploy-prod.yml` 在 `up -d` 之前插入：`$COMPOSE run --rm migrate npx prisma migrate deploy`（幂等；失败即中止部署，不 up 新版本）。迁移遵循 expand-contract：先加列/表（兼容旧镜像）再收缩，保证回滚旧 image_tag 时 schema 仍兼容 | 随 R1 |
-| R5 | healthcheck 升级 | 新建 `src/app/api/health/route.ts`：`SELECT 1` 验 DB 连通，返回 `{ok, db}`；compose healthcheck 与 deploy-prod.yml 的 curl 从 `/admin/today`（F006 起已随 IA 改指，见 §11 F006）改打 `/api/health`（**不**在 health 里探 aigcgateway——外部依赖抖动不应打死容器） | 随 R1 |
-| R6 | 生产 seed | 手动一次性 `$COMPOSE run --rm migrate npx tsx scripts/seed/import-kol-csv.ts`（脚本幂等，F003 已保证；embedding 生成走 gateway，属花钱操作 → 人工触发） | 随 R1 |
-| R7 | 备份 | VPS cron `pg_dump` 到 `/opt/apps/newkolmatrix/backups/` + 滚动保留；恢复演练一次 | P5（PROD-HARDENING） |
-
-## 9.4 CI/CD 现状与演进
-
-**现状（4 个 workflow，全部 CICD-VPS 已验收）：**
-
-| workflow | 触发 | 内容 |
-|---|---|---|
-| `ci.yml` | push/PR main（paths-ignore：`.auto-memory/**`、progress/features/backlog.json、`docs/**`、`**/*.md` 等） | 4 job：lint / typecheck（`tsc --noEmit`）/ build / visual（Playwright chromium，起 standalone 产物，linux baseline） |
-| `build-push.yml` | push main（同 paths-ignore） | Docker 镜像 → GHCR，tag = `github.sha` + `latest`，gha 层缓存 |
-| `deploy-prod.yml` | **仅 workflow_dispatch** | SSH deploysvr → compose pull → up -d → 3300 健康检查 10×3s；入参 `image_tag` 支持回滚 |
-| `update-visual-baselines.yml` | 手动 | 在 CI（linux）重生视觉 baseline 并 commit（mac/linux 字体不 pixel-match） |
-
-**演进（随批次逐步加 job，不推翻现有结构）：**
-
-| 增量 | 内容 | 时机 |
-|---|---|---|
-| `unit` job | `npm run test:unit`（vitest，见 §10.3），纯 node，无 DB | P0（F004 引入 vitest 后） |
-| `gate` job | GitHub Actions `services: postgres`（image `pgvector/pgvector:pg16`）→ `prisma migrate deploy` → `vitest run tests/integration`（含 §10.5 闸门 G1–G5）。**闸门测试进 CI 是硬门**：F008 之后每次 push 都必须证明 outbound 拦截仍在 | P0（F008） |
-| AI smoke **不进 CI** | `scripts/test/ai-gateway-smoke.ts` 需要真密钥且花钱 → 留在本地/evaluator 验收手跑（F002 验收项） | — |
-| paths-ignore 校准 | `prisma/**`、`scripts/seed/**` 必须触发 CI（当前 ignore 列表不含它们，无需改；注意**不要**把新增目录误加进 ignore） | P0 |
-| 变异测试 nightly（可选） | `gate-mutation` 以 `schedule` 低频跑（见 §10.5），不阻塞每次 push | P1+ |
-
-## 9.5 deploy 人类闸门
-
-`deploy-prod.yml` 仅 `workflow_dispatch`，无任何自动部署路径——这是 harness 铁律（deploy/prod/spend 永留人类闸门），**与产品内 AI→人闸门（F008）同构**：CI 可以把一切「备好」（镜像已推 GHCR、健康检查脚本就绪），「按下去」永远是人。
-
-- **发布**：用户在 GitHub Actions 手动填 `image_tag`（git SHA）触发；`latest` 仅兜底，正式发布用不可变 SHA
-- **回滚**：同一入口填上一个 good SHA；R4 落地后因迁移走 expand-contract，旧镜像对新 schema 向后兼容，回滚不需要逆向迁移
-- **迁移含破坏性变更时**：deploy 说明（`docs/dev/deploy.md`）中标注「本次不可直接回滚」，由触发部署的人确认——不引入自动判断
-
-## 9.6 密钥与配置矩阵
-
-| 变量 | dev | CI | prod | 备注 |
+| # | 项 | 目标 | **as-built 状态** | 证据 |
 |---|---|---|---|---|
-| `DATABASE_URL` | `.env`（指向本地 docker） | job `services` 注入 | `/opt/apps/newkolmatrix/.env` | `serverEnv()` 惰性缓存校验；启动入口 `src/instrumentation.ts` |
-| `AIGCGATEWAY_BASE_URL` / `_API_KEY` | `.env` | 不提供（AI smoke 不进 CI） | `.env`（R2） | 无硬编码；`.env.example` 无明文（§15.5 密钥门） |
-| `AIGC_CHAT_MODEL` / `AIGC_EMBEDDING_MODEL` | 可选（`.env`） | 不提供 | 可选（`.env`） | 有默认值，`serverEnv()` 兜底 |
-| `PROD_HOST` / `PROD_USER` / `PROD_SSH_KEY` | — | GitHub repo secrets | — | 仅 deploy-prod.yml 使用 |
-| `NEXT_PUBLIC_BASE_PATH` | 空 | 空 | 空（根路径部署） | 既有，保持 |
+| **R1** | compose 加 `db` 服务 | `pgvector/pgvector:pg16` + named volume + 内部网络；**不暴露宿主端口**；app `depends_on: db healthy` | ✅ **已完成** | `docker-compose.prod.yml`：`db` 服务、`newkolmatrix-pgdata` volume、无 `ports` 映射、`healthcheck: pg_isready` |
+| **R2** | env 注入 | app 服务接 `.env`，`DATABASE_URL` + `AIGCGATEWAY_*` 不入 git、不进镜像 | ✅ **已完成**（实现优于原案） | compose `environment:` 由 `${POSTGRES_PASSWORD}` **派生** `DATABASE_URL`——密码单一来源，避免 `.env` 里重复两处；`?:` 语法强制必填 |
+| **R3** | Dockerfile 加 Prisma | build 阶段 `prisma generate`；新增 `migrate` stage 供 R4 | ✅ **已完成** | `postinstall: prisma generate`；Dockerfile `FROM build AS tools` 阶段 + `newkolmatrix-tools` 镜像 |
+| **R4** | 迁移进部署流程 | `up -d` 前跑 `prisma migrate deploy`（幂等；失败即中止，不 up 新版本）；expand-contract | ✅ **已完成**（实现优于原案） | compose `migrate` one-shot 服务 + `app.depends_on.migrate.condition: service_completed_successfully`——**由 compose 保证顺序与失败中止**，比 workflow 内插命令更可靠 |
+| **R5** | healthcheck 升级 | 新建 `/api/health`；compose 与 deploy 的 curl 改打它 | ✅ **已完成**（**语义有意偏离原案**） | `src/app/api/health/route.ts` 返回 `{ok:true}`。**刻意不查 DB**（原案建议 `SELECT 1`）——DB 就绪由 `depends_on: db healthy` 保证，避免瞬态抖动误判 app unhealthy（D-GL5）。compose healthcheck + `deploy-prod.yml` 均已改打 `/api/health` |
+| **R6** | 生产 seed | 一次性幂等 seed（embedding 花钱 → 人工触发） | ✅ **已完成** | `scripts/deploy/migrate-seed.sh` 在 `migrate` 容器内条件执行；deploy workflow 注释「首次 seed 会对 ~2500 KOL 算 embedding，可能数分钟」，`--wait-timeout 600` |
+| **R7** | 备份 | VPS cron `pg_dump` + 滚动保留 + **恢复演练一次** | ❌ **未做** | 无 cron / 无备份脚本。**归 M5（PROD-HARDENING）**；生产已有真实数据，此项风险等级随数据积累上升，建议提前 |
 
-# §10 测试与质量架构
+> **R7 是当前唯一未销项的生产化欠账**，与 §7.7 的 append-only 触发器欠账并列为两条生产可靠性 backlog。
 
-## 10.1 质量门总览
+---
 
-对齐 PRD §15。原则：**每道门验行为不验源码关键字（D20）**；evaluator 在隔离上下文执行验收，结论原样落盘。
+## §14 架构演进路线（M0 → M5）
 
-| 门 | 载体 | 执行位置 | 硬性起点 |
+| 里程碑 | 领域交付 | 架构增量 | 状态 |
 |---|---|---|---|
-| 构建门 | `npm run build` + `typecheck` + `lint` 全绿 0 error | 本地 + `ci.yml` | 已生效 |
-| Visual baseline 门 | Playwright 截图对比（linux baseline，浅色 ≥1440px） | `ci.yml` visual job | 已生效；新增页面必补 baseline |
-| 单元/集成门 | vitest（新增），覆盖率 ≥80% | 本地 + CI `unit`/`gate` job | P0（F004 起） |
-| E2E/交互门 | Playwright `tests/e2e/`，逐里程碑黄金路径 | 本地 + evaluator 验收 | M0（hello-agent） |
-| 闸门服务端测试门 | G1–G5 + 变异测试（§10.5） | CI `gate` job + evaluator | **F008 起硬性** |
-| 数据门 | migrate 成功、seed ≥2,000 条非空 embedding、cosine top-K 相关、幂等 | `scripts/test/` 冒烟 + evaluator | F001/F003 |
-| AI 门 | `scripts/test/ai-gateway-smoke.ts`：1 chat（含 tool-call）+ 1 embedding，失败清晰 | 本地/evaluator（不进 CI） | F002 |
-| 密钥门 | 无硬编码、走 env、`.env.example` 无明文 | evaluator + `security-review` | F001 |
+| **M0（AGENT-FOUNDATION）** | audit 域 + kol 浅字段 + 编排框架 | 数据地基（schema + pgvector + seed）· gateway 双链路 · 四柱 · **AI→人闸门** · 多 Agent 编排（registry/router/handoff/orchestrator）· hello-agent | ✅ **已交付** |
+| **GO-LIVE** | 生产全栈化 | db 容器 + migrate one-shot + `/api/health` + 两镜像管线（R1–R6） | ✅ **已交付** |
+| **FE-REFACTOR** | 前端整肃 | common 10 件 + 视觉基线 + fe-audit 三脚本 | ✅ **已交付** |
+| **M0.5（ARCH-M05 / WORKBENCH-UI）** | 六页工作台外壳 | 架构定稿（本文）· 路由收敛 · 三区外壳 · **渲染契约层**（mock）· 共用产品件 · 五环节语法真组件 · 视觉基线扩展 | 🔵 **进行中** |
+| M1（BRIEF-CAMPAIGNS） | project + brief + knowledge 域 | 项目空间 + 游标守卫 + 知识解析管道 + 健康度纯函数 + 雷达聚合 + **例程调度器** + `domain/` 层 + vitest | 计划 |
+| M2（MATCH） | match 域 + kol 深字段消费 | `match_plan` 组合算法 + 评估面板 + 创作者抽屉七分区 + 夜间筛查例程 + **`resolveProvenance` + ProvenanceTag 接真数据** | 计划 |
+| M3（REACH-CRM · DELIVERY） | reach + delivery 域 | CRM 事件推断 + 信号接入层 + **真实邮件/partner 适配器** + 资金状态机 + **闸门两步票据 + 7 态**（§9.3.2） | 计划 |
+| M4（INSIGHT-ROI） | insight 域 + 度量 | `compute_roi` + 周报 + 对外分享 + 看板追问 + KPI 看板 | 计划 |
+| M5（PROD-HARDENING） | 数据管道 + 硬化 | 真实认证 + RLS + Apify/外购接入 + **R7 备份与恢复演练** + HNSW 索引 | 计划 |
 
-## 10.2 构建门现状与注意项
+**扩展点食谱**：
+- 新能力 = 加一条工具注册表条目（`tools/index.ts` 的 `NATIVE_TOOLS`）+（可选）注册一个 canvas 组件；
+- 新数据源 = 填同一组字段契约位 + 标新 `dataSource`；
+- 新 Agent = `registry.ts` 名册加一行（人格 + 工具子集）；
+- 新 outbound 动作 = 注册 `class:'outbound'` + `buildHarm` + 一个 ops 适配器（**自动获得闸门 + 留痕 + 测试门**）；
+- 新信号源 = 加一个 `signals/sources/` 适配器（自动获得规范化 + 事件推断 + 留痕）；
+- 新例程 = 加一个 `jobs/routines/` 条目（自动获得调度 + 留痕）。
 
-- 命令即 package.json 现有 scripts：`build` / `typecheck`（`tsc --noEmit`）/ `lint`——不新造命令
-- TS 版本：F001 仍在模板 pin 的 4.9 下交付；**F002 启动前以独立微批次升 TS 5.x**（升级 + 构建门全绿，不与 F001–F008 混批，ADR-008），此后 zod / Prisma / AI SDK 均按 TS5 选版（AI SDK v5 要求 TS≥5）。宽松模式（`strict: false`、`strictNullChecks: false`）升级后暂不变：**新增 `src/lib/` 代码不得依赖 strict 才暴露的错误**；契约位 nullable 的空值安全由 zod schema 承担而非编译器
-- 模板副本目录 `db4rDjuaSCqaEFW9XcFo_horizon-*` 已在 tsconfig exclude，新代码勿从该目录 import
+---
 
-## 10.3 vitest 单元/集成层（P0 新增）
+## §15 架构决策记录（ADR 摘要）
 
-**安装与配置**（新增 devDeps：`vitest` + `@vitest/coverage-v8` + `vite-tsconfig-paths`；`vitest.config.ts` 新建）：
+| # | 决策 | 依据/来源 | 状态 |
+|---|---|---|---|
+| ADR-01 | 单全栈 Next.js 应用，无独立后端/微服务/队列 | D1；KISS | 锁定 ✅ 已兑现 |
+| ADR-02 | Agent 运行时 = Vercel AI SDK；AI 唯一出口 = aigcgateway | D2 | 锁定 ✅ 已兑现 |
+| ADR-03 | 数据 = CSV seed + bge-m3 起步，采集/外购后期走同契约 | D3/D15 | 锁定 ✅ 已兑现 |
+| ADR-04 | 单租户 dev tenant + `tenantId` 占位，认证/RLS 留 M5 | D4 | 锁定 ✅ 已兑现 |
+| ADR-05 | 激进 AI-native：对话面 + canvas 为主轴，表单兜底 | D5 | 锁定（A6 方向由 M0.5 mock 先行验证） |
+| ADR-06 | 单角色，无 role/scope/权限层/审批链 | D26 | 锁定 ✅ 已兑现（`User` 无权限列） |
+| ADR-07 | 删人→人审批，留 AI→人闸门；internal 不设闸门 | D27 | 锁定 ✅ 已兑现 |
+| ADR-08 | 闸门无阈值，一律一次确认 + 如实列全部利害 | D28 | 锁定 ✅ 已兑现（harm zod 无 threshold 字段） |
+| ADR-09 | `owner` 标记 = 分工不是权限，不派生权限判定 | D29 | 锁定 ✅ 已兑现（含 today 团队负荷卡免责句，裁决 #8） |
+| ADR-10 | 字段契约位解耦产品层与数据层（nullable + zod） | D15 | 锁定 ✅ 列已建 |
+| ADR-11 | 否定式护栏 = AI 行为边界（非角色数据边界） | D13 升级版 | 锁定 ✅ 已兑现（prompt 与 UI 同源） |
+| ADR-12 | `OperationLog` append-only，DB 触发器强制 | FR-11.12 / NFR-S4 | ⚠️ **部分兑现**：应用层已满足，**DB 触发器欠账**（§7.7） |
+| ADR-13 | 确认令牌绑定载荷哈希；单次性 | FR-10.1 工程化 | ⚠️ **修订**：as-built 为**随机串 + 服务端内部消费**（非 HMAC），payloadHash 绑定 ✅；**部分唯一索引防双花未实装**（§9.3.1） |
+| ADR-14 | 设计系统 = Tailwind + CSS 变量，非 Chakra theme | FR-12.25/12.26 | 锁定 ✅ 已兑现 |
+| ADR-15 | Agent 运行时无状态，会话前端持有 | FR-12.9 | 锁定 ✅ 已兑现 |
+| ADR-16 | 领域逻辑纯函数化，三处复用（页面/工具/例程） | DP-6 | 锁定（`domain/` 归 M1） |
+| ADR-17 | 副作用走 ops 适配器接口，mock 先行、真集成后置 | §9.8 | 锁定（`ops/` 归 M3；当前 mock 内嵌于工具） |
+| ADR-18 | 前端不引入全局 store；URL + useChat + 局部 state | §6.5；KISS | 锁定 ✅ 已兑现（含 URL 化四位，裁决 #4） |
+| ADR-19 | 知识解析 M1 同步 + 轮询；调度用进程内 node-cron，不建队列 | §12.1；KISS | 锁定（归 M1） |
+| ADR-20 | 主动式 Agent = 例程复用同一工具注册表与领域函数；单实例 + 互斥锁 | §8.10 | 锁定（归 M1） |
+| ADR-21 | 外部世界经 Signal 规范化接入；不建事件溯源框架 | §10.4 / §5.5 | 锁定（归 M3） |
+| ADR-22 | 目标态领域模型先行（概念层 §5.2），字段级 schema 随批次 spec 锁定 | PRD §11.1 | 锁定 ✅ 运行中 |
+| ADR-23 | 度量层只算不埋；唯一埋点 = 任务入口来源 | §12.7 | 锁定 |
+| **ADR-24** | **唯一工具执行入口 `executeTool`**：禁止双执行语义并存；zod 校验 + class 分流在此统一生效 | §4.2.7 / §9.2 | **v1.2 新增** ✅ 已兑现 |
+| **ADR-25** | **确认令牌不出服务端进程**：令牌在 `confirmPendingAction` 内部生成/消费/丢弃，从不经网络——较两步票据消除令牌窃取与重放攻击面 | §9.3 | **v1.2 新增** ✅ 已兑现（M3 演进两步票据时须保留此不变量的等价保护） |
+| **ADR-26** | **handoff 只携引用与摘要**：接收方按自身 scope 重读，不信任发送方结论——防结论沿交接链失真 | §8.9 | **v1.2 新增** ✅ 已兑现 |
+| **ADR-27** | **`/api/health` 为纯 liveness**：不级联探测 DB / 网关，避免外部依赖抖动打死容器 | §10.1.1 / §13.3 R5 | **v1.2 新增** ✅ 已兑现 |
+| **ADR-28** | **canvas 路由键 = 工具名**（as-built），非结果 `type`：可扩展性等价，但缺运行时 register 注入能力——引入第二种多结果形态时（建议 M2）改为 `type` + 受控 register API | §8.5 | **v1.2 新增**（待演进） |
 
-```ts
-// vitest.config.ts
-import { defineConfig } from 'vitest/config';
-import tsconfigPaths from 'vite-tsconfig-paths';
+---
 
-export default defineConfig({
-  plugins: [tsconfigPaths()],               // 直接吃 tsconfig 的 baseUrl:src——覆盖全部 src 顶级裸导入前缀，不手写 alias
-  test: {
-    environment: 'node',                    // P0 只测服务端/lib 层
-    include: ['tests/unit/**/*.test.ts', 'tests/integration/**/*.test.ts'],
-    coverage: { provider: 'v8', include: ['src/lib/**'], thresholds: { lines: 80 } },
-  },
-});
-```
+## §16 风险与开放问题（架构视角）
 
-**目录与分层：**
+| # | 风险 | 架构缓解 | 状态 |
+|---|---|---|---|
+| R5 | aigcgateway 单点 | 错误清晰不静默吞（`describeGatewayError`）；`resilientFetch` 三重修补；成本/错误骨架先行；`/api/health` 不级联探测（ADR-27） | 缓解中 |
+| R6 | bge-m3 游戏垂类质量未验证 | 可解释匹配让用户自判；M2 真实 seed 人评基线 | 开放 |
+| R7 | 闸门漏标 = 泄漏口 | 注册表 `class` 强制标注 + outbound 无 `buildHarm` 即抛错 + G1–G5 + 变异测试 + 留痕可审计 | ✅ 已缓解 |
+| R8 | canvas 大结果集性能 | 增量渲染；虚拟化留精调层 | 开放 |
+| R10 | 激进 canvas 方向未经验证（A6） | **M0.5 mock 先行低成本试错**；画布/表单双层并存兜底 | 验证中 |
+| R11 | 主动例程产噪/失控 | 例程只调 internal + 频率/数量上限 + 聚合不改写结论 + 全量留痕 | 归 M1 |
+| R12 | 平台信号断供（收权） | Signal 多源设计，邮件自有通道为主，平台仅 source 之一，断供降级手动上传/一方授权位 | 归 M3 |
+| R13 | 目标态概念模型与批次 spec 偏差 | 字段级以批次 spec 为准；概念层变更需**显式修订本文** | 运行中 |
+| **R14** | **`OperationLog` append-only 无 DB 层强制** | 应用层已只 INSERT；DB 触发器/权限撤销**待补**——补齐前不得声称 NFR-S4 已满足 | ⚠️ **backlog 候选**（§7.7） |
+| **R15** | **闸门并发双确认无原子防护** | 应改为原子条件 UPDATE；当前单人操盘手 + UI 单例确认卡下风险极低 | ⚠️ **backlog 候选**（§9.3.1） |
+| **R16** | **生产无备份（R7 未做）** | 生产已有真实数据，风险随积累上升；建议提前于 M5 | ⚠️ **backlog 候选**（§13.3） |
+| **R17** | **无单测 runner，覆盖率不可度量** | smoke 脚本已覆盖关键行为面；纯函数层（M1）落地时引入 vitest 收益最高 | 归 M1（§12.6.3） |
+| Q1 | 数据采集合规路径（M5 前必定） | 字段契约已解耦，任何路径不返工 | 开放 |
+| Q3 | 组织级二次确认会否重引人→人审批（M3 前定） | 架构上闸门只认「AI→人」，加设置项也需显式决策 | 开放 |
+| Q4 | CRM 人工覆盖范围（M3） | 状态推断纯函数化，覆盖入口易加且留痕 | 开放 |
+| Q7 | 对外分享闸门粒度（M4） | `harm.scope` 已区分 project/quarterly（裁决 #3）；有效期/撤销留 payload 扩展位 | 部分定 |
+| Q8 | 交接可观测性深度（M1+） | 交接三要素写 `Handoff` 表 + `HandoffCollab` UI，展开粒度随批次调 | 开放 |
 
-| 目录 | 环境 | 测什么 |
-|---|---|---|
-| `tests/unit/` | node，无 DB/网络 | `src/lib/*/schemas.ts` 全部 zod 契约（含 FR-11.4「空依据分数非法」）；工具注册表完整性（每工具有 `class: internal\|outbound`、zod IO、outbound 集合 = `OUTBOUND_TOOL_NAMES` 六工具名白名单——send_outreach / send_bulk_outreach / commit_quote / payout / distribute_keys / create_share_link——**恰好相等**，多一少一都红。口径分辨：outbound **语义类别 5 类**：发信/报价/放款/分发 Key/对外分享，批量发＝发信类的批量形态；**工具白名单 6 个工具名**，批量独立成工具因其 harm 必须列全收件人名单）；闸门判定纯函数；健康度加权算法（DP-6）；provenance 回退链（`fieldProvenance[field]` → `dataSource` → `ai_estimate`，FR-11.7） |
-| `tests/integration/` | node + 真 docker pg（dev compose / CI services） | `prisma migrate` 后 schema 断言；seed 幂等（跑两遍行数不变）；pgvector `<=>` top-K；OperationLog append-only（对既有行发 UPDATE/DELETE，**断言被 DB 触发器拒绝**）；PendingAction 状态机条件 UPDATE 并发防护（同一动作只成功执行一次）；闸门 G1–G5（§10.5） |
-| `scripts/test/` | node 直跑冒烟 | 既有 ds-foundation 冒烟 + `ai-gateway-smoke.ts`（花钱类，人工触发） |
+---
 
-**组件级单测的取舍（务实约束）**：已装 `@testing-library/react ^13` 与 React 19 RC **不兼容**（需 ^16）。P0 不做 jsdom 组件单测，组件正确性由 Playwright（visual + E2E）兜底；WORKBENCH-UI 批次若需要组件单测，先升 `@testing-library/react` 再开 jsdom 环境——不在 P0 引入这条依赖变更。
+## 附录 · 权威文档索引
 
-## 10.4 Playwright：visual + E2E 双 testDir
-
-现状 `playwright.config.ts` 只有 `tests/visual/`（1 条 dashboard 截图对比）。演进为双 project：
-
-```ts
-projects: [
-  { name: 'visual', testDir: './tests/visual', use: { ...devices['Desktop Chrome'], viewport: { width: 1512, height: 982 } } },
-  { name: 'e2e',    testDir: './tests/e2e',    use: { ...devices['Desktop Chrome'] } },
-],
-```
-
-- **visual**：沿用 snapshot 路径 `tests/screenshots/baseline/{arg}-{platform}{ext}` 与双平台 baseline 机制；F006 四页 IA + F007 `agent-canvas-*.png` 逐页补 baseline，CI linux 重生走既有 `update-visual-baselines.yml`
-- **E2E 里程碑门**（每条 = 该里程碑退出条件，evaluator 执行）：
-
-| 里程碑 | E2E 黄金路径（`tests/e2e/`） | 闸门断言 |
-|---|---|---|
-| M0 | `hello-agent.spec.ts`：对话面输入「找东南亚原神向 KOL」→ 流式回复 + KOL 卡片流（真实 seed），console 0 error | 无闸门出现（G3） |
-| M1 | 一句话 → Brief 草案 → 确认 | 全程无确认框（internal） |
-| M2 | NL → Top-N 对比矩阵 → Accept/Skip | 「批准这组」不弹框（D27） |
-| M3 | 起草 → 审阅 → **点确认才发送** | 未确认时 UI 停在待确认卡；无票直调 execute → 403 `GATE_TOKEN_INVALID`（G1） |
-| M4 | 追问 ROI + 周报 → 分享单独确认 | `create_share_link` 独立闸门 |
-
-- E2E 需要 DB + gateway → 本地对 dev compose 跑；模型调用在 E2E 中**可用录制回放/固定 fixture 响应**（`/api/agent` 支持注入 mock transport 仅限 test 构建），避免 E2E 花钱且不稳定——但 M 门验收时 evaluator 至少各跑一次真链路
-
-## 10.5 闸门测试与变异测试策略（F008 硬门，D20/FR-10.3/§15.4）
-
-**G1–G5 全部走真实 HTTP + 真实 DB，断言行为与副作用，绝不 grep 源码：**
-
-```ts
-// tests/integration/gate.g1.test.ts（示意）
-test('G1: 无票/伪票的 execute 必 403 GATE_TOKEN_INVALID，且零投递', async () => {
-  const pending = await triggerOutboundViaAgent();    // 模型 loop 触发拦截 → PendingAction(pending)，拦截时不下发任何令牌
-  const before = await countStubDeliveries();         // StubDelivery = P0 测试地面真值
-  const res = await POST(`/api/actions/${pending.id}/execute`, {  // 绕过确认直调真实面（NFR-S1）
-    ticket: 'forged-ticket',                          // 伪票；缺票同断言
-  });
-  expect(res.status).toBe(403);
-  expect(res.body.error).toBe('GATE_TOKEN_INVALID');
-  expect(await countStubDeliveries()).toBe(before);   // pending 未确认 → StubDelivery 行数不变
-});
-// G2: 确认卡 harm 经 zod 契约（z.infer）断言：harm.irreversibleLabel === '对外·不可撤销'（逐字符）
-//     且 harm.recipients 含全部收件人名单
-// G3: internal（search_kols）响应不含 harm/确认卡结构，且不产生 PendingAction
-// G4: 1 封与 100 封收件人 → 同样单次确认，响应无任何 threshold/tier 字段
-// G5: OperationLog 按 toolClass/action/projectId/reversible 可筛；
-//     全表 append-only——对既有行 UPDATE/DELETE → 断言被 DB 触发器拒绝；
-//     闸门状态流转（pending→confirmed→executed/failed）在 PendingAction 条件 UPDATE，不改写日志行
-```
-
-G 系错误断言统一引用 `src/lib/agent/gate/ticket.ts` 的唯一定义：`GATE_TICKET_TTL_MS = 5min`；错误分码 envelope 403 `GATE_TOKEN_INVALID` / 409 `GATE_ALREADY_DECIDED` / 410 `GATE_EXPIRED`。
-
-**变异测试（验证「断言真的在守门」）**——机制：把拦截逻辑打回原状，G 套件必须变红；不红 = 断言无效，验收不通过。
-
-- 载体：`scripts/test/gate-mutation.mjs`。做法：对 `src/lib/agent/gate/`（`ticket.ts` / `harm.ts` / `pending.ts`）应用**预定义 mutant 补丁集**（git apply 到临时 worktree，不污染工作区），逐个 mutant 重跑 `vitest run tests/integration/gate.*`，期望非零退出；全部 mutant 被杀 → 输出 `mutation-report`（evaluator 落盘 `docs/test-reports/`）
-- 首批 mutant（至少）：① `gate/ticket.ts` 的消费票校验恒返回通过；② 工具注册表把 `send_outreach` 的 `class` 改成 `internal`；③ 拦截时创建 `PendingAction(pending)` 的语句删除；④ 票据校验改为只验存在、不验签发与 TTL（`GATE_TICKET_TTL_MS`）
-- **红线**：绝不在产品代码里留 `GATE_BYPASS` 之类的 env 开关来「方便测试」——那本身就是闸门泄漏。变异永远发生在测试脚本对源码副本的补丁上
-- 执行位置：evaluator 验收（F008 及此后每个触碰闸门的批次）必跑；CI 可选 nightly（§9.4）
-
-## 10.6 canvas 协议可扩展性断言（§15.3）
-
-两层验证「新结果类型 = 只加组件，不改 route 核心」：
-
-1. **单测（机械）**：`tests/unit/canvas-registry.test.ts` —— 注册表为**受控 register API**（`registerCanvasRenderer(type, component)`，非 `Object.freeze` 静态映射）：测试注入 `registerCanvasRenderer('x_test_type', Fixture)` 后 `resolve('x_test_type')` 返回该组件——F005「可扩展不改核心」验收与 G 系 fixture 注入测试都依赖这一注入能力；`resolve('unknown_type')` 返回兜底文本组件而**不抛错**（模型输出是不可信输入，NFR-S6）；禁 `dangerouslySetInnerHTML` 由 lint 规则 `react/no-danger` **error 级**覆盖 `src/components/canvas/**` 与 `src/components/copilot/**` 两目录兜住，而非测试
-2. **验收（流程）**：evaluator 对「新增一个结果类型」的交付 commit 做 diff 范围断言——改动集合 ⊆ {`src/components/canvas/` 注册行, 新组件文件, 工具注册表新条目}，`src/app/api/agent/route.ts` 核心零改动；违反即 FAIL（这是行为门的流程化形态，写入 evaluator 验收清单）
-
-## 10.7 执行位置汇总
-
-```mermaid
-flowchart LR
-  A["本地：build+typecheck+lint<br/>vitest unit（秒级）"] --> B["CI push main：<br/>lint/typecheck/build/visual<br/>+ unit + gate（F008 起）"]
-  B --> C["evaluator 隔离验收：<br/>E2E 黄金路径 + G1–G5<br/>+ 变异测试 + 数据/AI/密钥门"]
-  C --> D["人类闸门：<br/>workflow_dispatch 部署"]
-```
-
-# §11 架构演进路线（P0→P5）
-
-批次依赖链（对齐 §14 与 features.json，当前批次 = AGENT-FOUNDATION，status: planning）：
-
-```mermaid
-flowchart LR
-  DS["DS-FOUNDATION<br/>（已 signoff）"] --> CV["CICD-VPS<br/>（已 done）"] --> P0["P0 AGENT-FOUNDATION<br/>F001 → TS5 升级微批次 → F002–F008 串行"] --> WB["WORKBENCH-UI<br/>M0.5"] --> P1["P1 BRIEF"] --> P2["P2 MATCH"] --> P3["P3 REACH-CRM<br/>M3（Delivery outbound 并入）"] --> P4["P4 DELIVERY / INSIGHT-ROI"] --> P5["P5 PROD-HARDENING<br/>M5"]
-```
-
-每阶段只写**架构上新增什么**（复用/页面填充不列）：
-
-## P0 — AGENT-FOUNDATION（当前批次，F001 → TS5 升级微批次（ADR-008）→ F002–F008 严格串行）
-
-| Feature | 架构增量（首次出现的东西） |
+| 文档 | 角色 |
 |---|---|
-| F001 | **数据层从无到有**：`docker-compose.dev.yml`、`prisma/schema.prisma`（Tenant/User 单角色/Kol + 五 jsonb 契约位 nullable + `embedding vector(1024)` Unsupported 列 + `Handoff`（F001 建齐，P2 起写入）+ `StubDelivery`（P0 测试地面真值），§7 权威）、`src/lib/db/prisma.ts`、`src/lib/env.ts` + `src/instrumentation.ts`、`.env.example`。**禁止项即架构**：无 role/scope/Approval 表 |
-| F002 | **AI 出口收口点**（前置：ADR-008 的 TS5 升级微批次已完成）：`src/lib/ai/gateway.ts`（自定义 AI SDK provider → aigcgateway baseURL，AI SDK 按 v5 选版），chat + embedding 双链路 + 成本/错误骨架；`scripts/test/ai-gateway-smoke.ts` |
-| F003 | **可复现数据资产**：CSV 入 git、`scripts/seed/import-kol-csv.ts`（规范化 + 批量 embedding + `embeddingTextHash` 幂等守卫） |
-| F004 | **四柱之①②**：`src/app/api/agent/route.ts`（streamText 流式 loop，运行时无状态）+ `src/lib/agent/tools/` 注册表（zod IO、`class: internal\|outbound` 二分、首批 `search_kols`/`get_kol_detail`）+ 五层 prompt 管线（`src/lib/agent/prompt.ts`）与 `src/lib/agent/experts/` 七专家定义 **P0 全量落地**（P0 仅 match/orchestrator 挂真工具）。vitest 引入 |
-| F005 | **四柱之③④**：`CopilotPanel`（useChat）+ `src/components/canvas/`（注册表 + renderers，受控 register API `registerCanvasRenderer(type, component)`，type→组件协议）+ 否定式护栏常驻声明 |
-| F006 | **IA 定型**：`src/routes.tsx` 从 5 项模板导航改为 6 页正式 IA（today/campaigns/creators/knowledge/insight/runs），项目详情 `?env=` 五环节 tab 骨架；现有 discovery/database/outreach 占位路由退役；**同批**：`playwright.config.ts` `webServer.url` 与 `docker-compose.prod.yml` healthcheck 改指 `/admin/today`，并重生受影响 visual baseline；runs 页 P0 以 RSC 直读 `src/lib/oplog/queries.ts`（HTTP `GET /api/operation-logs` 降为 P1+ 演进项，路由清单已标注） |
-| F007 | **端到端闭环证明** + `docs/dev/agent-architecture.md` + `agent-canvas-*` visual baseline（M0 门） |
-| F008 | **第五要素：服务端闸门（两步票据）**：`src/lib/agent/gate/{ticket.ts,harm.ts,pending.ts}` + `PendingAction` 表（7 态状态机，§7 权威）+ `/api/actions/[id]/{confirm,execute,reject}` 与 `GET /api/actions/[id]`（pending 恢复）——confirm 签发一次性票（票仅在 confirm 响应中出现一次），execute 消费票执行，模型 loop 结构上拿不到票；OperationLog append-only（DB 触发器阻断 UPDATE/DELETE）+ `GateConfirm` 卡；CI 加 `gate` job + 变异测试脚本 |
+| `docs/product/KOLMatrix-PRD.md` | 产品需求权威（§9 编队 / §10 闸门 / §11 数据 / §12 技术 / §13 NFR） |
+| `docs/product/interaction-prototype-v2.html` + 落地规范 | IA 与交互定稿；组件映射基线（**浏览器打开为主视觉参照**） |
+| `docs/specs/ARCH-M05-spec.md` + `ARCH-M05-ui-inventory.md` | M0.5 批次验收口径 + 18 视图 / 301 元素「不得简化清单」+ 10 处裁决记录 |
+| `docs/specs/AGENT-FOUNDATION-spec.md` | M0 批次验收口径 |
+| `docs/specs/DS-FOUNDATION-spec.md` · `CICD-VPS-spec.md` | 已交付前端地基 / 部署管线 |
+| `docs/dev/agent-architecture.md` | Agent 实现侧 how-to（四柱 + 编排框架 + 闸门 + 数据流操作序列） |
+| `docs/dev/template-port-guide.md` · `template-inventory.md` | 模板搬运指引 / 模板件清单（**模板已提供的能力禁止在 `common/` 重新发明**） |
+| `docs/dev/deploy.md` | 生产部署一次性人工设置清单 |
+| `docs/product/gap-data-layer.md` | 字段契约解耦依据 |
+| `docs/audits/KOLMatrix-integrated-architecture-design-2026-07-17.md` | 集成架构设计审计稿（历史输入） |
+| `docs/archive/architecture_f5-v1.0-draft.md` | f5 实现层草稿（v1.2 十条增量来源，已归档） |
+| **本文 `docs/dev/architecture.md`** | **全站工程目标态架构（定稿权威）** |
 
-## WORKBENCH-UI（M0.5）
+---
 
-- 架构增量：**canvas 组件层扩容**——`DataTable`/`ConversationInbox`/`AgentSquad`/`HalfGauge`/`ProvenanceTag`/`UploadZone` 等产品件按五环节界面语法（glance/compare/converse/verify/reconcile）落地，全部消费 mock + 溯源标注（D15：数据未到位先建 UI 不返工）；**无新后端能力**，专家定义（`src/lib/agent/experts/` 七定义，P0 已全量落地）随环节切换接线——本批次只接 UI 切换，不新建专家
-- 退出：六页 + 五环节 tab 真组件全绿 visual baseline
-
-## P1 — BRIEF-CAMPAIGNS（M1）
-
-- 架构增量：**游戏知识管道**——Game/Material/GameKnowledge 三表启用真实解析（parseStatus 状态机、`sourceMaterialIds` 溯源、`supersededById` 版本链）；素材上传存储（storageRef 落本地卷，对象存储留 P5）；strategy Agent 工具子集（解析素材/拟目标/健康度计算 DP-6 加权算法入 `src/lib/campaigns/health.ts`）
-- 退出：一句话 → Brief 草案 → 确认（无闸门）E2E
-
-## P2 — MATCH（M2）
-
-- 架构增量：**组合分算法层**——`match_plan` 工具（embedding cosine × `audienceDemo` 组合分，null 降级纯向量并标「受众数据待接入」，FR-11.6）；对比矩阵 canvas type；`ACTIVE_PLAN` 项目业务态（D16：选了就生效，无审批）
-- 退出：NL → Top-N → Accept/Skip E2E（无闸门）
-
-## P3 — REACH-CRM（M3，outbound 最密集）
-
-- 架构增量：**首批真 outbound 兑现**——`send_outreach`/`send_bulk_outreach`/`commit_quote` 接真实投递（Resend，D8）；ProjectKol 5 态 CRM 由真实事件自动推断（回信 webhook → 状态机）；Deal/Outreach schema 落地（P3 spec 定字段）；闸门从「拦截可测」升级为「拦截 + 真投递」双态
-- 退出：起草 → 审阅 → 点确认才发送 E2E + G 套件全绿
-
-## P4 — DELIVERY / INSIGHT-ROI（M4）
-
-- 架构增量：**资金与对外分享闸门**——`distribute_keys`/`payout` 工具 + partner 集成（电子签 + Stripe escrow，NFR-S8：不碰资金流，只做触发条件+闸门+状态追溯）；Payout schema（P4 spec 定字段）；条件台账 verify 语法（放款按钮条件渲染，无绕过入口）；compliance Agent 拦截链（`kind:block` 留痕）；`compute_roi`/`create_share_link` + 对照账本
-- 退出：追问 ROI + 周报 → 分享单独确认 E2E
-
-## P5 — PROD-HARDENING（M5）
-
-- 架构增量：**生产全栈化落地**（§9.3 R1–R7 全清）；真实认证 + RLS（依赖 P0 起坚持的运行时无状态与 tenantId 占位，上层零改动，NFR-S9）；Apify 采集管道（`dataSource: crawl` + fieldProvenance，与 seed 同契约，NFR-D1）；模型成本路由（gateway 记账挂点 → 按任务复杂度路由，NFR-P8）；pg_dump 备份 + 恢复演练
-- 退出：硬门通过率 100%、闸门泄漏 = 0、溯源覆盖率 100%（§15.6）
-
-# §12 架构决策记录（ADR）
-
-## ADR-001 前后端同一 Next.js 应用（不拆独立后端）
-
-- **背景**：全栈化从零起步（现状零 API 路由、零 `src/lib/`）；团队为单人+harness 多角色，旧仓库后端偏传统 SaaS 不可复用（D8：仅参考）。
-- **决策**：后端 = 同一 Next.js 15 App 内的 Route Handlers + Server Actions + `src/lib`（D1）；不建独立 API 服务。
-- **理由**：streamText 流式 loop 与 useChat 在同应用内是 Vercel AI SDK 的一等路径；单镜像单 compose 服务与既有 CICD-VPS 链路零改动衔接；类型跨前后端直接共享（工具结果协议的 `type` 联合类型一处定义）。
-- **后果**：＋部署/CI 复杂度最低，P0 速度最快。－长任务（素材解析、批量 embedding）受 serverless/单进程约束，P1 起需在进程内做队列化或引入后台 worker——届时以「同镜像多进程」优先于拆服务；－DB 连接池与 Next 热重载需 `src/lib/db/prisma.ts` 单例守卫。
-
-## ADR-002 多 Agent = 单 loop + 按环节切换 system prompt / 工具子集（非多实例编排框架）
-
-- **背景**：七 Agent 名册（strategy/match/reach/delivery/insight/compliance/orchestrator），但产品语义是「进环节时 Copilot 切该环节专家」（FR-7.12/FR-12.17）。可选：LangGraph 类多节点图、多进程 Agent 实例、或单 loop 换人格。
-- **决策**：单一 `/api/agent` streamText loop；「专家」= 请求级注入的 system prompt + 收窄的工具子集（注册表按环节过滤）+ canvas 动作卡人格化视图；Agent 协同 = 工具调用链/子 Agent 交接（FR-12.18），不引入编排框架。
-- **理由**：专家隔离的**硬约束在工具作用域**（reach 拿不到 `payout` 工具即不可能放款），prompt 只承担语气与职责叙述——这个安全模型不需要多实例；运行时无状态原则（FR-12.9）下多实例只会引入会话亲和性问题；少一个框架依赖 = 少一层与 AI SDK 版本的耦合。
-- **后果**：＋加专家 = 注册表加一条作用域配置，route 核心不动；＋G3/G1 测试面收敛在一个入口。－真正并行的多 Agent 协作（两专家同时工作）不支持，P4 若需要以「串行工具链 + 交接物落库」模拟；－orchestrator「只分派汇总」的纪律靠工具集为只读来强制。
-
-## ADR-003 闸门位置：工具执行层的两步票据门（不在 Next middleware、不在前端、不在 prompt）
-
-- **背景**：outbound 必须服务端强拦（FR-10.1/10.2，NFR-S1：直调 API 也拦）。候选位置：Edge middleware（按路径拦）、route 入口、工具 dispatch 点、前端按钮态。
-- **决策**：闸门实现为 `src/lib/agent/gate/`（`ticket.ts` / `harm.ts` / `pending.ts`），钩在**工具注册表的统一执行函数**里：执行任何工具前查 `class`；`outbound` 且无有效票 → 不执行副作用，创建 `PendingAction(pending)`（§7 权威）并返回 `harm` 结构体——**拦截时不下发任何令牌**。两步票据（闸门章唯一契约）：人点击后 `POST /api/actions/[id]/confirm` 签发一次性票（票仅在 confirm 响应中出现一次），`POST /api/actions/[id]/execute` 消费票执行副作用（另有 reject 与 `GET /api/actions/[id]` pending 恢复）；模型 loop 的工具调用路径**结构上拿不到**票。
-- **理由**：Next middleware 只见 URL 不见工具语义（同一 `/api/agent` 内一次对话可串多工具，internal/outbound 混流）；前端 if 可被直调 API 绕过；prompt 是建议不是约束（FR-10.2）。工具 dispatch 是唯一「每次副作用必经、且知道 `class` 与入参利害」的收口点。
-- **后果**：＋「outbound 一个都不能漏」退化为注册表声明的正确性，可用单测穷举（§10.3）；＋变异测试有单一靶点。－所有副作用必须走注册表执行函数，禁止任何工具函数被业务代码直接 import 调用——lint/review 需要盯这条纪律。
-
-## ADR-004 深字段用 jsonb 契约位（不上宽表/子表规范化）
-
-- **背景**：audienceDemo/credibility/brandSafety 等深字段数据源未定（爬取/外购/opt-in/平台 API 混合，NFR-D4），P0 不填充，但 UI 与匹配算法现在就要建（D15）。
-- **决策**：`Kol` 上 5 个 nullable jsonb 契约位，形状由 `src/lib/*/schemas.ts` 的 zod schema 唯一权威（FR-11.20），写入前校验；不建 `KolAudienceDemo` 等子表，不拍平成宽列。
-- **理由**：形状仍在演化（gap 文档 §5.1 比 D15 多 engagement/dataFreshness 两项），jsonb+zod 允许 schema 演进不出 migration；「缺值 = 显示态非错误态」天然由 nullable 单列表达；查询侧 P0–P2 只按浅字段与向量过滤，jsonb 无索引压力。
-- **后果**：＋数据到位填真值零返工（§5.3 解耦论证）。－失去 DB 级形状约束（TS 4.9 宽松模式下 zod 是唯一防线，schema 测试必须 100% 覆盖）；－未来若按 `audienceDemo.geoDist` 做 SQL 级过滤需补 GIN 表达式索引或届时抽列——记为已知债务。
-
-## ADR-005 canvas 注册表：受控 register API（不用 switch、不做服务端驱动 UI）
-
-- **背景**：工具结果要渲染成组件（四柱之④），验收有「新结果类型只加组件不改 route 核心」硬断言（§15.3）；F005 验收与 G 系 fixture 注入测试需要运行时注入点。
-- **决策**：`src/components/canvas/`（注册表 + renderers）维护 `type → React 组件`映射，暴露**受控 register API** `registerCanvasRenderer(type, component)`（非 `Object.freeze` 静态映射）；工具结果协议携带 `type` 字段；未知 type 渲染兜底文本组件；全部为受控 React 组件树，禁 `dangerouslySetInnerHTML`（FR-12.16，lint `react/no-danger` error 级覆盖 `src/components/canvas/**` 与 `src/components/copilot/**` 两目录）。
-- **理由**：switch/if 链会把每个新 type 的 diff 引向对话面核心文件，直接违反扩展性验收；服务端下发布局（server-driven UI）把模型输出变成布局指令，是 XSS/注入面且不可 lint。
-- **后果**：＋扩展性可被 §10.6 的两层断言机械验证。－注册表是全局单例，WORKBENCH-UI 组件扩容后需按环节做代码分割（`next/dynamic`）防 Copilot 首屏包膨胀（NFR-P5/P6）。
-
-## ADR-006 单租户硬编码 dev tenant，tenantId 只占位（不提前上 RLS/认证）
-
-- **背景**：中小团队单角色产品（D26），P0 无真实用户体系；但多租户是商业化必然。
-- **决策**：schema 全实体带 `tenantId`，运行时硬编码 dev tenant（D4）；无认证、无 RLS、无 role/scope/Approval（且**禁止回填**——作废层）；RLS + 真实认证整体留 P5。
-- **理由**：现在上 RLS = 为不存在的第二租户付一路测试成本；而「留列 + 运行时无状态（FR-12.9，会话状态前端持有）」两条纪律使 P5 加 RLS 时上层零改动（NFR-S9）——这是用两条便宜的约束换掉一整层昂贵的基建。
-- **后果**：＋P0–P4 所有查询免 tenant 过滤心智。－`tenantId` 在此期间是「死列」，seed 与所有写路径必须一致填 dev tenant 常量（`src/lib/db/tenant.ts` 单点导出）；－P5 前该系统**不可对外多客户部署**，这是有意的产品约束而非疏漏。
-
-## ADR-007 AI 出口收口到 aigcgateway 单点（不直连模型商 SDK）
-
-- **背景**：chat（tool-calling）与 embedding（bge-m3）两条链路；成本记账与模型路由是明确的后期需求（NFR-P8、FR-12.31）。
-- **决策**：唯一出口 `src/lib/ai/gateway.ts`——以 aigcgateway 的 OpenAI 兼容 baseURL 构造自定义 AI SDK provider；全库禁止 import 任何模型商 SDK 或第二个 provider 实例；密钥仅 `AIGCGATEWAY_*` 两个 env。
-- **理由**：换模型/多模型路由/成本核算都变成 gateway 侧配置或 `gateway.ts` 内单点逻辑，不扩散进业务代码；密钥门（§15.5）审计面 = 一个文件 + 一个 env schema；smoke 测试（F002）即可覆盖全部 AI 依赖面。
-- **后果**：＋模型可替换性与记账挂点免费获得。－gateway 成为单点依赖：其不可用 = 全部 AI 功能降级，故 §9.3 R5 明确 health 端点**不**级联探测 gateway，错误在调用处清晰上抛（FR-12.7）而非打死容器；－OpenAI 兼容层未覆盖的厂商特性（如某些原生工具格式）不可用，接受。
-
-## ADR-008 TS 升级时机：F002 启动前以独立微批次升 TS 5.x（不与 F001–F008 混批）
-
-- **背景**：Horizon 模板 pin TS ^4.9.4 + resolutions 钉 @types/react 18、`.npmrc` legacy-peer-deps（React 19 RC 冲突）；zod、Prisma、AI SDK 新版对 TS 5 有硬性或事实期望——**AI SDK v5 要求 TS≥5**，而 F002 的 AI 出口正建在 AI SDK 上。
-- **决策**：在 **F002 启动前**以**独立微批次**完成 TS 5.x 升级——批次内容仅为升级本身 + 构建门全绿（`build` / `typecheck` / `lint` 0 error），不与 F001–F008 任何功能混批；F001 仍在 4.9 下交付。升级完成后，zod / Prisma / AI SDK 一律按 TS5 选版。
-- **理由**：F002 起的依赖选版（尤其 AI SDK v5）以 TS≥5 为前提，拖到 WORKBENCH-UI 前后会迫使 F002 先锁旧版依赖再二次升级；独立微批次把编译器变量与功能交付隔离——模板全量类型噪音在无功能 diff 的批次里最容易审查与回滚。
-- **后果**：＋F002 起安装依赖不再逐个确认 d.ts 是否要求 TS≥5，AI SDK 直接用 v5。－升级微批次需消化模板存量类型噪音（构建门全绿是硬验收）；－`strict: false` 宽松模式升级后暂不变，契约位空值安全仍由 zod 边界校验承担（§10.2），开 `strictNullChecks` 的成本另行评估。
-
-## ADR-009 向量检索用 pgvector in-Postgres（不引独立向量库）
-
-- **背景**：匹配主链路 = `Kol.embedding vector(1024)` cosine top-K；规模 ~2,500 seed，P5 采集后预期数万级。
-- **决策**：pgvector 扩展内嵌于业务库（`postgresqlExtensions = [vector]` previewFeatures 自动生成 `CREATE EXTENSION`，见 §7 / §9.2）；Prisma 以 `Unsupported("vector(1024)")` 建列，读写走 `$queryRaw`（`<=>` 算子）；`embeddingTextHash` 列守卫幂等重嵌入。
-- **理由**：该规模下顺扫都 <200ms（NFR-P3 达标无需索引，数万级再加 HNSW）；向量与浅字段过滤（platform/countryCode/isGaming）在**同一条 SQL** 里完成，独立向量库则要跨库 join 或双写一致性——为 2,500 行引入第二个有状态服务是负资产；dev/prod 拓扑各少一个服务。
-- **后果**：＋compose 单 db 服务，备份一份 pg_dump 全覆盖。－`$queryRaw` 绕过 Prisma 类型层，向量查询集中封装在 `src/lib/kol/search.ts` 单文件并配集成测试；－未来若上重排/混合检索，扩展点仍在该文件内。
-
-## ADR-010 OperationLog append-only：审计流水只追加，闸门状态机在 PendingAction（不 UPDATE 日志行）
-
-- **背景**：不可逆动作留痕是审计证据（FR-8.6.6/8.6.7）；「执行与留痕同一事务，不得漏记」；同时闸门需要并发防护（同一动作只执行一次）。
-- **决策**：OperationLog 永远只追加，DB 层触发器阻断该表 UPDATE/DELETE，id 用 bigint autoincrement（全表唯一例外，保序）。闸门语义按闸门章唯一契约：确认（签票）追加 gate 类日志行；execute 消费票 → 副作用成功 → **同一事务**内 finalize(`executed`) + **INSERT irrev 行**；副作用失败 → `failed`、无 irrev 行。闸门状态机（pending/confirmed/rejected/expired/executing/executed/failed 7 态）由 **PendingAction** 表承载（§7 权威），并发防护 = PendingAction **条件 UPDATE**——绝不以 UPDATE 日志行表达状态。
-- **理由**：审计流水与状态机分离：流水表触发器阻断使「篡改历史」在 DB 层不可表达——编排层/主上下文「不得改写既有条目」（FR-10.8/10.9）从纪律变成机制；状态流转放 PendingAction，使条件 UPDATE 的并发语义（同一票只消费一次）不与 append-only 冲突；「备好时刻」「确认时刻」「执行时刻」各有留痕与 payload 快照。
-- **后果**：＋G5 测试可直接对日志行发 UPDATE 断言报错（§10.5）。－查询「当前状态」走 PendingAction（`gate/pending.ts`）而非日志重放，日志查询封装在 `src/lib/oplog/queries.ts`；－触发器 SQL 写在 Prisma migration 里（Prisma 本身不建触发器），migration review 需人工盯这段裸 SQL。
-
-## ADR-011 运行时无状态：对话上下文由前端 useChat 持有逐轮回传
-
-- **背景**：流式 loop 需要多轮上下文；服务端 session 存储（redis/DB 会话表）是常见默认。
-- **决策**：`/api/agent` 每请求自足——完整消息历史由 `useChat` 在请求体回传，服务端不跨请求缓存任何对话状态（FR-12.9）；持久化的只有**业务事实**（OperationLog、ProjectKol 状态、GameKnowledge），不是对话。
-- **理由**：为 P5 的 RLS 留边界——无服务端会话意味着没有「绕开行级安全的缓存态」；专家切换（route+env 变 → 对话线程重置，FR-7.12/8.7.9）在无状态模型下就是前端换 context key，零服务端逻辑；水平扩展无会话亲和。
-- **后果**：＋部署形态自由（多副本无 sticky session）。－长对话请求体线性膨胀，P1 起在前端做窗口截断 + 服务端 token 上限保护；－「Agent 记录」页展示的不是对话回放而是 OperationLog 事实流，产品语义恰好一致（FR-8.6.1）。
-
-## ADR-012 部署形态：GHCR 预构建镜像 + VPS compose pull + 手动 workflow_dispatch（不上 Vercel、不自动 CD）
-
-- **背景**：目标 newkol.guangai.ai:3300（自有 VPS，与旧 kolmatrix :3001 同机隔离）；harness 铁律 deploy/prod 永留人类闸门。
-- **决策**：CI 构建镜像推 GHCR（SHA 不可变 tag + latest）；deploysvr 只 `compose pull`（共享机上不 build）；部署仅 `workflow_dispatch` 手动触发，`image_tag` 入参同时是发布与回滚入口；nginx/certbot 在宿主机管 TLS。
-- **理由**：Vercel 与 pgvector 常驻 DB、未来后台 worker（ADR-001 后果）、以及自有 gateway 的网络位置都不匹配，且把「部署闸门」交给了第三方平台的自动化；SHA tag 使回滚 = 重放旧镜像，无需回滚构建；共享 VPS 上不 build 避免抢占旧 kolmatrix 资源。
-- **后果**：＋回滚路径与发布路径同构，演练成本低；＋人类闸门与产品的 AI→人闸门形成同一条设计哲学（§9.5）。－无金丝雀/蓝绿，`up -d` 有秒级中断窗口——当前用户规模下接受，P5 若需要零停机再引入双容器切换；－全栈化后回滚受 schema 兼容约束，由 expand-contract 迁移纪律（§9.3 R4）承担。
+> **变更记录**
+>
+> - **v1.0**（2026-07-17）地基架构初版。
+> - **v1.1**（2026-07-17）扩为全站架构——新增业务架构（§2）、领域架构（§5：目标态概念模型 + 6 组状态机 + 领域服务）、主动式 Agent 例程（§8.10）、信号与集成架构（§10）、度量架构（§12.7）；ADR 增至 23 条；风险增至 R13。
+> - **v1.2**（2026-07-21）**定稿版**（ARCH-M05 F001）。本次定稿做三件事：
+>   1. **基底**：以 v1.1 全站架构为骨架，保留其业务/领域/横切主线与章节结构。
+>   2. **并入 f5 实现层十条增量**：① 闸门端点契约 + 防重放矩阵（§9.3/§9.3.1）② Prisma schema 权威（§7.2.1，**以实物转录**）③ API envelope + `ApiErrorCode`（新 §10.1）④ env 清单 + `serverEnv` 校验（§13.2）⑤ 测试架构（§12.6，vitest 明确注为规划态）⑥ 技术选型表 + 反选型（§1.4）⑦ 文件级目录树（§4.3）⑧ `resolveProvenance` 三级回退 + 读写不对称（§7.5.1/§7.5.2）⑨ 生产化 R1–R7 及销项标注（§13.3）⑩ 五层 prompt 装配 + 承诺-兑现断言（§8.3.1/§8.6.1）。
+>   3. **as-built 校准**：逐条对实物代码核对并改写与现状冲突的表述——`OperationLog` 实为 **7 列 cuid**（非 bigint、无 11 个结构化列）｜`PendingAction` 实为 **3 态**（`confirmed` 未使用）｜闸门实为 **单步确认即执行**（`/api/gate/{confirm,reject}`，**无 execute 端点、无 HMAC、令牌服务端内部消费**，TTL 15min）｜**append-only 触发器未落地 → 记欠账**（§7.7，backlog 候选）｜删除「零后端」快照｜版本表校准为 **TS 5.9.3 / React 19.2.7 / Prisma 6.19.3 / ai 7.0.31**｜工具字段名为 **`class`** 非 `kind`（且无 `agents` 字段）｜canvas 落点为 **`components/copilot/canvas/`** 且**路由键为工具名**非结果 `type`｜`common/` **恰好 10 件**｜旧 5 路由为 **redirect 桩非删除**｜`Kol` 去重为**单键**非双键｜无 `@map`/snake_case 映射｜无 `GATE_TOKEN_SECRET`｜env 为分散懒校验非集中 `serverEnv`。
+>
+>   同时**同步 M0.5 批次裁决**：§6.1 today 行补团队负荷卡（含 D26 免责句必须，裁决 #8）· §6.4 组件表补自建 `Toast`（裁决 #9）与 `AgentSquad`/`ProvenanceTag` 双 variant（裁决 #7/#10）· §6.5 URL 化四状态位（裁决 #4）· §6.3 补裁决 #1/#2/#6 · §9.5 补裁决 #3 scope 区分。
+>
+>   **AI SDK 版本族核查**（§1.4 附注）：`ai@7.0.31` + `@ai-sdk/openai@4.0.16` + `@ai-sdk/react@4.0.34` 经 `peerDependencies` 逐包核对——共享同一 `@ai-sdk/provider@4.0.3` / `@ai-sdk/provider-utils@5.0.11`，`npm ls` 全部 `deduped` 无重复副本，zod 4.4.3 与 react 19.2.7 均满足 peer 范围，**配对经 peerDeps 检查无冲突、无版本告警**。
+>
+>   新增 ADR-24～28（唯一执行入口 / 令牌不出进程 / handoff 只携引用 / health 纯 liveness / canvas 路由键）；ADR-12、ADR-13 标注为部分兑现并说明差异；新增风险 R14–R17（触发器欠账 / 并发缺口 / 无备份 / 无单测 runner）。
+>
+>   **全文标注纪律**：已实装无标注、未实装一律标「演进目标（未实装，归 M_x）」——见文首「阅读约定」。

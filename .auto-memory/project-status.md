@@ -4,7 +4,7 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **M1-A-BRIEF building 🔨（2026-07-22 起）· 慢车道** — 6 features 全 generator；spec `docs/specs/M1-A-BRIEF-spec.md`
+- **M1-A-BRIEF building 🔨（2026-07-22 起）· 快车道** — 6 features 全 generator；spec `docs/specs/M1-A-BRIEF-spec.md`（换会话=会话搬家，非角色分布；verifying 仍走隔离 evaluator subagent）
 - **定位：** M1 官方清单是 3-4 批的量，用户裁决先纵切 project+brief，本批只做该纵线的**地基与领域层**，页面接真数据留 M1-B
 - **范围：** F001 vitest 地基 + CRA 残留清理 · **F002 拆 NoSSR 恢复 SSR（最高风险）** · F003 Project schema 扩展 + expand-contract 迁移 · F004 `domain/health.ts` · F005 `domain/env-guards.ts` + 变异测试 · F006 环节推进写 OperationLog
 - **用户四裁决：** cur 存双值 cur+maxReached · 环节推进写 OperationLog · 数据通道走 RSC 直读（顺带拆 NoSSR，故本批不做 API 信封）· 范围收窄为 6 条

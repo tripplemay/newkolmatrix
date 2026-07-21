@@ -20,6 +20,11 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /playwright/.cache/
+# vitest 覆盖率报告（M1-A-BRIEF fixing-1）。
+# 与上面三条同一约定：生成产物忽略，刻意基线（tests/screenshots/baseline/*.png）入库。
+# 此前漏登记，导致 acceptance 要求接入 CI 的 `npm run test:unit:coverage` 每跑一次
+# 就弄脏 9 个 tracked 文件，并在仓内留下一份会过期却宣称具体覆盖率数字的假快照。
+/coverage/
 # 环境变量（.env.example 是模板，保留入 git；真实 .env / *.local 绝不入 git）
 .env
 .env.local

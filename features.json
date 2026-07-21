@@ -42,7 +42,7 @@
       "title": "共用产品件第一波（DataTable/HalfGauge/UploadZone + port MiniStatistics/charts）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "新依赖 @tanstack/react-table + react-dropzone（spec D5 声明）；新建 common/DataTable（排序/筛选/分页通用封装）+ common/HalfGauge（ApexCharts radialBar -90/90）+ common/UploadZone（dropzone+解析状态）；按 docs/dev/template-port-guide.md port 并接线 card/MiniStatistics 与 charts 系（LineAreaChart/BarChart/PieChart/CircularProgress，登记表 C 组）；port 后跑 fe-audit-component-matrix 确认可达性变化符合预期；lint+tsc 绿",
       "description": "kimi §6.4 新建件 + 模板库存消费（逐个 port 保留结构，用户拍板约定首次执行）。"
     },

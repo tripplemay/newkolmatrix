@@ -132,7 +132,7 @@
       "title": "洞察页（跨项目 ROI 看板 + 周报）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "/admin/insight：跨项目 ROI 看板（图表组）+ 周报区；mock 走契约层；按 spec §insight-page 4 段清单；lint+tsc 绿",
       "description": "kimi §6.1，常驻洞察 Agent。"
     },
@@ -141,7 +141,7 @@
       "title": "Agent 记录页（类型 chips + append-only 流）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "/admin/runs：类型 chips 筛选 + append-only 操作流（读 OperationLog 实物 7 列或 mock 契约层，空态友好）；按 spec §runs 4 段清单；lint+tsc 绿",
       "description": "kimi §6.1，常驻编排 Agent。"
     },

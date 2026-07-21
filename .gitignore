@@ -28,3 +28,6 @@ next-env.d.ts
 .env.production.local
 npm-debug.log*
 # 注：package-lock.json 保留入 git（可复现构建）
+
+# Claude agent worktrees
+.claude/worktrees/

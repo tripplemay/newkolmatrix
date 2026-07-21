@@ -75,4 +75,37 @@ C/D 都在扩大对零引用模板代码的改动面，与本批「为 M1 让出
 
 ## 4. 裁决段
 
-> 待填（由 Planner / 用户填写；未填前 F003 不开工）
+> **裁决者：** 用户（2026-07-21）
+> **结论：方案 C** —— 换状态源 + 修边框通道，让深色下边框真跟随。未采纳 Generator 倾向的 A。
+
+### 4.1 落地实现（Generator，裁决后）
+
+- **状态源**：`Avatar.tsx` 改引 `hooks/useColorMode`，弃 `@chakra-ui/system` 自带 `useColorMode`（spec D2）。
+  `chakra()` 包装保留，未引入 `ChakraProvider`。
+- **边框通道**：改走 `className` 静态 Tailwind 类（`border-2` + `border-navy-700` / `border-white`），
+  弃失效的 `border` / `borderColor` 样式 props。构建产物 CSS 已实测发出这两个类
+  （web-runtime-patterns §5 双域：`className` 可达值必须是静态类名）。
+
+### 4.2 与裁决措辞的一处偏离（须知情）
+
+裁决选项 C 的措辞是「换状态源 **+ 改 `Image` border 通道**」，实装**未修改 `Image.tsx`**。
+
+原因：复核后确认 `Image` 自身的 `className` 通道本就正常（`Image.tsx:26` 会把 `className` 拼进 div）。
+缺陷不在 `Image` 里，而在 `Avatar` **发错了通道**——把样式 props 发给了一个非 Chakra 的纯 div 包装件。
+从 `Avatar` 侧改发 `className` 即达成 C 要的结果（边框真渲染、真跟随深色），且不动 `Image` 这个
+模板共享件，爆炸半径更小、与 D6 精神一致。
+
+**若裁决者本意是要连 `Image` 一起改造**（例如让它识别样式 props），请驳回本段，Generator 按原措辞重做。
+
+### 4.3 acceptance 中一条措辞的实物修正
+
+F003 acceptance 含「浅色态与改造前像素一致」。实物上改造前边框**根本不渲染**，故 C 方案必然改变
+`showBorder` 时的渲染——这正是 C 的目的。实际像素影响为零：该组件全仓零引用（发现 1），
+且 `showBorder` 是 opt-in 默认关闭，任何现存视觉基线都不含它。
+
+### 4.4 回归证据
+
+`scripts/test/p2-cleanup-f003-avatar-colormode.mjs`，7 断言全绿：
+A 弃孤儿 colorMode / B 改读统一状态源 / C 弃失效样式 props 通道 /
+D 构建产物 CSS 确含 `.border-navy-700` + `.border-white`（边框真发出）/
+E 活性证明（`border-navy-700` 全仓仅 Avatar 一处静态用法，故 D 只可能由本 feature 供能）。

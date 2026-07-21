@@ -15,7 +15,7 @@
       "title": "深色模式持久化（BL-FE-12）— localStorage + pre-paint 内联脚本",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "useColorMode 增持久层（setDark/toggle 写入 localStorage，挂载读回）；src/app/layout.tsx 的 <body> 首子节点补 pre-paint 内联脚本，paint 前置 body.dark 消除闪烁；键名与取值按 D1（建议 kolmatrix.colorMode / 'light'|'dark'）并在 commit message 记录；缺省/损坏值一律回落浅色（默认不变，不动现有浅色基线）；死代码 Configurator/RTL/FixedPlugin 不碰（D6）；实测：切深色→刷新仍深色、切浅色→刷新仍浅色、清 localStorage 或写损坏值→回落浅色、刷新无浅色闪烁；lint + tsc 绿",
       "description": "BL-FE-12。勘查确认全站 NoSSR(ssr:false) 无 SSR 首屏，故不走 cookie/SSR 方案；本批是项目第一处持久化。"
     },
@@ -24,7 +24,7 @@
       "title": "Avatar colorMode 脱节修复（统一到 body.dark 单一状态源）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "src/components/image/Avatar.tsx 改读项目统一状态源 hooks/useColorMode（现 :2 引 @chakra-ui/system 自带 useColorMode，:19/29 决定 borderColor，无 ChakraProvider 故与 body.dark 互不相通）；不得引入 ChakraProvider，chakra() 包装保留；深色下 Avatar 边框跟随；浅色态与改造前像素一致；lint + tsc 绿",
       "description": "额外项（用户 2026-07-21 确认）。不修则等于持久化一个半坏的深色。依赖 F002 的统一状态源，须在 F002 之后（D8）。"
     },

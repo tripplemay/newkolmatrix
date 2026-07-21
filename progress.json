@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "P2-CLEANUP：清空需求池三条 P2（BL-FE-15 创作者抽屉遮罩点击关闭 / BL-FE-12 深色持久化 / BL-FE-14 抽 HandoffPanel 且夹具对齐生产）+ 两项勘查暴露的缺口（Avatar colorMode 脱节、CreatorDrawer 零回归覆盖）。5 features 全 generator，为 M1 BRIEF-CAMPAIGNS 让出干净起点。",
   "total_features": 5,
-  "completed_features": 1,
+  "completed_features": 3,
   "fix_rounds": 0,
   "current_sprint": "P2-CLEANUP",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-21T22:10",
+  "last_updated": "2026-07-21T23:05",
   "reference_docs": [
     "docs/specs/P2-CLEANUP-spec.md",
     "docs/dev/architecture.md",

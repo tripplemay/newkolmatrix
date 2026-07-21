@@ -24,7 +24,7 @@
       "title": "三区外壳改造（侧栏 6 入口 + CTA 卡 + 玻璃 navbar 指令栏 + Copilot 抽屉化）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "admin/layout.tsx 固定三列：侧栏 285px（6 入口 + 底部「Agent 自动边界」CTA 常驻不可关闭）· 主区弹性（悬浮玻璃 navbar 内嵌指令栏，指令提交路由到 Copilot）· Copilot 360px 常驻；移动端 Copilot 退为 fixed 右滑抽屉；路由切换只重绘主区与 Copilot 上下文，侧栏/navbar 不重挂载；对照原型外壳区（spec §外壳 4 段清单）；lint+tsc 绿",
       "description": "kimi §6.2。复用既有 CopilotPanel/sidebar/navbar fork，按原型改造。"
     },

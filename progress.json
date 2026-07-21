@@ -1,12 +1,12 @@
 {
-  "status": "done",
-  "user_goal": "P2-CLEANUP：清空需求池三条 P2（BL-FE-15 创作者抽屉遮罩点击关闭 / BL-FE-12 深色持久化 / BL-FE-14 抽 HandoffPanel 且夹具对齐生产）+ 两项勘查暴露的缺口（Avatar colorMode 脱节、CreatorDrawer 零回归覆盖）。5 features 全 generator，为 M1 BRIEF-CAMPAIGNS 让出干净起点。",
-  "total_features": 5,
-  "completed_features": 5,
-  "fix_rounds": 1,
-  "current_sprint": "P2-CLEANUP",
+  "status": "planning",
+  "user_goal": "M1-A BRIEF-CAMPAIGNS 首批（纵切 project+brief）：最小域打通「schema → domain/ 纯函数 → API → 页面接真数据」整条纵线，vitest 作为副产品立起；验证 ARCH-M05 mock 契约层能否平滑换真数据。顺带清掉需求池 BL-FE-16/17（image/ 模板残留）。knowledge 域 / 例程调度器 / 雷达聚合照此范式留后续批次。",
+  "total_features": 0,
+  "completed_features": 0,
+  "fix_rounds": 0,
+  "current_sprint": "M1-A-BRIEF",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-22T04:00",
+  "last_updated": "2026-07-22T05:00",
   "reference_docs": [
     "docs/specs/P2-CLEANUP-spec.md",
     "docs/dev/architecture.md",
@@ -19,15 +19,15 @@
     "docs/test-reports/ARCH-M05-signoff-Andy-evaluator-subagent.md"
   ],
   "docs": {
-    "spec": "specs/P2-CLEANUP-spec.md",
-    "test_cases": "test-cases/P2-CLEANUP-F005-liveness-probe.spec.ts",
-    "signoff": "test-reports/P2-CLEANUP-signoff.md",
-    "framework_reviewed": true
+    "spec": null,
+    "test_cases": null,
+    "signoff": null,
+    "framework_reviewed": false
   },
   "role_assignments": null,
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "P2-CLEANUP fix_round1 完成，status=reverifying（2026-07-22）。verifying 结果 4 PASS + F003 PARTIAL（对抗复核未证伪，维持）。F003 缺陷：刷新进深色跟随、navbar 活体切换不跟随；根因 hooks/useColorMode 每调用点独立 useState + 零跨实例订阅，纯读取方只在挂载同步一次。首版按 acceptance 字面「改读 hooks/useColorMode」实装，恰是失败主因——对抗复核指出 darkMode:'class' 下 dark: 编译为 :is(.dark *)，纯 CSS 零 JS 状态即可跟随，且是本项目主导范式（84 文件）。用户 2026-07-22 裁决改用 dark: 变体，落审计文档 §4.5。hook 缺陷未修，立 BL-FE-16 入需求池（多消费者 + 多标签页均不同步，DS-FOUNDATION F005 遗留）。关键证据：Evaluator 独立 harness scripts/test/f003-harness/browser-check.mjs 未经 Generator 修改，由 10p/2f 转 12p/0f（C2/C3 转绿）——Generator 全程未改动任何 evaluator 产物。Generator 探针 p2-cleanup-f003 改版 14/14（B 项断言口径从「读哪个状态源」改为「边框跟不跟随」，新增 F 行为回归 + G 活性证明）。全量 test:visual 13/13，基线零漂移。复验重点：F003 单条；其余四条 verifying 已 PASS 且本轮零改动（git diff 仅 Avatar.tsx + 其探针 + 审计文档 + backlog）。"
+    "Andy": "M1-A-BRIEF planning 启动（2026-07-22）。前批 P2-CLEANUP 已 done + 上线 + 用户验收通过；framework 已升 v1.0.7（4 条 learnings 落地）。用户两条裁决：(1) M1 拆批走「先纵切一条 project+brief」——最小域打通整条纵线、风险前置验证 mock 契约层可否平滑换真数据，knowledge/例程/雷达后续照抄范式；(2) BL-FE-16/17（image/ 模板残留）并入本批顺手清掉。起草前已按 v1.0.7 新规则派两路只读勘查：目标态规格（architecture §5.2/§5.4/§7/§10.1 + ADR-16/18/22 + M1 欠账清单）与代码实物（项目页渲染链路 / mock 契约层字段级消费点 / API 现状 / schema / 测试现状 / image 传递可达性）。注意本批是项目首次引入 vitest 与 domain/ 层，属地基性决策，spec 需明确签名约定与目录规范。"
   }
 }

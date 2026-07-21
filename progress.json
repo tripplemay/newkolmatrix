@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "ARCH-M05：架构文档定稿（ARCH-LOCK：kimi v1.1 基底 + f5 十条实现层增量 + as-built 六处校准，f5 归档/audits 入 git/CLAUDE.md 修复）+ M0.5 六页工作台（六入口路由收敛+三区外壳+mock 渲染契约+五环节语法面+四跨项目页，301 元素不得简化清单硬性，mock 先行验证 A6 canvas 方向）+ 视觉基线扩展与阈值收紧（BL-FE-13 收编）。17 features 全 generator。",
   "total_features": 17,
-  "completed_features": 2,
+  "completed_features": 3,
   "fix_rounds": 0,
   "current_sprint": "ARCH-M05",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-21T05:20",
+  "last_updated": "2026-07-21T06:10",
   "reference_docs": [
     "docs/product/KOLMatrix-PRD.md",
     "docs/audits/KOLMatrix-integrated-architecture-design-2026-07-17.md",

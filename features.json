@@ -33,7 +33,7 @@
       "title": "mock 渲染契约层（data/provenance.ts + ProvenanceTag）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "src/lib/data/provenance.ts 统一深字段读取入口：null→渲染「待接入/待补充」，绝不抛错、绝不填 0 冒充实测（FR-11.17/11.18）；新建 common/ProvenanceTag（溯源徽标，来源区分图标+文字色盲友好，可展开明细）；契约层有最小单测或冒烟脚本（scripts/test/）验证 null/有值/降级三态；后续 F006-F016 全部经此层读 mock；lint+tsc 绿",
       "description": "kimi §6.7 渲染契约——M0.5 mock 先行、数据到位零返工的技术底座，必须先于各页。"
     },

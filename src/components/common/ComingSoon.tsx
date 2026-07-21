@@ -28,12 +28,13 @@ export default function ComingSoon({
             subtitle={description || 'Coming soon'}
           />
           <div className="mt-6 flex justify-center">
+            {/* ARCH-M05 F002：重指 IA 收敛后的真实首页（原 /admin/dashboards/default 已为 redirect 桩） */}
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => router.push('/admin/dashboards/default')}
+              onClick={() => router.push('/admin/today')}
             >
-              ← 返回 Dashboard
+              ← 返回「今天」
             </Button>
           </div>
         </div>

@@ -15,7 +15,7 @@
       "title": "路由收敛 + routes.tsx 重写（6 入口 + redirect + v1.0.5 探针清单）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "routes.tsx 重写为 6 入口（今天/项目/创作者库/游戏知识/洞察/Agent 记录，kimi §6.1 表）；占位路由（dashboards/discovery/database/outreach 等）redirect 至对应新页（destination 本批建成，满足 wire-readiness）；v1.0.5 探针清单同批核销：grep 并重指 tests/visual route/selector + docker-compose*/deploy*.yml healthcheck + scripts/test/f0*-check 的 route 引用，清单入 spec 附录逐条打勾；lint+tsc 绿；无死链（新 6 页均有 page.tsx 骨架或真页）",
       "description": "IA refactor 类改动，redirect 探针纪律（v1.0.5 learning）硬性执行。"
     },

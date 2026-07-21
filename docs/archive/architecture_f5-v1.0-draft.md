@@ -2859,7 +2859,7 @@ flowchart LR
     CIJOBS["ci.yml<br/>lint / typecheck / build / visual"]
     BP["build-push.yml<br/>Docker 镜像 → GHCR<br/>tag = git SHA + latest"]
   end
-  subgraph PROD["deploysvr 194.238.26.173"]
+  subgraph PROD["deploysvr host/IP stored in GitHub Secrets"]
     NGINX["nginx<br/>newkol.guangai.ai 443"] --> APP["newkolmatrix-app<br/>127.0.0.1:3300 → :3000"]
     APP -.->|"后期全栈化"| PGP[("db 服务<br/>pgvector/pgvector:pg16")]
     APP -.-> GW2["aigcgateway"]

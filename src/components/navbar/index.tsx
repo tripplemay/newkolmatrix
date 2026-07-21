@@ -42,7 +42,7 @@ const Navbar = (props: {
 
   return (
     // S2-12 🔒 玻璃外壳：sticky + backdrop-blur-xl + 30% 白
-    <nav className="sticky top-3 z-20 mb-1.5 mt-3.5 flex items-center gap-4 rounded-xl bg-white/30 px-4 py-3 backdrop-blur-xl dark:bg-[#0b14374d]">
+    <nav className="sticky top-3 z-20 mb-1.5 mt-3.5 flex items-center gap-4 rounded-xl bg-white/30 px-4 py-3 backdrop-blur-xl dark:bg-navyGlass">
       {/* S2-1 mobile menu */}
       <button
         type="button"

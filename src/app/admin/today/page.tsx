@@ -32,6 +32,7 @@ import Progress from 'components/progress';
 import AgentSquad, { AGENT_ICONS } from 'components/common/AgentSquad';
 import Button from 'components/common/Button';
 import SurfaceCard from 'components/common/SurfaceCard';
+import { AVATAR_WHEEL, BRAND_500, WHITE } from 'lib/design-tokens';
 import { STAGE_AGENT } from 'lib/agent/stage-routing';
 import { readContractSlot } from 'lib/data/provenance';
 import {
@@ -77,15 +78,6 @@ const FEED_ICONS: Record<
 /* ------------------------------------------------------------------ *
  * WheelAvatar — 6 色轮 + 首二字（原型 avatar helper L672 / AVC L559）
  * ------------------------------------------------------------------ */
-const AVATAR_WHEEL = [
-  '#422AFB',
-  '#01B574',
-  '#FFB547',
-  '#3965FF',
-  '#EE5D50',
-  '#7551FF',
-] as const;
-
 function WheelAvatar({
   text,
   index,
@@ -240,7 +232,7 @@ function RadarCard({
 /* ------------------------------------------------------------------ *
  * chartcard options — 模板 lineChartOptionsTotalSpent 改造（12 点 + 末点圆标）
  * ------------------------------------------------------------------ */
-const BRAND = '#422AFB';
+const BRAND = BRAND_500;
 
 const AUTO_DONE_CHART_OPTIONS = {
   chart: {
@@ -259,13 +251,13 @@ const AUTO_DONE_CHART_OPTIONS = {
     size: 0,
     strokeColors: BRAND,
     strokeWidth: 3,
-    colors: ['#FFFFFF'],
+    colors: [WHITE],
     // 原型 areaChart 末点圆标（r4.5 白底描边，L513）
     discrete: [
       {
         seriesIndex: 0,
         dataPointIndex: monthlyAutoDone.series.length - 1,
-        fillColor: '#FFFFFF',
+        fillColor: WHITE,
         strokeColor: BRAND,
         size: 5,
         shape: 'circle',

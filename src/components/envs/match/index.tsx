@@ -96,7 +96,7 @@ function CompareMatrix({
             className={`${CELL}${
               plan.best
                 ? // 🔒 V5-4 best 渐变高亮底（原型 .col-h.best 135deg 双紫）
-                  ' bg-gradient-to-br from-[rgba(117,81,255,0.08)] to-[rgba(66,42,251,0.1)]'
+                  ' bg-gradient-to-br from-brandSoft-a to-brandSoft-c'
                 : ''
             }`}
           >

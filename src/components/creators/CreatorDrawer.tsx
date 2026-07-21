@@ -39,16 +39,24 @@ import {
   type CreatorShare,
   type MockCreator,
 } from 'lib/data/mock/creators';
-import { AVATAR_WHEEL, CreatorAvatar, Pill, credTone } from './creator-ui';
+import {
+  AVATAR_WHEEL,
+  BRAND_500,
+  CHART_AMBER,
+  CHART_BLUE,
+  CHART_GREEN,
+  CHART_VIOLET,
+} from 'lib/design-tokens';
+import { CreatorAvatar, Pill, credTone } from './creator-ui';
 
 /* ------------------------------------------------------------------ *
  * 图表配置（原型 donut L523 / areaChart h88；数据一律来自 mock 契约层）
  * ------------------------------------------------------------------ */
 
 /** 原型 renderDrawer DC 四色轮（donut 分段） */
-const DONUT_COLORS = ['#422AFB', '#01B574', '#FFB547', '#3965FF'];
+const DONUT_COLORS = [BRAND_500, CHART_GREEN, CHART_AMBER, CHART_BLUE];
 /** 原型样本 thumb 渐变第二色轮 */
-const SAMPLE_GRADIENT = ['#7551FF', '#01B574', '#3965FF'];
+const SAMPLE_GRADIENT = [CHART_VIOLET, CHART_GREEN, CHART_BLUE];
 
 function donutOptions(labels: string[]) {
   return {
@@ -95,7 +103,7 @@ const TREND_OPTIONS = {
       opacityTo: 0,
     },
   },
-  colors: ['#422AFB'],
+  colors: [BRAND_500],
 };
 
 /** avatar 色轮位 → Progress 色名（年龄段条随创作者主题色；0 位= brand 默认） */

@@ -25,6 +25,12 @@ import DataTable, {
 import GateConfirm from 'components/common/GateConfirm';
 import SurfaceCard from 'components/common/SurfaceCard';
 import { useToast } from 'components/common/Toast';
+import {
+  CHART_AMBER,
+  CHART_BLUE,
+  CHART_GREEN,
+  GRAY_600,
+} from 'lib/design-tokens';
 import { PENDING_TEXT, readContractSlot } from 'lib/data/provenance';
 import {
   audienceSchema,
@@ -120,7 +126,7 @@ function channelBarOptions(bars: ChannelBar[]) {
     xaxis: {
       categories: bars.map((b) => b.label),
       labels: {
-        style: { colors: '#A3AED0', fontSize: '11px', fontWeight: '500' },
+        style: { colors: GRAY_600, fontSize: '11px', fontWeight: '500' },
       },
       axisBorder: { show: false },
       axisTicks: { show: false },
@@ -134,9 +140,9 @@ function channelBarOptions(bars: ChannelBar[]) {
  * 其余为 tailwind.config horizonGreen/Orange/Blue-500 定值） */
 const AUDIENCE_CHART_COLORS: Record<AudienceTone, string> = {
   brand: 'var(--color-500)',
-  green: '#01B574', // horizonGreen-500
-  orange: '#FFB547', // horizonOrange-500
-  blue: '#3965FF', // horizonBlue-500
+  green: CHART_GREEN, // horizonGreen-500
+  orange: CHART_AMBER, // horizonOrange-500
+  blue: CHART_BLUE, // horizonBlue-500
 };
 
 /** tone → legend sw 色块类（同一 token 源，图例与图色不漂移） */
@@ -325,7 +331,7 @@ export default function InsightEnv({ projectId }: { projectId: string }) {
       {/* V8 #15-#17 retro 复盘草案卡（渐变淡紫 dlbl + 正文含归因限制）
           + #18「采纳结论」internal + #19 🚪「生成对外分享报告」红 gate */}
       {RETRO && (
-        <div className="mt-5 rounded-[20px] bg-gradient-to-br from-[rgba(117,81,255,0.08)] to-[rgba(66,42,251,0.06)] p-6">
+        <div className="mt-5 rounded-[20px] bg-gradient-to-br from-brandSoft-a to-brandSoft-b p-6">
           <div className="mb-[11px] flex items-center gap-[7px] text-xs font-bold text-brand-500 dark:text-brand-400">
             <MdOutlineAutoAwesome className="h-4 w-4" aria-hidden />
             {RETRO.label}

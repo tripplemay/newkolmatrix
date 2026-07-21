@@ -8,6 +8,7 @@
 
 import React from 'react';
 import dynamic from 'next/dynamic';
+import { BRAND_500, GAUGE_TRACK } from 'lib/design-tokens';
 
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
@@ -16,8 +17,8 @@ const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
 // fallback 与轨道色分别为 brand-500 默认紫、原型 --line（模板 charts/CircularProgress
 // trailColor 同值 #E9EDF7），非新引入色值。
 const BRAND_CSS_VAR = '--color-500';
-const BRAND_FALLBACK = '#422AFB';
-const TRACK_COLOR = '#E9EDF7';
+const BRAND_FALLBACK = BRAND_500;
+const TRACK_COLOR = GAUGE_TRACK;
 
 /** 原型形态 230×130 */
 const DEFAULT_WIDTH = 230;

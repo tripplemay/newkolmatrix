@@ -3,16 +3,8 @@
 // `.pill` 5 色调（L93-96：ac 淡紫 / gd 绿 / wn 琥珀 / nu 中性 / cr 红）。
 
 import React from 'react';
-
-/** 原型 AVC 色轮（brand 紫 / 绿 / 琥珀 / 蓝 / 红 / 浅紫） */
-export const AVATAR_WHEEL = [
-  '#422AFB',
-  '#01B574',
-  '#FFB547',
-  '#3965FF',
-  '#EE5D50',
-  '#7551FF',
-] as const;
+// 原型 AVC 色轮（brand 紫 / 绿 / 琥珀 / 蓝 / 红 / 浅紫）——单一出处见 lib/design-tokens
+import { AVATAR_WHEEL } from 'lib/design-tokens';
 
 export function CreatorAvatar({
   name,

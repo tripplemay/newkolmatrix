@@ -24,6 +24,7 @@ import {
   defaultAgentForRoute,
   type CopilotContext,
 } from 'lib/agent/persona-router';
+import { WHITE } from 'lib/design-tokens';
 import { personaBoundary, DEFAULT_AGENT_ID } from 'lib/agent/registry';
 import { agentTheme } from 'lib/agent/agent-theme';
 import { STAGE_AGENT, isStage } from 'lib/agent/stage-routing';
@@ -185,7 +186,7 @@ function CopilotChat({
       <div
         className="flex shrink-0 items-center gap-3 p-5 text-white"
         style={{
-          background: `linear-gradient(135deg, color-mix(in srgb, ${theme.color} 55%, #ffffff), ${theme.color})`,
+          background: `linear-gradient(135deg, color-mix(in srgb, ${theme.color} 55%, ${WHITE}), ${theme.color})`,
         }}
       >
         <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[13px] bg-white/20">

@@ -28,6 +28,7 @@ import type { IconType } from 'react-icons';
 import HalfGauge from 'components/common/HalfGauge';
 import SurfaceCard from 'components/common/SurfaceCard';
 import LineAreaChart from 'components/charts/LineAreaChart';
+import { BRAND_500, WHITE } from 'lib/design-tokens';
 import { PENDING_TEXT, readContractSlot } from 'lib/data/provenance';
 import {
   briefBlockerSchema,
@@ -44,7 +45,7 @@ import {
  * 族：smooth 3.5 + 渐变面 + 末点圆标 r5 白底描边，对照原型 areaChart L505-513）。
  * 图表库需要具体色值（SVG 渲染管线不解析 Tailwind class）。
  * ------------------------------------------------------------------ */
-const BRAND = '#422AFB';
+const BRAND = BRAND_500;
 
 function trendChartOptions(lastPointIndex: number) {
   return {
@@ -64,13 +65,13 @@ function trendChartOptions(lastPointIndex: number) {
       size: 0,
       strokeColors: BRAND,
       strokeWidth: 3,
-      colors: ['#FFFFFF'],
+      colors: [WHITE],
       // 原型 areaChart 末点圆标（r4.5 白底描边，L513）
       discrete: [
         {
           seriesIndex: 0,
           dataPointIndex: lastPointIndex,
-          fillColor: '#FFFFFF',
+          fillColor: WHITE,
           strokeColor: BRAND,
           size: 5,
           shape: 'circle',

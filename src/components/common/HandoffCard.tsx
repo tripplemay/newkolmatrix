@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import { MdBolt, MdCheck, MdChevronRight } from 'react-icons/md';
+import { BRAND_500 } from 'lib/design-tokens';
 
 export interface HandoffTurn {
   name: string;
@@ -37,7 +38,7 @@ export interface HandoffCardProps {
   outcome?: string | null;
 }
 
-const BRAND = '#422AFB';
+const BRAND = BRAND_500;
 
 function HeaderContent({
   fromName,

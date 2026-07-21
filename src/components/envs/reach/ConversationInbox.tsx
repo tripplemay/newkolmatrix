@@ -50,7 +50,7 @@ const PILL_TONE: Record<ReachStageTone, string> = {
 function StagePill({ stage }: { stage: ReachStage }) {
   return (
     <span
-      className={`inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold ${
+      className={`inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-mini font-bold ${
         PILL_TONE[REACH_STAGE_TONE[stage]]
       }`}
     >
@@ -69,7 +69,7 @@ function CtxHeading({
 }) {
   return (
     <div
-      className={`mb-[9px] text-[11px] font-bold uppercase tracking-wide text-gray-400 ${
+      className={`mb-[9px] text-micro font-bold uppercase tracking-wide text-gray-400 ${
         center ? 'text-center' : ''
       }`}
     >
@@ -230,7 +230,7 @@ export default function ConversationInbox({
                   }`}
                 >
                   {m.t}
-                  <div className="mt-[5px] text-[10px] opacity-70">{m.at}</div>
+                  <div className="mt-[5px] text-mini opacity-70">{m.at}</div>
                 </div>
               ))
             ) : (

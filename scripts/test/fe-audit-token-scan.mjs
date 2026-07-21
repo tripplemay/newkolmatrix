@@ -66,6 +66,9 @@ const EXEMPT_FILES = {
   'src/app/preview/agent-canvas/page.tsx':
     '确定性视觉基线夹具页，文件头自述「浅色，独立路由，保证像素确定」，供 tests/visual 截图；' +
     '刻意不写 dark: 与不复用外壳，dark 完整性/表面 token 不适用',
+  'src/lib/design-tokens.ts':
+    'JS 域 token 定义源（图表 options / inline style 无法消费 className），' +
+    '值逐一对照 horizon-tokens.md 与原型 CSS，此处定义即 token 非偏离',
 };
 
 // spec §4 D6 白名单
@@ -353,7 +356,8 @@ for (const rel of files.sort()) {
     const lineNo = i + 1;
     // forked 文件只审计项目引入的行（模板原有行 = 模板的写法，不计 finding）
     if (introduced && !introduced.has(lineNo)) return;
-    if (/^\s*(\/\/|\*|\/\*)/.test(line)) return; // 注释行
+    // 注释行（含 JSX 注释 `{/* ... */}`——原先漏判，导致注释里引述的原型色值被误报）
+    if (/^\s*(\/\/|\*|\/\*|\{\s*\/\*)/.test(line)) return;
 
     checkHardcodedColor(rel, lineNo, line);
     checkFont(rel, lineNo, line);

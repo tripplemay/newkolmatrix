@@ -27,6 +27,7 @@ import GateConfirm from 'components/common/GateConfirm';
 import PageHeader from 'components/common/PageHeader';
 import SurfaceCard from 'components/common/SurfaceCard';
 import { useToast } from 'components/common/Toast';
+import { GRAY_600, WHITE } from 'lib/design-tokens';
 import { PENDING_TEXT, readContractSlot } from 'lib/data/provenance';
 import {
   insightKpiListSchema,
@@ -90,7 +91,7 @@ function roiAreaOptions(points: number[]) {
           seriesIndex: 0,
           dataPointIndex: points.length - 1,
           size: 4.5,
-          fillColor: '#ffffff',
+          fillColor: WHITE,
           strokeColor: 'var(--color-500)',
         },
       ],
@@ -119,7 +120,7 @@ function projectRoiBarOptions(bars: ProjectRoiBar[]) {
     xaxis: {
       categories: bars.map((b) => b.label),
       labels: {
-        style: { colors: '#A3AED0', fontSize: '11px', fontWeight: '500' },
+        style: { colors: GRAY_600, fontSize: '11px', fontWeight: '500' },
       },
       axisBorder: { show: false },
       axisTicks: { show: false },
@@ -349,7 +350,7 @@ export default function InsightPage() {
 
       {/* V12 #10-#13 retro 周报卡（渐变淡紫）+ 采纳（internal）+ 🚪 分享（gate） */}
       {WEEKLY_DRAFT && (
-        <div className="mt-5 rounded-[20px] bg-gradient-to-br from-[rgba(117,81,255,0.08)] to-[rgba(66,42,251,0.06)] p-6">
+        <div className="mt-5 rounded-[20px] bg-gradient-to-br from-brandSoft-a to-brandSoft-b p-6">
           <div className="mb-[11px] flex items-center gap-[7px] text-xs font-bold text-brand-500 dark:text-brand-400">
             <MdOutlineAutoAwesome className="h-4 w-4" aria-hidden />
             {WEEKLY_DRAFT.label}

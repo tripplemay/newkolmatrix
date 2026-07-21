@@ -160,6 +160,17 @@ module.exports = {
       lightPrimary: '#F4F7FE',
       blueSecondary: '#4318FF',
       brandLinear: '#868CFF',
+      // ARCH-M05 F017：CSS 域 token 出处（className 可达的项目自造色值）。
+      // 与 src/lib/design-tokens.ts（JS 域：图表 options / inline style）分工互补，
+      // 禁止再在 className 里散落 arbitrary 色值——沿 F005 微排版刻度同一收敛做法。
+      // 模板 navbar 玻璃底原值（fork 保留，仅 dark 态）
+      navyGlass: '#0b14374d',
+      // 原型双紫渐变底对（.retro 卡 135deg / .col-h.best 高亮列头 / pick 列）
+      brandSoft: {
+        a: 'rgba(117,81,255,0.08)',
+        b: 'rgba(66,42,251,0.06)',
+        c: 'rgba(66,42,251,0.1)',
+      },
       gray: {
         50: '#F5F6FA',
         100: '#EEF0F6',

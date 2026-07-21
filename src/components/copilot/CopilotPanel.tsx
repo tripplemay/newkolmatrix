@@ -1,31 +1,40 @@
 // AGENT-FOUNDATION F007 — 常驻对话面（柱三）：多 Agent 对话驱动面
 //
 // Horizon 外壳右栏常驻 Copilot 面板，useChat 接 /api/agent（F005 流式 loop）。
-// - 顶部常驻专家 Agent 头（duty + 否定式护栏，ExpertScope）
 // - 消息气泡（还原设计稿 .cmsg：user 渐变右 / agent 浅色左）
 // - generative canvas：工具结果经 canvas-registry 渲染（search_kols → KOL 卡片流）
-// - 协同交接可视化（HandoffCollab）
 // - 多人格切换：进不同 route 自动切人格；context key 变化 → 对话清空 + 新专家开场白（FR-12.4）
+//
+// ARCH-M05 F003 升级（原型 S3 19 元素）：
+// - cop-head 渐变随专家主题色（agent-theme 本地色表）+ dm 图标块 + 动态专家名/副标题
+// - cop-auto 边界条（🔒 D26/D27 宣示）· 职责/隔离卡（ExpertScope）或编队紧凑名册（AgentSquad compact，仅编排上下文）
+// - 「{专家}刚刚完成」卡 · 协同卡升级（HandoffCollab，逐轮台词 mock）· 动作卡（enter:/pick:/env:）
+// - 建议 chips（每上下文 3 条）· 渐变圆发送钮（Button primary iconOnly）
+// - 移动端退为 fixed 右滑抽屉（navbar cop-toggle / 指令栏 Enter 经 CopilotUiContext 控制）
 
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { MdSend } from 'react-icons/md';
+import { MdCheck, MdSend, MdShield } from 'react-icons/md';
 import {
   buildContextKey,
   defaultAgentForRoute,
   type CopilotContext,
 } from 'lib/agent/persona-router';
 import { personaBoundary, DEFAULT_AGENT_ID } from 'lib/agent/registry';
+import { agentTheme } from 'lib/agent/agent-theme';
 import { STAGE_AGENT, isStage } from 'lib/agent/stage-routing';
+import { useCopilotUi } from 'contexts/CopilotUiContext';
 import Button from 'components/common/Button';
 import ChatBubble from 'components/common/ChatBubble';
-import PanelHeader from 'components/common/PanelHeader';
+import AgentSquad, { AGENT_ICONS } from 'components/common/AgentSquad';
 import ExpertScope from './ExpertScope';
 import HandoffCollab from './HandoffCollab';
+import ActionCard from './ActionCard';
+import { mockCopilotUi } from './mock';
 import { hasCanvasRenderer, renderToolResult } from './canvas/canvas-registry';
 
 function deriveContext(
@@ -105,7 +114,34 @@ function MessageParts({
   );
 }
 
-function CopilotChat({ context }: { context: CopilotContext }) {
+/** S3-8 🔒 「{专家}刚刚完成」卡（原型 .cop-did，ARCH-M05 mock 数据） */
+function RecentlyDone({ name, items }: { name: string; items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="rounded-2xl bg-lightPrimary px-4 py-3.5 dark:bg-navy-700">
+      <div className="mb-2 text-mini font-bold uppercase tracking-wide text-gray-400">
+        {name} 刚刚完成
+      </div>
+      {items.map((d, i) => (
+        <div
+          key={i}
+          className="flex items-start gap-2 py-1 text-compact text-navy-700 dark:text-white"
+        >
+          <MdCheck size={14} className="mt-0.5 shrink-0 text-green-600" />
+          <span>{d}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CopilotChat({
+  context,
+  stage,
+}: {
+  context: CopilotContext;
+  stage: string | null;
+}) {
   const [input, setInput] = useState('');
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
@@ -113,32 +149,85 @@ function CopilotChat({ context }: { context: CopilotContext }) {
       body: { context },
     }),
   });
+  const { command, consumeCommand } = useCopilotUi();
+  const consumedRef = useRef(0);
 
   const persona = personaBoundary(context.agentId);
+  const theme = agentTheme(context.agentId);
+  const HeadIcon = AGENT_ICONS[context.agentId];
+  const ui = mockCopilotUi(context.route, stage, context.projectId);
   const busy = status === 'submitted' || status === 'streaming';
+
+  // S2 交互：navbar 指令栏 Enter → 内容送 Copilot（经 CopilotUiContext 桥接）
+  useEffect(() => {
+    if (!command || command.id === consumedRef.current) return;
+    consumedRef.current = command.id;
+    sendMessage({ text: command.text });
+    consumeCommand(command.id);
+  }, [command, sendMessage, consumeCommand]);
+
+  const send = (text: string) => {
+    const t = text.trim();
+    if (!t || busy) return;
+    sendMessage({ text: t });
+  };
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const text = input.trim();
-    if (!text || busy) return;
-    sendMessage({ text });
+    send(input);
     setInput('');
   };
 
   return (
-    <div className="flex h-full flex-col">
-      {/* 顶部：专家 Agent 头（职责 + 否定式护栏，常驻） */}
-      <div className="shrink-0 p-3">
-        <ExpertScope agentId={context.agentId} />
+    <div className="flex h-full min-h-0 flex-col">
+      {/* S3-1~4 cop-head：渐变随专家主题色 + dm 图标块 42 + 专家名 + 副标题 */}
+      <div
+        className="flex shrink-0 items-center gap-3 p-5 text-white"
+        style={{
+          background: `linear-gradient(135deg, color-mix(in srgb, ${theme.color} 55%, #ffffff), ${theme.color})`,
+        }}
+      >
+        <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[13px] bg-white/20">
+          <HeadIcon size={20} />
+        </span>
+        <div className="min-w-0">
+          <b className="block text-[15px] font-bold">
+            {persona?.name ?? 'Agent'}
+          </b>
+          <small className="block truncate text-micro text-white/85">
+            {ui.sub}
+          </small>
+        </div>
+      </div>
+
+      {/* S3-5 🔒 cop-auto 边界条（D26/D27 常驻宣示，文案逐字原型） */}
+      <div className="flex shrink-0 items-start gap-2 border-b border-gray-200 bg-lightPrimary px-4 py-3 text-micro leading-relaxed text-gray-600 dark:border-white/10 dark:bg-navy-900 dark:text-gray-400">
+        <MdShield size={14} className="mt-0.5 shrink-0 text-brand-500" />
+        <span>
+          <b className="text-navy-700 dark:text-white">只做可撤销的事。</b>
+          对外与花钱的动作会先停在你面前，并列清利害。
+        </span>
       </div>
 
       {/* 消息流 + 画布 */}
-      <div className="flex-1 space-y-3 overflow-y-auto bg-gray-50 px-3 py-2 dark:bg-navy-900">
-        {messages.length === 0 && persona && (
-          // 新专家开场白（context key 变化后 remount → 空消息 → 开场）
-          <ChatBubble role="agent">
-            我是{persona.name}，负责{persona.duty}。有什么可以帮你的？
-          </ChatBubble>
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-gray-50 p-4 dark:bg-navy-900">
+        {/* S3-6 🔒 职责/隔离卡 或 S3-7 🔒 编队紧凑名册（仅编排上下文） */}
+        {ui.squad ? (
+          <AgentSquad variant="compact" />
+        ) : (
+          <ExpertScope agentId={context.agentId} />
+        )}
+        <RecentlyDone name={persona?.name ?? 'Agent'} items={ui.did} />
+        {/* S3-9~13 🔒 协同卡（虚线框 + 逐轮台词 + 交接物 chip + 绿色结论行） */}
+        <HandoffCollab stage={context.projectId ? stage : null} />
+        {messages.length === 0 && (
+          // 新专家开场白（context key 变化后 remount → 空消息 → 开场）+ 开场动作卡
+          <>
+            <ChatBubble role="agent">{ui.greeting}</ChatBubble>
+            {ui.actions.map((a) => (
+              <ActionCard key={a.go} action={a} />
+            ))}
+          </>
         )}
         {messages.map((m) => (
           <MessageParts
@@ -151,10 +240,25 @@ function CopilotChat({ context }: { context: CopilotContext }) {
             {persona?.name ?? '专家'}正在思考…
           </ChatBubble>
         )}
-        <HandoffCollab />
       </div>
 
-      {/* 指令输入 */}
+      {/* S3-17 建议 chips（每上下文 3 条） */}
+      {ui.prompts.length > 0 && (
+        <div className="flex shrink-0 flex-wrap gap-2 border-t border-gray-200 px-4 py-3 dark:border-white/10">
+          {ui.prompts.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => send(p)}
+              className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-brand-500 hover:text-brand-500 dark:border-white/10 dark:text-gray-400 dark:hover:border-brand-400 dark:hover:text-brand-400"
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* S3-18/19 指令输入 + 渐变圆发送钮 */}
       <form
         onSubmit={onSubmit}
         className="shrink-0 border-t border-gray-200 p-3 dark:border-white/10"
@@ -163,13 +267,14 @@ function CopilotChat({ context }: { context: CopilotContext }) {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={`对${persona?.name ?? '专家'}说…`}
+            placeholder="问 Agent 或下达任务…"
+            aria-label="向 Agent 输入"
             className="bg-transparent min-w-0 flex-1 text-sm text-navy-700 outline-none placeholder:text-gray-400 dark:text-white"
           />
-          {/* FE-REFACTOR F002：收敛到 common/Button iconOnly（disabled 态透明度 40→50 归一组件规范） */}
+          {/* FE-REFACTOR F002 收敛 common/Button；ARCH-M05 F003：primary 渐变圆（原型 .cop-input button） */}
           <Button
             type="submit"
-            variant="solid"
+            variant="primary"
             size="sm"
             iconOnly
             disabled={busy || !input.trim()}
@@ -188,32 +293,29 @@ function CopilotChat({ context }: { context: CopilotContext }) {
 function CopilotPanelInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const context = deriveContext(
-    pathname ?? '/admin',
-    searchParams.get('stage'),
-  );
+  const stage = searchParams.get('stage');
+  const context = deriveContext(pathname ?? '/admin', stage);
   const contextKey = buildContextKey(context);
   // key=contextKey（含 agentId，随 route/env/stage-专家 变化）→ 整个 chat remount（对话清空 + 新专家开场白，FR-12.4）
-  return <CopilotChat key={contextKey} context={context} />;
+  return <CopilotChat key={contextKey} context={context} stage={stage} />;
 }
 
 export default function CopilotPanel() {
+  const { drawerOpen } = useCopilotUi();
   return (
-    <aside className="fixed right-0 top-0 z-40 hidden h-screen w-[360px] flex-col border-l border-gray-200 bg-white dark:border-white/10 dark:bg-navy-800 xl:flex">
-      <PanelHeader
-        className="shrink-0 border-b border-gray-200 px-4 py-3 dark:border-white/10"
-        title="Copilot · 多 Agent 编队"
-        subtitle="进不同环节自动切换对应专家"
-      />
-      <div className="min-h-0 flex-1">
-        <Suspense
-          fallback={
-            <div className="p-4 text-sm text-gray-400">加载 Copilot…</div>
-          }
-        >
-          <CopilotPanelInner />
-        </Suspense>
-      </div>
+    // 三区外壳右栏：xl 常驻 360px；xl 以下退为 fixed 右滑抽屉（S2-10 cop-toggle / 指令栏 Enter 打开）
+    <aside
+      className={`fixed right-0 top-0 z-40 flex h-screen w-[360px] max-w-[94vw] flex-col border-l border-gray-200 bg-white transition-transform duration-300 dark:border-white/10 dark:bg-navy-800 ${
+        drawerOpen ? 'translate-x-0 shadow-xl' : 'translate-x-[103%]'
+      } xl:translate-x-0 xl:shadow-none`}
+    >
+      <Suspense
+        fallback={
+          <div className="p-4 text-sm text-gray-400">加载 Copilot…</div>
+        }
+      >
+        <CopilotPanelInner />
+      </Suspense>
     </aside>
   );
 }

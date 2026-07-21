@@ -1,186 +1,121 @@
-import React from 'react';
-import Dropdown from 'components/dropdown';
+'use client';
+// ARCH-M05 F003 — 三区外壳·玻璃 navbar 指令栏（fork 自 Horizon navbar，对照原型 S2 12 元素，L440-450）
+// S2：①mobile menu 钮 ②面包屑 ③页标题 26px/800 ④🔒 nb-cmd 指令栏胶囊（替换搜索位，min-w 280）
+//     ⑤spark 图标 ⑥placeholder（文案逐字原型）⑦「Agent 推进中」⑧🔒 pulse 绿点（纯 CSS）
+//     ⑨主题切换（body.dark，不用 data-theme）⑩copilot toggle（mobile）⑪头像渐变圆 40 ⑫🔒 玻璃外壳
+// 交互：指令栏 Enter → 内容送 Copilot 并自动打开面板（CopilotUiContext 桥接）。
+// sticky 于主区流内（原型 .navbar sticky top:12）——路由切换不重挂载（layout 持久）。
+
+import { useState } from 'react';
 import { FiAlignJustify } from 'react-icons/fi';
-import NavLink from 'components/link/NavLink';
-import { BsArrowBarUp } from 'react-icons/bs';
-import { FiSearch } from 'react-icons/fi';
-import Configurator from './Configurator';
-import { IoMdNotificationsOutline } from 'react-icons/io';
-import avatar from '/public/img/avatars/avatar4.png';
-import Image from 'next/image';
+import { MdAutoAwesome, MdDarkMode, MdLightMode } from 'react-icons/md';
 import useColorMode from 'hooks/useColorMode';
+import { useCopilotUi } from 'contexts/CopilotUiContext';
+
+const CMD_PLACEHOLDER = '问 Campaign Agent 或下达任务…';
+
+const NB_ICO =
+  'grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-gray-600 transition hover:text-brand-500 dark:bg-navy-800 dark:text-white dark:hover:text-brand-400';
 
 const Navbar = (props: {
   onOpenSidenav: () => void;
+  /** 面包屑（S2-2，如「工作台」/「工作台 / 项目」） */
+  breadcrumb?: string;
+  /** 页标题（S2-3） */
   brandText: string;
-  secondary?: boolean | string;
   [x: string]: any;
 }) => {
-  const { onOpenSidenav, brandText, mini, hovered } = props;
-  // DS-FOUNDATION F005：统一走 useColorMode（替代内联 body.classList 逻辑）。
-  // setDark 幂等，与 Configurator 内部的 classList add/remove 兼容。
-  const { isDark: darkmode, setDark: setDarkmode } = useColorMode();
+  const { onOpenSidenav, breadcrumb = '工作台', brandText } = props;
+  // DS-FOUNDATION F005：统一走 useColorMode（body.dark，S2-9 不用 data-theme）。
+  const { isDark, toggle } = useColorMode();
+  const { dispatchCommand, toggleDrawer } = useCopilotUi();
+  const [cmd, setCmd] = useState('');
+
+  const submitCmd = (e: React.FormEvent) => {
+    e.preventDefault();
+    const t = cmd.trim();
+    if (!t) return;
+    // S2 交互：Enter → 送 Copilot 并自动打开面板（移动端抽屉）
+    dispatchCommand(t);
+    setCmd('');
+  };
+
   return (
-    <nav
-      className={`duration-175 linear fixed right-3 top-3 flex flex-row flex-wrap items-center justify-between rounded-xl bg-white/30 transition-all ${
-        mini === false
-          ? 'w-[calc(100vw_-_6%)] md:w-[calc(100vw_-_8%)] lg:w-[calc(100vw_-_6%)] xl:w-[calc(100vw_-_350px)] 2xl:w-[calc(100vw_-_365px)]'
-          : mini === true && hovered === true
-          ? 'w-[calc(100vw_-_6%)] md:w-[calc(100vw_-_8%)] lg:w-[calc(100vw_-_6%)] xl:w-[calc(100vw_-_350px)] 2xl:w-[calc(100vw_-_365px)]'
-          : 'w-[calc(100vw_-_6%)] md:w-[calc(100vw_-_8%)] lg:w-[calc(100vw_-_6%)] xl:w-[calc(100vw_-_180px)] 2xl:w-[calc(100vw_-_195px)]'
-      }  p-2 backdrop-blur-xl dark:bg-[#0b14374d] md:right-[30px] md:top-4 xl:top-[20px]`}
-    >
-      <div className="ml-[6px]">
-        <div className="h-6 w-[224px] pt-1">
-          <a
-            className="text-sm font-normal text-navy-700 hover:underline dark:text-white dark:hover:text-white"
-            href=" "
-          >
-            Pages
-            <span className="mx-1 text-sm text-navy-700 hover:text-navy-700 dark:text-white">
-              {' '}
-              /{' '}
-            </span>
-          </a>
-          <NavLink
-            className="text-sm font-normal capitalize text-navy-700 hover:underline dark:text-white dark:hover:text-white"
-            href="#"
-          >
-            {brandText}
-          </NavLink>
+    // S2-12 🔒 玻璃外壳：sticky + backdrop-blur-xl + 30% 白
+    <nav className="sticky top-3 z-20 mb-1.5 mt-3.5 flex items-center gap-4 rounded-xl bg-white/30 px-4 py-3 backdrop-blur-xl dark:bg-[#0b14374d]">
+      {/* S2-1 mobile menu */}
+      <button
+        type="button"
+        onClick={onOpenSidenav}
+        aria-label="导航"
+        className={`${NB_ICO} xl:hidden`}
+      >
+        <FiAlignJustify className="h-5 w-5" />
+      </button>
+
+      {/* S2-2/3 面包屑 + 页标题 */}
+      <div className="min-w-0">
+        <div className="text-xs text-gray-600 dark:text-gray-400">
+          {breadcrumb}
         </div>
-        <p className="shrink text-[33px] capitalize text-navy-700 dark:text-white">
-          <NavLink
-            href="#"
-            className="font-bold capitalize hover:text-navy-700 dark:hover:text-white"
-          >
-            {brandText}
-          </NavLink>
-        </p>
+        <div className="mt-0.5 truncate text-[26px] font-extrabold leading-tight tracking-tight text-navy-700 dark:text-white">
+          {brandText}
+        </div>
       </div>
 
-      <div className="relative mt-[3px] flex h-[61px] w-[355px] flex-grow items-center justify-around gap-2 rounded-full bg-white px-2 py-2 shadow-xl shadow-shadow-500 dark:!bg-navy-800 dark:shadow-none md:w-[365px] md:flex-grow-0 md:gap-1 xl:w-[365px] xl:gap-2">
-        <div className="flex h-full items-center rounded-full bg-lightPrimary text-navy-700 dark:bg-navy-900 dark:text-white xl:w-[225px]">
-          <p className="pl-3 pr-2 text-xl">
-            <FiSearch className="h-4 w-4 text-gray-400 dark:text-white" />
-          </p>
+      <div className="ml-auto flex items-center gap-2.5">
+        {/* S2-4/5/6 🔒 指令栏胶囊（替换搜索位）：spark + placeholder 原文 */}
+        <form
+          onSubmit={submitCmd}
+          className="hidden min-w-[280px] items-center gap-2 rounded-full bg-lightPrimary px-4 py-2.5 dark:bg-navy-900 md:flex"
+        >
+          <MdAutoAwesome className="h-4 w-4 shrink-0 text-brand-500" />
           <input
-            type="text"
-            placeholder="Search..."
-            className="block h-full w-full rounded-full bg-lightPrimary text-sm font-medium text-navy-700 outline-none placeholder:!text-gray-400 dark:bg-navy-900 dark:text-white dark:placeholder:!text-white sm:w-fit"
+            value={cmd}
+            onChange={(e) => setCmd(e.target.value)}
+            placeholder={CMD_PLACEHOLDER}
+            aria-label="向 Agent 下达任务"
+            className="w-full bg-transparent text-compact font-medium text-navy-700 outline-none placeholder:text-gray-400 dark:text-white"
           />
-        </div>
-        <span
-          className="flex cursor-pointer text-xl text-gray-600 dark:text-white xl:hidden "
-          onClick={onOpenSidenav}
-        >
-          <FiAlignJustify className="h-5 w-5" />
+        </form>
+
+        {/* S2-7/8 「Agent 推进中」+ 🔒 pulse 绿点（纯 CSS） */}
+        <span className="hidden items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-gray-600 dark:text-gray-400 sm:flex">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-60" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+          </span>
+          Agent 推进中
         </span>
-        {/* start Notification */}
-        <Dropdown
-          button={
-            <p className="cursor-pointer">
-              <IoMdNotificationsOutline className="h-4 w-4 text-gray-600 dark:text-white" />
-            </p>
-          }
-          animation="origin-[65%_0%] md:origin-top-right transition-all duration-300 ease-in-out"
-          classNames={'py-2 top-4 -left-[230px] md:-left-[440px] w-max'}
+
+        {/* S2-9 主题切换（body.dark） */}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label="切换深浅色"
+          className={NB_ICO}
         >
-          <div className="flex w-[360px] flex-col gap-3 rounded-[20px] bg-white p-4 shadow-xl shadow-shadow-500 dark:!bg-navy-700 dark:text-white dark:shadow-none sm:w-[460px]">
-            <div className="flex items-center justify-between">
-              <p className="text-base font-bold text-navy-700 dark:text-white">
-                Notification
-              </p>
-              <p className="text-sm font-bold text-navy-700 dark:text-white">
-                Mark all read
-              </p>
-            </div>
+          {isDark ? (
+            <MdLightMode className="h-5 w-5" />
+          ) : (
+            <MdDarkMode className="h-5 w-5" />
+          )}
+        </button>
 
-            <button className="flex w-full items-center">
-              <div className="flex h-full w-[85px] items-center justify-center rounded-xl bg-gradient-to-b from-brand-400 to-brand-500 py-4 text-2xl text-white">
-                <BsArrowBarUp />
-              </div>
-              <div className="ml-2 flex h-full w-full flex-col justify-center rounded-lg px-1 text-sm">
-                <p className="mb-1 text-left text-base font-bold text-gray-900 dark:text-white">
-                  Welcome to KOLMatrix
-                </p>
-                <p className="font-base text-left text-xs text-gray-900 dark:text-white">
-                  Your workspace is ready to explore.
-                </p>
-              </div>
-            </button>
-
-            <button className="flex w-full items-center">
-              <div className="flex h-full w-[85px] items-center justify-center rounded-xl bg-gradient-to-b from-brand-400 to-brand-500 py-4 text-2xl text-white">
-                <BsArrowBarUp />
-              </div>
-              <div className="ml-2 flex h-full w-full flex-col justify-center rounded-lg px-1 text-sm">
-                <p className="mb-1 text-left text-base font-bold text-gray-900 dark:text-white">
-                  Welcome to KOLMatrix
-                </p>
-                <p className="font-base text-left text-xs text-gray-900 dark:text-white">
-                  Your workspace is ready to explore.
-                </p>
-              </div>
-            </button>
-          </div>
-        </Dropdown>
-        {/* DS-FOUNDATION F003：移除 Horizon PRO 推广信息 dropdown（外链 horizon-ui.com + Buy PRO） */}
-        <Configurator
-          mini={props.mini}
-          setMini={props.setMini}
-          theme={props.theme}
-          setTheme={props.setTheme}
-          darkmode={darkmode}
-          setDarkmode={setDarkmode}
-        />
-        {/* DS-FOUNDATION F005：移除模板遗留的空 toggle div（无内容的幽灵控件）；
-            深色切换由 Configurator 承担，逻辑统一走 useColorMode。 */}
-        {/* Profile & Dropdown */}
-        <Dropdown
-          button={
-            <Image
-              width="2"
-              height="20"
-              className="h-10 w-10 rounded-full"
-              src={avatar}
-              alt="User avatar"
-            />
-          }
-          classNames={'py-2 top-8 -left-[180px] w-max'}
+        {/* S2-10 copilot toggle（mobile） */}
+        <button
+          type="button"
+          onClick={toggleDrawer}
+          aria-label="打开 Agent"
+          className={`${NB_ICO} xl:hidden`}
         >
-          <div className="flex h-max w-56 flex-col justify-start rounded-[20px] bg-white bg-cover bg-no-repeat pb-4 shadow-xl shadow-shadow-500 dark:!bg-navy-700 dark:text-white dark:shadow-none">
-            <div className="ml-4 mt-3">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-bold text-navy-700 dark:text-white">
-                  👋 Hey there
-                </p>{' '}
-              </div>
-            </div>
-            <div className="mt-3 h-px w-full bg-gray-200 dark:bg-white/20 " />
+          <MdAutoAwesome className="h-5 w-5" />
+        </button>
 
-            <div className="ml-4 mt-3 flex flex-col">
-              <a
-                href=" "
-                className="text-sm text-gray-800 dark:text-white hover:dark:text-white"
-              >
-                Profile Settings
-              </a>
-              <a
-                href=" "
-                className="mt-3 text-sm text-gray-800 dark:text-white hover:dark:text-white"
-              >
-                Newsletter Settings
-              </a>
-              <a
-                href=" "
-                className="mt-3 text-sm font-medium text-red-500 hover:text-red-500"
-              >
-                Log Out
-              </a>
-            </div>
-          </div>
-        </Dropdown>
+        {/* S2-11 头像渐变圆 40px */}
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brandLinear to-brand-500 text-compact font-bold text-white">
+          MC
+        </span>
       </div>
     </nav>
   );

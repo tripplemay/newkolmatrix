@@ -95,12 +95,44 @@ await page.waitForFunction(
 );
 const prePaint = await page.evaluate(() => ({
   dark: document.body.classList.contains('dark'),
-  // 注意 <body id="root">，故不能用 #root.textContent 判 hydrate（恒非空）。
-  // 用真实 app 元素：navbar 主题钮由 React 渲染，未 hydrate 时不存在。
-  hydrated: !!document.querySelector('button[aria-label="切换深浅色"]'),
+  // M1-A-BRIEF F002 — hydrate 判据换实现。
+  //
+  // 原判据是「navbar 主题钮存在与否」，注释写「未 hydrate 时不存在」。
+  // 那个前提只在【全站包 NoSSR、服务端什么都不渲染】时成立；F002 恢复 SSR 后，
+  // 该按钮本来就在服务端 HTML 里，DOM 存在性不再能代理 hydration，此判据会恒真。
+  //
+  // 换成 React 自己的痕迹：React 在【hydrate 时】才往容器节点挂 `__reactContainer$<后缀>`
+  // 内部属性，SSR 出来的静态 HTML 上没有。这条与「服务端渲不渲染」解耦，SSR 前后都成立。
+  // 容器是 `document` 而非 body —— Next App Router 走 hydrateRoot(document, …)，
+  // body 上挂的是 `__reactFiber$`。（写成 document.body 会恒假，即死断言；
+  // 下面 F-live 那条活性证明就是为抓这个而加，实装期确实抓到过一次。）
+  hydrated: Object.keys(document).some((k) =>
+    k.startsWith('__reactContainer$'),
+  ),
 }));
 ok(prePaint.dark === true, 'F pre-paint 已置深色（无浅色闪烁）');
 ok(prePaint.hydrated === false, 'F 断言时 React 确未 hydrate（本条保证 F 上一条不是假绿）');
+
+// F-live 上一条判据自身的活性证明（框架 v1.0.7：断言换实现后须重审强度）。
+// 上一条断言 `hydrated === false`；若该表达式【恒假】（比如 React 换了内部属性名），
+// 它会永远绿，从而把「pre-paint 早于 hydrate」这一保证悄悄架空。
+// 故在同一页等 hydrate 真正完成，同一表达式必须翻真——证明它分得清两种状态。
+let hydrateDetectorLive = false;
+try {
+  await page.waitForFunction(
+    () =>
+      Object.keys(document).some((k) => k.startsWith('__reactContainer$')),
+    null,
+    { timeout: 15_000 },
+  );
+  hydrateDetectorLive = true;
+} catch {
+  hydrateDetectorLive = false;
+}
+ok(
+  hydrateDetectorLive,
+  'F-live hydrate 判据在 hydrate 完成后确会翻真（证明上条不是恒假的死断言）',
+);
 
 // F-mut 检测器活性证明（框架 v1.0.6）：把内联脚本从 document HTML 里剔掉重放，
 // 同样条件下 F 必须翻红。若仍绿，说明 F 测的不是这段脚本 —— 断言是死的。

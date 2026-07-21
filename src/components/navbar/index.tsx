@@ -27,7 +27,9 @@ const Navbar = (props: {
 }) => {
   const { onOpenSidenav, breadcrumb = '工作台', brandText } = props;
   // DS-FOUNDATION F005：统一走 useColorMode（body.dark，S2-9 不用 data-theme）。
-  const { isDark, toggle } = useColorMode();
+  // isDark 不再参与渲染（图标改由 CSS dark: 变体择一），只取 toggle。
+  // hook 本身仍需挂载：它负责挂载时同步持久值到 body.dark 并在切换时写回 localStorage。
+  const { toggle } = useColorMode();
   const { dispatchCommand, toggleDrawer } = useCopilotUi();
   const [cmd, setCmd] = useState('');
 
@@ -75,7 +77,7 @@ const Navbar = (props: {
             onChange={(e) => setCmd(e.target.value)}
             placeholder={CMD_PLACEHOLDER}
             aria-label="向 Agent 下达任务"
-            className="w-full bg-transparent text-compact font-medium text-navy-700 outline-none placeholder:text-gray-400 dark:text-white"
+            className="bg-transparent w-full text-compact font-medium text-navy-700 outline-none placeholder:text-gray-400 dark:text-white"
           />
         </form>
 
@@ -95,11 +97,12 @@ const Navbar = (props: {
           aria-label="切换深浅色"
           className={NB_ICO}
         >
-          {isDark ? (
-            <MdLightMode className="h-5 w-5" />
-          ) : (
-            <MdDarkMode className="h-5 w-5" />
-          )}
+          {/* M1-A-BRIEF F002：两个图标都渲染，由 CSS `dark:` 变体择一显示。
+              原本写 `isDark ? A : B`，而 isDark 在服务端恒为 false（状态在 effect 里才同步）——
+              恢复 SSR 后，深色态用户的服务端 HTML 与客户端首次渲染不一致，触发 hydration mismatch。
+              body.dark 由 layout.tsx 的 pre-paint 脚本在绘制前置好，交给 CSS 判定即零失配。 */}
+          <MdLightMode className="hidden h-5 w-5 dark:block" />
+          <MdDarkMode className="block h-5 w-5 dark:hidden" />
         </button>
 
         {/* S2-10 copilot toggle（mobile） */}

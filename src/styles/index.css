@@ -4,6 +4,32 @@
 @tailwind components;
 @tailwind utilities;
 
+/* M1-A-BRIEF F002 — 运行时色阶变量的 CSS 兜底定义。
+ *
+ * tailwind.config.js 把 brand/background/shadow 色阶映射到这些变量（如 `500: 'var(--color-500)'`），
+ * 但变量此前【只】由 AppWrappers 的 useEffect 注入 documentElement。
+ * 全站包 NoSSR 时这没有症状——客户端挂载前本就什么都不渲染。
+ * 拆掉 NoSSR 恢复 SSR 后，服务端 HTML 会在该 effect 运行【之前】先绘制一帧：
+ * 届时 `bg-brand-500` 解析到未定义的 var() → 品牌色整片失效（首屏 FOUC）。
+ *
+ * 故把同一组取值落到 :root 作为权威默认值；AppWrappers 的 effect 保留，
+ * 只承担运行时换肤（改 theme state → 覆写同名变量）。两处取值必须一致。 */
+:root {
+  --background-100: #ffffff;
+  --background-900: #070f2e;
+  --shadow-100: rgba(112, 144, 176, 0.08);
+  --color-50: #e9e3ff;
+  --color-100: #c0b8fe;
+  --color-200: #a195fd;
+  --color-300: #8171fc;
+  --color-400: #7551ff;
+  --color-500: #422afb;
+  --color-600: #3311db;
+  --color-700: #2111a5;
+  --color-800: #190793;
+  --color-900: #11047a;
+}
+
 @layer base {
   html {
     font-family: 'DM Sans', sans-serif !important;

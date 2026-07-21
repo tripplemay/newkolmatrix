@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "M1-A BRIEF-CAMPAIGNS 首批（纵切 project+brief）：最小域打通「schema → domain/ 纯函数 → API → 页面接真数据」整条纵线，vitest 作为副产品立起；验证 ARCH-M05 mock 契约层能否平滑换真数据。顺带清掉需求池 BL-FE-16/17（image/ 模板残留）。knowledge 域 / 例程调度器 / 雷达聚合照此范式留后续批次。",
   "total_features": 6,
-  "completed_features": 1,
+  "completed_features": 2,
   "fix_rounds": 0,
   "current_sprint": "M1-A-BRIEF",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-22T11:20",
+  "last_updated": "2026-07-22T11:45",
   "reference_docs": [
     "docs/specs/M1-A-BRIEF-spec.md",
     "docs/dev/architecture.md",

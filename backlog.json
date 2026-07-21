@@ -21,5 +21,15 @@
     "priority": "P2",
     "estimate": "0.25 人日",
     "source": "FE-REFACTOR verify-B OBS-1"
+  },
+  {
+    "id": "BL-FE-15",
+    "title": "创作者抽屉遮罩点击关闭修复（MINOR-F013-1）",
+    "description": "ARCH-M05 verify-C 发现：CreatorDrawer 遮罩点击不关闭（.chakra-modal__content-container 高度塌 0，closeOnOverlayClick 处理器够不到），文件头注释宣称支持与实物不符。不违反 acceptance（V10 清单未含该项）故未触发 fixing；现存 3 条可用关闭路径（X 钮/Esc/dw-foot）。修法参考 FIX-4 scrim 模式或修 Chakra container 高度。",
+    "decisions": [],
+    "confirmed_at": null,
+    "priority": "P2",
+    "estimate": "0.25 人日",
+    "source": "ARCH-M05 verify-C MINOR-F013-1"
   }
 ]

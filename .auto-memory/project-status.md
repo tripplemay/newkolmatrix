@@ -4,24 +4,25 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **FE-REFACTOR done ✅（2026-07-20）** — 前端地基整改 7/7 首轮 PASS（44/44 clause，fix_rounds=0）；signoff `FE-REFACTOR-signoff`；消化 FE-AUDIT 11 条 BL
-- **交付：** common 层 8 组件（Badge/ChatBubble/DefinitionRow/PageHeader/SectionLabel/PanelHeader/HandoffCard/SurfaceCard）· 术语「职责/边界」· hover=shadow-xl · shadow-sm/md 清零 · fontSize mini/micro/compact + gray-600（tailwind.config 首次有意偏离模板，理由入 commit bafd917）· admin/ port 约定（逐个 port 保留模板结构，`docs/dev/template-port-guide.md`）+ 78 组件登记表 · 视觉基线全量重生 + CI 盲区修复（route mock，生产交接卡回归覆盖零→有）
-- **FE-AUDIT done ✅（同日）**：地基体检 4/4 PASS，报告 `docs/test-reports/FE-AUDIT-*`
+- **ARCH-M05 done ✅（2026-07-21）** — 架构定稿 + M0.5 六页工作台，17/17（fix_rounds=1）；signoff `ARCH-M05-signoff`（§7 done 签收）
+- **交付：** `docs/dev/architecture.md` v1.2（kimi 基底 + f5 十条增量 + as-built 校准，工程落法权威）· 六页工作台（today/项目+五环节语法面/创作者库+34 元素抽屉/知识/洞察/记录，301 元素清单验收）· 三区外壳（侧栏 CTA/玻璃 navbar 指令栏/Copilot 编队+协同+动作卡）· mock 渲染契约层（provenance+ProvenanceTag 双 variant）· common 17 件 + admin/ port 约定首执行 · 视觉基线 12 页（紧阈值 1500px + CDN 字体本地夹具，抖动根治）· ?env= 全链迁移
+- **未部署**：M0.5 版本已 ready，部署留人类闸门（生产仍跑 FE-REFACTOR 版）
 
 ## 已上线
-- **`https://newkol.guangai.ai` live**：当前跑 **FE-REFACTOR 版本**（2026-07-20 用户授权 agent 触发 deploy run 29784391400，钉 SHA `42d7d75d…`；线上 CSS 实测含 text-mini/micro/compact + hover:shadow-xl 确证新版）；回滚 = deploy-prod 填上一 good SHA（go-live 版）；旧 compose 备份 `.frontend-only.bak`
-- GO-LIVE ✅ · AGENT-FOUNDATION（P0）✅（四柱+编排框架+AI→人闸门）· CICD-VPS ✅ · DS-FOUNDATION ✅
+- `https://newkol.guangai.ai`（FE-REFACTOR 版 @ 42d7d75，2026-07-20 部署）；回滚=deploy-prod 填上一 good SHA
 
-## 需求池（backlog.json，3 条）
-- BL-FE-13 视觉断言阈值收紧（P1，重生 all/断言紧阈值分离）· BL-FE-14 HandoffPanel 二次收敛（P2）· BL-FE-12 深色持久化（P2）
+## 演进路线（architecture.md v1.2 §14）
+- M0 ✅ → **M0.5 ✅** → **M1 BRIEF-CAMPAIGNS（下一站）** → M2 MATCH → M3 REACH/DELIVERY → M4 INSIGHT → M5 PROD-HARDENING
 
-## 下一批次（用户已定顺序，待启动）
-- **ARCH-LOCK + M0.5 WORKBENCH-UI**：架构文档定稿（用户本地 f5/kimi 两版取舍 + CLAUDE.md 指向修复 + audits 文档入 git——工作区未提交，agent 不碰）+ 六页工作台外壳（mock 先行 §6.7，验证 A6 canvas 方向）
-- 演进路线（kimi v1.1 §14）：M0 ✅ → M0.5 → M1 BRIEF-CAMPAIGNS → M2 MATCH → M3 REACH/DELIVERY → M4 INSIGHT → M5 PROD-HARDENING
+## 需求池（backlog.json）
+- BL-FE-12 深色持久化（P2）· BL-FE-14 HandoffPanel 二次收敛（P2）· 待入池：MINOR-F013-1 创作者抽屉遮罩关闭（P2）
 
-## 关键技术坑（近期实战）
-- 视觉基线容忍带双向静默：--update-snapshots 默认 changed 空转（已修 =all）+ 断言 2% 阈值吞整块 UI 变化（BL-FE-13）
-- CI 无 DB 时组件渲染 null 被基线固化为合法空白 → route mock + waitFor 硬断言（F007 范式）
+## 关键技术坑（本批实战，proposed-learnings 待确认）
+- next dev 白屏（devtools segment-explorer × RSC manifest 冲突）→ **UI 实测一律 standalone**（INFO-1，两组独立踩中）
+- CDN 字体 = 视觉测试抖动总根源（每测试零缓存重拉）→ tests/visual/fonts/ 本地回放夹具
+- Tailwind JIT 静态扫描：className 可达值必须走 tailwind.config，JS 常量进 className 会静默丢 CSS
+- 批内文档新鲜度：首 feature 定稿的口径文档被后续 feature 反向漂移（FIX-2）→ 批末须刷新
+- tmux pane 通路故障时 subagent 走已完成 agent 的 resume 转派兜底（独立性核验「验收→验收」）
 
 ## 已知下游（不在当前）
-- 专家领域工具 M1-M4 · MCP 实装 · 真实认证/RLS（M5）· 真实 outbound 投递 · proposed-learnings 5 组待确认 · harness-fit 9 条挂起
+- M1 起各专家领域工具 · MCP 实装 · 真实认证/RLS（M5）· 真实 outbound 投递 · harness-fit 9 条挂起

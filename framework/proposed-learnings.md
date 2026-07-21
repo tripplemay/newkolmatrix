@@ -139,3 +139,18 @@
 4. **纯 CI 环境"空数据渲染 null"会被基线静默编码为合法空白**：linux 基线曾把 HandoffCollab 空区域固化为"正确"，组件回归覆盖长期为零无人察觉。解法 = route mock 固定夹具 + `waitFor(关键文案)` 硬断言（渲染 null 即超时硬失败）。来源 BL-FE-11 / F003+F007。建议写入 `patterns/web-runtime-patterns.md`
 
 **状态：** 待确认
+
+---
+
+## [2026-07-21] Andy — 来源：ARCH-M05 批次（架构定稿 + M0.5 六页工作台，17 features 大规模并行编排）
+
+**类型：** 新坑 ×4 + 新规律 ×2
+
+1. **（新坑）`next dev` 全路由 500/白屏**：devtools `segment-explorer` 与 RSC client manifest 冲突，C/D 两个验收组独立踩中同一坑——**本项目 UI 实测一律 `next build` + standalone，不走 `next dev`**。建议写入 `patterns/testing-env-patterns.md`（INFO-1）
+2. **（新坑）CDN 字体是视觉测试抖动的总根源**：Playwright 每测试全新 context 零缓存 → 每用例重拉 Google Fonts，网络抖动即 fonts.ready 挂起/截图超时（先后伪装成 networkidle 挂起与多 worker 竞争，三层排查才见底）。解法 = woff2+改写 CSS 入库 `tests/visual/fonts/` + route 全离线回放（字形与线上一致；副产品套时 60-90s→24s）。建议写入 `patterns/web-runtime-patterns.md`
+3. **（新坑）Tailwind JIT 静态扫描的静默丢类**：className 可达的色值必须定义在 tailwind.config（CSS 域），`from-[${JS常量}]` 不会生成任何 CSS——渐变静默消失。JS 域（Apex options/inline style）才走 `design-tokens.ts`。双域出处分工建议写入 `patterns/web-runtime-patterns.md` 或 horizon-tokens 附注
+4. **（新坑）批内文档新鲜度**：批次首 feature 定稿的口径权威文档（architecture.md）被同批后续 feature 交付反向漂移 3 处（已实装仍标"演进目标"）——大批次应在批末（或 F-last）安排一次定稿文档刷新步，或 evaluator 验收增设"文档新鲜度"clause（本批 verify-A C6 即此，建议转正）。建议写入 `harness/planner.md` 或 `patterns/`
+5. **（新规律）subagent 生成通路故障的 resume 兜底**：tmux 新建 pane ENXIO（pty 未触顶）时，向**已完成的 agent** SendMessage 走 resume 通路可绕过（本批 D/E/汇总/复验四次成功）；转派须核验独立性（只允许「验收→验收」，不得「实现→验收」）并在 signoff 记录。建议写入 `harness/orchestration-patterns.md`
+6. **（新规律）fe-audit 三脚本作为跨批次回归 harness 成立**：FE-AUDIT 沉淀的扫描脚本在 ARCH-M05 批末对账中抓到真实回归（token-scan 53 findings→引出双域 token 收敛），「审计产物脚本化→后续批次 acceptance 引用复跑」闭环已两批验证。建议写入 `harness/evaluator.md` 或 `patterns/audit-methodology.md`（与 FE-AUDIT 方法学三件套合并）
+
+**状态：** 待确认

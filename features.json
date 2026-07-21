@@ -33,7 +33,7 @@
       "title": "domain/health.ts — 健康度纯函数",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "新建 src/lib/domain/health.ts，按 spec D7 用 kebab-case 文件名 + 具名导出（不用 namespace object；架构 :525 表格的 health.compute 点号是注册表标签不是模块路径，实装对齐项目惯例 lib/agent/stage-routing.ts）；导出 computeHealth() + HEALTH_WEIGHTS + HEALTH_THRESHOLDS 常量；算法按 PRD :373 加权（目标达成度·预算消耗率·时间进度·阻塞项数）→ 0-100，分档 >=80 达标 gd / 55-79 注意 wn / <55 风险 cr；权重与阈值必须是导出常量不得是函数体内魔数（PRD 原文「权重与阈值为示意，上线以真实数据校准」，验收会 grep 实证）；三态不得压成二态（mock/projects.ts:10-17 明令）；百分比与分档由同一函数产出、一一映射，不得两处各算；计算值不进契约位（D11：不走 readContractSlot，强类型直读）；【D16】入参契约 HealthInput = {targetExposure, actualExposure, budgetTotal, budgetSpent: number|null; periodStart, periodEnd: Date|null; now: Date; blockerCount: number}，返回 HealthResult = {score:number, band:'gd'|'wn'|'cr'}，now 显式注入保持纯函数可测，blockerCount 无阻塞源时调用方传 0；【D15】任一因子输入为 null 时该因子按 0 分计入加权，不退出加权、不归一化、返回类型无空态——已知后果是四条 seed 项目健康度全落 cr（actualExposure/budgetSpent 本批无存处），此为数据可得性事实非算法缺陷，M1-B 接真实指标后消解，不得靠给算法打补丁（如「无实测就当达标」）掩盖；tests/unit/health.test.ts 覆盖三档 + 两个分档边界 55/80 的两侧（如 54/55/56、79/80/81）+ 零阻塞/多阻塞 + 周期未开始/已结束 + 除零防护 + null 因子按 0 分计入的实证；lint + tsc 绿",
       "description": "spec §2 F004。architecture.md:525 登记为 M1 交付、消费方 Brief 画布与雷达。本函数也是 M1-B 修 brief 面「四个项目共享同一份数据」bug 的分流点。"
     },

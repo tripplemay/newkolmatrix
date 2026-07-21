@@ -1,33 +1,77 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1784657857180" clover="3.2.0">
-  <project timestamp="1784657857180" name="All files">
-    <metrics statements="24" coveredstatements="24" conditionals="24" coveredconditionals="22" methods="3" coveredmethods="3" elements="51" coveredelements="49" complexity="0" loc="24" ncloc="24" packages="1" files="1" classes="1"/>
-    <file name="provenance.ts" path="/Users/yixingzhou/project/newkolmatrix/src/lib/data/provenance.ts">
+<coverage generated="1784660016024" clover="3.2.0">
+  <project timestamp="1784660016024" name="All files">
+    <metrics statements="59" coveredstatements="59" conditionals="66" coveredconditionals="63" methods="11" coveredmethods="11" elements="136" coveredelements="133" complexity="0" loc="59" ncloc="59" packages="2" files="2" classes="2"/>
+    <package name="data">
       <metrics statements="24" coveredstatements="24" conditionals="24" coveredconditionals="22" methods="3" coveredmethods="3"/>
-      <line num="20" count="1" type="stmt"/>
-      <line num="30" count="1" type="stmt"/>
-      <line num="34" count="1" type="stmt"/>
-      <line num="43" count="1" type="stmt"/>
-      <line num="59" count="1" type="stmt"/>
-      <line num="85" count="17" type="cond" truecount="4" falsecount="0"/>
-      <line num="86" count="9" type="stmt"/>
-      <line num="87" count="9" type="cond" truecount="2" falsecount="0"/>
-      <line num="88" count="3" type="cond" truecount="1" falsecount="1"/>
-      <line num="89" count="3" type="stmt"/>
-      <line num="90" count="3" type="stmt"/>
-      <line num="98" count="3" type="stmt"/>
-      <line num="100" count="6" type="stmt"/>
-      <line num="119" count="10" type="cond" truecount="4" falsecount="0"/>
-      <line num="120" count="7" type="cond" truecount="2" falsecount="0"/>
-      <line num="121" count="3" type="cond" truecount="2" falsecount="0"/>
-      <line num="123" count="4" type="stmt"/>
-      <line num="148" count="6" type="stmt"/>
-      <line num="153" count="6" type="stmt"/>
-      <line num="154" count="6" type="cond" truecount="2" falsecount="0"/>
-      <line num="156" count="5" type="stmt"/>
-      <line num="161" count="5" type="cond" truecount="2" falsecount="0"/>
-      <line num="162" count="2" type="stmt"/>
-      <line num="170" count="3" type="stmt"/>
-    </file>
+      <file name="provenance.ts" path="/Users/yixingzhou/project/newkolmatrix/src/lib/data/provenance.ts">
+        <metrics statements="24" coveredstatements="24" conditionals="24" coveredconditionals="22" methods="3" coveredmethods="3"/>
+        <line num="20" count="1" type="stmt"/>
+        <line num="30" count="1" type="stmt"/>
+        <line num="34" count="1" type="stmt"/>
+        <line num="43" count="1" type="stmt"/>
+        <line num="59" count="1" type="stmt"/>
+        <line num="85" count="17" type="cond" truecount="4" falsecount="0"/>
+        <line num="86" count="9" type="stmt"/>
+        <line num="87" count="9" type="cond" truecount="2" falsecount="0"/>
+        <line num="88" count="3" type="cond" truecount="1" falsecount="1"/>
+        <line num="89" count="3" type="stmt"/>
+        <line num="90" count="3" type="stmt"/>
+        <line num="98" count="3" type="stmt"/>
+        <line num="100" count="6" type="stmt"/>
+        <line num="119" count="10" type="cond" truecount="4" falsecount="0"/>
+        <line num="120" count="7" type="cond" truecount="2" falsecount="0"/>
+        <line num="121" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="123" count="4" type="stmt"/>
+        <line num="148" count="6" type="stmt"/>
+        <line num="153" count="6" type="stmt"/>
+        <line num="154" count="6" type="cond" truecount="2" falsecount="0"/>
+        <line num="156" count="5" type="stmt"/>
+        <line num="161" count="5" type="cond" truecount="2" falsecount="0"/>
+        <line num="162" count="2" type="stmt"/>
+        <line num="170" count="3" type="stmt"/>
+      </file>
+    </package>
+    <package name="domain">
+      <metrics statements="35" coveredstatements="35" conditionals="42" coveredconditionals="41" methods="8" coveredmethods="8"/>
+      <file name="health.ts" path="/Users/yixingzhou/project/newkolmatrix/src/lib/domain/health.ts">
+        <metrics statements="35" coveredstatements="35" conditionals="42" coveredconditionals="41" methods="8" coveredmethods="8"/>
+        <line num="22" count="1" type="stmt"/>
+        <line num="33" count="1" type="stmt"/>
+        <line num="44" count="1" type="stmt"/>
+        <line num="87" count="295" type="cond" truecount="1" falsecount="1"/>
+        <line num="88" count="295" type="cond" truecount="4" falsecount="0"/>
+        <line num="96" count="37" type="cond" truecount="2" falsecount="0"/>
+        <line num="97" count="21" type="cond" truecount="2" falsecount="0"/>
+        <line num="98" count="16" type="stmt"/>
+        <line num="106" count="44" type="stmt"/>
+        <line num="107" count="44" type="cond" truecount="4" falsecount="0"/>
+        <line num="108" count="36" type="cond" truecount="2" falsecount="0"/>
+        <line num="109" count="34" type="stmt"/>
+        <line num="118" count="44" type="stmt"/>
+        <line num="119" count="44" type="cond" truecount="4" falsecount="0"/>
+        <line num="120" count="36" type="cond" truecount="2" falsecount="0"/>
+        <line num="121" count="34" type="stmt"/>
+        <line num="122" count="34" type="cond" truecount="2" falsecount="0"/>
+        <line num="124" count="33" type="cond" truecount="5" falsecount="0"/>
+        <line num="127" count="44" type="stmt"/>
+        <line num="136" count="44" type="stmt"/>
+        <line num="137" count="44" type="cond" truecount="4" falsecount="0"/>
+        <line num="138" count="39" type="stmt"/>
+        <line num="139" count="39" type="cond" truecount="2" falsecount="0"/>
+        <line num="140" count="37" type="stmt"/>
+        <line num="141" count="37" type="cond" truecount="2" falsecount="0"/>
+        <line num="142" count="36" type="stmt"/>
+        <line num="144" count="36" type="cond" truecount="5" falsecount="0"/>
+        <line num="147" count="44" type="stmt"/>
+        <line num="152" count="44" type="stmt"/>
+        <line num="153" count="44" type="stmt"/>
+        <line num="158" count="44" type="stmt"/>
+        <line num="178" count="20" type="stmt"/>
+        <line num="180" count="20" type="stmt"/>
+        <line num="184" count="20" type="stmt"/>
+        <line num="186" count="20" type="stmt"/>
+      </file>
+    </package>
   </project>
 </coverage>

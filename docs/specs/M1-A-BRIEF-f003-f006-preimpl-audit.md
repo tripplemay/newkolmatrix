@@ -142,6 +142,48 @@ export interface HealthResult { score: number; band: 'gd' | 'wn' | 'cr'; }
 
 <!-- 角色切换：以下由 Planner 填写（快车道同会话裁决，pre-impl-adjudication §4.6 豁免） -->
 
-_待裁决_
+> **裁决人：** 用户（A1/A2、A3、A4 三处实体裁决）+ Andy 以 Planner 身份补齐机械细节
+> **日期：** 2026-07-22
+> **注：** A3 / A4 用户裁决与 Generator 倾向相反，按用户裁决执行。Generator 倾向作废，不得在实装中夹带。
+
+### D13（A1 + A2）：授权本批扩 `OperationLog` 两列 —— 采纳方案 A
+
+同一 expand 迁移加：
+
+| 列 | 类型 | 说明 |
+|---|---|---|
+| `projectId` | `String?` + `@@index([projectId])` | 与 `Handoff.projectId` 同形态软引用，单租户下不强 FK |
+| `payloadJson` | `Json?` | 与 `Handoff.messagesJson` 同形态；F006 载荷 `{from,to,maxReachedBefore,maxReachedAfter}` 落此 |
+
+**本批 schema 改动范围据此从「只动 `Project`」正式扩为「`Project` + `OperationLog`」**，F003 acceptance 相应扩写。两列均 nullable 无默认，满足 D12 回滚兼容（`0c36fc2f…` 旧代码不读新列）。
+`ref` 列语义保持不变（仍专指 `PendingAction.id`），不得一列两义。
+`kind` 用 `auto`（`architecture.md:800` 定义 = 工具直接执行的可逆动作），**不扩枚举**。
+
+### D14（A3）：seed 补齐周期与曝光目标 —— 采纳方案 B
+
+四条 canonical 项目的 `goal` jsonb **填满**，不留 null。取值口径：
+
+- **`targetExposure` 派生规则（可审计，非随手编）：** 仅 xg 的 mock 文案含明确曝光目标（「300 万曝光」/ `$18,000`），得基准 **≈167 曝光/美元**；其余三条按各自 `budget` 等比换算，四舍五入到万位。lc `$12,000`→2,000,000 · aw `$9,000`→1,500,000 · mf `$7,500`→1,250,000。
+  > lc/aw/mf 的 mock 文案目标本非曝光量（依次为榜位 / 评测数 / 安装数），故不可直接抽取，改按预算等比派生。**该派生值是 seed 演示数据，不是实测**，M1-B 接真实目标时以真值覆盖。
+- **`periodStart` / `periodEnd`：** mock 无任何日期，按各项目 `cur` 所处阶段配置合理周期（xg 进行中 / lc 刚开始 / aw 接近结束 / aw 已结束），使 F004 的「时间进度」因子在 seed 数据上可算出有区分度的值。绝对日期写死在 seed，属演示夹具。
+- **`health` 仍不 seed**（D6 不变）；`budget` 串按 `$18,000 → budgetTotal=18000, currency='USD'` 解析。
+
+### D15（A4）：`null` 因子按 0 分计入 —— 采纳方案 B
+
+`computeHealth` 中任一因子输入为 `null`（无实测）时，**该因子按 0 分计入加权**，不退出加权、不归一化、不返回空态。返回类型保持 `{ score: number; band: 'gd'|'wn'|'cr' }`，**无空态**。
+
+**已知后果（记录在案，非缺陷）：** `actualExposure` 与 `budgetSpent` 在本批仍无任何存处（指标表未建、`Deal` 归 M3），故四条 seed 项目的健康度**将全部落入 `cr`**，与 `mock/projects.ts` 现有的 `wn/gd/gd/cr` 三态不一致。
+
+- 这**不违反** F004 acceptance 的「三态不得压成二态」——该条约束的是**函数**，`computeHealth` 仍能对三档输入产出三档输出，单测以合成入参覆盖 54/55/56、79/80/81 两侧边界实证。
+- 「seed 全 cr」是**数据可得性**的事实，不是算法缺陷。M1-B 接真实曝光/消耗指标后自然消解。
+- **M1-B 须知：** 页面接真数据时若沿用 seed，列表页四个项目会全显红。这是预期，不得靠给 `computeHealth` 打补丁（如「无实测就当达标」）掩盖——那正是 PRD `:129` 的反模式。
+
+### D16（A4 附）：`computeHealth` 入参契约 —— 采纳 Generator 拟定形态
+
+`HealthInput` / `HealthResult` 按审计 §A4 代码块实装（`now` 显式注入保持纯函数可测；`blockerCount` 无阻塞源时调用方传 `0`），**但去掉可空返回**（D15）。
+
+### 未变更事项
+
+D1–D12 全部保持不变。本裁决只新增 D13–D16。
 </content>
 </invoke>

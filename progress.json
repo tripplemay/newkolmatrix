@@ -1,12 +1,12 @@
 {
-  "status": "reverifying",
+  "status": "done",
   "user_goal": "ARCH-M05：架构文档定稿（ARCH-LOCK：kimi v1.1 基底 + f5 十条实现层增量 + as-built 六处校准，f5 归档/audits 入 git/CLAUDE.md 修复）+ M0.5 六页工作台（六入口路由收敛+三区外壳+mock 渲染契约+五环节语法面+四跨项目页，301 元素不得简化清单硬性，mock 先行验证 A6 canvas 方向）+ 视觉基线扩展与阈值收紧（BL-FE-13 收编）。17 features 全 generator。",
   "total_features": 17,
   "completed_features": 17,
   "fix_rounds": 1,
   "current_sprint": "ARCH-M05",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-21T19:00",
+  "last_updated": "2026-07-21T19:40",
   "reference_docs": [
     "docs/product/KOLMatrix-PRD.md",
     "docs/audits/KOLMatrix-integrated-architecture-design-2026-07-17.md",
@@ -58,10 +58,17 @@
       "evaluator": "Andy/evaluator-subagent",
       "round": "verifying",
       "notes": "其余 14 条全 PASS：F004/F005（B 组）；F006/F007/F013-F016 六页 154/154 元素 207/208 断言（C 组）；F008-F012 五环节 95 元素浏览器实测含五类闸门逐字取证（D 组，6 处探针假警报自我勘误）；F017 基线 12 页+3 连跑 36/36+f010 6/6+token-scan 0（E 组）。签收有效，复验只针对 FIX-1~4+就绪回归。转派记录：D=A 路承担/E=B 路承担/汇总=C 路承担，均无实现上下文。MINOR-F013-1（抽屉遮罩关闭）与 MINOR-F007-1（agent-architecture.md ?stage= 措辞）不触发 fixing；INFO-1（next dev 白屏坑→UI 实测走 standalone）候选入 patterns。整批 signoff：ARCH-M05-signoff"
+    },
+    {
+      "feature": "FIX-1~4",
+      "verdict": "PASS",
+      "evaluator": "Andy/evaluator-subagent",
+      "round": "reverifying",
+      "notes": "复验 @ d5256a8：FIX-1 CLAUDE.md 全路径 ls 通过（三个非指针项豁免理由记录）；FIX-2 三处漂移+2 MINOR 与实物 grep 对账一致；FIX-3 / 一跳直达 today 浏览器实测；FIX-4 移动视口两条关闭路径实测（toggle 双向+scrim）、closeDrawer 真实消费、桌面不受影响；就绪回归 tsc/lint/visual 全绿。复验者自身 3 条探针误判（SVG 子节点命中/scrim 点击落点）诊断修正后复跑，不构成产品缺陷。整批终判 PASS 17/17，done 签收于 signoff §7。"
     }
   ],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "ARCH-M05 building 完成(17/17,2026-07-21)：F001 架构定稿 v1.2→F002 探针核销→F003-F005 地基并行 worktree→F006/F007/F013-F016 六路并行(2 次 API 中断续跑,MiniStatistics/PieChart 共享件冲突按 main 收敛)→F008-F012 五环节五路并行→F017 主上下文收口。F017 关键战果:视觉基线 12 页全覆盖+阈值收紧 maxDiffPixels 1500;抖动三层根因逐一实证(networkidle 挂起→domcontentloaded;多 worker 竞争→workers=1;**总根源=CDN 字体每测试重拉**→tests/visual/fonts/ 28 woff2 本地回放,套时 60-90s→24s 五连跑全绿);f010 e2e 探针重指后 6/6(真实网关+DB);token-scan 53→0(JS 域 design-tokens.ts+CSS 域 tailwind.config 双出处收敛——subagent 纠正:className 可达值必须走 Tailwind 配置,JS 常量进 className 会被 JIT 静默丢弃);linux 基线 bot commit 1a7dc35;CI 终验 run 29815799552 全 job 绿。进入 verifying:fan-out 分组 A=F001 as-built 对账/B=F002-F005 地基外壳/C=六页/D=五环节/E=F017+批末回归+汇总 signoff。遗留给 done:f008-browser-check 历史断言漂移立项、proposed-learnings 候选(CDN 字体夹具/JIT 静默丢类/worktree 中断恢复)。 verifying 中间态:A=PARTIAL(CLAUDE.md 指针未修+文档批内反向漂移 3 处);B=F002 PARTIAL(根入口 page.tsx 三跳绕行漏探针)/F003 PARTIAL(移动抽屉单向不可关)/F004+F005 PASS;C=6/6 PASS(154/154);E=F017 PASS(转派 B 路执行,独立性声明入报告;3 连跑 36/36+f010 6/6)。D 组转派 A 路运行中。已知 fixing 清单 4 条定点小修。注意:tmux 新建 pane 通路故障(ENXIO,pty 未触顶),D/E 走已完成 agent 的 resume 通路转派——独立性均成立(两者只有验收上下文)。"
+    "Andy": "ARCH-M05 done(17/17,fix_rounds=1,2026-07-21)：verifying 五组 fan-out(14 PASS/3 PARTIAL)→fixing 四处定点(FIX-1 CLAUDE.md 指针/FIX-2 文档批内漂移/FIX-3 根入口三跳/FIX-4 移动抽屉不可关)→reverifying 全 PASS done 签收。编排事故与兜底:tmux 新建 pane 通路 ENXIO 故障(pty 未触顶,原因未明)→D/E/汇总/复验全部走已完成 agent 的 resume 转派,独立性均为「验收→验收」无自评,signoff §6 记录。遗留待 done 收尾:MINOR-F013-1(创作者抽屉遮罩关闭)入 backlog;proposed-learnings 候选=INFO-1 next dev 白屏走 standalone/CDN 字体本地夹具/JIT 静默丢 class/文档定稿批内新鲜度(FIX-2 教训:批内后续 feature 交付须刷新首 feature 定稿文档)/resume 通路兜底 pane 故障。M0.5 落成:六页工作台+五环节语法面+三区外壳全部 live-ready,mock 先行契约层就绪,A6 canvas 方向可实测体验。下一站:M1 BRIEF-CAMPAIGNS(kimi §14)。部署留人类闸门未执行。"
   }
 }

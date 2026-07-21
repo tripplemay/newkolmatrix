@@ -12,12 +12,20 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
 };
 
+// P2-CLEANUP F002（BL-FE-12）— 深色模式 pre-paint 还原脚本。
+// 必须是 <body> 首子节点：解析到此处时 document.body 已存在，且早于任何绘制，
+// 因此刷新时不会先闪一帧浅色再转深色。键名/取值与 hooks/useColorMode 同一契约（spec D1）。
+// 只认字面量 'dark'——缺省 / 损坏值 / localStorage 不可用一律留在浅色默认态。
+const COLOR_MODE_BOOTSTRAP = `try{if(localStorage.getItem('kolmatrix.colorMode')==='dark'){document.body.classList.add('dark')}}catch(e){}`;
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       {/* DS-FOUNDATION F002: 浅色为默认（去除模板原本的 className="dark"）。
-          深色仍可用：navbar Configurator / FixedPlugin 的 toggle 会向 body 追加 "dark" class。 */}
+          深色由 navbar 的主题切换钮经 hooks/useColorMode 向 body 追加 "dark" class，
+          并持久化到 localStorage，由下面的 pre-paint 脚本在刷新时还原。 */}
       <body id={'root'}>
+        <script dangerouslySetInnerHTML={{ __html: COLOR_MODE_BOOTSTRAP }} />
         <AppWrappers>{children}</AppWrappers>
       </body>
     </html>

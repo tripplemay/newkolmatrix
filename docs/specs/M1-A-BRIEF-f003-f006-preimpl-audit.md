@@ -182,8 +182,38 @@ export interface HealthResult { score: number; band: 'gd' | 'wn' | 'cr'; }
 
 `HealthInput` / `HealthResult` 按审计 §A4 代码块实装（`now` 显式注入保持纯函数可测；`blockerCount` 无阻塞源时调用方传 `0`），**但去掉可空返回**（D15）。
 
+### D17（F001 实装期新增）：覆盖率门 include 收窄到本批拥有的代码
+
+**实测：** F001 按 spec 字面配 `coverage.include:['src/lib/**'] + thresholds.lines:80` 后跑出的整体行覆盖是 **6.2%（24/387）** —— `src/lib` 下的 `agent/` · `ai/` · `mock/` · `db/` 是既有未测代码，本批范围（D1：地基 + 领域层）不含补测它们。
+
+照字面配只有两种结局，都坏：
+
+| 结局 | 后果 |
+|---|---|
+| 接进 CI | CI 永久红，批次无法完成 |
+| 不接进 CI | 门写在配置里却从不执行 —— 退化成「只有文案的阶段门」，正是 PRD `:129` 点名的反模式，也正是 spec §4「须核 CI 实际跑了该步，不能只看 package.json 有 script」要防的东西 |
+
+**裁决：** 取 acceptance 的**原意**（「覆盖率门 ≥80% **生效**」——门必须是真的），把 `include` 收窄到本批实际拥有的代码：
+
+```
+include: ['src/lib/domain/**', 'src/lib/data/provenance.ts']
+thresholds: { lines: 80 }
+```
+
+`domain/` = F004 `health` + F005 `env-guards` + F006 推进函数；`data/provenance.ts` = F001 的样板测试对象。当前实测 **100% 行覆盖**，门已接进 CI（`.github/workflows/ci.yml` 的 `unit` job 跑 `test:unit:coverage`，与 lint/typecheck 同级）。
+
+**后续收敛路径（写给 M1-B+ 的 Planner）：** 每批把新写的 `src/lib/**` 子目录加进 `include`，直到覆盖回全 `src/lib/**`。**不得**反向操作——即为了让门变绿而下调 `thresholds`。
+
+### D18（F001 实装期新增）：`vite-tsconfig-paths` 不装，改用 Vite 8 原生能力
+
+spec F001 写「装 `vitest` + `@vitest/coverage-v8` + `vite-tsconfig-paths`」，该清单源自 `architecture.md:1648-1660` 起草时的 Vite 7 口径。本仓实装到的是 **Vite 8**，路径解析已原生化，装该插件会在**每次** test 运行时打一条弃用警告（`The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively…`）。
+
+**裁决：** 改用原生 `resolve: { tsconfigPaths: true }`，不装该插件。**等效性已实测**：两种配置下同样 19/19 用例通过（含依赖 `baseUrl:'src'` 裸导入解析的用例）。
+
+**附带（同属 F001 实装细节，无需单独裁决）：**
+- `vitest.config.ts` 加 `oxc: { jsx: { runtime: 'automatic' } }` —— tsconfig 的 `jsx:'preserve'` 是给 Next 编译器的，vitest 无下游 JSX 处理器，不显式转译则引到 `.tsx` 的测试在 transform 阶段就撞未转译 JSX
+- `tsconfig.json` 的 `include` 补 `tests/**/*.ts` + `vitest.config.ts` —— 否则测试代码不受 `tsc --noEmit` 约束（补进去当场就抓到一处 `TS7005 implicitly any`，证明这道门有用）
+
 ### 未变更事项
 
-D1–D12 全部保持不变。本裁决只新增 D13–D16。
-</content>
-</invoke>
+D1–D12 全部保持不变。本裁决新增 D13–D18。

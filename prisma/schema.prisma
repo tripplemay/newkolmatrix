@@ -98,7 +98,17 @@ model Kol {
   @@index([platform])
 }
 
-/// 项目：五环节的唯一容器（D22）。本批最小占位——领域字段（环节 / 组合态 / 交付）→ M1-M4。
+/// 五环节游标（M1-A-BRIEF F003 / D5）。取值与 `lib/agent/stage-routing.ts` 的 `Stage`
+/// TS 类型逐字一致——那边是 URL `?env=` 与路由层的真相，这里是 DB 层的完整性约束，两处必须同步。
+enum Stage {
+  brief
+  match
+  reach
+  delivery
+  insight
+}
+
+/// 项目：五环节的唯一容器（D22）。M1-A-BRIEF F003 补齐 brief 纵线所需领域字段。
 /// EXTENSION POINT：随业务真实形态充实，本批不预测焊死。
 model Project {
   id        String   @id @default(cuid())
@@ -109,9 +119,26 @@ model Project {
   owner     String? // D29 分工标记
   createdAt DateTime @default(now())
 
+  // ── M1-A-BRIEF F003（D5）。全部 nullable 或带默认值：expand-contract 迁移的硬要求，
+  //    保证回滚到上一个 IMAGE_TAG 时旧代码读不到新列也不崩（D12）。
+  gameId      String? // mock 的 game 是裸字符串，此处升为关联
+  goal        Json? // 形状见 D6 + src/lib/data/schemas/project.ts（不含预算）
+  budgetTotal Decimal? @db.Decimal(14, 2) // 金额用 Decimal 不用 Float（精度）。
+  //                    显式定精度：Prisma 默认 Decimal(65,30) 是通用数值口径，
+  //                    给货币用 30 位小数既无意义又占空间。14,2 = 上限 9,999 亿 + 分位。
+  currency    String? // ISO 4217，如 USD
+  market      String? // mock 在用（projects.ts:36-81），目标态清单未列，此处补
+  cur         Stage    @default(brief) // 当前环节
+  maxReached  Stage    @default(brief) // 历史最远解锁位（D2 双值，支持 cur 回退）
+
+  // 不加 status 列（D5：architecture.md:462 列了它但未定义取值语义，加语义未定的字段是负债）
+  // 不加 health 列（D6：它是 health.compute 的产物，建列 = 把计算值固化成可漂移的第二真相，违反 DP-6）
+
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  game   Game?  @relation(fields: [gameId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
+  @@index([gameId])
 }
 
 /// 游戏 / 知识库实体。本批最小占位——素材上传 / AI 解析抽取 → M1。
@@ -125,7 +152,8 @@ model Game {
   owner     String? // D29 分工标记
   createdAt DateTime @default(now())
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projects Project[] // M1-A-BRIEF F003：Project.gameId 的反向关系
 
   @@index([tenantId])
 }
@@ -171,11 +199,19 @@ model OperationLog {
   kind      OperationLogKind
   actor     String?
   summary   String?
-  ref       String?
+  ref       String? // → PendingAction.id。语义单一，不得挪作他用（D13）
   createdAt DateTime         @default(now())
+
+  // ── M1-A-BRIEF F003（D13）。开工前审计发现 D10 的事实前提有误：有 projectId 的是
+  //    Handoff，OperationLog 并没有，且全表无任何 JSON 载荷列。用户授权本批以 expand 迁移补两列。
+  //    北极星「操盘手杠杆」= 环节推进事件计数 × 周活（architecture.md:1695），
+  //    而 ADR-21 明确不建 EventStore —— 不落这里就没有任何地方存，且永久不可补录。
+  projectId   String? // 软引用（同 Handoff.projectId 先例，单租户下不强 FK）
+  payloadJson Json? // 结构化载荷，如环节推进的 {from,to,maxReachedBefore,maxReachedAfter}
 
   @@index([tenantId])
   @@index([kind])
+  @@index([projectId])
 }
 
 /// 多 Agent 编排交接落点（F006，架构稿 §5.4 信封格式）。

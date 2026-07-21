@@ -143,3 +143,23 @@
 **建议写入：** `framework/patterns/audit-methodology.md` 或 `framework/harness/pre-impl-adjudication.md` §触发条件
 
 **状态：** 待确认
+
+## [2026-07-22] Andy/Evaluator-reverify — 来源：P2-CLEANUP F003 fix_round1 复验
+
+**类型：** 新坑
+
+**内容：** **换实现形态后，既有断言可能静默退化为恒真。** F003 首轮 harness 的 C3 断言是 `/border-navy-700/.test(className)`；修复把实现从 `isDark ? 'border-navy-700' : 'border-white'` 换成 Tailwind 变体 `dark:border-navy-700` 后，该正则在**浅色态同样为真**（子串命中变体名内部），C3 从此不携带任何信息。表面上「原测试由 2 failed 转 0 failed」，实际只有一条载荷断言真的转绿。规律：修复走了与原实现不同的形态时，不得仅以「原测试转绿」作为缺陷消除的证据，须先做断言强度审查（尤其子串/正则类断言），并补 discriminating 反向断言（如「浅色态该断言应为假」）。
+
+**建议写入：** `framework/patterns/audit-methodology.md`（断言强度审查）或 `framework/harness/evaluator.md` 复验章节
+
+**状态：** 待确认
+
+## [2026-07-22] Andy/Evaluator-reverify — 来源：P2-CLEANUP F003 探针保真度
+
+**类型：** 新规律
+
+**内容：** **合成节点探针证明不了组件真把 className 落到了 DOM。** Generator 的 F003 探针用 `<div class="${从源码正则提取的类名}">` 验证 CSS 变体行为——类名非硬编码这点是对的，但不渲染真实组件，故若 `Image` 吞掉 `className` 该探针仍会绿。规律：验证「组件 X 的样式在条件 Y 下生效」时，合成节点只能证明**样式规则**存在，必须另有一条挂载真实组件的路径才能证明**组件真的发出了它**。零引用组件（产品无路由可达）应建最小挂载 harness（esbuild 打包真实组件 + link 真实产物 CSS），而非退化为合成节点。
+
+**建议写入：** `framework/patterns/audit-methodology.md` 或 `framework/patterns/web-runtime-patterns.md`
+
+**状态：** 待确认

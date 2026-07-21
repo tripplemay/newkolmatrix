@@ -7,12 +7,10 @@
 
 'use client';
 
-import { MdGroups } from 'react-icons/md';
 import ChatBubble from 'components/common/ChatBubble';
 import HandoffCard from 'components/common/HandoffCard';
+import HandoffPanel from 'components/common/HandoffPanel';
 import PanelHeader from 'components/common/PanelHeader';
-import SectionLabel from 'components/common/SectionLabel';
-import SurfaceCard from 'components/common/SurfaceCard';
 import ExpertScope from 'components/copilot/ExpertScope';
 import KolResultCards from 'components/copilot/canvas/KolResultCards';
 import { personaBoundary } from 'lib/agent/registry';
@@ -20,6 +18,8 @@ import { CANVAS_FIXTURE, HANDOFF_FIXTURE } from './fixture';
 
 // FE-REFACTOR F003：删除手抄克隆体，改用生产同一呈现组件 common/HandoffCard + 夹具 props
 //（collapsible=false + defaultOpen 保持静态展开形态，像素确定）。
+// P2-CLEANUP F004：容器 chrome 也改用生产同一外壳 common/HandoffPanel（BL-FE-14）。
+// 由此夹具的虚线框对齐生产口径——此前它无 border-dashed，基线守的不是生产实际外观。
 function StaticHandoffCard() {
   const from =
     personaBoundary(HANDOFF_FIXTURE.fromAgent)?.name ??
@@ -27,11 +27,7 @@ function StaticHandoffCard() {
   const to =
     personaBoundary(HANDOFF_FIXTURE.toAgent)?.name ?? HANDOFF_FIXTURE.toAgent;
   return (
-    <SurfaceCard className="p-3">
-      <SectionLabel className="mb-2">
-        <MdGroups size={15} className="text-brand-500" />
-        协同交接 · 多 Agent 联动 · 点开看交接
-      </SectionLabel>
+    <HandoffPanel>
       <HandoffCard
         fromName={from}
         toName={to}
@@ -41,7 +37,7 @@ function StaticHandoffCard() {
         collapsible={false}
         defaultOpen
       />
-    </SurfaceCard>
+    </HandoffPanel>
   );
 }
 

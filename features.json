@@ -114,7 +114,7 @@
       "title": "创作者库页（KPI + chips + DataTable + 详情抽屉）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "/admin/creators：KPI + 筛选 chips + DataTable 列表 + 详情抽屉（Chakra Drawer）；深字段经契约层（null→待接入 + ProvenanceTag）；按 spec §creators 4 段清单；lint+tsc 绿",
       "description": "kimi §6.1，常驻匹配 Agent。"
     },

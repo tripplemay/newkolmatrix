@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1784660016024" clover="3.2.0">
-  <project timestamp="1784660016024" name="All files">
-    <metrics statements="59" coveredstatements="59" conditionals="66" coveredconditionals="63" methods="11" coveredmethods="11" elements="136" coveredelements="133" complexity="0" loc="59" ncloc="59" packages="2" files="2" classes="2"/>
+<coverage generated="1784660469839" clover="3.2.0">
+  <project timestamp="1784660469839" name="All files">
+    <metrics statements="87" coveredstatements="86" conditionals="93" coveredconditionals="89" methods="20" coveredmethods="20" elements="200" coveredelements="195" complexity="0" loc="87" ncloc="87" packages="2" files="3" classes="3"/>
     <package name="data">
       <metrics statements="24" coveredstatements="24" conditionals="24" coveredconditionals="22" methods="3" coveredmethods="3"/>
       <file name="provenance.ts" path="/Users/yixingzhou/project/newkolmatrix/src/lib/data/provenance.ts">
@@ -33,7 +33,38 @@
       </file>
     </package>
     <package name="domain">
-      <metrics statements="35" coveredstatements="35" conditionals="42" coveredconditionals="41" methods="8" coveredmethods="8"/>
+      <metrics statements="63" coveredstatements="62" conditionals="69" coveredconditionals="67" methods="17" coveredmethods="17"/>
+      <file name="env-guards.ts" path="/Users/yixingzhou/project/newkolmatrix/src/lib/domain/env-guards.ts">
+        <metrics statements="28" coveredstatements="27" conditionals="27" coveredconditionals="26" methods="9" coveredmethods="9"/>
+        <line num="55" count="24" type="stmt"/>
+        <line num="56" count="31" type="stmt"/>
+        <line num="63" count="440" type="stmt"/>
+        <line num="74" count="65" type="stmt"/>
+        <line num="75" count="65" type="stmt"/>
+        <line num="76" count="65" type="cond" truecount="4" falsecount="0"/>
+        <line num="77" count="63" type="stmt"/>
+        <line num="87" count="35" type="cond" truecount="2" falsecount="0"/>
+        <line num="88" count="1" type="stmt"/>
+        <line num="90" count="34" type="stmt"/>
+        <line num="91" count="34" type="cond" truecount="2" falsecount="0"/>
+        <line num="94" count="33" type="cond" truecount="2" falsecount="0"/>
+        <line num="95" count="22" type="stmt"/>
+        <line num="108" count="17" type="cond" truecount="4" falsecount="1"/>
+        <line num="111" count="0" type="stmt"/>
+        <line num="114" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="117" count="5" type="stmt"/>
+        <line num="120" count="4" type="stmt"/>
+        <line num="123" count="4" type="stmt"/>
+        <line num="134" count="20" type="cond" truecount="2" falsecount="0"/>
+        <line num="135" count="1" type="stmt"/>
+        <line num="137" count="19" type="stmt"/>
+        <line num="138" count="19" type="cond" truecount="2" falsecount="0"/>
+        <line num="139" count="17" type="stmt"/>
+        <line num="144" count="23" type="stmt"/>
+        <line num="145" count="23" type="cond" truecount="4" falsecount="0"/>
+        <line num="146" count="20" type="stmt"/>
+        <line num="154" count="53" type="cond" truecount="2" falsecount="0"/>
+      </file>
       <file name="health.ts" path="/Users/yixingzhou/project/newkolmatrix/src/lib/domain/health.ts">
         <metrics statements="35" coveredstatements="35" conditionals="42" coveredconditionals="41" methods="8" coveredmethods="8"/>
         <line num="22" count="1" type="stmt"/>

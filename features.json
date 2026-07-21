@@ -42,7 +42,7 @@
       "title": "domain/env-guards.ts — 环节流转守卫 + 变异测试",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "新建 src/lib/domain/env-guards.ts，具名导出 canEnter() / canAdvance()（形态同 D7）；返回结构按 D8 = {allowed:boolean, reason:EnvGuardReason|null}，EnvGuardReason 为字符串字面量联合，不得是自由文本、不得是 i18n key（依据 ADR-16 三处复用：自由文本无法在工具层做分支，i18n key 会把展示层耦合进领域层；文案映射留展示层归 M1-B）；守卫条件按 architecture.md:483-489 五条；依赖表未建的三条按 D9 保守拒绝——→reach 依赖 MatchPlan（M2 建表）、→delivery 与 →insight 依赖 Deal（M3 建表），这三条一律返回 {allowed:false, reason:'DEPENDENCY_NOT_IMPLEMENTED'}，绝不返回 true（返回 true 即假守卫，正是 PRD :129 点名的反模式「只有文案的阶段门」；该 reason 须与真实业务拒绝理由可区分，供 M2/M3 逐条替换时能 grep 到）；维护 D2 双值不变量 curIdx <= maxReachedIdx 且 maxReached 单调不减；tests/unit/env-guards.test.ts + 变异测试（D20 要求守卫/闸门/状态机类必配，断言验行为不验源码关键字）——须证明检测器活性：把不变量反转后测试必须翻红（框架 v1.0.6 纪律）；D9 三条 DEPENDENCY_NOT_IMPLEMENTED 逐条实测返回 false，不得有任一条返回 true；lint + tsc 绿",
       "description": "spec §2 F005。architecture.md:481 标注游标守卫为演进目标归 M1，:563 要求页面与工具层双重执行（本批只做服务端半边，页面半边归 M1-B）。"
     },

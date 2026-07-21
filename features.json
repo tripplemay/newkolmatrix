@@ -42,7 +42,7 @@
       "title": "CreatorDrawer 入视觉基线 + 单次重生（必须最后）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "tests/visual/ 新增 CreatorDrawer 开启态基线（route mock 固定夹具，沿 ARCH-M05 F017 范式）；必须配 waitFor(关键文案) 硬断言（框架 v1.0.6 web-runtime-patterns §4.3），验证方式=临时抽掉 mock 数据应硬失败，不得把空白静默固化为合法基线；F001-F004 全部合入后单次重生全部基线（--update-snapshots=all，v1.0.6 §4.2；linux 基线经 CI 重生）；断言阈值维持 ARCH-M05 F017 收紧口径，不得为让基线过关而放宽；本地 test:visual 全绿 + CI visual 绿；fe-audit 三脚本无回归（复跑前按 v1.0.6 检测器活性证明自证脚本未死）",
       "description": "额外项（用户 2026-07-21 确认）+ 批末安全网。该抽屉此前 visual 与交互零覆盖，正是 BL-FE-15 能活到现在的原因。"
     }

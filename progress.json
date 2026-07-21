@@ -1,12 +1,12 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "P2-CLEANUP：清空需求池三条 P2（BL-FE-15 创作者抽屉遮罩点击关闭 / BL-FE-12 深色持久化 / BL-FE-14 抽 HandoffPanel 且夹具对齐生产）+ 两项勘查暴露的缺口（Avatar colorMode 脱节、CreatorDrawer 零回归覆盖）。5 features 全 generator，为 M1 BRIEF-CAMPAIGNS 让出干净起点。",
   "total_features": 5,
-  "completed_features": 4,
+  "completed_features": 5,
   "fix_rounds": 0,
   "current_sprint": "P2-CLEANUP",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-21T23:40",
+  "last_updated": "2026-07-22T00:15",
   "reference_docs": [
     "docs/specs/P2-CLEANUP-spec.md",
     "docs/dev/architecture.md",
@@ -28,6 +28,6 @@
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "P2-CLEANUP planning 完成（2026-07-21），status=building。前置：ARCH-M05 done 收尾全闭环——framework v1.0.6 沉淀 13 条 learnings（视觉回归三静默坑 + Tailwind JIT 双域 token + 新建 patterns/audit-methodology.md + orchestration §4.1 resume 兜底 + evaluator/planner role-context 三节，commit 037126e）；harness-fit P0-3/P1-1~3/P2-1~5 用户三度裁决继续挂起。另补提了 ARCH-M05 遗漏的验收探针 scripts/test/arch-m05-shell-probe.mjs（1384951）。本批 planning 关键：一次只读 Explore 勘查推翻两条池内描述——(1) BL-FE-14「逐字重复」实测仅 3 行且两处有 3 处真实分叉（border-dashed / stage 三元 / flex 容器）+ HandoffCard 11vs5 props 差集，且 /preview/agent-canvas 是视觉夹具不是产品页，用户裁决「两件都做」故抽象与夹具对齐合并为 F004 单条（拆两条会互相打架）；(2) BL-FE-12 因 AppWrappers NoSSR(ssr:false) 全站无 SSR 首屏，cookie/SSR 方案零收益 → localStorage + pre-paint 内联脚本。BL-FE-15 根因已定位到 CreatorDrawer.tsx:313 containerProps 只透传 zIndex（无 ChakraProvider → $100vh 不解析 → container 高度塌 0 → closeOnOverlayClick 点击区消失），首选补 height 而非照搬 FIX-4 scrim。用户另确认纳入两项额外工作：Avatar Chakra colorMode 脱节（F003）+ CreatorDrawer 零回归覆盖（F005）。串行约束 D8：F002→F003 同域须串行，F005 必须最后。下一站仍是 M1 BRIEF-CAMPAIGNS。"
+    "Andy": "P2-CLEANUP building 完成 5/5，status=verifying（2026-07-21）。串行实装（未并行：worktree 隔离需各自 npm install + 独立 standalone build 才能跑 lint/tsc/浏览器实测，协调成本高于收益，符合 orchestration §3）。关键实物：F001 根因经浏览器量化坐实——.chakra-modal__content-container 实测 height=0px/width=1440/z-110，$100vh 无 theme 不解析，onOverlayClick 挂在该容器上故点击区整块消失；采纳 D3 修法①（containerProps.style 补 height:'100vh'），未退 FIX-4 scrim。F002 键 kolmatrix.colorMode / 'light'|'dark'，pre-paint 内联脚本落在 <body> 内（Next 会在其前插一个 hidden div，不影响执行时机）。F003 走了 pre-impl 审计：勘查发现 Avatar 全仓零引用 + borderColor 从不产出样式（Image 是纯 div 包装），用户裁决 C（换状态源 + 修边框通道）；实装未动 Image.tsx——缺陷在 Avatar 发错通道，从 Avatar 侧改发 className 即达成，偏离已在审计文档 §4.2 记录待确认。F004 两侧 chrome class 现逐字相同，夹具获得 border-dashed。F005 活性证明已做（置 creator=null 后 waitFor 硬失败）。四条回归探针落在 scripts/test/p2-cleanup-f00{1,2,3,4}-*.mjs，均需 standalone 前置（已写进脚本头）。遗留待 Evaluator 留意：agent-canvas/creator-drawer 两张 linux 基线尚未在 CI 重生。"
   }
 }

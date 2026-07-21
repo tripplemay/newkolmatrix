@@ -24,7 +24,7 @@
       "title": "Avatar colorMode 脱节修复（统一到 body.dark 单一状态源）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "src/components/image/Avatar.tsx 改读项目统一状态源 hooks/useColorMode（现 :2 引 @chakra-ui/system 自带 useColorMode，:19/29 决定 borderColor，无 ChakraProvider 故与 body.dark 互不相通）；不得引入 ChakraProvider，chakra() 包装保留；深色下 Avatar 边框跟随；浅色态与改造前像素一致；lint + tsc 绿",
       "description": "额外项（用户 2026-07-21 确认）。不修则等于持久化一个半坏的深色。依赖 F002 的统一状态源，须在 F002 之后（D8）。"
     },

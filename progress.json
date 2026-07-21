@@ -1,33 +1,34 @@
 {
-  "status": "planning",
+  "status": "building",
   "user_goal": "M1-A BRIEF-CAMPAIGNS 首批（纵切 project+brief）：最小域打通「schema → domain/ 纯函数 → API → 页面接真数据」整条纵线，vitest 作为副产品立起；验证 ARCH-M05 mock 契约层能否平滑换真数据。顺带清掉需求池 BL-FE-16/17（image/ 模板残留）。knowledge 域 / 例程调度器 / 雷达聚合照此范式留后续批次。",
-  "total_features": 0,
+  "total_features": 6,
   "completed_features": 0,
   "fix_rounds": 0,
   "current_sprint": "M1-A-BRIEF",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-22T05:00",
+  "last_updated": "2026-07-22T06:00",
   "reference_docs": [
-    "docs/specs/P2-CLEANUP-spec.md",
+    "docs/specs/M1-A-BRIEF-spec.md",
     "docs/dev/architecture.md",
     "docs/dev/agent-architecture.md",
-    "docs/dev/template-port-guide.md",
-    "docs/dev/template-inventory.md",
-    "design-draft/horizon-tokens.md",
+    "docs/product/KOLMatrix-PRD.md",
     "framework/patterns/web-runtime-patterns.md",
     "framework/patterns/testing-env-patterns.md",
-    "docs/test-reports/ARCH-M05-signoff-Andy-evaluator-subagent.md"
+    "framework/patterns/audit-methodology.md",
+    "framework/patterns/database-patterns.md",
+    "docs/test-reports/P2-CLEANUP-signoff.md"
   ],
   "docs": {
-    "spec": null,
+    "spec": "specs/M1-A-BRIEF-spec.md",
     "test_cases": null,
     "signoff": null,
-    "framework_reviewed": false
+    "framework_reviewed": true
   },
   "role_assignments": null,
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "M1-A-BRIEF planning 启动（2026-07-22）。前批 P2-CLEANUP 已 done + 上线 + 用户验收通过；framework 已升 v1.0.7（4 条 learnings 落地）。用户两条裁决：(1) M1 拆批走「先纵切一条 project+brief」——最小域打通整条纵线、风险前置验证 mock 契约层可否平滑换真数据，knowledge/例程/雷达后续照抄范式；(2) BL-FE-16/17（image/ 模板残留）并入本批顺手清掉。起草前已按 v1.0.7 新规则派两路只读勘查：目标态规格（architecture §5.2/§5.4/§7/§10.1 + ADR-16/18/22 + M1 欠账清单）与代码实物（项目页渲染链路 / mock 契约层字段级消费点 / API 现状 / schema / 测试现状 / image 传递可达性）。注意本批是项目首次引入 vitest 与 domain/ 层，属地基性决策，spec 需明确签名约定与目录规范。"
-  }
+    "Andy": "【M1-A-BRIEF 交接给新会话 · 慢车道 · 2026-07-22】\nplanning 已完成，status=building，spec 与 features.json 均已落盘推远端。新会话请先 git pull --ff-only origin main。\n\n■ 本批是什么：M1 官方清单（project+brief+knowledge 三域 + 游标守卫 + 知识管道 + 健康度 + 雷达 + 例程调度 + domain 层 + vitest）\n是 3-4 批的量。用户裁决先纵切 project+brief，本批 M1-A 只做该纵线的【地基与领域层】6 条，页面接真数据留 M1-B。\n本批要回答的不是「健康度算法怎么写」，而是「这条纵线的地基形态定得对不对」——domain 签名约定 / cur 持久化形态 /\n数据通道 / 单测组织。定错了 knowledge、match、reach 三个域会跟着歪。\n\n■ 用户四条裁决（spec §3 D1-D4，不得自行改动）：\n  D1 范围=地基+领域层 6 条；D2 cur 存双值 cur+maxReached（非我建议的单值，用户要回退能力）；\n  D3 数据通道走 RSC 直读并顺带拆 NoSSR（故本批不建 api/envelope.ts 信封、不开 /api/projects REST 面）；\n  D4 环节推进写 OperationLog。\n\n■ Planner 拍板 8 处（spec §3 D5-D12，文档未覆盖，Generator 严格照此实装）。最需注意四条：\n  D6 health 不建 DB 列（是 health.compute 产物，建列=固化成可漂移的第二真相，违反 DP-6）；goal jsonb 不含预算\n     （架构 :462 简写让预算在 goal 与 budgetTotal 两处出现，本 spec 收敛为单一真相）\n  D9 依赖表未建的三条守卫保守拒绝返回 DEPENDENCY_NOT_IMPLEMENTED，绝不返回 true——返回 true 即假守卫，\n     正是 PRD :129 点名的反模式「只有文案的阶段门」。五条守卫本批只有 →brief 与 →match 真正可判\n  D8 守卫返回 {allowed, reason}，reason 是字面量联合（非自由文本、非 i18n key），依据 ADR-16 三处复用\n  D5 不加 status 列（架构列了但未定义取值语义，加语义未定的字段是负债）\n\n■ 勘查暴露的三条关键实物（spec §1.1，均已核到文件:行）：\n  1) brief 面根本没按项目分流——env-brief.ts:160 是三元 getMockProject(id)?canonicalBrief:emptyBrief，\n     四个项目拿同一对象引用（全是 xg 星轨协议数据）。线上现存真 bug（mf?env=brief 头部与面内数据打架）。\n     本批不修（属 M1-B 页面层），F004 的 health.compute 是其分流点。\n  2) 单测框架实际为零——@types/jest ^25 是 CRA 遗留（无 jest 本体/配置/测试文件），@testing-library 三件全仓零 import。\n     故 F001 的摘除是清理不是降级。现成样板 scripts/test/provenance-smoke.ts（唯一纯函数单测，未进 CI）。\n  3) 全站 AppWrappers 包 NoSSR(ssr:false) 无 SSR 首屏——D3 的 RSC 直读若不先拆 NoSSR 则零收益，故有 F002。\n\n■ F002 是本批唯一高风险项，验收口径比别的严：\n  「删掉那行 NoSSR」和「真的恢复了 SSR」是两回事，须 curl 六页确认首屏 HTML 含实际内容而非空壳。\n  实际审查面只有 6 个活文件（另 4 个是 D6 死代码），四个 ApexCharts 组件已各自 dynamic(ssr:false) 不受影响。\n  P2-CLEANUP 回归红线：p2:f001/f002/f004 三条探针全绿 + 深色刷新无浅色闪烁肉眼确认（pre-paint 脚本在 SSR 下仍须生效）。\n  13 张视觉基线期望零漂移，有漂移须逐处对账不得直接重生（v1.0.6 §4.2）。\n\n■ 环境与前置：\n  UI 实测一律 standalone 不走 next dev（testing-env-patterns §7）；三条 p2 探针须先起 standalone 并 export BASE。\n  线上跑 P2-CLEANUP 版 @ 0c36fc2f24395be5bbf9af60a0cf4342dde057be（用户已验收通过）。\n  deploy 的 image_tag 必须填完整 40 位 SHA，短 SHA 会 pull 失败（本会话踩过，已记 environment.md）。\n  F003 迁移须能回滚到该 SHA 的代码（D12），本地实测不得只靠 prisma validate。\n\n■ 顺延事项：BL-FE-16/BL-FE-17（image/ 模板残留）用户原定并入 M1，D1 收窄范围后顺延 M1-B，需求池条目保留。\n  api/envelope.ts 信封本批不做但仍欠（现有 5 路由已 4 种形状），见 spec §5。\n\n■ 框架版本 v1.0.7（本会话刚沉淀 4 条）。与本批直接相关：audit-methodology §5 断言退化为恒真、§6 合成节点探针\n  保真度、pre-impl-adjudication §2.1 新增「消费点不存在/属性不生效」两条触发条件。"
+  },
+  "lane": "slow"
 }

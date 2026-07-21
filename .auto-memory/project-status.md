@@ -4,11 +4,11 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **P2-CLEANUP done ✅ 且已上线用户验收通过（2026-07-22）** — 5/5 PASS，fix_rounds=1；signoff `docs/test-reports/P2-CLEANUP-signoff.md`；用户线上逐条验收「通过」（`docs/test-reports/user_report/P2-CLEANUP-线上验收说明.md`）
-- **交付：** F001 抽屉遮罩关闭（根因实测 container height=0px，`containerProps.style` 补 100vh）· F002 深色持久化（`kolmatrix.colorMode` + pre-paint 内联脚本）· F003 Avatar 边框跟随（改用 Tailwind `dark:` 变体）· F004 抽 `common/HandoffPanel`，夹具对齐生产 · F005 CreatorDrawer 入基线
-- **fix_round1 教训：** F003 首版按 acceptance 字面「改读 hooks/useColorMode」实装 → 判 PARTIAL。该 hook 每调用点独立 state、零跨实例订阅，纯读取方活体切换不跟随。改用 `dark:` 变体（项目主导范式，84 文件）绕开
-- **回归资产：** `npm run p2:f001~f004`（浏览器探针须先起 standalone 并 `export BASE`）+ `tests/visual/creator-drawer.spec.ts` + evaluator 两套独立 harness（`scripts/test/f003-harness/`、`f003-reverify/`）
-- **上一批 ARCH-M05 done ✅** — M0.5 六页工作台，已部署 live（钉 SHA `d5256a8`）
+- **M1-A-BRIEF building 🔨（2026-07-22 起）· 慢车道** — 6 features 全 generator；spec `docs/specs/M1-A-BRIEF-spec.md`
+- **定位：** M1 官方清单是 3-4 批的量，用户裁决先纵切 project+brief，本批只做该纵线的**地基与领域层**，页面接真数据留 M1-B
+- **范围：** F001 vitest 地基 + CRA 残留清理 · **F002 拆 NoSSR 恢复 SSR（最高风险）** · F003 Project schema 扩展 + expand-contract 迁移 · F004 `domain/health.ts` · F005 `domain/env-guards.ts` + 变异测试 · F006 环节推进写 OperationLog
+- **用户四裁决：** cur 存双值 cur+maxReached · 环节推进写 OperationLog · 数据通道走 RSC 直读（顺带拆 NoSSR，故本批不做 API 信封）· 范围收窄为 6 条
+- **上一批 P2-CLEANUP done ✅** — 5/5 PASS，已上线且用户线上验收通过
 
 ## 已上线
 - `https://newkol.guangai.ai` 当前跑 **P2-CLEANUP 版 @ `0c36fc2f24395be5bbf9af60a0cf4342dde057be`**（2026-07-22 部署，线上 7 探针确证）；回滚=deploy-prod 填上一版 **完整 SHA** `d5256a8...`（ARCH-M05 版）

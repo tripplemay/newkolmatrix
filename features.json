@@ -1,50 +1,59 @@
 {
-  "sprint": "P2-CLEANUP",
+  "sprint": "M1-A-BRIEF",
   "features": [
     {
       "id": "F001",
-      "title": "创作者抽屉遮罩点击关闭（BL-FE-15）+ 文件头注释改真",
+      "title": "vitest 地基 + CRA 模板残留清理",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "按 spec D3 修法优先级恢复 CreatorDrawer 遮罩点击关闭：①首选 containerProps.style 补高度（根因=无 ChakraProvider 致 $100vh 不解析、.chakra-modal__content-container 高度塌 0、closeOnOverlayClick 点击区消失；className 通道已被 :308-312 注释自证不可用），②不生效再退 FIX-4 自写 scrim（CopilotPanel.tsx:306-334 为参照），两套不得并存；同 commit 改真文件头 :3 假陈述「Esc + 遮罩关闭为 Drawer 自带」并写明最终采纳哪条修法；不得引入 ChakraProvider；现存三条关闭路径（X 钮 :328-335 / Esc :303 / dw-foot :673-685）不得回归；关闭后不残留遮挡层；lint + tsc 绿",
-      "description": "BL-FE-15。根因已在 planning 勘查中定位到 CreatorDrawer.tsx:313 containerProps 只透传 zIndex。"
+      "status": "pending",
+      "acceptance": "装 vitest + @vitest/coverage-v8 + vite-tsconfig-paths；建 vitest.config.ts（environment:'node'；include:['tests/unit/**/*.test.ts','tests/integration/**/*.test.ts']；coverage:{provider:'v8', include:['src/lib/**'], thresholds:{lines:80}}，配置口径见 architecture.md:1648-1660）；package.json 补 test:unit 脚本并接入 CI workflow 与 lint/typecheck 同级（验收须核 CI 实际跑了该步，不能只看 package.json 有 script）；摘除 CRA 模板残留——@types/jest（dependencies :57 与 devDependencies :97 各一处，共 2 处）+ @testing-library/{jest-dom,react,user-event}（:54-56）+ eslintConfig 段（:126-131），摘除前须 grep 实证全仓零引用；把 scripts/test/provenance-smoke.ts:42-190 改写为 tests/unit/provenance.test.ts（vitest 断言，覆盖 readContractSlot 三态 / isPendingVerification / resolveProvenance 三级回退）作为首个样板，原脚本删除；不做 jsdom 组件单测（architecture.md:1670：已装 @testing-library/react ^13 与 React 19 不兼容，组件正确性由 Playwright 兜底）；lint + tsc 绿",
+      "description": "spec §2 F001。勘查确认项目单测框架实际为零——@types/jest ^25 是 CRA 遗留（无 jest 本体/无配置/无测试文件），@testing-library 三件全仓零 import，故摘除是清理不是降级。"
     },
     {
       "id": "F002",
-      "title": "深色模式持久化（BL-FE-12）— localStorage + pre-paint 内联脚本",
+      "title": "拆 NoSSR → 恢复 SSR（D3 RSC 直读的前置）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "useColorMode 增持久层（setDark/toggle 写入 localStorage，挂载读回）；src/app/layout.tsx 的 <body> 首子节点补 pre-paint 内联脚本，paint 前置 body.dark 消除闪烁；键名与取值按 D1（建议 kolmatrix.colorMode / 'light'|'dark'）并在 commit message 记录；缺省/损坏值一律回落浅色（默认不变，不动现有浅色基线）；死代码 Configurator/RTL/FixedPlugin 不碰（D6）；实测：切深色→刷新仍深色、切浅色→刷新仍浅色、清 localStorage 或写损坏值→回落浅色、刷新无浅色闪烁；lint + tsc 绿",
-      "description": "BL-FE-12。勘查确认全站 NoSSR(ssr:false) 无 SSR 首屏，故不走 cookie/SSR 方案；本批是项目第一处持久化。"
+      "status": "pending",
+      "acceptance": "AppWrappers.tsx:20-22 移除 NoSSR(ssr:false) 包装，全站恢复服务端渲染；spec §1.2 列出的 6 个活文件逐个 SSR-safe 化（components/dropdown/index.tsx、components/common/HalfGauge.tsx、app/AppWrappers.tsx、app/layout.tsx、hooks/useColorMode.ts、hooks/useMediaQuery.ts），手法为 typeof window === 'undefined' 守卫 / 移入 useEffect / 必要时局部 dynamic(ssr:false)；D6 四个死代码文件（navbar/RTL.tsx、navbar/Configurator.tsx、fixedPlugin/FixedPlugin.tsx、rtlProvider/RtlProvider.tsx）不碰；四个 ApexCharts 组件不需改（charts/{LineArea,Line,Pie,Bar}Chart.tsx:4 各自已 dynamic ssr:false）；实证要求——六个 admin 页 curl 首屏 HTML 须含实际内容而非空壳（这是「真的恢复了 SSR」的证据，非「代码里删了那行」）；浏览器控制台零 hydration mismatch 警告（桌面+移动两视口 × 六页实测，非推断）；P2-CLEANUP 回归红线不得破——npm run p2:f001 / p2:f002 / p2:f004 三条探针全绿（须先起 standalone 并 export BASE），且深色刷新无浅色闪烁需肉眼确认（layout.tsx 的 pre-paint 内联脚本在 SSR 下仍须 paint 前置 body.dark）；13 张视觉基线期望零漂移，若有漂移须逐处对账并说明成因，不得直接重生（框架 v1.0.6 §4.2）；lint + tsc 绿",
+      "description": "spec §2 F002。本批最高风险项。勘查发现全站 AppWrappers 包 NoSSR 故无 SSR 首屏，D3 裁决的 RSC 直读通道若不先拆则零收益。实际审查面比预估小——图表已各自处理。"
     },
     {
       "id": "F003",
-      "title": "Avatar colorMode 脱节修复（统一到 body.dark 单一状态源）",
-      "priority": "medium",
+      "title": "Prisma schema 扩展 Project + expand-contract 迁移 + seed",
+      "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "src/components/image/Avatar.tsx 改读项目统一状态源 hooks/useColorMode（现 :2 引 @chakra-ui/system 自带 useColorMode，:19/29 决定 borderColor，无 ChakraProvider 故与 body.dark 互不相通）；不得引入 ChakraProvider，chakra() 包装保留；深色下 Avatar 边框跟随；浅色态与改造前像素一致；lint + tsc 绿",
-      "description": "额外项（用户 2026-07-21 确认）。不修则等于持久化一个半坏的深色。依赖 F002 的统一状态源，须在 F002 之后（D8）。"
+      "status": "pending",
+      "acceptance": "按 spec D5 给 Project 加列：gameId String? + FK→Game.id、goal Json?、budgetTotal Decimal?、currency String?、market String?、cur Stage enum 默认 brief、maxReached Stage enum 默认 brief；不加 status 列（D5：架构列了但未定义取值语义）；不加 health 列（D6：它是 health.compute 产物，建列即固化成可漂移的第二真相，违反 DP-6）；goal jsonb 形状按 D6 = {targetExposure:number, periodStart:string, periodEnd:string}，不含预算（预算单一真相在 budgetTotal + currency），配 zod schema 落 src/lib/data/schemas/（architecture.md:655 登记的演进目录，本批首次落地）；expand-contract 迁移（architecture.md:938）——新列一律 nullable 或带默认，不得加 NOT NULL 无默认列；通用列约定遵 architecture.md:646-655（String @id @default(cuid())、无 @map/@@map、createdAt @default(now())）；seed 四个 canonical 项目 xg/lc/aw/mf 落库，取值与 mock/projects.ts:36-81 逐字一致；npm run db:migrate 本地跑通且幂等重跑不报错；回滚验证——生产当前 IMAGE_TAG 对应代码（0c36fc2f24395be5bbf9af60a0cf4342dde057be）跑在新 schema 上不崩（D12，须实测不得只靠 prisma validate）；lint + tsc 绿",
+      "description": "spec §2 F003。勘查确认 Project 现仅 6 列，mock 在用的 market/budget/goal/health/cur/game 在 DB 里一个都没有，且 Project 与 Game 无关联字段。"
     },
     {
       "id": "F004",
-      "title": "抽 HandoffPanel + 夹具对齐生产（BL-FE-14，两件合一）",
-      "priority": "medium",
+      "title": "domain/health.ts — 健康度纯函数",
+      "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "抽 common/HandoffPanel.tsx 承载容器 chrome（SurfaceCard + SectionLabel + MdGroups + 标签文案），生产 HandoffCollab.tsx:72-79 与夹具 preview/agent-canvas/page.tsx:29-34 共用；抽象必须显式容纳三处分叉（border-dashed / stage 三元文案 /多卡 flex 容器）作为 props 或变体，不得靠夹具将就；夹具 border-dashed 经此对齐生产口径（本 feature 的回归价值）；两处重复导入 MdGroups/SectionLabel/SurfaceCard 随之收敛；HandoffCard 11 props 全路径不退化；预期改动 agent-canvas.png，基线由 F005 统一重生；lint + tsc 绿",
-      "description": "BL-FE-14。用户裁决「两件都做」；抽象与夹具对齐合并为单条——拆两条会让「夹具偏离生产」与「夹具跟随生产」在同批次内互相打架（D4）。"
+      "status": "pending",
+      "acceptance": "新建 src/lib/domain/health.ts，按 spec D7 用 kebab-case 文件名 + 具名导出（不用 namespace object；架构 :525 表格的 health.compute 点号是注册表标签不是模块路径，实装对齐项目惯例 lib/agent/stage-routing.ts）；导出 computeHealth() + HEALTH_WEIGHTS + HEALTH_THRESHOLDS 常量；算法按 PRD :373 加权（目标达成度·预算消耗率·时间进度·阻塞项数）→ 0-100，分档 >=80 达标 gd / 55-79 注意 wn / <55 风险 cr；权重与阈值必须是导出常量不得是函数体内魔数（PRD 原文「权重与阈值为示意，上线以真实数据校准」，验收会 grep 实证）；三态不得压成二态（mock/projects.ts:10-17 明令）；百分比与分档由同一函数产出、一一映射，不得两处各算；计算值不进契约位（D11：不走 readContractSlot，强类型直读）；tests/unit/health.test.ts 覆盖三档 + 两个分档边界 55/80 的两侧（如 54/55/56、79/80/81）+ 零阻塞/多阻塞 + 周期未开始/已结束 + 除零防护；lint + tsc 绿",
+      "description": "spec §2 F004。architecture.md:525 登记为 M1 交付、消费方 Brief 画布与雷达。本函数也是 M1-B 修 brief 面「四个项目共享同一份数据」bug 的分流点。"
     },
     {
       "id": "F005",
-      "title": "CreatorDrawer 入视觉基线 + 单次重生（必须最后）",
+      "title": "domain/env-guards.ts — 环节流转守卫 + 变异测试",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "tests/visual/ 新增 CreatorDrawer 开启态基线（route mock 固定夹具，沿 ARCH-M05 F017 范式）；必须配 waitFor(关键文案) 硬断言（框架 v1.0.6 web-runtime-patterns §4.3），验证方式=临时抽掉 mock 数据应硬失败，不得把空白静默固化为合法基线；F001-F004 全部合入后单次重生全部基线（--update-snapshots=all，v1.0.6 §4.2；linux 基线经 CI 重生）；断言阈值维持 ARCH-M05 F017 收紧口径，不得为让基线过关而放宽；本地 test:visual 全绿 + CI visual 绿；fe-audit 三脚本无回归（复跑前按 v1.0.6 检测器活性证明自证脚本未死）",
-      "description": "额外项（用户 2026-07-21 确认）+ 批末安全网。该抽屉此前 visual 与交互零覆盖，正是 BL-FE-15 能活到现在的原因。"
+      "status": "pending",
+      "acceptance": "新建 src/lib/domain/env-guards.ts，具名导出 canEnter() / canAdvance()（形态同 D7）；返回结构按 D8 = {allowed:boolean, reason:EnvGuardReason|null}，EnvGuardReason 为字符串字面量联合，不得是自由文本、不得是 i18n key（依据 ADR-16 三处复用：自由文本无法在工具层做分支，i18n key 会把展示层耦合进领域层；文案映射留展示层归 M1-B）；守卫条件按 architecture.md:483-489 五条；依赖表未建的三条按 D9 保守拒绝——→reach 依赖 MatchPlan（M2 建表）、→delivery 与 →insight 依赖 Deal（M3 建表），这三条一律返回 {allowed:false, reason:'DEPENDENCY_NOT_IMPLEMENTED'}，绝不返回 true（返回 true 即假守卫，正是 PRD :129 点名的反模式「只有文案的阶段门」；该 reason 须与真实业务拒绝理由可区分，供 M2/M3 逐条替换时能 grep 到）；维护 D2 双值不变量 curIdx <= maxReachedIdx 且 maxReached 单调不减；tests/unit/env-guards.test.ts + 变异测试（D20 要求守卫/闸门/状态机类必配，断言验行为不验源码关键字）——须证明检测器活性：把不变量反转后测试必须翻红（框架 v1.0.6 纪律）；D9 三条 DEPENDENCY_NOT_IMPLEMENTED 逐条实测返回 false，不得有任一条返回 true；lint + tsc 绿",
+      "description": "spec §2 F005。architecture.md:481 标注游标守卫为演进目标归 M1，:563 要求页面与工具层双重执行（本批只做服务端半边，页面半边归 M1-B）。"
+    },
+    {
+      "id": "F006",
+      "title": "环节推进写 OperationLog（北极星指标的唯一存处）",
+      "priority": "medium",
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "推进动作（cur 前进 / maxReached 抬升）落 domain/ 的推进函数，实现服务端强制那一半（architecture.md:563 要求页面与工具层双重执行，页面半边归 M1-B）；每次成功推进写一条 OperationLog，取值按 D10——kind 取现有枚举中语义最近者（实装时核 schema.prisma:160-165 实际枚举；若无合适值则本批不扩枚举、停下走 pre-impl 审计回补裁决），projectId 填（Handoff 已有 projectId String? 软引用先例），载荷记 {from,to,maxReachedBefore,maxReachedAfter}；守卫拒绝的推进不写日志、仅返回 reason；append-only 由应用层保证（DB 触发器是既有欠账 R14，不在本批）；tests/integration/env-advance.test.ts 覆盖三条——推进成功写一条、守卫拒绝零写入、maxReached 抬升幂等；lint + tsc 绿",
+      "description": "spec §2 F006 + D4 用户裁决。依据：北极星「操盘手杠杆」= 环节推进事件计数 × 周活（architecture.md:1695），而 ADR-21 明确不建 EventStore（:539）——不写就没有任何地方存，且永久不可补录。"
     }
   ]
 }

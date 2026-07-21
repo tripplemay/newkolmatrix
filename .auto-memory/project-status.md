@@ -15,7 +15,7 @@ type: project
 - M0 ✅ → **M0.5 ✅** → **M1 BRIEF-CAMPAIGNS（下一站）** → M2 MATCH → M3 REACH/DELIVERY → M4 INSIGHT → M5 PROD-HARDENING
 
 ## 需求池（backlog.json）
-- BL-FE-12 深色持久化（P2）· BL-FE-14 HandoffPanel 二次收敛（P2）· 待入池：MINOR-F013-1 创作者抽屉遮罩关闭（P2）
+- BL-FE-12 深色持久化（P2）· BL-FE-14 HandoffPanel 二次收敛（P2）· BL-FE-15 创作者抽屉遮罩关闭（P2，已入池）
 
 ## 关键技术坑（本批实战，proposed-learnings 待确认）
 - next dev 白屏（devtools segment-explorer × RSC manifest 冲突）→ **UI 实测一律 standalone**（INFO-1，两组独立踩中）

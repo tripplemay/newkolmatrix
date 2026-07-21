@@ -4,9 +4,9 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **ARCH-M05 done ✅（2026-07-21）** — 架构定稿 + M0.5 六页工作台，17/17（fix_rounds=1）；signoff `ARCH-M05-signoff`（§7 done 签收）
-- **交付：** `docs/dev/architecture.md` v1.2（kimi 基底 + f5 十条增量 + as-built 校准，工程落法权威）· 六页工作台（today/项目+五环节语法面/创作者库+34 元素抽屉/知识/洞察/记录，301 元素清单验收）· 三区外壳（侧栏 CTA/玻璃 navbar 指令栏/Copilot 编队+协同+动作卡）· mock 渲染契约层（provenance+ProvenanceTag 双 variant）· common 17 件 + admin/ port 约定首执行 · 视觉基线 12 页（紧阈值 1500px + CDN 字体本地夹具，抖动根治）· ?env= 全链迁移
-- **已部署 ✅（2026-07-21）**：M0.5 版本 live（用户授权，run 29822407758 钉 SHA `d5256a8`；线上确证 / 直指 today + M0.5 token 在线）
+- **P2-CLEANUP building 🔨（2026-07-21 起）** — 清空需求池三条 P2 + 两项勘查缺口，5 features 全 generator；spec `docs/specs/P2-CLEANUP-spec.md`
+- **范围：** F001 抽屉遮罩关闭（根因=无 ChakraProvider 致 container 塌 0）· F002 深色持久化（localStorage + pre-paint，全站 NoSSR 故不走 cookie）· F003 Avatar colorMode 脱节 · F004 抽 HandoffPanel 且夹具对齐生产 · F005 CreatorDrawer 入基线 + 单次重生（必须最后）
+- **上一批 ARCH-M05 done ✅** — 架构定稿 v1.2 + M0.5 六页工作台，17/17（fix_rounds=1），已部署 live（钉 SHA `d5256a8`）；framework v1.0.6 沉淀 13 条 learnings 已闭环
 
 ## 已上线
 - `https://newkol.guangai.ai` 当前跑 **ARCH-M05/M0.5 版 @ d5256a8**；回滚=deploy-prod 填 42d7d75（FE-REFACTOR 版）
@@ -15,7 +15,7 @@ type: project
 - M0 ✅ → **M0.5 ✅** → **M1 BRIEF-CAMPAIGNS（下一站）** → M2 MATCH → M3 REACH/DELIVERY → M4 INSIGHT → M5 PROD-HARDENING
 
 ## 需求池（backlog.json）
-- BL-FE-12 深色持久化（P2）· BL-FE-14 HandoffPanel 二次收敛（P2）· BL-FE-15 创作者抽屉遮罩关闭（P2，已入池）
+- **空** —— 三条 P2 已并入 P2-CLEANUP 批次（决策归档见该批 spec §1 表）
 
 ## 关键技术坑（本批实战，proposed-learnings 待确认）
 - next dev 白屏（devtools segment-explorer × RSC manifest 冲突）→ **UI 实测一律 standalone**（INFO-1，两组独立踩中）

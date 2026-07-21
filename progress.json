@@ -1,74 +1,33 @@
 {
-  "status": "done",
-  "user_goal": "ARCH-M05：架构文档定稿（ARCH-LOCK：kimi v1.1 基底 + f5 十条实现层增量 + as-built 六处校准，f5 归档/audits 入 git/CLAUDE.md 修复）+ M0.5 六页工作台（六入口路由收敛+三区外壳+mock 渲染契约+五环节语法面+四跨项目页，301 元素不得简化清单硬性，mock 先行验证 A6 canvas 方向）+ 视觉基线扩展与阈值收紧（BL-FE-13 收编）。17 features 全 generator。",
-  "total_features": 17,
-  "completed_features": 17,
-  "fix_rounds": 1,
-  "current_sprint": "ARCH-M05",
+  "status": "building",
+  "user_goal": "P2-CLEANUP：清空需求池三条 P2（BL-FE-15 创作者抽屉遮罩点击关闭 / BL-FE-12 深色持久化 / BL-FE-14 抽 HandoffPanel 且夹具对齐生产）+ 两项勘查暴露的缺口（Avatar colorMode 脱节、CreatorDrawer 零回归覆盖）。5 features 全 generator，为 M1 BRIEF-CAMPAIGNS 让出干净起点。",
+  "total_features": 5,
+  "completed_features": 0,
+  "fix_rounds": 0,
+  "current_sprint": "P2-CLEANUP",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-21T20:30",
+  "last_updated": "2026-07-21T21:30",
   "reference_docs": [
-    "docs/product/KOLMatrix-PRD.md",
-    "docs/audits/KOLMatrix-integrated-architecture-design-2026-07-17.md",
-    "docs/specs/AGENT-FOUNDATION-spec.md",
-    "docs/product/interaction-prototype-v2.html",
-    "docs/product/interaction-prototype-v2-落地规范.md",
-    "docs/product/ai-native-usage.md",
-    "docs/product/gap-product-layer.md",
-    "framework/patterns/web-runtime-patterns.md",
-    "docs/specs/FE-AUDIT-spec.md",
+    "docs/specs/P2-CLEANUP-spec.md",
+    "docs/dev/architecture.md",
+    "docs/dev/agent-architecture.md",
+    "docs/dev/template-port-guide.md",
+    "docs/dev/template-inventory.md",
     "design-draft/horizon-tokens.md",
-    "docs/test-reports/FE-AUDIT-report-Andy-evaluator-subagent.md",
-    "docs/specs/FE-REFACTOR-spec.md",
-    "docs/specs/ARCH-M05-spec.md",
-    "docs/specs/ARCH-M05-ui-inventory.md"
+    "framework/patterns/web-runtime-patterns.md",
+    "framework/patterns/testing-env-patterns.md",
+    "docs/test-reports/ARCH-M05-signoff-Andy-evaluator-subagent.md"
   ],
   "docs": {
-    "spec": "specs/ARCH-M05-spec.md",
+    "spec": "specs/P2-CLEANUP-spec.md",
     "test_cases": null,
-    "signoff": "test-reports/ARCH-M05-signoff-Andy-evaluator-subagent.md",
+    "signoff": null,
     "framework_reviewed": true
   },
   "role_assignments": null,
-  "evaluator_feedback": [
-    {
-      "feature": "F001",
-      "verdict": "PARTIAL",
-      "evaluator": "Andy/evaluator-subagent",
-      "round": "verifying",
-      "notes": "C1 as-built 10/10 PASS、C2 增量 10/10、schema 零差异、AI SDK 核查属实；C4 FAIL 3/4——CLAUDE.md:74 失效指针 docs/dev/rules.md（git 全史不存在）未修+[框架]占位符；C6 PARTIAL 批内反向漂移 3 处（851/862 溯源已实装仍标演进目标、587 组件计数 10→17、1770 env 读取点缺 provenance.ts）。FIX-1/FIX-2。报告 verify-A"
-    },
-    {
-      "feature": "F002",
-      "verdict": "PARTIAL",
-      "evaluator": "Andy/evaluator-subagent",
-      "round": "verifying",
-      "notes": "6 入口/7 redirect/无死链实测过；缺陷：src/app/page.tsx:3 根入口 redirect 到 legacy 桩三跳绕行（桩清理后 / 将 404），探针清单漏第 9 类。FIX-3=改直指 /admin/today+附录 A 补行。报告 verify-B"
-    },
-    {
-      "feature": "F003",
-      "verdict": "PARTIAL",
-      "evaluator": "Andy/evaluator-subagent",
-      "round": "verifying",
-      "notes": "S1 12/12+S2 12/12+S3 19/19、不重挂载、指令栏链路、AgentSquad 双 variant 全过；缺陷：移动端 Copilot 抽屉单向不可关（aside z-40 层叠倒置遮住 toggle、closeDrawer 零消费、无 scrim）。FIX-4=z 序恢复+scrim 点击关闭。报告 verify-B"
-    },
-    {
-      "feature": "F004-F017",
-      "verdict": "PASS",
-      "evaluator": "Andy/evaluator-subagent",
-      "round": "verifying",
-      "notes": "其余 14 条全 PASS：F004/F005（B 组）；F006/F007/F013-F016 六页 154/154 元素 207/208 断言（C 组）；F008-F012 五环节 95 元素浏览器实测含五类闸门逐字取证（D 组，6 处探针假警报自我勘误）；F017 基线 12 页+3 连跑 36/36+f010 6/6+token-scan 0（E 组）。签收有效，复验只针对 FIX-1~4+就绪回归。转派记录：D=A 路承担/E=B 路承担/汇总=C 路承担，均无实现上下文。MINOR-F013-1（抽屉遮罩关闭）与 MINOR-F007-1（agent-architecture.md ?stage= 措辞）不触发 fixing；INFO-1（next dev 白屏坑→UI 实测走 standalone）候选入 patterns。整批 signoff：ARCH-M05-signoff"
-    },
-    {
-      "feature": "FIX-1~4",
-      "verdict": "PASS",
-      "evaluator": "Andy/evaluator-subagent",
-      "round": "reverifying",
-      "notes": "复验 @ d5256a8：FIX-1 CLAUDE.md 全路径 ls 通过（三个非指针项豁免理由记录）；FIX-2 三处漂移+2 MINOR 与实物 grep 对账一致；FIX-3 / 一跳直达 today 浏览器实测；FIX-4 移动视口两条关闭路径实测（toggle 双向+scrim）、closeDrawer 真实消费、桌面不受影响；就绪回归 tsc/lint/visual 全绿。复验者自身 3 条探针误判（SVG 子节点命中/scrim 点击落点）诊断修正后复跑，不构成产品缺陷。整批终判 PASS 17/17，done 签收于 signoff §7。"
-    }
-  ],
+  "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "ARCH-M05 done(17/17,fix_rounds=1,2026-07-21)：verifying 五组 fan-out(14 PASS/3 PARTIAL)→fixing 四处定点(FIX-1 CLAUDE.md 指针/FIX-2 文档批内漂移/FIX-3 根入口三跳/FIX-4 移动抽屉不可关)→reverifying 全 PASS done 签收。编排事故与兜底:tmux 新建 pane 通路 ENXIO 故障(pty 未触顶,原因未明)→D/E/汇总/复验全部走已完成 agent 的 resume 转派,独立性均为「验收→验收」无自评,signoff §6 记录。遗留待 done 收尾:MINOR-F013-1(创作者抽屉遮罩关闭)入 backlog;proposed-learnings 候选=INFO-1 next dev 白屏走 standalone/CDN 字体本地夹具/JIT 静默丢 class/文档定稿批内新鲜度(FIX-2 教训:批内后续 feature 交付须刷新首 feature 定稿文档)/resume 通路兜底 pane 故障。M0.5 落成:六页工作台+五环节语法面+三区外壳全部 live-ready,mock 先行契约层就绪,A6 canvas 方向可实测体验。下一站:M1 BRIEF-CAMPAIGNS(kimi §14)。部署留人类闸门未执行。 部署:用户授权后触发 deploy-prod(run 29822407758,钉 SHA d5256a8)success;线上确证 M0.5:health 200+/ 直指 today(RSC 307)+CSS 含 navyGlass/brandSoft 6 处(M0.5 独有 token)。验证坑:多 CSS 文件须遍历+巨型 shell 变量会污染后续命令(用流式管道)。"
+    "Andy": "P2-CLEANUP planning 完成（2026-07-21），status=building。前置：ARCH-M05 done 收尾全闭环——framework v1.0.6 沉淀 13 条 learnings（视觉回归三静默坑 + Tailwind JIT 双域 token + 新建 patterns/audit-methodology.md + orchestration §4.1 resume 兜底 + evaluator/planner role-context 三节，commit 037126e）；harness-fit P0-3/P1-1~3/P2-1~5 用户三度裁决继续挂起。另补提了 ARCH-M05 遗漏的验收探针 scripts/test/arch-m05-shell-probe.mjs（1384951）。本批 planning 关键：一次只读 Explore 勘查推翻两条池内描述——(1) BL-FE-14「逐字重复」实测仅 3 行且两处有 3 处真实分叉（border-dashed / stage 三元 / flex 容器）+ HandoffCard 11vs5 props 差集，且 /preview/agent-canvas 是视觉夹具不是产品页，用户裁决「两件都做」故抽象与夹具对齐合并为 F004 单条（拆两条会互相打架）；(2) BL-FE-12 因 AppWrappers NoSSR(ssr:false) 全站无 SSR 首屏，cookie/SSR 方案零收益 → localStorage + pre-paint 内联脚本。BL-FE-15 根因已定位到 CreatorDrawer.tsx:313 containerProps 只透传 zIndex（无 ChakraProvider → $100vh 不解析 → container 高度塌 0 → closeOnOverlayClick 点击区消失），首选补 height 而非照搬 FIX-4 scrim。用户另确认纳入两项额外工作：Avatar Chakra colorMode 脱节（F003）+ CreatorDrawer 零回归覆盖（F005）。串行约束 D8：F002→F003 同域须串行，F005 必须最后。下一站仍是 M1 BRIEF-CAMPAIGNS。"
   }
 }

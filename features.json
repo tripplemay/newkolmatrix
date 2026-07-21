@@ -1,158 +1,50 @@
 {
-  "sprint": "ARCH-M05",
+  "sprint": "P2-CLEANUP",
   "features": [
     {
       "id": "F001",
-      "title": "架构文档定稿 v1.2（kimi 基底 + f5 十条增量 + as-built 校准）",
+      "title": "创作者抽屉遮罩点击关闭（BL-FE-15）+ 文件头注释改真",
       "priority": "high",
       "executor": "generator",
-      "status": "done",
-      "acceptance": "以 architecture_kimi.md(v1.1) 为基底定稿 docs/dev/architecture.md v1.2：并入 f5 十条实现层增量（spec §F001 清单，schema/API 以实物为准转录）；as-built 校准六处漂移（OperationLog 7 列 cuid/PendingAction 3 态/闸门单步 confirm+reject 无 execute 无 HMAC/append-only 触发器未落地转欠账/删「零后端」快照/版本表 TS5.9+React19.2+Prisma6.19+ai7+工具字段 class+canvas 落点+common 10 组件+redirect 桩现状）；矛盾裁决=已实装 as-built、未实装标「演进目标」按 M 路线归位（两步票据→M3/调度器→M1/路线图采 M0-M5）；f5 归档 docs/archive/；audits 设计文档入 git；CLAUDE.md 指向修复；核实 AI SDK core/provider 版本族配对并记录结论；evaluator 可逐条 grep 实物对账校准项",
-      "description": "ARCH-LOCK。用户工作区未提交的架构文件由本 feature 正式处理。定稿文档是后续 F002-F016 的口径权威，必须首个完成。"
+      "status": "pending",
+      "acceptance": "按 spec D3 修法优先级恢复 CreatorDrawer 遮罩点击关闭：①首选 containerProps.style 补高度（根因=无 ChakraProvider 致 $100vh 不解析、.chakra-modal__content-container 高度塌 0、closeOnOverlayClick 点击区消失；className 通道已被 :308-312 注释自证不可用），②不生效再退 FIX-4 自写 scrim（CopilotPanel.tsx:306-334 为参照），两套不得并存；同 commit 改真文件头 :3 假陈述「Esc + 遮罩关闭为 Drawer 自带」并写明最终采纳哪条修法；不得引入 ChakraProvider；现存三条关闭路径（X 钮 :328-335 / Esc :303 / dw-foot :673-685）不得回归；关闭后不残留遮挡层；lint + tsc 绿",
+      "description": "BL-FE-15。根因已在 planning 勘查中定位到 CreatorDrawer.tsx:313 containerProps 只透传 zIndex。"
     },
     {
       "id": "F002",
-      "title": "路由收敛 + routes.tsx 重写（6 入口 + redirect + v1.0.5 探针清单）",
+      "title": "深色模式持久化（BL-FE-12）— localStorage + pre-paint 内联脚本",
       "priority": "high",
       "executor": "generator",
-      "status": "done",
-      "acceptance": "routes.tsx 重写为 6 入口（今天/项目/创作者库/游戏知识/洞察/Agent 记录，kimi §6.1 表）；占位路由（dashboards/discovery/database/outreach 等）redirect 至对应新页（destination 本批建成，满足 wire-readiness）；v1.0.5 探针清单同批核销：grep 并重指 tests/visual route/selector + docker-compose*/deploy*.yml healthcheck + scripts/test/f0*-check 的 route 引用，清单入 spec 附录逐条打勾；lint+tsc 绿；无死链（新 6 页均有 page.tsx 骨架或真页）",
-      "description": "IA refactor 类改动，redirect 探针纪律（v1.0.5 learning）硬性执行。"
+      "status": "pending",
+      "acceptance": "useColorMode 增持久层（setDark/toggle 写入 localStorage，挂载读回）；src/app/layout.tsx 的 <body> 首子节点补 pre-paint 内联脚本，paint 前置 body.dark 消除闪烁；键名与取值按 D1（建议 kolmatrix.colorMode / 'light'|'dark'）并在 commit message 记录；缺省/损坏值一律回落浅色（默认不变，不动现有浅色基线）；死代码 Configurator/RTL/FixedPlugin 不碰（D6）；实测：切深色→刷新仍深色、切浅色→刷新仍浅色、清 localStorage 或写损坏值→回落浅色、刷新无浅色闪烁；lint + tsc 绿",
+      "description": "BL-FE-12。勘查确认全站 NoSSR(ssr:false) 无 SSR 首屏，故不走 cookie/SSR 方案；本批是项目第一处持久化。"
     },
     {
       "id": "F003",
-      "title": "三区外壳改造（侧栏 6 入口 + CTA 卡 + 玻璃 navbar 指令栏 + Copilot 抽屉化）",
-      "priority": "high",
+      "title": "Avatar colorMode 脱节修复（统一到 body.dark 单一状态源）",
+      "priority": "medium",
       "executor": "generator",
-      "status": "done",
-      "acceptance": "admin/layout.tsx 固定三列：侧栏 285px（6 入口 + 底部「Agent 自动边界」CTA 常驻不可关闭）· 主区弹性（悬浮玻璃 navbar 内嵌指令栏，指令提交路由到 Copilot）· Copilot 360px 常驻；移动端 Copilot 退为 fixed 右滑抽屉；路由切换只重绘主区与 Copilot 上下文，侧栏/navbar 不重挂载；对照原型外壳区（spec §外壳 4 段清单）；lint+tsc 绿",
-      "description": "kimi §6.2。复用既有 CopilotPanel/sidebar/navbar fork，按原型改造。"
+      "status": "pending",
+      "acceptance": "src/components/image/Avatar.tsx 改读项目统一状态源 hooks/useColorMode（现 :2 引 @chakra-ui/system 自带 useColorMode，:19/29 决定 borderColor，无 ChakraProvider 故与 body.dark 互不相通）；不得引入 ChakraProvider，chakra() 包装保留；深色下 Avatar 边框跟随；浅色态与改造前像素一致；lint + tsc 绿",
+      "description": "额外项（用户 2026-07-21 确认）。不修则等于持久化一个半坏的深色。依赖 F002 的统一状态源，须在 F002 之后（D8）。"
     },
     {
       "id": "F004",
-      "title": "mock 渲染契约层（data/provenance.ts + ProvenanceTag）",
-      "priority": "high",
+      "title": "抽 HandoffPanel + 夹具对齐生产（BL-FE-14，两件合一）",
+      "priority": "medium",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "src/lib/data/provenance.ts 统一深字段读取入口：null→渲染「待接入/待补充」，绝不抛错、绝不填 0 冒充实测（FR-11.17/11.18）；新建 common/ProvenanceTag（溯源徽标，来源区分图标+文字色盲友好，可展开明细）；契约层有最小单测或冒烟脚本（scripts/test/）验证 null/有值/降级三态；后续 F006-F016 全部经此层读 mock；lint+tsc 绿",
-      "description": "kimi §6.7 渲染契约——M0.5 mock 先行、数据到位零返工的技术底座，必须先于各页。"
+      "status": "pending",
+      "acceptance": "抽 common/HandoffPanel.tsx 承载容器 chrome（SurfaceCard + SectionLabel + MdGroups + 标签文案），生产 HandoffCollab.tsx:72-79 与夹具 preview/agent-canvas/page.tsx:29-34 共用；抽象必须显式容纳三处分叉（border-dashed / stage 三元文案 /多卡 flex 容器）作为 props 或变体，不得靠夹具将就；夹具 border-dashed 经此对齐生产口径（本 feature 的回归价值）；两处重复导入 MdGroups/SectionLabel/SurfaceCard 随之收敛；HandoffCard 11 props 全路径不退化；预期改动 agent-canvas.png，基线由 F005 统一重生；lint + tsc 绿",
+      "description": "BL-FE-14。用户裁决「两件都做」；抽象与夹具对齐合并为单条——拆两条会让「夹具偏离生产」与「夹具跟随生产」在同批次内互相打架（D4）。"
     },
     {
       "id": "F005",
-      "title": "共用产品件第一波（DataTable/HalfGauge/UploadZone + port MiniStatistics/charts）",
+      "title": "CreatorDrawer 入视觉基线 + 单次重生（必须最后）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "新依赖 @tanstack/react-table + react-dropzone（spec D5 声明）；新建 common/DataTable（排序/筛选/分页通用封装）+ common/HalfGauge（ApexCharts radialBar -90/90）+ common/UploadZone（dropzone+解析状态）；按 docs/dev/template-port-guide.md port 并接线 card/MiniStatistics 与 charts 系（LineAreaChart/BarChart/PieChart/CircularProgress，登记表 C 组）；port 后跑 fe-audit-component-matrix 确认可达性变化符合预期；lint+tsc 绿",
-      "description": "kimi §6.4 新建件 + 模板库存消费（逐个 port 保留结构，用户拍板约定首次执行）。"
-    },
-    {
-      "id": "F006",
-      "title": "今天页真页（KPI + 确认雷达 + 编队 + feed）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "/admin/today 按原型还原：KPI strip（MiniStatistics）+ 需要你确认雷达（复用 SurfaceCard 待办卡直落 ?env=）+ 编队花名册（AgentSquad 新建）+ 今日 feed；mock 走 F004 契约层；按 spec §today 4 段清单（必用组件/不得简化 N 元素）逐项达成；lint+tsc 绿",
-      "description": "原型 today 页 + kimi §6.1 界面语法「KPI+确认雷达+编队+feed」。"
-    },
-    {
-      "id": "F007",
-      "title": "项目列表强化 + 项目详情（环节导轨 ?stage=→?env= 迁移）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "项目列表按原型（卡片只做「进入」）；项目详情：项目头 + 环节导轨（五环节 tab）+ 落地面挂载点；query 参数 ?stage= 迁移为 ?env=（kimi §6.1），兼容旧深链（?stage= 读到即重写为 ?env=）；persona-router/stage-routing 相应重指并同批扫引用（today 待办卡 data-goenv 直落）；按 spec §项目 4 段清单；lint+tsc 绿",
-      "description": "kimi §6.1/6.3。五环节仍是页内 tab 非路由（D22 不变）。"
-    },
-    {
-      "id": "F008",
-      "title": "Brief 环节语法面（仪表 glance）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "components/envs/brief/：HalfGauge 健康度 + 4 tile + 阻塞卡（接受处置=internal）+ 曝光趋势（LineAreaChart）+ 推进 timeline；mock 走契约层；按 spec §brief 4 段清单；与其他环节结构不同不得退化成表（FR-7.10/7.11）；lint+tsc 绿",
-      "description": "kimi §6.3 五语法之一。"
-    },
-    {
-      "id": "F009",
-      "title": "Match 环节语法面（对比矩阵 compare）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "components/envs/match/：组合列×指标行对比矩阵 + 「待你裁定」候选表（DataTable）；批准一组=internal 不弹框；低置信度不显裸分（显示区间/标注）；mock 走契约层；按 spec §match 4 段清单；lint+tsc 绿",
-      "description": "kimi §6.3。"
-    },
-    {
-      "id": "F010",
-      "title": "Reach 环节语法面（三栏对话收件箱 converse）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "components/envs/reach/：ConversationInbox 三栏（左人列/中对话+草稿/右档案）；改草稿=internal；发送/报价触发 outbound=接既有闸门（pending→确认卡，复用 AGENT-FOUNDATION 闸门链路，mock 场景下走真 pending 流或明确 stub 标注）；mock 走契约层；按 spec §reach 4 段清单；lint+tsc 绿",
-      "description": "kimi §6.3。唯一在 M0.5 内接触闸门 UI 的环节面。"
-    },
-    {
-      "id": "F011",
-      "title": "Delivery 环节语法面（条件台账 verify）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "components/envs/delivery/：条件台账（内容/Key/合同/托管/#ad 逐项齐缺状态）+ 放款按钮（outbound 闸门触发点，无推荐卡无绕过）；mock 走契约层；按 spec §delivery 4 段清单；lint+tsc 绿",
-      "description": "kimi §6.3。"
-    },
-    {
-      "id": "F012",
-      "title": "Insight 环节语法面（对照账本 reconcile）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "components/envs/insight/：原目标 vs 实际差异表 + 证据缺口卡 + 图表 + 复盘草案（采纳=internal，分享=outbound 闸门触发点）；mock 走契约层；按 spec §insight-env 4 段清单；lint+tsc 绿",
-      "description": "kimi §6.3。"
-    },
-    {
-      "id": "F013",
-      "title": "创作者库页（KPI + chips + DataTable + 详情抽屉）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "/admin/creators：KPI + 筛选 chips + DataTable 列表 + 详情抽屉（Chakra Drawer）；深字段经契约层（null→待接入 + ProvenanceTag）；按 spec §creators 4 段清单；lint+tsc 绿",
-      "description": "kimi §6.1，常驻匹配 Agent。"
-    },
-    {
-      "id": "F014",
-      "title": "游戏知识页（游戏切换 + UploadZone + 特点卡）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "/admin/knowledge：游戏切换 + UploadZone 上传（解析状态 mock）+ 特点卡；按 spec §knowledge 4 段清单；lint+tsc 绿",
-      "description": "kimi §6.1，常驻策略 Agent。"
-    },
-    {
-      "id": "F015",
-      "title": "洞察页（跨项目 ROI 看板 + 周报）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "/admin/insight：跨项目 ROI 看板（图表组）+ 周报区；mock 走契约层；按 spec §insight-page 4 段清单；lint+tsc 绿",
-      "description": "kimi §6.1，常驻洞察 Agent。"
-    },
-    {
-      "id": "F016",
-      "title": "Agent 记录页（类型 chips + append-only 流）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "/admin/runs：类型 chips 筛选 + append-only 操作流（读 OperationLog 实物 7 列或 mock 契约层，空态友好）；按 spec §runs 4 段清单；lint+tsc 绿",
-      "description": "kimi §6.1，常驻编排 Agent。"
-    },
-    {
-      "id": "F017",
-      "title": "视觉基线扩展 + 断言阈值收紧（BL-FE-13 收编，必须最后）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "六页 + 外壳全部入视觉基线（route mock 固定动态数据，沿 FE-REFACTOR F007 范式）；断言阈值收紧（maxDiffPixels ~1500 或 ratio 0.001，先本地连跑 3 次抗抖动验证再入 CI）；重生保持 --update-snapshots=all；F001-F016 全合入后单次重生 darwin+linux；本地 test:visual 全绿 + CI visual 绿；e2e f010 闭环通；fe-audit 三脚本无回归",
-      "description": "消化 BL-FE-13。批末安全网收口。"
+      "status": "pending",
+      "acceptance": "tests/visual/ 新增 CreatorDrawer 开启态基线（route mock 固定夹具，沿 ARCH-M05 F017 范式）；必须配 waitFor(关键文案) 硬断言（框架 v1.0.6 web-runtime-patterns §4.3），验证方式=临时抽掉 mock 数据应硬失败，不得把空白静默固化为合法基线；F001-F004 全部合入后单次重生全部基线（--update-snapshots=all，v1.0.6 §4.2；linux 基线经 CI 重生）；断言阈值维持 ARCH-M05 F017 收紧口径，不得为让基线过关而放宽；本地 test:visual 全绿 + CI visual 绿；fe-audit 三脚本无回归（复跑前按 v1.0.6 检测器活性证明自证脚本未死）",
+      "description": "额外项（用户 2026-07-21 确认）+ 批末安全网。该抽屉此前 visual 与交互零覆盖，正是 BL-FE-15 能活到现在的原因。"
     }
   ]
 }

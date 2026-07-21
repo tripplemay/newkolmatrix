@@ -46,7 +46,7 @@ function mockTurns(m: CollabMock): HandoffTurn[] {
 export default function HandoffCollab({
   stage = null,
 }: {
-  /** 项目详情环节（?stage=）；命中原型 COLLAB mock 时展示本环节协同（ARCH-M05 mock） */
+  /** 项目详情环节（?env=，F007 迁移）；命中原型 COLLAB mock 时展示本环节协同（ARCH-M05 mock） */
   stage?: string | null;
 }) {
   const [handoffs, setHandoffs] = useState<HandoffRow[]>([]);

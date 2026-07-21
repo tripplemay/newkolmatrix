@@ -34,7 +34,8 @@ page.on('pageerror', (e) => errs.push(String(e)));
 
 async function gotoStage(stage) {
   // dev 首访冷编译：warmup 一次再正式导航，避免瞬态。
-  const url = `${BASE}/admin/campaigns/${PROJECT}?stage=${stage}`;
+  // ARCH-M05 F007：环节 URL 态 ?stage= → ?env=（kimi §6.1，spec 附录 A #2 探针核销）。
+  const url = `${BASE}/admin/campaigns/${PROJECT}?env=${stage}`;
   await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 }).catch(() => {});
   await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
   await page.waitForTimeout(500);

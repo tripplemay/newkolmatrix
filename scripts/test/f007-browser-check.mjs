@@ -48,8 +48,8 @@ try {
   ok(/\d+% 匹配/.test(afterSend), '发消息后 canvas 渲染 KOL 卡片流（含 % 匹配徽标，真实 seed 数据）');
   ok(afterSend.includes('位候选'), 'KOL 卡片流含候选计数');
 
-  // ── 3) 多人格切换：项目 Reach 环节（/admin/campaigns/[id]?stage=reach）→ 触达 Agent（对话清空 + 新专家）──
-  await page.goto(`${BASE}/admin/campaigns/starlight-protocol?stage=reach`, { waitUntil: 'networkidle', timeout: 60000 });
+  // ── 3) 多人格切换：项目 Reach 环节（/admin/campaigns/[id]?env=reach，ARCH-M05 F007 迁移）→ 触达 Agent（对话清空 + 新专家）──
+  await page.goto(`${BASE}/admin/campaigns/starlight-protocol?env=reach`, { waitUntil: 'networkidle', timeout: 60000 });
   await page.waitForTimeout(1500);
   // 只取专家头（ExpertScope = aside 内 border-l-4 卡）文本，与 HandoffCollab 的「触达 Agent」文案隔离，避免假阳性。
   const scopeText = await page.locator('aside div.border-l-4').first().innerText().catch(() => '');

@@ -297,13 +297,17 @@ const ROUTE_UI: Record<string, CopilotUiMock> = {
     greeting:
       '我是策略 Agent。这个知识库由你上传的素材构成——我解析素材、提炼游戏特点，再喂给匹配、触达、合规各环节。上传新素材后我会自动重新分析。要看哪个游戏？',
     did: ['解析你上传的 12 份游戏素材', '从素材提炼卖点 / 受众 / 合规红线'],
-    prompts: ['这个游戏还缺哪类素材', '刚上传的素材解析出什么', '对比两个游戏受众'],
+    prompts: [
+      '这个游戏还缺哪类素材',
+      '刚上传的素材解析出什么',
+      '对比两个游戏受众',
+    ],
     actions: [],
     squad: false,
   },
 };
 
-/** 各环节专家上下文（项目详情 + ?stage=） */
+/** 各环节专家上下文（项目详情 + ?env=，F007 迁移） */
 function stageUi(stage: string, game: string): CopilotUiMock | null {
   switch (stage) {
     case 'brief':
@@ -328,7 +332,11 @@ function stageUi(stage: string, game: string): CopilotUiMock | null {
         greeting:
           '我是匹配 Agent。筛了 3,100 位创作者给出 3 组方案，「均衡组」受众匹配最高。要我解释推荐依据吗？',
         did: STAGE_DID.match,
-        prompts: ['为什么推荐均衡组', '有哪些存疑候选', '请合规 Agent 预筛候选'],
+        prompts: [
+          '为什么推荐均衡组',
+          '有哪些存疑候选',
+          '请合规 Agent 预筛候选',
+        ],
         actions: [
           {
             icon: 'users',
@@ -344,7 +352,11 @@ function stageUi(stage: string, game: string): CopilotUiMock | null {
         sub: 'Outreach · 本环节专家',
         greeting: `我是触达 Agent。已为「${game}」起草 7 封邀约，12 封待你审阅发送。先带你看哪一位？`,
         did: STAGE_DID.reach,
-        prompts: ['谁在等我回复', '把草稿写得更简短', '让合规 Agent 复核授权范围'],
+        prompts: [
+          '谁在等我回复',
+          '把草稿写得更简短',
+          '让合规 Agent 复核授权范围',
+        ],
         actions: [
           {
             icon: 'mail',
@@ -373,7 +385,11 @@ function stageUi(stage: string, game: string): CopilotUiMock | null {
         greeting:
           '我是交付 Agent。5 笔交付里 2 笔条件已齐可放款，3 笔缺条件我已拦下。要逐笔说明缺什么吗？',
         did: STAGE_DID.delivery,
-        prompts: ['为什么 ArkPlays 不能放款', '汇总缺失条件', '向触达 Agent 要报价约定'],
+        prompts: [
+          '为什么 ArkPlays 不能放款',
+          '汇总缺失条件',
+          '向触达 Agent 要报价约定',
+        ],
         actions: [
           {
             icon: 'ledger',

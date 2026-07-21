@@ -52,13 +52,15 @@ import {
 /* ------------------------------------------------------------------ *
  * 图标映射（原型 ic 名 → react-icons；环节图标复用 AGENT_ICONS 不复制）
  * ------------------------------------------------------------------ */
-const KPI_ICONS: Record<TodayKpiIcon, React.ComponentType<{ size?: number }>> =
-  {
-    bell: MdNotificationsNone,
-    spark: MdAutoAwesome,
-    folder: MdOutlineFolder,
-    trend: MdTrendingUp,
-  };
+const KPI_ICONS: Record<
+  TodayKpiIcon,
+  React.ComponentType<{ size?: number }>
+> = {
+  bell: MdNotificationsNone,
+  spark: MdAutoAwesome,
+  folder: MdOutlineFolder,
+  trend: MdTrendingUp,
+};
 
 const FEED_ICONS: Record<
   TodayFeedIcon,
@@ -413,7 +415,10 @@ export default function TodayPage() {
             <div className="h-[110px] w-full">
               <LineAreaChart
                 chartData={[
-                  { name: monthlyAutoDone.label, data: [...monthlyAutoDone.series] },
+                  {
+                    name: monthlyAutoDone.label,
+                    data: [...monthlyAutoDone.series],
+                  },
                 ]}
                 chartOptions={AUTO_DONE_CHART_OPTIONS}
               />

@@ -83,8 +83,9 @@ try {
 
   // ── 5) 今天待办直达某项目某环节 ──
   await status('/admin/today');
-  const todoLink = await page.locator('a[href*="/admin/campaigns/"][href*="stage="]').first().getAttribute('href').catch(() => null);
-  ok(!!todoLink && /\/admin\/campaigns\/[^/]+\?stage=/.test(todoLink), `今天待办直达「某项目某环节」（复用 routeToStage，href=${todoLink}）`);
+  // ARCH-M05 F007：环节 URL 态 ?stage= → ?env=（kimi §6.1）。
+  const todoLink = await page.locator('a[href*="/admin/campaigns/"][href*="env="]').first().getAttribute('href').catch(() => null);
+  ok(!!todoLink && /\/admin\/campaigns\/[^/]+\?env=/.test(todoLink), `今天待办直达「某项目某环节」（复用 routeToStage，href=${todoLink}）`);
 
   // ── 6) 无角色切换器 ──
   const bodyAll = await page.textContent('body');

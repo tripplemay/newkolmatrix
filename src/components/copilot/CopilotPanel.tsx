@@ -42,7 +42,8 @@ function deriveContext(
   stageParam: string | null,
 ): CopilotContext {
   const route = pathname || '/admin';
-  // 项目详情 /admin/campaigns/[id]：projectId 从路径解析；?stage= 指定环节 → 切该环节专家（F008 五环节唯一容器）。
+  // 项目详情 /admin/campaigns/[id]：projectId 从路径解析；?env= 指定环节 → 切该环节专家（F008 五环节唯一容器；F007 迁移 ?stage=→?env=）。
+  // 命名歧义警示（architecture §6.1）：URL ?env= 指五环节（Stage）；下方 CopilotContext.env 是运行环境（default/sandbox/production），同名不同义。
   const projMatch = route.match(/^\/admin\/campaigns\/([^/]+)$/);
   if (projMatch && projMatch[1] !== undefined) {
     const projectId = projMatch[1];
@@ -289,11 +290,12 @@ function CopilotChat({
   );
 }
 
-// 用 useSearchParams 读 ?stage=（项目详情切环节专家）——须 Suspense 包裹（Next 15）。
+// 用 useSearchParams 读 ?env=（项目详情切环节专家；F007 迁移 kimi §6.1）——须 Suspense 包裹（Next 15）。
+// 旧深链 ?stage= 兜底读：ProjectDetail 会 router.replace 重写为 ?env=，兜底避免重写瞬态落默认人格。
 function CopilotPanelInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const stage = searchParams.get('stage');
+  const stage = searchParams.get('env') ?? searchParams.get('stage');
   const context = deriveContext(pathname ?? '/admin', stage);
   const contextKey = buildContextKey(context);
   // key=contextKey（含 agentId，随 route/env/stage-专家 变化）→ 整个 chat remount（对话清空 + 新专家开场白，FR-12.4）

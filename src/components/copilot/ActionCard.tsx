@@ -3,7 +3,7 @@
 // 三类跳转（原型 copAct，L1100-1104）：
 //   enter:{pid}:{env} → 进项目并直落该环节；pick:{creatorId} → 直落触达对话（mock 固定星轨协议）；
 //   env:{env}         → 当前项目切环节（不在项目内时落 mock 项目）。
-// 环节参数沿用现行 ?stage= 契约（?env= 迁移归 F007，spec 附录 A #2）。
+// 环节 URL 态已迁 ?env=（ARCH-M05 F007，kimi §6.1，spec 附录 A #2 核销）；旧 ?stage= 深链由 ProjectDetail 兼容重写。
 
 import { usePathname, useRouter } from 'next/navigation';
 import type { IconType } from 'react-icons';
@@ -56,15 +56,15 @@ export function resolveActionHref(go: string, pathname: string): string | null {
   const [kind, ...rest] = go.split(':');
   if (kind === 'enter' && rest.length >= 2) {
     const [pid, env] = rest;
-    return `/admin/campaigns/${pid}?stage=${env}`;
+    return `/admin/campaigns/${pid}?env=${env}`;
   }
   if (kind === 'pick' && rest.length >= 1) {
-    return `/admin/campaigns/${MOCK_PROJECT_ID}?stage=reach&pick=${rest[0]}`;
+    return `/admin/campaigns/${MOCK_PROJECT_ID}?env=reach&pick=${rest[0]}`;
   }
   if (kind === 'env' && rest.length >= 1) {
     const m = pathname.match(/^\/admin\/campaigns\/([^/?]+)/);
     const pid = m ? m[1] : MOCK_PROJECT_ID;
-    return `/admin/campaigns/${pid}?stage=${rest[0]}`;
+    return `/admin/campaigns/${pid}?env=${rest[0]}`;
   }
   return null;
 }

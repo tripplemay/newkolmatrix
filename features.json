@@ -6,7 +6,7 @@
       "title": "vitest 地基 + CRA 模板残留清理",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "装 vitest + @vitest/coverage-v8（【D18】vite-tsconfig-paths 不装——Vite 8 已原生化该能力，装了每次跑测都打弃用警告；改用原生 resolve.tsconfigPaths，等效性已实测 19/19 双配置同样通过）；建 vitest.config.ts（environment:'node'；include:['tests/unit/**/*.test.ts','tests/integration/**/*.test.ts']；coverage:{provider:'v8', thresholds:{lines:80}}，配置口径见 architecture.md:1648-1660；【D17】coverage.include 收窄为 ['src/lib/domain/**','src/lib/data/provenance.ts']——实测 src/lib/** 整体行覆盖仅 6.2%，照字面配则接 CI 必红、不接则门从不执行退化为假门；收窄后门是真的且已接 CI，后续批次逐步放宽回 src/lib/**，不得反向下调 thresholds）；package.json 补 test:unit 脚本并接入 CI workflow 与 lint/typecheck 同级（验收须核 CI 实际跑了该步，不能只看 package.json 有 script）；摘除 CRA 模板残留——@types/jest（dependencies :57 与 devDependencies :97 各一处，共 2 处）+ @testing-library/{jest-dom,react,user-event}（:54-56）+ eslintConfig 段（:126-131），摘除前须 grep 实证全仓零引用；把 scripts/test/provenance-smoke.ts:42-190 改写为 tests/unit/provenance.test.ts（vitest 断言，覆盖 readContractSlot 三态 / isPendingVerification / resolveProvenance 三级回退）作为首个样板，原脚本删除；不做 jsdom 组件单测（architecture.md:1670：已装 @testing-library/react ^13 与 React 19 不兼容，组件正确性由 Playwright 兜底）；lint + tsc 绿",
       "description": "spec §2 F001。勘查确认项目单测框架实际为零——@types/jest ^25 是 CRA 遗留（无 jest 本体/无配置/无测试文件），@testing-library 三件全仓零 import，故摘除是清理不是降级。"
     },
@@ -15,7 +15,7 @@
       "title": "拆 NoSSR → 恢复 SSR（D3 RSC 直读的前置）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "AppWrappers.tsx:20-22 移除 NoSSR(ssr:false) 包装，全站恢复服务端渲染；spec §1.2 列出的 6 个活文件逐个 SSR-safe 化（components/dropdown/index.tsx、components/common/HalfGauge.tsx、app/AppWrappers.tsx、app/layout.tsx、hooks/useColorMode.ts、hooks/useMediaQuery.ts），手法为 typeof window === 'undefined' 守卫 / 移入 useEffect / 必要时局部 dynamic(ssr:false)；D6 四个死代码文件（navbar/RTL.tsx、navbar/Configurator.tsx、fixedPlugin/FixedPlugin.tsx、rtlProvider/RtlProvider.tsx）不碰；四个 ApexCharts 组件不需改（charts/{LineArea,Line,Pie,Bar}Chart.tsx:4 各自已 dynamic ssr:false）；实证要求——六个 admin 页 curl 首屏 HTML 须含实际内容而非空壳（这是「真的恢复了 SSR」的证据，非「代码里删了那行」）；浏览器控制台零 hydration mismatch 警告（桌面+移动两视口 × 六页实测，非推断）；P2-CLEANUP 回归红线不得破——npm run p2:f001 / p2:f002 / p2:f004 三条探针全绿（须先起 standalone 并 export BASE），且深色刷新无浅色闪烁需肉眼确认（layout.tsx 的 pre-paint 内联脚本在 SSR 下仍须 paint 前置 body.dark）；13 张视觉基线期望零漂移，若有漂移须逐处对账并说明成因，不得直接重生（框架 v1.0.6 §4.2）；lint + tsc 绿；【实装期发现，spec §1.2 审查面遗漏】utils/navigation.ts:11 findCurrentRoute 首行 `if (!isWindowAvailable()) return null` 是模板遗留的服务端/客户端分支——恢复 SSR 后服务端恒回落 'Main Dashboard' 而客户端解析真实路由名，使每个 admin 页 navbar 标题触发 React #418；已删除该守卫（客户端行为不变，仅服务端从恒 null 改为正常匹配）。spec §1.2 的 6 文件审查面只扫了 components/ 与 hooks/，未覆盖 utils/，此为勘查盲区；另 styles/index.css 补 :root 兜底定义 12 个运行时色阶变量（此前只由 AppWrappers 的 useEffect 注入，SSR 首帧会把 var(--color-500) 解析成未定义值 → 品牌色整片 FOUC）；navbar 主题图标由 isDark 三元改为 CSS dark: 变体择一（isDark 服务端恒 false，参与渲染即失配）",
       "description": "spec §2 F002。本批最高风险项。勘查发现全站 AppWrappers 包 NoSSR 故无 SSR 首屏，D3 裁决的 RSC 直读通道若不先拆则零收益。实际审查面比预估小——图表已各自处理。 实证：线上（拆前，0c36fc2f）六页首屏可见文本 0 字符=真空壳；本地（拆后）today 1195 / campaigns 585 / insight 666 / knowledge 1073 字符。creators 与 runs 仅 233/238 字符是这两页自身 useSearchParams 的 Suspense fallback（Next 15 要求），非 F002 缺陷，外壳已 SSR。"
     },

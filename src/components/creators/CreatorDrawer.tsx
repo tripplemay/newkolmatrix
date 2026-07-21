@@ -1,6 +1,10 @@
 'use client';
 // ARCH-M05 F013 — 创作者详情抽屉（ui-inventory V10，34 元素，原型 L926-973 / CSS L366-398）。
-// Chakra Drawer（白名单原语）右滑 · width min(520px,96vw) · Esc + 遮罩关闭为 Drawer 自带。
+// Chakra Drawer（白名单原语）右滑 · width min(520px,96vw)。
+// 关闭四路径：X 钮 / Esc（Drawer 自带）/ 遮罩点击 / dw-foot「加入某项目匹配」副作用型。
+// P2-CLEANUP F001（BL-FE-15）：遮罩点击此前失效——承载 closeOnOverlayClick 的
+// .chakra-modal__content-container 高度取 Chakra 的 `$100vh` token，无 ChakraProvider 时不解析，
+// 实测 height=0px（width 1440 正常）→ 点击区整块消失。故须经 containerProps.style 显式给回 100vh。
 // 🔒 5 处 ProvenanceTag（badge variant）是 D15 溯源差异化核心，逐处不得删；
 // 深字段经 lib/data/provenance 契约层：null → 待接入/待补充/待核 占位、无数据点、无溯源徽标
 //（读写不对称 §7.5.2）；🔒 专家判断 dw-jc ×3 各带 Agent 主题色彩条（agent-theme），不得合并。
@@ -310,7 +314,9 @@ export default function CreatorDrawer({
         // z-110 须落在 content-container 上（Chrome 中 fixed 容器自建 stacking context，
         // 仅设 content z 会被困在容器内、压不过 z-105 scrim）；containerProps 只有 style 能透传
         //（其 className 会被组件内部 spread 覆盖）。
-        containerProps={{ style: { zIndex: 110 } }}
+        // height：Chakra 给容器的 `$100vh` 无 theme 时不解析（实测 height=0px），而 onOverlayClick
+        // 正挂在这个容器上 → 不显式给高度则遮罩点击无区域可命中（F001 根因）。
+        containerProps={{ style: { zIndex: 110, height: '100vh' } }}
         className="!z-[110] flex !h-screen !w-[min(520px,96vw)] !max-w-[min(520px,96vw)] flex-col overflow-hidden !bg-background-100 !shadow-[-20px_17px_40px_4px_rgba(112,144,176,0.18)] dark:!bg-navy-900 dark:!shadow-none"
       >
         {/* dw-head：avatar 52 + 名 + small + 关闭钮 + 徽标 ×3 + 🔒 匹配 Agent 判断块 */}

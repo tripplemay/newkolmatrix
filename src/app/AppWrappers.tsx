@@ -10,6 +10,8 @@ import 'styles/index.css';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { ConfiguratorContext } from 'contexts/ConfiguratorContext';
+// ARCH-M05 F005：全局单例 Toast（裁决 #9 自建轻量，挂 app 根）
+import { ToastProvider } from 'components/common/Toast';
 
 const _NoSSR = ({ children }: { children: ReactNode }) => (
   <React.Fragment>{children}</React.Fragment>
@@ -59,7 +61,7 @@ export default function AppWrappers({ children }: { children: ReactNode }) {
           setContrast,
         }}
       >
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </ConfiguratorContext.Provider>
     </NoSSR>
   );

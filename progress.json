@@ -6,7 +6,7 @@
   "fix_rounds": 0,
   "current_sprint": "ARCH-M05",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-21T17:10",
+  "last_updated": "2026-07-21T18:00",
   "reference_docs": [
     "docs/product/KOLMatrix-PRD.md",
     "docs/audits/KOLMatrix-integrated-architecture-design-2026-07-17.md",
@@ -33,6 +33,6 @@
   "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "ARCH-M05 building 完成(17/17,2026-07-21)：F001 架构定稿 v1.2→F002 探针核销→F003-F005 地基并行 worktree→F006/F007/F013-F016 六路并行(2 次 API 中断续跑,MiniStatistics/PieChart 共享件冲突按 main 收敛)→F008-F012 五环节五路并行→F017 主上下文收口。F017 关键战果:视觉基线 12 页全覆盖+阈值收紧 maxDiffPixels 1500;抖动三层根因逐一实证(networkidle 挂起→domcontentloaded;多 worker 竞争→workers=1;**总根源=CDN 字体每测试重拉**→tests/visual/fonts/ 28 woff2 本地回放,套时 60-90s→24s 五连跑全绿);f010 e2e 探针重指后 6/6(真实网关+DB);token-scan 53→0(JS 域 design-tokens.ts+CSS 域 tailwind.config 双出处收敛——subagent 纠正:className 可达值必须走 Tailwind 配置,JS 常量进 className 会被 JIT 静默丢弃);linux 基线 bot commit 1a7dc35;CI 终验 run 29815799552 全 job 绿。进入 verifying:fan-out 分组 A=F001 as-built 对账/B=F002-F005 地基外壳/C=六页/D=五环节/E=F017+批末回归+汇总 signoff。遗留给 done:f008-browser-check 历史断言漂移立项、proposed-learnings 候选(CDN 字体夹具/JIT 静默丢类/worktree 中断恢复)。"
+    "Andy": "ARCH-M05 building 完成(17/17,2026-07-21)：F001 架构定稿 v1.2→F002 探针核销→F003-F005 地基并行 worktree→F006/F007/F013-F016 六路并行(2 次 API 中断续跑,MiniStatistics/PieChart 共享件冲突按 main 收敛)→F008-F012 五环节五路并行→F017 主上下文收口。F017 关键战果:视觉基线 12 页全覆盖+阈值收紧 maxDiffPixels 1500;抖动三层根因逐一实证(networkidle 挂起→domcontentloaded;多 worker 竞争→workers=1;**总根源=CDN 字体每测试重拉**→tests/visual/fonts/ 28 woff2 本地回放,套时 60-90s→24s 五连跑全绿);f010 e2e 探针重指后 6/6(真实网关+DB);token-scan 53→0(JS 域 design-tokens.ts+CSS 域 tailwind.config 双出处收敛——subagent 纠正:className 可达值必须走 Tailwind 配置,JS 常量进 className 会被 JIT 静默丢弃);linux 基线 bot commit 1a7dc35;CI 终验 run 29815799552 全 job 绿。进入 verifying:fan-out 分组 A=F001 as-built 对账/B=F002-F005 地基外壳/C=六页/D=五环节/E=F017+批末回归+汇总 signoff。遗留给 done:f008-browser-check 历史断言漂移立项、proposed-learnings 候选(CDN 字体夹具/JIT 静默丢类/worktree 中断恢复)。 verifying 中间态:A=PARTIAL(CLAUDE.md 指针未修+文档批内反向漂移 3 处);B=F002 PARTIAL(根入口 page.tsx 三跳绕行漏探针)/F003 PARTIAL(移动抽屉单向不可关)/F004+F005 PASS;C=6/6 PASS(154/154);E=F017 PASS(转派 B 路执行,独立性声明入报告;3 连跑 36/36+f010 6/6)。D 组转派 A 路运行中。已知 fixing 清单 4 条定点小修。注意:tmux 新建 pane 通路故障(ENXIO,pty 未触顶),D/E 走已完成 agent 的 resume 通路转派——独立性均成立(两者只有验收上下文)。"
   }
 }

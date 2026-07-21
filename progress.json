@@ -6,7 +6,7 @@
   "fix_rounds": 1,
   "current_sprint": "ARCH-M05",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-21T20:00",
+  "last_updated": "2026-07-21T20:30",
   "reference_docs": [
     "docs/product/KOLMatrix-PRD.md",
     "docs/audits/KOLMatrix-integrated-architecture-design-2026-07-17.md",
@@ -69,6 +69,6 @@
   ],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "ARCH-M05 done(17/17,fix_rounds=1,2026-07-21)：verifying 五组 fan-out(14 PASS/3 PARTIAL)→fixing 四处定点(FIX-1 CLAUDE.md 指针/FIX-2 文档批内漂移/FIX-3 根入口三跳/FIX-4 移动抽屉不可关)→reverifying 全 PASS done 签收。编排事故与兜底:tmux 新建 pane 通路 ENXIO 故障(pty 未触顶,原因未明)→D/E/汇总/复验全部走已完成 agent 的 resume 转派,独立性均为「验收→验收」无自评,signoff §6 记录。遗留待 done 收尾:MINOR-F013-1(创作者抽屉遮罩关闭)入 backlog;proposed-learnings 候选=INFO-1 next dev 白屏走 standalone/CDN 字体本地夹具/JIT 静默丢 class/文档定稿批内新鲜度(FIX-2 教训:批内后续 feature 交付须刷新首 feature 定稿文档)/resume 通路兜底 pane 故障。M0.5 落成:六页工作台+五环节语法面+三区外壳全部 live-ready,mock 先行契约层就绪,A6 canvas 方向可实测体验。下一站:M1 BRIEF-CAMPAIGNS(kimi §14)。部署留人类闸门未执行。"
+    "Andy": "ARCH-M05 done(17/17,fix_rounds=1,2026-07-21)：verifying 五组 fan-out(14 PASS/3 PARTIAL)→fixing 四处定点(FIX-1 CLAUDE.md 指针/FIX-2 文档批内漂移/FIX-3 根入口三跳/FIX-4 移动抽屉不可关)→reverifying 全 PASS done 签收。编排事故与兜底:tmux 新建 pane 通路 ENXIO 故障(pty 未触顶,原因未明)→D/E/汇总/复验全部走已完成 agent 的 resume 转派,独立性均为「验收→验收」无自评,signoff §6 记录。遗留待 done 收尾:MINOR-F013-1(创作者抽屉遮罩关闭)入 backlog;proposed-learnings 候选=INFO-1 next dev 白屏走 standalone/CDN 字体本地夹具/JIT 静默丢 class/文档定稿批内新鲜度(FIX-2 教训:批内后续 feature 交付须刷新首 feature 定稿文档)/resume 通路兜底 pane 故障。M0.5 落成:六页工作台+五环节语法面+三区外壳全部 live-ready,mock 先行契约层就绪,A6 canvas 方向可实测体验。下一站:M1 BRIEF-CAMPAIGNS(kimi §14)。部署留人类闸门未执行。 部署:用户授权后触发 deploy-prod(run 29822407758,钉 SHA d5256a8)success;线上确证 M0.5:health 200+/ 直指 today(RSC 307)+CSS 含 navyGlass/brandSoft 6 处(M0.5 独有 token)。验证坑:多 CSS 文件须遍历+巨型 shell 变量会污染后续命令(用流式管道)。"
   }
 }

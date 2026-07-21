@@ -6,10 +6,10 @@ type: project
 ## 当前批次
 - **ARCH-M05 done ✅（2026-07-21）** — 架构定稿 + M0.5 六页工作台，17/17（fix_rounds=1）；signoff `ARCH-M05-signoff`（§7 done 签收）
 - **交付：** `docs/dev/architecture.md` v1.2（kimi 基底 + f5 十条增量 + as-built 校准，工程落法权威）· 六页工作台（today/项目+五环节语法面/创作者库+34 元素抽屉/知识/洞察/记录，301 元素清单验收）· 三区外壳（侧栏 CTA/玻璃 navbar 指令栏/Copilot 编队+协同+动作卡）· mock 渲染契约层（provenance+ProvenanceTag 双 variant）· common 17 件 + admin/ port 约定首执行 · 视觉基线 12 页（紧阈值 1500px + CDN 字体本地夹具，抖动根治）· ?env= 全链迁移
-- **未部署**：M0.5 版本已 ready，部署留人类闸门（生产仍跑 FE-REFACTOR 版）
+- **已部署 ✅（2026-07-21）**：M0.5 版本 live（用户授权，run 29822407758 钉 SHA `d5256a8`；线上确证 / 直指 today + M0.5 token 在线）
 
 ## 已上线
-- `https://newkol.guangai.ai`（FE-REFACTOR 版 @ 42d7d75，2026-07-20 部署）；回滚=deploy-prod 填上一 good SHA
+- `https://newkol.guangai.ai` 当前跑 **ARCH-M05/M0.5 版 @ d5256a8**；回滚=deploy-prod 填 42d7d75（FE-REFACTOR 版）
 
 ## 演进路线（architecture.md v1.2 §14）
 - M0 ✅ → **M0.5 ✅** → **M1 BRIEF-CAMPAIGNS（下一站）** → M2 MATCH → M3 REACH/DELIVERY → M4 INSIGHT → M5 PROD-HARDENING

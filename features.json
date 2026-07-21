@@ -69,7 +69,7 @@
       "title": "Brief 环节语法面（仪表 glance）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "components/envs/brief/：HalfGauge 健康度 + 4 tile + 阻塞卡（接受处置=internal）+ 曝光趋势（LineAreaChart）+ 推进 timeline；mock 走契约层；按 spec §brief 4 段清单；与其他环节结构不同不得退化成表（FR-7.10/7.11）；lint+tsc 绿",
       "description": "kimi §6.3 五语法之一。"
     },

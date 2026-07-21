@@ -123,7 +123,7 @@
       "title": "游戏知识页（游戏切换 + UploadZone + 特点卡）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "/admin/knowledge：游戏切换 + UploadZone 上传（解析状态 mock）+ 特点卡；按 spec §knowledge 4 段清单；lint+tsc 绿",
       "description": "kimi §6.1，常驻策略 Agent。"
     },

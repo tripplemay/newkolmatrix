@@ -51,12 +51,34 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
 
-  # M1-A-BRIEF F001 — 单测门，与 lint / typecheck 同级。
+  # M1-A-BRIEF F001 + F006 — 单测 / 集成测试门，与 lint / typecheck 同级。
+  #
   # 跑 --coverage：覆盖率阈值（src/lib/domain/** + data/provenance.ts 行覆盖 ≥80%）
   # 在此真正执行，不是只写在配置里的摆设。
+  #
+  # 起 Postgres service 的理由（F006）：tests/integration/** 打真库验事务语义与
+  # 「守卫拒绝零写入」。若 CI 无库而让这些用例静默跳过，它们就永远是绿的——
+  # 那正是本项目反复要避免的假绿。宁可多起一个 service，也不要一道跳过即通过的门。
+  # 镜像用 pgvector/pgvector:pg16：init migration 里有 CREATE EXTENSION vector。
   unit:
-    name: Unit tests
+    name: Unit + integration tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kolmatrix
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/kolmatrix?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -64,6 +86,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
+      - name: Apply migrations
+        run: npx prisma migrate deploy
       - run: npm run test:unit:coverage
 
   build:

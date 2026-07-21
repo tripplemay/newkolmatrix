@@ -9,6 +9,20 @@
 
 import { defineConfig } from 'vitest/config';
 
+// tests/integration/** 打真库，需要 DATABASE_URL。仓内其余脚本靠 `node --env-file=.env` 注入，
+// 但 vitest 不读 .env —— 不在这里补，本地就得每次手动 source，久了就演变成「本地不跑集成测试」。
+// CI 由 workflow 的 job env 直接给 DATABASE_URL，此时无 .env 文件，抛错吞掉即可。
+// （`loadEnvFile` 是 Node 20.12+ 的运行时 API，但仓内 @types/node 仍是 ^18，
+//   类型定义里没有它，故显式窄化而非用 any。）
+const nodeProcess = process as NodeJS.Process & {
+  loadEnvFile?: (path?: string) => void;
+};
+try {
+  nodeProcess.loadEnvFile?.('.env');
+} catch {
+  // 无 .env（如 CI）：依赖已在环境里的变量
+}
+
 export default defineConfig({
   // tsconfig 的 baseUrl:'src' 让全仓以 `lib/...` / `components/...` 形式裸导入，
   // 该解析规则须在 vitest 侧同样生效，否则测试文件无法复用产品代码的导入写法。

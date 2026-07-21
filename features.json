@@ -51,7 +51,7 @@
       "title": "环节推进写 OperationLog（北极星指标的唯一存处）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "推进动作（cur 前进 / maxReached 抬升）落 domain/ 的推进函数，实现服务端强制那一半（architecture.md:563 要求页面与工具层双重执行，页面半边归 M1-B）；每次成功推进写一条 OperationLog，取值按 D10 + D13——kind='auto'（architecture.md:800 定义 auto = 工具直接执行的可逆动作，环节推进正是可逆动作，不扩枚举），projectId 填 D13 新增的 OperationLog.projectId 列，载荷 {from,to,maxReachedBefore,maxReachedAfter} 落 D13 新增的 payloadJson 列（不得塞进 summary——summary 是 runs.ts:5 固定的展示契约，也不得复用 ref——ref 专指 PendingAction.id）；summary 仍写人类可读一句话；守卫拒绝的推进不写日志、仅返回 reason；append-only 由应用层保证（DB 触发器是既有欠账 R14，不在本批）；tests/integration/env-advance.test.ts 覆盖三条——推进成功写一条、守卫拒绝零写入、maxReached 抬升幂等；lint + tsc 绿",
       "description": "spec §2 F006 + D4 用户裁决。依据：北极星「操盘手杠杆」= 环节推进事件计数 × 周活（architecture.md:1695），而 ADR-21 明确不建 EventStore（:539）——不写就没有任何地方存，且永久不可补录。"
     }

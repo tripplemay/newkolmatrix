@@ -150,7 +150,7 @@
       "title": "视觉基线扩展 + 断言阈值收紧（BL-FE-13 收编，必须最后）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "六页 + 外壳全部入视觉基线（route mock 固定动态数据，沿 FE-REFACTOR F007 范式）；断言阈值收紧（maxDiffPixels ~1500 或 ratio 0.001，先本地连跑 3 次抗抖动验证再入 CI）；重生保持 --update-snapshots=all；F001-F016 全合入后单次重生 darwin+linux；本地 test:visual 全绿 + CI visual 绿；e2e f010 闭环通；fe-audit 三脚本无回归",
       "description": "消化 BL-FE-13。批末安全网收口。"
     }

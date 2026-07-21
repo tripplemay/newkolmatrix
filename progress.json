@@ -1,12 +1,12 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "ARCH-M05：架构文档定稿（ARCH-LOCK：kimi v1.1 基底 + f5 十条实现层增量 + as-built 六处校准，f5 归档/audits 入 git/CLAUDE.md 修复）+ M0.5 六页工作台（六入口路由收敛+三区外壳+mock 渲染契约+五环节语法面+四跨项目页，301 元素不得简化清单硬性，mock 先行验证 A6 canvas 方向）+ 视觉基线扩展与阈值收紧（BL-FE-13 收编）。17 features 全 generator。",
   "total_features": 17,
-  "completed_features": 16,
+  "completed_features": 17,
   "fix_rounds": 0,
   "current_sprint": "ARCH-M05",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-21T13:40",
+  "last_updated": "2026-07-21T17:10",
   "reference_docs": [
     "docs/product/KOLMatrix-PRD.md",
     "docs/audits/KOLMatrix-integrated-architecture-design-2026-07-17.md",
@@ -33,6 +33,6 @@
   "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "ARCH-M05 planning 完成(plan mode 批准=spec lock,2026-07-21)：17 features 全 generator。关键输入:arch-doc-diff agent 对比分析(kimi 基底成立/f5 十条实现层增量/两版共同 as-built 漂移六处必须校准——OperationLog 7 列/PendingAction 3 态/闸门单步无 execute 无 HMAC/无触发器/零后端快照过时/版本表)；proto-inventory agent 提取 18 视图 301 元素不得简化清单+10 处不一致,Planner 已逐条裁决(记录在 ui-inventory.md §五:阻塞处置走 Copilot/待核=字段缺失/share 分 scope/URL 化四位/AgentSquad+ProvenanceTag 双 variant/today 负荷卡保留/Toast 自建)。编排:地基段 F001-F005 串行→页面段 F006-F016 可并行 worktree→F017 最后。BL-FE-13 收编 F017,backlog 剩 BL-FE-12/14。注意:F001 处理用户工作区未提交架构文件(untracked,不能用 worktree——untracked 文件不进 worktree,须在主工作树执行)。跨多日批次,新会话 /build 续接。"
+    "Andy": "ARCH-M05 building 完成(17/17,2026-07-21)：F001 架构定稿 v1.2→F002 探针核销→F003-F005 地基并行 worktree→F006/F007/F013-F016 六路并行(2 次 API 中断续跑,MiniStatistics/PieChart 共享件冲突按 main 收敛)→F008-F012 五环节五路并行→F017 主上下文收口。F017 关键战果:视觉基线 12 页全覆盖+阈值收紧 maxDiffPixels 1500;抖动三层根因逐一实证(networkidle 挂起→domcontentloaded;多 worker 竞争→workers=1;**总根源=CDN 字体每测试重拉**→tests/visual/fonts/ 28 woff2 本地回放,套时 60-90s→24s 五连跑全绿);f010 e2e 探针重指后 6/6(真实网关+DB);token-scan 53→0(JS 域 design-tokens.ts+CSS 域 tailwind.config 双出处收敛——subagent 纠正:className 可达值必须走 Tailwind 配置,JS 常量进 className 会被 JIT 静默丢弃);linux 基线 bot commit 1a7dc35;CI 终验 run 29815799552 全 job 绿。进入 verifying:fan-out 分组 A=F001 as-built 对账/B=F002-F005 地基外壳/C=六页/D=五环节/E=F017+批末回归+汇总 signoff。遗留给 done:f008-browser-check 历史断言漂移立项、proposed-learnings 候选(CDN 字体夹具/JIT 静默丢类/worktree 中断恢复)。"
   }
 }

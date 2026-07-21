@@ -9,14 +9,14 @@
 // |---------------------|-------------|---------|
 // | today.ts            | F006        | /admin/today 今天雷达 |
 // | projects.ts         | F007        | /admin/projects 项目列表 + 详情外壳 |
-// | env-strategy.ts     | F008        | 策略环节语法面 |
+// | env-brief.ts        | F008        | 策略环节语法面 |
 // | env-match.ts        | F009        | 匹配环节语法面 |
 // | env-reach.ts        | F010        | 触达环节语法面 |
 // | env-delivery.ts     | F011        | 交付环节语法面（反向 guardrail：无 KPI/图表） |
 // | env-insight.ts      | F012        | 洞察环节语法面 |
 // | creators.ts         | F013        | 创作者库 + 抽屉（V10，ProvenanceTag badge ×5） |
 // | knowledge.ts        | F014        | 知识页（V11，ProvenanceTag inline） |
-// | insights.ts         | F015        | 洞察页 |
+// | insight.ts          | F015        | 洞察页 |
 // | runs.ts             | F016        | Agent 记录页 |
 //
 // ## 硬规则（D2 渲染契约，违反即返工）

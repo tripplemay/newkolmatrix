@@ -6,6 +6,9 @@ export default defineConfig({
   testDir: './tests/visual',
   snapshotPathTemplate: 'tests/screenshots/baseline/{arg}-{platform}{ext}',
   fullyParallel: false,
+  // ARCH-M05 F017：视觉基线确定性优先——单 worker 消除多 worker 文件级并行的 CPU 竞争
+  // 导致的晚期绘制抖动（1500px 紧阈值下 ~1/4 复现，实测校准）。12 用例约 2 分钟可接受。
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: process.env.CI ? 'github' : 'list',

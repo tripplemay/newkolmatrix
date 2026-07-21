@@ -60,7 +60,7 @@
       "title": "项目列表强化 + 项目详情（环节导轨 ?stage=→?env= 迁移）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "项目列表按原型（卡片只做「进入」）；项目详情：项目头 + 环节导轨（五环节 tab）+ 落地面挂载点；query 参数 ?stage= 迁移为 ?env=（kimi §6.1），兼容旧深链（?stage= 读到即重写为 ?env=）；persona-router/stage-routing 相应重指并同批扫引用（today 待办卡 data-goenv 直落）；按 spec §项目 4 段清单；lint+tsc 绿",
       "description": "kimi §6.1/6.3。五环节仍是页内 tab 非路由（D22 不变）。"
     },

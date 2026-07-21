@@ -6,7 +6,7 @@
       "title": "创作者抽屉遮罩点击关闭（BL-FE-15）+ 文件头注释改真",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "按 spec D3 修法优先级恢复 CreatorDrawer 遮罩点击关闭：①首选 containerProps.style 补高度（根因=无 ChakraProvider 致 $100vh 不解析、.chakra-modal__content-container 高度塌 0、closeOnOverlayClick 点击区消失；className 通道已被 :308-312 注释自证不可用），②不生效再退 FIX-4 自写 scrim（CopilotPanel.tsx:306-334 为参照），两套不得并存；同 commit 改真文件头 :3 假陈述「Esc + 遮罩关闭为 Drawer 自带」并写明最终采纳哪条修法；不得引入 ChakraProvider；现存三条关闭路径（X 钮 :328-335 / Esc :303 / dw-foot :673-685）不得回归；关闭后不残留遮挡层；lint + tsc 绿",
       "description": "BL-FE-15。根因已在 planning 勘查中定位到 CreatorDrawer.tsx:313 containerProps 只透传 zIndex。"
     },

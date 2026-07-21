@@ -5,6 +5,21 @@
 
 ---
 
+## v1.0.7 — 2026-07-22（证据强度：绿灯不等于证明）
+
+**来源：** KOLMatrix P2-CLEANUP（需求池清理 5 features，fix_rounds=1，已上线用户验收通过）—— signoff `docs/test-reports/P2-CLEANUP-signoff.md`。
+
+共同主题是**证据强度**：v1.0.6 沉淀的是「静默失败让检查绿得毫无意义」，这一批更进一层——**当事人拿着一份真绿的报告，仍然高估了它证明了什么**。四条里有两条是隔离验收方发现实现方的证据链有水分（断言已退化为恒真、合成节点探针结构性看不见自己要防的 bug），一条是立项前提本身未经核实就写进了 spec。
+
+**变更：**
+- `patterns/audit-methodology.md` 新增 **§5 换实现形态后既有断言可能静默退化为恒真**（复验不得仅以「原测试由红转绿」为据；须先跑反向断言做强度审查，退化的补 discriminating 断言；结论须区分载荷断言与已失效断言）
+- `patterns/audit-methodology.md` 新增 **§6 合成节点探针证明不了「组件真的发出了它」**（合成 `<div class="...">` 只证样式规则存在；零引用组件应建 esbuild 最小挂载 harness，参考 `scripts/test/f003-harness/`、`f003-reverify/`）
+- `patterns/web-runtime-patterns.md` 新增 **§4.4 新增视觉用例的「CI 首推必红」是预期，且补基线不会自动复验**（基线 workflow 带 `[skip ci]`，须另推一次非 `paths-ignore` 改动才验得到 CI 绿）
+- `harness/pre-impl-adjudication.md` §2.1 触发条件表新增两行（**消费点不存在** / **属性根本不生效**）+ 「组件 X 有问题去修 X」类 feature 的开工前两问，并对称要求 Planner 把这两项列入起草期勘查清单
+
+**触发原因：**
+P2-CLEANUP F003 一条 feature 连踩三坑：立项理由（组件脱节影响用户）未核实——该组件全仓零引用；spec 规定的改法作用在一个从不产出样式的通道上；按 acceptance 字面实装后被判 PARTIAL，改用项目主导范式（Tailwind `dark:` 变体）才达成。修复后实现方以「原 harness 由 2 failed 转 0 failed」宣称修复被原尺认可，复验查出其中一条断言已退化为恒真——「转绿」里有一半是空的。
+
 ## v1.0.6 — 2026-07-21（视觉回归三坑 + 双域 token + 审计方法学 + 验收活性证明）
 
 **来源：** KOLMatrix 三个批次的 13 条待确认 learnings 一并沉淀 —— FE-AUDIT（首次 Evaluator-only 三路 fan-out + 汇总对抗复核实跑）、FE-REFACTOR（signoff §10 转录）、ARCH-M05（架构定稿 + M0.5 六页工作台，17 features 大规模并行编排）。

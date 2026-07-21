@@ -42,3 +42,50 @@
 6. **（新规律）fe-audit 三脚本作为跨批次回归 harness 成立**：FE-AUDIT 沉淀的扫描脚本在 ARCH-M05 批末对账中抓到真实回归（token-scan 53 findings→引出双域 token 收敛），「审计产物脚本化→后续批次 acceptance 引用复跑」闭环已两批验证。建议写入 `harness/evaluator.md` 或 `patterns/audit-methodology.md`（与 FE-AUDIT 方法学三件套合并）
 
 **落地：** 1 → `patterns/testing-env-patterns.md` §7；2/3 → `patterns/web-runtime-patterns.md` §4.1 / §5；4 → `memory/role-context/{planner,evaluator}.md`（+ 项目侧副本）；5 → `orchestration-patterns.md` §4.1；6 → `patterns/audit-methodology.md` §4（与 FE-AUDIT 三件套合并）。
+
+
+---
+
+# v1.0.7 归档（用户 2026-07-22 确认，来源 KOLMatrix P2-CLEANUP）
+
+落地位置：`patterns/audit-methodology.md` §5 §6 · `patterns/web-runtime-patterns.md` §4.4 · `harness/pre-impl-adjudication.md` §2.1
+
+## [2026-07-21] Andy/Generator — 来源：P2-CLEANUP F005 新增视觉基线用例
+
+**类型：** 新坑
+
+**内容：** 新增一条视觉回归用例后，首次 push 的 CI **必然红**——linux 基线尚不存在（`A snapshot doesn't exist`）。须手动跑 `Update visual baselines` workflow 补 linux 基线；而该 workflow 的 commit 带 `[skip ci]`，所以补完基线 CI 也不会自动复跑，必须另有一次触碰非 paths-ignore 路径的 push 才能验证 CI 真的绿。Generator 的「CI 绿才能切 verifying」纪律在此处需要这个额外动作，否则会误判为红灯滞留或误判为已绿。
+
+**建议写入：** `framework/patterns/web-runtime-patterns.md` §4（视觉回归三静默坑，作为第四条「新增用例的 CI 首红是预期，且补基线不自动复验」）
+
+**状态：** ✅ 已确认（用户 2026-07-22）并落地
+
+## [2026-07-21] Andy/Generator — 来源：P2-CLEANUP F003 pre-impl 审计
+
+**类型：** 新规律
+
+**内容：** spec 里「某组件状态源脱节」类 feature，开工前应先核**该组件是否真被渲染**（全仓引用扫描）与**它声称的样式属性是否真产出 CSS**。本批 F003 两条都不成立：组件零引用，且 `borderColor` 被 spread 到一个纯 div 包装件上从不产出样式——acceptance 写的「深色下边框跟随」用规定的改法根本无法达成。planning 阶段的只读勘查看到了「引了哪个 useColorMode」，但没看到「这个组件有没有人用」「这个 prop 有没有效」。建议 Planner 起草此类 feature 时把「消费点存在性」与「属性生效性」列入勘查清单。
+
+**建议写入：** `framework/patterns/audit-methodology.md` 或 `framework/harness/pre-impl-adjudication.md` §触发条件
+
+**状态：** ✅ 已确认（用户 2026-07-22）并落地
+
+## [2026-07-22] Andy/Evaluator-reverify — 来源：P2-CLEANUP F003 fix_round1 复验
+
+**类型：** 新坑
+
+**内容：** **换实现形态后，既有断言可能静默退化为恒真。** F003 首轮 harness 的 C3 断言是 `/border-navy-700/.test(className)`；修复把实现从 `isDark ? 'border-navy-700' : 'border-white'` 换成 Tailwind 变体 `dark:border-navy-700` 后，该正则在**浅色态同样为真**（子串命中变体名内部），C3 从此不携带任何信息。表面上「原测试由 2 failed 转 0 failed」，实际只有一条载荷断言真的转绿。规律：修复走了与原实现不同的形态时，不得仅以「原测试转绿」作为缺陷消除的证据，须先做断言强度审查（尤其子串/正则类断言），并补 discriminating 反向断言（如「浅色态该断言应为假」）。
+
+**建议写入：** `framework/patterns/audit-methodology.md`（断言强度审查）或 `framework/harness/evaluator.md` 复验章节
+
+**状态：** ✅ 已确认（用户 2026-07-22）并落地
+
+## [2026-07-22] Andy/Evaluator-reverify — 来源：P2-CLEANUP F003 探针保真度
+
+**类型：** 新规律
+
+**内容：** **合成节点探针证明不了组件真把 className 落到了 DOM。** Generator 的 F003 探针用 `<div class="${从源码正则提取的类名}">` 验证 CSS 变体行为——类名非硬编码这点是对的，但不渲染真实组件，故若 `Image` 吞掉 `className` 该探针仍会绿。规律：验证「组件 X 的样式在条件 Y 下生效」时，合成节点只能证明**样式规则**存在，必须另有一条挂载真实组件的路径才能证明**组件真的发出了它**。零引用组件（产品无路由可达）应建最小挂载 harness（esbuild 打包真实组件 + link 真实产物 CSS），而非退化为合成节点。
+
+**建议写入：** `framework/patterns/audit-methodology.md` 或 `framework/patterns/web-runtime-patterns.md`
+
+**状态：** ✅ 已确认（用户 2026-07-22）并落地

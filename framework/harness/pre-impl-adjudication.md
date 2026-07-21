@@ -31,6 +31,23 @@ Generator 按 spec 直接开工时，常见 3 类代价高昂的错误：
 | 非 token 色使用 | 平台品牌色（YouTube red）是否需要扩 @theme？ |
 | 发现原型 bug | HTML 快照与 canonical 不一致时如何处理？ |
 | 数据模型 gap | `Campaign.openRate` 字段不存在，是加 migration 还是动态计算？ |
+| **消费点不存在**（v1.0.7） | spec 说「修组件 X 的状态源脱节」，开工前 grep 发现 X **全仓零引用**——立项理由（"用户会看到"）不成立 |
+| **属性根本不生效**（v1.0.7） | spec 规定的改法作用在一个**从不产出效果**的通道上——改完 acceptance 仍不成立 |
+
+**「组件 X 有问题，去修 X」类 feature 的开工前两问（v1.0.7 — KOLMatrix P2-CLEANUP F003 沉淀）：**
+
+1. **消费点存在吗？** —— 从应用入口做传递可达性（见 `patterns/audit-methodology.md` §2），
+   而非只看「代码里有没有这个组件」
+2. **它声称的那个属性真的产出效果吗？** —— 实测一次，别信 prop 名字长得像就以为它生效
+
+**反面（KOLMatrix P2-CLEANUP F003）：** spec 立项理由是「Avatar 的 colorMode 与 body.dark 脱节，
+不修则等于持久化一个半坏的深色」。开工前核实推翻两条：(a) 该组件**全仓零引用**，产品里不渲染，
+用户根本看不到；(b) 它的 `borderColor` 被 spread 到一个纯 `<div>` 包装件上，**从不产出任何样式**——
+acceptance 写的「深色下边框跟随」用 spec 规定的改法**根本无法达成**。
+planning 阶段的只读勘查看到了「引了哪个 useColorMode」，但没看到「这个组件有没有人用」「这个 prop 有没有效」。
+
+**Planner 侧对称要求：** 起草此类 feature 的 spec 时，把「消费点存在性」与「属性生效性」列入勘查清单，
+不要留给 Generator 在开工前才撞见。
 
 ### 2.2 审计文档模板（Generator 写）
 

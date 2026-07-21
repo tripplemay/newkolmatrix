@@ -140,7 +140,24 @@ tests/visual/fonts/          # woff2 + 改写 src: 指向本地的 CSS
 
 **自检：** 新增基线页时问一句「如果这个区块的数据源整个消失，这条测试会红吗？」——答案是否，说明缺 `waitFor` 硬断言。
 
-**来源：** KOLMatrix FE-REFACTOR F005 / F003+F007（BL-FE-11、BL-FE-13）+ ARCH-M05 F017。
+### 4.4 新增视觉用例的「CI 首推必红」是预期，且补基线不会自动复验（v1.0.7）
+
+**背景：** KOLMatrix P2-CLEANUP F005 新增一条视觉用例后首次 push，CI **必然红**：
+`Error: A snapshot doesn't exist at .../creator-drawer-linux.png, writing actual.` ——
+本地重生的是 `-darwin` 基线，`-linux` 基线在 CI 跑起来之前不存在。
+
+**两段式陷阱：**
+
+1. **首推必红是预期**，不是回归——但 Generator 的「CI 绿才能切 verifying」纪律会在此卡住，需知道这是预期
+2. **补完基线 CI 也不会自动复跑**——`update-visual-baselines` workflow 的 commit 带 `[skip ci]`，
+   必须**另有一次触碰非 `paths-ignore` 路径的 push** 才能真正验证 CI 绿
+
+**落地顺序：** 新增视觉用例 → push（CI 红，预期）→ 手动跑 `Update visual baselines` workflow →
+`git pull` 取回 linux 基线 → 另推一次实质改动 → 才算验到 CI 绿。
+
+**别被这一条骗过去：** 只看到「基线 workflow 绿了」就认为 CI 绿，是把两件事混为一谈。
+
+**来源：** KOLMatrix FE-REFACTOR F005 / F003+F007（BL-FE-11、BL-FE-13）+ ARCH-M05 F017 + P2-CLEANUP F005（§4.4）。
 
 ---
 
@@ -172,3 +189,4 @@ tests/visual/fonts/          # woff2 + 改写 src: 指向本地的 CSS
 | 2026-07-09 | v1.0 重构：自 `harness/generator.md` §8-§9 原文迁出成独立 pattern 文件 | 框架 v1.0 目录分层 |
 | 2026-07-14 | §3 付费/第三方模板 scaffold 首推前 secret 预扫（含 `--amend` 清历史铁律） | KOLMatrix DS-FOUNDATION F001 |
 | 2026-07-21 | §4 视觉回归基线三个静默坑（CDN 字体抖动 / 容忍带双向 / 空数据基线）+ §5 Tailwind JIT 双域 token 分工 | KOLMatrix FE-REFACTOR + ARCH-M05 |
+| 2026-07-22 | §4.4 新增视觉用例 CI 首推必红且补基线不自动复验（`[skip ci]` 陷阱） | KOLMatrix P2-CLEANUP F005 |

@@ -21,11 +21,39 @@
   "docs": {
     "spec": "specs/P2-CLEANUP-spec.md",
     "test_cases": "test-cases/P2-CLEANUP-F005-liveness-probe.spec.ts",
-    "signoff": null,
+    "signoff": "test-reports/P2-CLEANUP-signoff.md",
     "framework_reviewed": true
   },
   "role_assignments": null,
-  "evaluator_feedback": null,
+  "evaluator_feedback": {
+    "summary": "P2-CLEANUP 复验：5/5 PASS，批次可收官。F003 首轮判红的活体切换不跟随缺陷经三方独立证据交叉确认已真实消除；§4.5 裁决核实被如实执行且未导致 acceptance 实质目标落空；回归面无破坏，视觉基线零漂移。",
+    "pass_count": 5,
+    "partial_count": 0,
+    "fail_count": 0,
+    "issues": [],
+    "observations": [
+      {
+        "id": "O-1",
+        "severity": "low",
+        "description": "ChakraNextAvatar + showBorder 路径边框恒不渲染（深浅两态 border-width 均 0px），根因 shouldForwardProp 白名单不含 showBorder。经 git show 8856924^ 比对白名单与 pre-F003 逐字相同，属既存行为非本轮引入，不影响 F003 判定。M1 若使用该路径会静默失效。建议入需求池。"
+      },
+      {
+        "id": "O-2",
+        "severity": "info",
+        "description": "BL-FE-16（useColorMode 跨实例不同步）已在 backlog.json 登记，本轮 F003 绕开而非修复，属既定裁决，不构成未达成项。"
+      },
+      {
+        "id": "O-3",
+        "severity": "info",
+        "description": "审计 §4.2 结尾「若裁决者本意是要连 Image 一起改造请驳回本段」仍无追认记录，属用户决策，不计入判据，提请 done 阶段闭环。"
+      },
+      {
+        "id": "O-4",
+        "severity": "low",
+        "description": "测试资产健康度：首轮 harness 的 C3 断言 /border-navy-700/.test(cls) 在 fix-1 下已恒真（浅色态同样命中 dark:border-navy-700 子串），其转绿不携带信息；载荷证据为 C2。建议后续修正该断言口径，避免未来被当作假绿证据引用。"
+      }
+    ]
+  },
   "generator_handoff": null,
   "session_notes": {
     "Andy": "P2-CLEANUP fix_round1 完成，status=reverifying（2026-07-22）。verifying 结果 4 PASS + F003 PARTIAL（对抗复核未证伪，维持）。F003 缺陷：刷新进深色跟随、navbar 活体切换不跟随；根因 hooks/useColorMode 每调用点独立 useState + 零跨实例订阅，纯读取方只在挂载同步一次。首版按 acceptance 字面「改读 hooks/useColorMode」实装，恰是失败主因——对抗复核指出 darkMode:'class' 下 dark: 编译为 :is(.dark *)，纯 CSS 零 JS 状态即可跟随，且是本项目主导范式（84 文件）。用户 2026-07-22 裁决改用 dark: 变体，落审计文档 §4.5。hook 缺陷未修，立 BL-FE-16 入需求池（多消费者 + 多标签页均不同步，DS-FOUNDATION F005 遗留）。关键证据：Evaluator 独立 harness scripts/test/f003-harness/browser-check.mjs 未经 Generator 修改，由 10p/2f 转 12p/0f（C2/C3 转绿）——Generator 全程未改动任何 evaluator 产物。Generator 探针 p2-cleanup-f003 改版 14/14（B 项断言口径从「读哪个状态源」改为「边框跟不跟随」，新增 F 行为回归 + G 活性证明）。全量 test:visual 13/13，基线零漂移。复验重点：F003 单条；其余四条 verifying 已 PASS 且本轮零改动（git diff 仅 Avatar.tsx + 其探针 + 审计文档 + backlog）。"

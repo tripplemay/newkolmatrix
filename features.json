@@ -6,7 +6,7 @@
       "title": "架构文档定稿 v1.2（kimi 基底 + f5 十条增量 + as-built 校准）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "以 architecture_kimi.md(v1.1) 为基底定稿 docs/dev/architecture.md v1.2：并入 f5 十条实现层增量（spec §F001 清单，schema/API 以实物为准转录）；as-built 校准六处漂移（OperationLog 7 列 cuid/PendingAction 3 态/闸门单步 confirm+reject 无 execute 无 HMAC/append-only 触发器未落地转欠账/删「零后端」快照/版本表 TS5.9+React19.2+Prisma6.19+ai7+工具字段 class+canvas 落点+common 10 组件+redirect 桩现状）；矛盾裁决=已实装 as-built、未实装标「演进目标」按 M 路线归位（两步票据→M3/调度器→M1/路线图采 M0-M5）；f5 归档 docs/archive/；audits 设计文档入 git；CLAUDE.md 指向修复；核实 AI SDK core/provider 版本族配对并记录结论；evaluator 可逐条 grep 实物对账校准项",
       "description": "ARCH-LOCK。用户工作区未提交的架构文件由本 feature 正式处理。定稿文档是后续 F002-F016 的口径权威，必须首个完成。"
     },

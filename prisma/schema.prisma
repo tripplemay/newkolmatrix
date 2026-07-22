@@ -93,6 +93,9 @@ model Kol {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  planKols        PlanKol[] // M2-A F001：入选组合的反向关系
+  matchCandidates MatchCandidate[] // M2-A F001：候选池反向关系
+
   @@unique([tenantId, canonicalHandle]) // F004 幂等 upsert
   @@index([tenantId])
   @@index([platform])
@@ -136,6 +139,9 @@ model Project {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   game   Game?  @relation(fields: [gameId], references: [id], onDelete: SetNull)
+
+  matchPlans      MatchPlan[] // M2-A F001：组合方案反向关系
+  matchCandidates MatchCandidate[] // M2-A F001：候选池反向关系
 
   @@index([tenantId])
   @@index([gameId])
@@ -240,6 +246,100 @@ model GameKnowledge {
 
   @@index([tenantId])
   @@index([gameId, kind]) // 链头读取热路径：WHERE gameId+kind AND supersededById IS NULL
+}
+
+// ───────────────────────── 匹配平面（M2-A-MATCH F001，architecture §5.2 :464-466）─────────────────────────
+
+/// 组合方案状态机（architecture §5.3 →reach 守卫判据）。
+/// D20：draft → approved（单选：同项目其余 draft → superseded）/ draft → superseded；
+/// approved 永不动（审计链，P4）——流转逻辑落 F003/F004，须配变异测试。
+enum MatchPlanStatus {
+  draft
+  approved
+  superseded
+}
+
+/// 候选裁定三态（「待你裁定」表）。pending → kept / dropped 由人工裁定（写入口归 P8 后续批）；
+/// 刷新 upsert 不得把 kept/dropped 回退为 pending（P4，F003 变异测试）。
+enum CandidateVerdict {
+  pending
+  kept
+  dropped
+}
+
+/// 组合方案（M2-A F001）。批准 = internal 事件（D16 语义：选了就生效，不产生 PendingAction）。
+/// metrics Json 形状 = {reachTotal:number|null, budgetUsd:number|null(P6 恒 null),
+/// risk:'low'|'mid'|'high'|null, people:number}——zod 见 schemas/match.ts（读侧宽松降级 D2）。
+model MatchPlan {
+  id       String @id @default(cuid())
+  publicId String @unique @default(cuid()) // D-INTEROP 稳定对外标识
+  tenantId String
+
+  projectId   String
+  name        String
+  metrics     Json // 展示指标聚合（形状见上；脏数据读时降级 null）
+  rationale   String // 组合推荐理由（人类可读）
+  recommended Boolean         @default(false)
+  status      MatchPlanStatus @default(draft)
+  approvedBy  String? // 批准人（单角色 dev：'operator'）
+  approvedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kols    PlanKol[]
+
+  @@index([tenantId])
+  @@index([projectId, status]) // 热路径：现行组合读取（WHERE projectId AND status）
+}
+
+/// 组合成员（M2-A F001）。reasons[] = 可解释依据必带——DB 层 String[] 无非空约束，
+/// 写侧由应用层 zod 把关（schemas/match.ts assertPlanKolReasons，沿 FR-11.9 先例）。
+model PlanKol {
+  id       String @id @default(cuid())
+  publicId String @unique @default(cuid()) // D-INTEROP 稳定对外标识
+  tenantId String
+
+  planId     String
+  kolId      String
+  matchScore Float // matchScore.compute 产物（0-1）
+  reasons    String[] // 可解释依据（空则非法，写侧 zod 校验）
+
+  createdAt DateTime @default(now())
+
+  plan MatchPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  kol  Kol       @relation(fields: [kolId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([planId]) // 热路径：组内成员读取
+  @@index([kolId])
+}
+
+/// 匹配候选（M2-A F001）。「待你裁定」：存疑原因 + 初判，不显裸分（architecture :466）。
+/// scorePending=true = 受众数据缺失降级纯向量分（FR-11.6），显示层「待核」（裁决 #2）。
+model MatchCandidate {
+  id       String @id @default(cuid())
+  publicId String @unique @default(cuid()) // D-INTEROP 稳定对外标识
+  tenantId String
+
+  projectId    String
+  kolId        String
+  verdict      CandidateVerdict @default(pending)
+  doubts       String[]         @default([]) // 存疑原因（规则化生成，F003）
+  preJudge     String // 初判三态展示串：'高' / '中' / '?'
+  matchScore   Float? // matchScore.compute 产物；null 仅当 embedding 缺失（P2 定案）
+  scorePending Boolean          @default(false) // true = 降级纯向量分 → 显示「待核」
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kol     Kol     @relation(fields: [kolId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, kolId]) // 幂等刷新键（F003 upsert）
+  @@index([tenantId])
+  @@index([kolId])
 }
 
 // ───────────────────────── 运行时表（闸门 / 留痕 / 交接）─────────────────────────

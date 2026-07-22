@@ -6,7 +6,7 @@
       "title": "schema：MatchPlan + PlanKol + MatchCandidate 三表 + zod 契约",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "expand 迁移新增三模型（architecture §5.2 :464-466，均带 tenantId+publicId）：MatchPlan（projectId 真 FK/name/metrics Json{reachTotal|null,budgetUsd 恒 null P6,risk|null,people}/rationale/recommended @default(false)/status enum draft|approved|superseded @default(draft)/approvedBy?/approvedAt?）· PlanKol（planId FK Cascade/kolId FK/matchScore Float/reasons String[] 非空即可解释依据——应用层 zod 校验空则非法）· MatchCandidate（projectId FK/kolId FK/verdict enum pending|kept|dropped @default(pending)/doubts String[]/preJudge 三态串/matchScore Float?/scorePending Boolean @default(false)，@@unique([projectId,kolId]) 幂等键）；src/lib/data/schemas/match.ts：metrics/doubts 读侧宽松降级 null 不抛错（D2）+ PlanKol.reasons 写侧非空；单测覆盖降级与拒收；单租户不建 RLS（D4 先例）；D20 标注（status/verdict 流转变异测试义务落 F003/F004）；schema+migration+引用代码同 commit；lint + tsc + test:unit 绿",
       "description": "spec §2 F001。勘查实证现无三表（schema.prisma grep match 唯一命中 = enum Stage :105）。"
     },

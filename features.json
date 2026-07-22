@@ -15,7 +15,7 @@
       "title": "存储通道 + 上传 API（本地盘卷，U2）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "src/lib/knowledge/storage.ts：MATERIALS_DIR（dev 默认 ./.materials 入 gitignore，prod /app/materials）+ {gameId}/{cuid}-{safeName} 落盘 + 路径穿越防护；POST /api/materials：formData（file+gameId+type）→ 类型白名单 pdf/txt/md/csv/png/jpg/webp + 20MB 上限 + 【P5】图片最短边>10px 前置校验（vision 实测约束）→ 存盘 → Material 落库 pending；【P6】video/不可解析类型落库即 failed+parseError 明示；【P8】rate-limit 10 req/min/tenantId fail-open + DISABLE_UPLOAD_RATELIMIT；GET /api/materials?gameId= 轮询列表；集成测试：上传落盘落库/路径穿越拒/超限拒/小图拒；lint + tsc 绿",
       "description": "spec §2 F002 + U2/P1/P5/P6/P8。route handler 非 server action（P1：formData 大文件无 1MB 默认限制）。"
     },

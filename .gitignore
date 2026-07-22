@@ -36,3 +36,7 @@ npm-debug.log*
 
 # Claude agent worktrees
 .claude/worktrees/
+
+# 素材文件本体（M1-D F002，U2 本地盘通道）：dev 默认 MATERIALS_DIR=./.materials，
+# 表只存元数据 + storageRef，文件不入 git（prod 走 docker 卷 /app/materials）
+.materials/

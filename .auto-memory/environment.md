@@ -10,11 +10,12 @@ type: reference
 |---|---|
 | 域名 | `https://newkol.guangai.ai`（HTTPS） |
 | VPS | `deploysvr`（共享多应用机；host/user/key 存 GitHub Secrets `PROD_HOST/PROD_USER/PROD_SSH_KEY`，不入 git） |
-| 运行 | Docker 全栈：`newkolmatrix-app`(`127.0.0.1:3300`→`:3000`,nginx 反代) + `newkolmatrix-db`(pgvector/pg16,卷 `newkolmatrix-pgdata`,不暴露端口) + `newkolmatrix-migrate`(一次性 migrate+seed) |
+| 运行 | Docker 全栈：`newkolmatrix-app`(`127.0.0.1:3300`→`:3000`,nginx 反代,卷 `newkolmatrix-materials`→`/app/materials` M1-D 素材文件) + `newkolmatrix-db`(pgvector/pg16,卷 `newkolmatrix-pgdata`,不暴露端口) + `newkolmatrix-migrate`(一次性 migrate+seed) |
 | 部署目录 | `/opt/apps/newkolmatrix`（放 `docker-compose.prod.yml` + `.env`：`POSTGRES_PASSWORD`+`AIGCGATEWAY_API_KEY`，不入 git） |
 | 镜像 | app `ghcr.io/tripplemay/newkolmatrix:{sha\|latest}`（runner 最小）+ tools `...-tools:{sha\|latest}`（migrate/seed） |
 | 部署方式 | 手动 `deploy-prod` workflow_dispatch（人类闸门）；`up -d --wait` 先 migrate 后 app；详见 `docs/dev/deploy.md` |
 | ⚠️ image_tag 格式 | **必须填完整 40 位 SHA**（镜像 tag 取 `github.sha`）。填 7 位短 SHA 会在 pull 阶段直接失败：`failed to resolve reference ...: not found`。回滚同理。2026-07-22 实测踩中 |
+| ⚠️ compose 同步 | `docker-compose.prod.yml` 在 VPS 是**人工副本**（deploy-prod 不同步）。改 compose 的批次上线前必须先 `scp docker-compose.prod.yml deploysvr:/opt/apps/newkolmatrix/`（M1-D 实操；旧版备份 `.bak-m1c`） |
 
 ## 旧 kolmatrix（共存，不碰）
 

@@ -155,8 +155,14 @@ const emptyBrief: EnvBrief = {
 
 /**
  * 按项目取态势简报数据：经 projects.ts 单一出处解析（含旧 demo id 兼容，
- * mock 目录规则 5——跨页共用实体不复制）；未命中 → 全 null 深字段。
+ * mock 目录规则 5——跨页共用实体不复制）。
+ *
+ * M1-B F002（D3）机械分流：canonicalBrief 的内容全部出自《星轨协议》xg 行
+ *（300 万曝光 / $18,000 / 停在触达谈判），故**仅 xg 可得它**；lc/aw/mf 无真数据源，
+ * 一律 emptyBrief → 页面渲染「待接入」占位（readContractSlot null 降级，绝不抛错）。
+ * 不为 lc/aw/mf 补写 mock——补即造假数据（projects.ts:5「绝不填 0/'' 冒充实测」）。
+ * 修复前四项目共享同一 canonicalBrief 引用，mf 头部与面内数据打架（线上真 bug）。
  */
 export function getEnvBrief(projectId: string): EnvBrief {
-  return getMockProject(projectId) ? canonicalBrief : emptyBrief;
+  return getMockProject(projectId)?.id === 'xg' ? canonicalBrief : emptyBrief;
 }

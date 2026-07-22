@@ -15,7 +15,7 @@
       "title": "brief 分流 bug 修复（机械分流，优雅降级）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "env-brief.ts:161 按 projectId 分流——仅 xg → canonicalBrief，lc/aw/mf → emptyBrief（全 null 深字段，readContractSlot 已支持 null→「待接入」占位绝不抛错）；【D3】不为 lc/aw/mf 补写 mock（无真数据源，补即造假数据，违反 projects.ts:5「绝不填 0/'' 冒充实测」纪律）；回归测试（tests/unit/）验证 getEnvBrief('mf') 五深字段（gauge/metrics/blocker/trend/timeline）全 null 不再是 xg 数据、getEnvBrief('xg') 仍为 canonical，测试须能对比修复前（四项目共享 xg）与修复后；先核实 tests/visual 的 project-brief.png 截的是哪个项目——若 xg 则 brief 内容不变（仅 F001 的 health 头部变），若非 xg 则该页变「待接入」空面须逐处对账后更新基线；lint + tsc 绿",
       "description": "spec §2 F002 + D3。勘查确认 env-brief.ts:160-162 仍是三元式，四 canonical 项目全拿同一 canonicalBrief 引用（全是 xg 数据）——线上真 bug（mf 头部萌宠农场/$7,500/风险 与面内 xg $11.5k/触达谈判 打架）。"
     },

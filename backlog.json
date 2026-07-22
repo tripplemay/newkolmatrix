@@ -12,18 +12,5 @@
     "confirmed_at": "2026-07-22",
     "priority": "P2",
     "source": "P2-CLEANUP F003 验收（docs/test-reports/P2-CLEANUP-F003-verify.md + 对抗复核）"
-  },
-  {
-    "id": "BL-FE-17",
-    "title": "ChakraNextAvatar + showBorder 边框恒不渲染（shouldForwardProp 白名单拦下）",
-    "description": "src/components/image/Avatar.tsx:46 的 chakra() 包装 shouldForwardProp 白名单为 ['width','height','src','alt','layout']，不含 showBorder。经 ChakraNextAvatar 消费时该 prop 在包装层即被拦下，borderClass 根本不到达 DOM——深浅两态 border-width 均为 0px，className 为 'relative overflow-hidden css-0'。P2-CLEANUP 复验（signoff §4 O-1）实测发现。经 git show 8856924^ 比对，白名单与 pre-F003 版本逐字相同，属既存行为、非 P2-CLEANUP 引入。危害：M1 若有人写 <ChakraNextAvatar showBorder /> 边框会静默失效且无任何报错；两套既有测试均只覆盖裸 NextAvatar，未覆盖该路径。",
-    "decisions": [
-      "既存行为非本批引入，且 P2-CLEANUP F003 的 acceptance 只要求「chakra() 包装保留」，故不阻塞该批收官",
-      "建议与 BL-FE-16 合并为一个「image/Avatar + image/Image 模板残留统一处置」批次——两者同域（该组件全仓零引用，Image 亦是纯 div 包装、样式 props 全失效）",
-      "处置候选：删除整个 image/ 模板残留 / 修白名单并补该路径测试 / 维持现状仅登记（若确定 M1 不会用到）"
-    ],
-    "confirmed_at": "2026-07-22",
-    "priority": "P2",
-    "source": "P2-CLEANUP 复验 signoff §4 O-1（docs/test-reports/P2-CLEANUP-signoff.md）"
   }
 ]

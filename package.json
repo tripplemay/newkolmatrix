@@ -29,7 +29,6 @@
     "f010:e2e": "node --env-file=.env --import tsx scripts/seed/demo-handoff.ts && node scripts/test/f010-e2e-check.mjs",
     "p2:f001": "node scripts/test/p2-cleanup-f001-drawer-close.mjs",
     "p2:f002": "node scripts/test/p2-cleanup-f002-colormode-persist.mjs",
-    "p2:f003": "node scripts/test/p2-cleanup-f003-avatar-colormode.mjs",
     "p2:f004": "node scripts/test/p2-cleanup-f004-handoff-panel.mjs",
     "seed:projects": "node --env-file=.env --import tsx scripts/seed/canonical-projects.ts"
   },

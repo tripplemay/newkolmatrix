@@ -51,7 +51,7 @@
       "title": "BL-FE-17 + image/ 死代码删除",
       "priority": "low",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "删除整个 src/components/image/（Avatar.tsx + Image.tsx）——src/ 零引用（勘查实证 NextAvatar/ChakraNextAvatar/image-Image 在 src/ 除定义文件外零命中），BL-FE-17（showBorder 恒不渲染，Avatar.tsx:53 shouldForwardProp 白名单不含）缺陷随之作废，无需修白名单+补测试；一并退役 scripts/test/f003-harness/ + scripts/test/f003-reverify/（P2-CLEANUP F003 遗留，硬 import 真实 src 路径如 f003-harness/entry.tsx:6，未接任何 CI/npm script，不删则留悬空 import 死脚本）；删除前 grep 实证全仓（含 scripts/、tests/）除上述两处 harness 外零引用；BL-FE-16 不做（暴露面为零，唯一消费者 navbar 工作正常无纯读取方，本批亦不引入）backlog 条目保留；lint + tsc 绿",
       "description": "spec §2 F006。勘查确认 image/ 目录仅 Avatar.tsx + Image.tsx 两文件，对 src/ 是死代码（零引用），删除比修白名单+补测试更彻底。三个 f003 历史测试 harness 硬 import 真实 src 路径须一并退役。"
     }

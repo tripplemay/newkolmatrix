@@ -123,3 +123,13 @@
 ---
 
 **当前无待确认提案**（harness-fit P0-3 / P1-1~3 / P2-1~5 见上，状态=长期挂起，非待办）。
+
+## [2026-07-21] Generator/主实例 — 来源：M1-B-BRIEF F006 实装期发现 spec 勘查遗漏
+
+**类型：** 新坑（勘查方法学反面新证）
+
+**内容：** F006 spec 断言 image/ 「除两处 f003 harness 外零引用」，实装期 grep 发现第三处：`p2-cleanup-f003-avatar-colormode.mjs` 硬读该文件且接 npm script、被就绪回归口径点名。根因=勘查时按「f003」字面 grep 划面，漏掉按「image/」**路径语义** grep 才命中的探针。与 audit-methodology §2.1「按语义划勘查面」同源——删除类 feature 的勘查面必须以**被删路径**为 needle 全仓 grep（含 scripts/、package.json scripts、CI yml），不能只以历史批次名为 needle。裁决记录：docs/specs/M1-B-BRIEF-f006-p2probe-audit.md。
+
+**建议写入：** `framework/patterns/audit-methodology.md` §2.1 反面案例补一句
+
+**状态：** 待确认

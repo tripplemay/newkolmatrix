@@ -6,7 +6,7 @@
       "title": "列表页 RSC 直读 Project",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "campaigns/page.tsx 去 'use client' 转 RSC：getDevTenantId + prisma.project.findMany({include:{game:true}, orderBy:{createdAt:'asc'}})（Planner 修订：seed 固定顺序使 createdAt asc 与 mock 卡序 xg/lc/aw/mf 一致，零重排零 avatar 色轮错位；slug asc 会引入纯噪声漂移）；「进入」钮 Link 化（next/link 包 Button 视觉，client 泄漏归零，Button 作 island 无碍）；字段映射复用 M1-B display 层——game=Game.name 关联、budget=formatBudget（与 mock 串同形零漂移）、goal=formatGoalText(parseProjectGoal)（D9 合成串）、health=RSC 内 computeHealth（null 因子组装与 [id]/page.tsx:42-51 逐字段一致）；【D2 延续】四项目全 cr 是预期非缺陷；campaigns.png 漂移逐张对账（health pill×4 + goal 句×4）后重生 darwin 基线，waitFor『只做进入』保留；lint + tsc + test:unit 绿",
       "description": "spec §2 F001。勘查实证 campaigns/page.tsx:8 'use client' 唯一原因是 :47 useRouter + :94 router.push，Link 化即整页转 RSC；Pill/ProjectAvatar/Card 均 server-safe。"
     },

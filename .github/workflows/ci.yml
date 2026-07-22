@@ -104,9 +104,30 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: "1"
 
+  # M1-B-BRIEF F001（D7）— 起 Postgres service 的理由：详情页 RSC 直连 DB，
+  # 无法用 playwright route-mock 隔离。CI 无库时详情页渲染错误态，视觉套件硬红
+  #（不是漂移是翻红，同 BL-FE-11 盲区的反面）。这是 RSC 直读的既定代价，
+  # 做法同 unit job：pgvector service + migrate deploy + seed:projects
+  #（seed 自建 dev tenant，不依赖 seed:kol / 网关凭据——视觉门不引外部抖动）。
   visual:
     name: Visual regression
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kolmatrix
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/kolmatrix?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -116,6 +137,10 @@ jobs:
       - run: npm ci
       - name: Install Playwright chromium
         run: npx playwright install --with-deps chromium
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+      - name: Seed canonical projects
+        run: npx tsx scripts/seed/canonical-projects.ts
       - run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"

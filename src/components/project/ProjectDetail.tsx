@@ -7,7 +7,10 @@
 // URL 即状态（D7/裁决 #4）：?env=brief|match|reach|delivery|insight；rnode 点击切 ?env=
 //（router.replace，页内 tab 语义不变，D22：五环节非路由）。兼容旧深链：读到 ?stage=
 // 即 router.replace 重写为 ?env=（F007 迁移，kimi §6.1）。
-// D2 渲染契约：项目未命中 mock → 名回退 projectId、其余字段渲染「待补充」，绝不抛错。
+// D2 渲染契约：项目未命中（DB 无此行）→ 名回退 projectId、其余字段渲染「待补充」，绝不抛错。
+//
+// M1-B-BRIEF F001：数据源从 getMockProject 换成 RSC 直读的 project/health prop
+//（[id]/page.tsx 查库真算后传入）。本组件保持 'use client'——tab 交互不可去。
 
 'use client';
 
@@ -20,11 +23,9 @@ import {
   stageHref,
   type Stage,
 } from 'lib/agent/stage-routing';
-import {
-  getMockProject,
-  HEALTH_LABEL,
-  type ProjectHealth,
-} from 'lib/data/mock/projects';
+import { HEALTH_LABEL, type ProjectHealth } from 'lib/data/mock/projects';
+import type { HealthResult } from 'lib/domain/health';
+import type { ProjectGoal } from 'lib/data/schemas/project';
 import { PENDING_TEXT } from 'lib/data/provenance';
 import BriefEnv from 'components/envs/brief';
 import MatchEnv from 'components/envs/match';
@@ -50,19 +51,42 @@ const DOT_TONE: Record<ProjectHealth, string> = {
   cr: 'bg-red-500',
 };
 
+/**
+ * RSC → 本组件的项目数据契约（F001）。全字段可序列化（server→client prop 硬要求）。
+ * 展示串（goalText/budgetText）在 RSC 侧格式化好；goal/maxReached 为 F004 前端守卫备料（D5）。
+ */
+export interface ProjectDetailData {
+  name: string;
+  /** D9：从结构化 goal 合成的展示串；goal 解析失败 → null（渲染「待补充」） */
+  goalText: string | null;
+  budgetText: string | null;
+  owner: string | null;
+  /** 当前推进环节（rail done/进行中 判定） */
+  cur: Stage;
+  /** 历史最远解锁位（D2 双值；F004 canEnter 判据） */
+  maxReached: Stage;
+  /** goal 解析结果（F004 →match 判据） */
+  goal: ProjectGoal | null;
+}
+
 export default function ProjectDetail({
   projectId,
+  project,
+  health,
   initialEnv,
   legacyStage,
 }: {
   projectId: string;
+  /** RSC 直读 DB 的项目行（F001）；null = 未命中，走 D2 优雅降级 */
+  project: ProjectDetailData | null;
+  /** RSC 真算的健康度（domain/health.ts 同源）；null = 项目未命中 */
+  health: HealthResult | null;
   /** URL ?env=（canonical，kimi §6.1） */
   initialEnv?: string;
   /** URL ?stage=（旧深链，读到即重写为 ?env=） */
   legacyStage?: string;
 }) {
   const router = useRouter();
-  const project = getMockProject(projectId);
 
   // 初始环节：?env= 优先 → 旧 ?stage= → 项目当前推进环节（原型 data-goenv=p.cur 语义）→ brief 兜底。
   const fromUrl = initialEnv ?? legacyStage;
@@ -87,7 +111,8 @@ export default function ProjectDetail({
   const curIdx = STAGES.indexOf(cur);
   const meta = ENV_META[env];
   const Surface = ENV_SURFACE[env];
-  const health = project?.health ?? null;
+  // F001：health 由 RSC 真算传入（domain/health.ts），不再取自 mock 行。
+  const band = health?.band ?? null;
 
   return (
     <div className="mt-3">
@@ -107,9 +132,9 @@ export default function ProjectDetail({
           <h2 className="text-[23px] font-extrabold leading-tight text-navy-700 dark:text-white">
             {project?.name ?? projectId}
           </h2>
-          {/* V3-3 goal（max-w 78ch） */}
+          {/* V3-3 goal（max-w 78ch；D9 结构化字段合成串） */}
           <p className="mt-[7px] max-w-[78ch] text-[13.5px] text-gray-600 dark:text-gray-400">
-            {project?.goal ?? PENDING_TEXT.fill}
+            {project?.goalText ?? PENDING_TEXT.fill}
           </p>
           {/* V3-4 pmeta 预算 / 健康度三色 dot / 负责人 */}
           <div className="mt-3 flex flex-wrap gap-x-[22px] gap-y-2">
@@ -117,18 +142,18 @@ export default function ProjectDetail({
               <MdOutlinePayments size={14} />
               预算{' '}
               <b className="text-navy-700 dark:text-white">
-                {project?.budget ?? PENDING_TEXT.fill}
+                {project?.budgetText ?? PENDING_TEXT.fill}
               </b>
             </span>
             <span className="flex items-center gap-[7px] text-[12.5px] text-gray-600 dark:text-gray-400">
               <span
                 className={`h-[9px] w-[9px] shrink-0 rounded-full ${
-                  health ? DOT_TONE[health] : 'bg-gray-300'
+                  band ? DOT_TONE[band] : 'bg-gray-300'
                 }`}
               />
               健康度{' '}
               <b className="text-navy-700 dark:text-white">
-                {health ? HEALTH_LABEL[health] : PENDING_TEXT.fill}
+                {band ? HEALTH_LABEL[band] : PENDING_TEXT.fill}
               </b>
             </span>
             <span className="flex items-center gap-[7px] text-[12.5px] text-gray-600 dark:text-gray-400">
@@ -158,7 +183,7 @@ export default function ProjectDetail({
               className={`relative flex min-w-[150px] flex-1 flex-col items-start gap-[11px] rounded-2xl p-[18px] text-left transition duration-150 hover:-translate-y-0.5 ${
                 on
                   ? // 🔒 V3-12 on 态渐变紫底
-                    'border border-transparent bg-gradient-to-br from-brand-400 to-brand-500'
+                    'border-transparent border bg-gradient-to-br from-brand-400 to-brand-500'
                   : 'border border-gray-200 bg-white hover:shadow-xl dark:border-white/10 dark:bg-navy-700'
               }`}
             >
@@ -176,8 +201,8 @@ export default function ProjectDetail({
                   on
                     ? 'bg-white/20 text-white'
                     : done
-                      ? 'bg-green-50 text-green-600'
-                      : 'bg-lightPrimary text-gray-400 dark:bg-navy-900'
+                    ? 'bg-green-50 text-green-600'
+                    : 'bg-lightPrimary text-gray-400 dark:bg-navy-900'
                 }`}
               >
                 <Icon size={18} />

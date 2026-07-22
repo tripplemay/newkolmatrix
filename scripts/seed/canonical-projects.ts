@@ -15,7 +15,7 @@
 //
 // 运行：npm run seed:projects
 
-import { getDevTenantId } from '../../src/lib/agent/context';
+import { DEV_TENANT_SLUG } from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
 import type { Stage } from '../../src/lib/agent/stage-routing';
 import type { ProjectGoal } from '../../src/lib/data/schemas/project';
@@ -99,7 +99,16 @@ const SEED_PROJECTS: SeedProject[] = [
 ];
 
 async function main(): Promise<void> {
-  const tenantId = await getDevTenantId();
+  // M1-B F001（D7）：自建 dev tenant 使本 seed 自足——CI visual job 只跑
+  // migrate + seed:projects（详情页 RSC 直读只需 Project 行），不跑 seed:kol
+  //（embedding 依赖网关凭据，进视觉门会引入外部抖动）。与 import-kol-csv.ts 同 upsert 口径，幂等。
+  const tenant = await prisma.tenant.upsert({
+    where: { slug: DEV_TENANT_SLUG },
+    create: { slug: DEV_TENANT_SLUG, name: 'Dev Tenant' },
+    update: {},
+    select: { id: true },
+  });
+  const tenantId = tenant.id;
 
   for (const p of SEED_PROJECTS) {
     // Game 先落，否则 Project.gameId 的 FK 悬空。
@@ -148,7 +157,11 @@ async function main(): Promise<void> {
       select: { id: true },
     });
     console.log(
-      `[seed:projects] ✓ ${p.slug} ${p.name} — cur=${p.cur} 预算=$${p.budgetUsd.toLocaleString('en-US')} 目标曝光=${goal.targetExposure.toLocaleString('en-US')} id=${row.id}`,
+      `[seed:projects] ✓ ${p.slug} ${p.name} — cur=${
+        p.cur
+      } 预算=$${p.budgetUsd.toLocaleString(
+        'en-US',
+      )} 目标曝光=${goal.targetExposure.toLocaleString('en-US')} id=${row.id}`,
     );
   }
 

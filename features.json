@@ -6,7 +6,7 @@
       "title": "详情页 RSC 直读 Project + health 接真算 + visual job 起 DB",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "[id]/page.tsx（已 server component）内 prisma.project.findUnique（按 slug 或 id + tenant 过滤，复用 getDevTenantId()），把 project 作 prop 传进 ProjectDetail，找不到项目走优雅降级（现有 D2 空态或 404）；ProjectDetail.tsx 保持 'use client'（tab 交互不可去），把 :65 的 getMockProject(projectId) 换成入参 project prop；RSC 内调 domain/health.ts 的 computeHealth（先 parseProjectGoal 解析 goal jsonb + actualExposure/budgetSpent/blockerCount 填 null）→ health 作 prop 传入，【D2】四项目含 xg 全显 cr 是接受的预期结果非缺陷，不得为消除「列表页 mock wn/gd/gd/cr vs 详情页真值全 cr」的过渡态不一致而给算法打补丁或 seed 假指标；货币格式化 helper 把 budgetTotal(Decimal)+currency 转显示串（详情页 :120）；【D9】goal 从结构化 {targetExposure, period} 合成展示串不再用整句 mock；【D7】.github/workflows/ci.yml 的 visual job 起 pgvector/pgvector:pg16 service + prisma migrate deploy + seed（RSC 直连 DB 无法 route-mock，CI visual job 无 DB 则详情页渲染错误态使套件硬红，同 M1-A unit job 做法）；受影响视觉基线 project-{brief,match,reach,delivery,insight}.png 因详情页头部 health 变 cr 而漂移，逐张对账说明成因（数据变更非布局/字体回归）不盲重生（框架 v1.0.6 §4.2）；lint + tsc + test:unit 绿",
       "description": "spec §2 F001 + D2/D7/D9。详情页已是 server component（勘查确认 [id]/page.tsx:12-13 async），RSC 直读成本最低，是验证 M1-A mock→真数据契约层能否平滑换的纵切点。"
     },

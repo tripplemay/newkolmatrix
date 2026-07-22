@@ -1,68 +1,59 @@
 {
-  "sprint": "M1-C-LIST-TODAY",
+  "sprint": "M1-D-KNOWLEDGE",
   "features": [
     {
       "id": "F001",
-      "title": "列表页 RSC 直读 Project",
+      "title": "schema：Material + GameKnowledge 两表 + zod 契约",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "campaigns/page.tsx 去 'use client' 转 RSC：getDevTenantId + prisma.project.findMany({include:{game:true}, orderBy:{createdAt:'asc'}})（Planner 修订：seed 固定顺序使 createdAt asc 与 mock 卡序 xg/lc/aw/mf 一致，零重排零 avatar 色轮错位；slug asc 会引入纯噪声漂移）；「进入」钮 Link 化（next/link 包 Button 视觉，client 泄漏归零，Button 作 island 无碍）；字段映射复用 M1-B display 层——game=Game.name 关联、budget=formatBudget（与 mock 串同形零漂移）、goal=formatGoalText(parseProjectGoal)（D9 合成串）、health=RSC 内 computeHealth（null 因子组装与 [id]/page.tsx:42-51 逐字段一致）；【D2 延续】四项目全 cr 是预期非缺陷；campaigns.png 漂移逐张对账（health pill×4 + goal 句×4）后重生 darwin 基线，waitFor『只做进入』保留；lint + tsc + test:unit 绿",
-      "description": "spec §2 F001。勘查实证 campaigns/page.tsx:8 'use client' 唯一原因是 :47 useRouter + :94 router.push，Link 化即整页转 RSC；Pill/ProjectAvatar/Card 均 server-safe。"
+      "status": "pending",
+      "acceptance": "expand 迁移新增 Material（gameId/type 枚举 lore~video/source/fileName/storageRef/mimeType/sizeBytes/parseStatus 枚举 pending~failed @default(pending)/parseError?/parsedAt?）与 GameKnowledge（gameId/kind 枚举 selling_point|audience|compliance_redline/content/structured Json?/sourceMaterialIds String[] 非空溯源 FR-11.9 应用层校验/confidence?/generatedBy 默认 strategy/supersededById?）两模型，均带 tenantId+publicId，软引用沿 D13 先例；src/lib/data/schemas/knowledge.ts 落 zod（表深字段 + LLM 解析产物 schema）；单测：脏数据宽松降级 null 不抛错（D2）；schema+migration+引用代码同 commit；lint + tsc + test:unit 绿",
+      "description": "spec §2 F001。字段按 architecture §7.6（:900-908）；勘查实证现无两表（schema.prisma:146-159 Game 最小占位注记「素材上传/AI 解析 → M1」）。"
     },
     {
       "id": "F002",
-      "title": "PendingAction expand（projectId/agentId）+ aggregatePending 扩列",
+      "title": "存储通道 + 上传 API（本地盘卷，U2）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "expand 迁移：PendingAction 加 projectId String? + agentId String?（nullable，expand-contract 回滚安全）；闸门创建 PendingAction 处从 ToolContext.projectId/agentId 填列——只填不判，null 合法；aggregatePending（orchestrator.ts:45）select+返回结构扩两字段，harm 仍原样透传；回归测试：aggregatePending 返回新字段 + gate 创建带 ctx.projectId 落列/不带为 null（复用 gate 测试基座）；schema 变更+migration+引用代码同一 commit；lint + tsc + test:unit 绿",
-      "description": "spec §2 F002 + D-A。勘查实证 PendingAction（schema.prisma:171-186）无 projectId/agentId；aggregatePending 骨架已建（orchestrator.ts:45-68）未接今天页。雷达真数据的前置。"
+      "status": "pending",
+      "acceptance": "src/lib/knowledge/storage.ts：MATERIALS_DIR（dev 默认 ./.materials 入 gitignore，prod /app/materials）+ {gameId}/{cuid}-{safeName} 落盘 + 路径穿越防护；POST /api/materials：formData（file+gameId+type）→ 类型白名单 pdf/txt/md/csv/png/jpg/webp + 20MB 上限 + 【P5】图片最短边>10px 前置校验（vision 实测约束）→ 存盘 → Material 落库 pending；【P6】video/不可解析类型落库即 failed+parseError 明示；【P8】rate-limit 10 req/min/tenantId fail-open + DISABLE_UPLOAD_RATELIMIT；GET /api/materials?gameId= 轮询列表；集成测试：上传落盘落库/路径穿越拒/超限拒/小图拒；lint + tsc 绿",
+      "description": "spec §2 F002 + U2/P1/P5/P6/P8。route handler 非 server action（P1：formData 大文件无 1MB 默认限制）。"
     },
     {
       "id": "F003",
-      "title": "今天页 RSC 重构 + 雷达/KPI/feed 接真 + 无存处降级",
+      "title": "解析管道（文本 chat + 图片 vision）+ 状态机变异测试",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "today/page.tsx 转 RSC；client 叶子仅 chartcard（ApexCharts dynamic ssr:false）+ AgentSquad（已 island）+ 进入钮优先 Link 化归零；AGENT_ICONS 迁出 'use client' 模块至 server-safe 单点；【D-A】雷达接 aggregatePending：有 projectId 联 Project 渲染完整卡（真 health/name/budget + harm.summary/amount + outbound 红标=harm.irreversible（Planner 修订：实物 PendingAction.kind 恒为 'gate'（gate.ts:75），红标真源是 harmSchema.irreversible），stage 深链由 agentId 经 STAGE_AGENT 反查），无 projectId 渲染极简卡，空态渲染可见文案不得 null（§4.3 反静默空白）并加 waitFor 硬断言；【D-D】KPI：进行中项目=count 真值、待你确认=与雷达同一次 aggregatePending 派生（防两处各算）、Agent 今日完成=OperationLog count(kind=auto,今日)、本月有效触达=「待接入」占位、delta 不渲染；feed=OperationLog 最近 8 条（空则可见空态）；monthlyAutoDone chartcard 与 teamLoads 保留区块结构内渲染「待接入」（设计稿保护规则不删区块）；【D-B】侧栏徽标本批不接真登记过渡态；en-today.png 漂移逐处对账后重生（D-H：本地重生前清空 PendingAction 表保决定论）；两视口实测；lint + tsc + test:unit 绿",
-      "description": "spec §2 F003 + D-A/D-B/D-D/D-H。勘查实证今天页全无 useState、唯一 hook 是 RadarCard useRouter；waitFor『需要你确认』锚在无条件渲染的 SecHead（today/page.tsx:327-331）雷达空态不超时。"
+      "status": "pending",
+      "acceptance": "src/lib/knowledge/parse.ts parseMaterial：pending→parsing→按 mimeType 分流（文本直读/pdf 文本抽取；图片 image part 走 chatModel(AIGCGATEWAY_VISION_MODEL 默认 qwen3.5-flash，立项实测可用)）→ generateText → zod 校验 → GameKnowledge 三类 kind 生成 +【P3】supersede 同事务（新链头+旧条目 supersededById，读取恒取 supersededById IS NULL）→ parsed；失败 → failed+parseError 状态机内消化不外抛；POST /api/materials/{id}/parse（上传后自动触发+重新分析复用；【P2】同步+轮询不建队列+进程内防重入拒并发）；logUsage 照记；【D20】状态机变异测试：四态流转+supersede 链+链头读取各配变异断言；【P7】单测 mock 网关（解析调用可注入替换），真网关属 L2 留验收授权；lint + tsc + test:unit 绿",
+      "description": "spec §2 F003 + U3/P2/P3/P4/P7 + D20 义务（architecture :479）。src/ 首个 server 侧一次性 generateText 调用点（勘查实证现仅 route.ts:109 streamText）。"
     },
     {
       "id": "F004",
-      "title": "例程调度器最小闭环（node-cron + health-scan）",
+      "title": "knowledge 页面接真 + mock 退役",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "新建 src/lib/jobs/scheduler.ts（node-cron 注册 + 进程内互斥锁：上轮未结束不重入）+ src/lib/jobs/routines/health-scan.ts；【D-C】instrumentation.ts 在 NEXT_RUNTIME==='nodejs' 时启动，ROUTINES_DISABLED=true 可关（默认开），cron 常量默认 '0 2 * * *'；新增 node-cron 依赖；health-scan：读 tenant 全部 Project → computeHealth（null 因子同页面/工具口径）→ 每项目写 OperationLog{kind:'auto',actor:'strategy',projectId,summary 巡检文案,payloadJson:{score,band}}，纯计算不调网关不涉闸门；手动触发口 npm run routine:health-scan（不等 cron 到点）；单测：例程逻辑 + 幂等重跑 + 互斥锁行为；可见面闭环：跑一次后今天页「Agent 今日完成」>0 且 feed 出现巡检行；lint + tsc + test:unit 绿",
-      "description": "spec §2 F004 + D-C。勘查实证：OperationLogKind 含 auto + projectId/payloadJson 列已在（schema.prisma:189,209-210）零建表；5 条规划例程仅 health-scan 本批可做（architecture.md:1170-1183，ADR-20 锁定 node-cron/不建队列）。"
+      "status": "pending",
+      "acceptance": "knowledge/page.tsx RSC 直读（force-dynamic 必须声明 + build 后 prerender-manifest 不含该路由，v1.0.9 §6）：Game 全列+Material 列表+GameKnowledge 链头组装可序列化 prop（沿 ProjectDetailData 范式)；KnowledgeWorkbench 保 'use client'：UploadZone→POST /api/materials→自动 parse→轮询至 parsed/failed→router.refresh；重新分析接 parse API；mock 时序（setTimeout 1100）与 mock/knowledge.ts 退役——按被删路径 needle 全仓 grep 零代码残留（v1.0.9）；D2 空态/降级可见文案（无素材/failed 红态+parseError/特点卡待解析占位，保区块结构）；knowledge.png 基线漂移逐处对账后重生（waitFor 按新实况校准+空态硬断言 §4.3）；运行时改→验→复原实证；两视口实测；lint + tsc + test:unit + test:visual 绿",
+      "description": "spec §2 F004。勘查实证页面/组件全建好只换供给侧（KnowledgeWorkbench 130 行 + 三卡组件，数据契约 mock/knowledge.ts:34-52）。"
     },
     {
       "id": "F005",
-      "title": "收敛与 mock 退役链（ENV_NAME/env-brief/tone + mock 整删）",
+      "title": "prompt ⑤层知识注入（U4）",
       "priority": "medium",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "ENV_NAME 消费切 ENV_META[].name（mock/today.ts:16 EXTENSION POINT 兑现）；【D-E】env-brief.ts 分流判定改内联 slug 比对 + 内联 LEGACY_ID_ALIAS（starlight-protocol→xg 保留，f007/f010 零回归），不再 import mock/projects；删除 lib/data/mock/today.ts 与 lib/data/mock/projects.ts，按被删路径为 needle 全仓 grep 零残留（含 scripts/tests/package.json/mock/index.ts，M1-B F006 教训）；【D-F】新建 src/lib/display/health-tone.ts 单点导出 PILL_TONE（canonical 取 today 版全 dark 变体）+ DOT_TONE，campaigns/今天页/ProjectDetail 三处 import 单点，浅色基线零漂移；回归：tsc 全绿 + grep 实证零副本残留；lint + tsc + test:unit 绿",
-      "description": "spec §2 F005 + D-E/D-F。勘查实证 mock/today 唯一消费方是今天页；mock/projects 还有 env-brief.ts:166-168 消费点与 LEGACY_ID_ALIAS（f007/f010 依赖）；PILL_TONE 两份 DOT_TONE 一份（S4 顺手收敛）。"
+      "status": "pending",
+      "acceptance": "registry.ts persona 扩 knowledgeKinds?：strategy=三类全量、match=['audience']、reach=['selling_point']、compliance=['compliance_redline']（architecture :907 映射，本批仅注入 prompt）；新建 src/lib/agent/knowledge-context.ts gameKnowledgeSection(projectId,kinds)：经 Project.gameId 查链头拼知识段（含溯源计数），无知识返回空串不注水；route.ts:102 装配点拼接（ctx.projectId 空则跳过）；单测断言 prompt 拼接产物含知识段+kinds 过滤正确（mock 数据不打网关）；真对话实测属 L2 留验收授权；lint + tsc + test:unit 绿",
+      "description": "spec §2 F005 + U4。立项补核实证装配点 = route.ts:102 persona.systemPrompt 拼接处；registry 现无 knowledgeKinds（grep 零命中）。"
     },
     {
       "id": "F006",
-      "title": "f008 探针修缮（Link 化使断言复活）",
+      "title": "部署面：materials 卷 + env + 文档",
       "priority": "low",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "【D-G 预裁决】修缮而非退役：更新历史漂移锚点（:70『五环节』文案改现渲染文案；其余按实跑逐条校准）；F001/F003 Link 化后 §4 a[href^=/admin/campaigns/] 与 §5 a[href*=env=] 断言复活确认；修缮后 npm run f008:browser 全绿（standalone 实测）；修缮说明落 commit 正文（历史漂移非 M1-C 引入，对照 p2:f003 先例）；lint + tsc 绿",
-      "description": "spec §2 F006 + D-G。勘查实证 f008 §4 anchor 断言因列表卡 router.push 早已中断（ARCH-M05-verify-B:65）且未入 backlog；死链/redirect/侧栏检查仍有守护价值。"
-    },
-    {
-      "id": "F007",
-      "title": "architecture.md 口径校准（17 条清单，S8/S1 兑现）",
-      "priority": "low",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "按 spec §2 F007 清单 17 条逐条校准：A 类 8 条「未实装」翻牌为已实装+指向实物路径（:84 vitest/:283 domain//:654 schemas//:758 Project 列/:1128 compute_health/:1628 §12.6.1/:1632 §12.6.2/:481 游标）；B/C 类改写措辞（:402 章头拆分/:521 逐行拆标/:563/:629-635 契约层范围/:929/:1642-1669 D17/D18 as-built/:1684 CI 流程图/:1797-1798 §14 M0.5 置 done+M1 行拆分/:1833 ADR-16 部分兑现）；游标校准须按 as-built 写（仅 →brief/→match 可判，其余保守拒 DEPENDENCY_NOT_IMPLEMENTED）；本批交付项在 §14 M1 行同步标注；只改口径不改设计决策，每条附实物路径；文档 commit 随批次尾实质 push 验证",
-      "description": "spec §2 F007。M1-A signoff S1 + M1-B signoff S8 两批顺延的文档校准，勘查已产出逐条清单（17 条含行号与实物证据）。"
+      "status": "pending",
+      "acceptance": "docker-compose.prod.yml 新增 newkolmatrix-materials 卷挂 app /app/materials + env MATERIALS_DIR/AIGCGATEWAY_VISION_MODEL；.env.example 补两项注释；.gitignore 补 .materials/；docs/dev/deploy.md 更新（materials 卷备份纳入 R7 记账）+ architecture.md §7.6/§11.3 as-built 翻牌；探针/测试漂移扫描（v1.0.5：grep 引用部署文件的探针）；lint + tsc 绿；部署验证随上线执行",
+      "description": "spec §2 F006。勘查实证 compose 现仅 pgdata 卷（:69-71），app 无文件卷。"
     }
   ]
 }

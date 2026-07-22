@@ -33,7 +33,7 @@
       "title": "批准动线 + →reach 守卫解锁（S10 消解）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "POST /api/match/plans/{id}/approve：internal 动作（不产生 PendingAction、无确认弹窗，FR-7.19/D27/D16+:1352 双边铁律）；事务=目标 plan approved+approvedBy/At+同项目其余 draft→superseded；随后 advanceStage(projectId,'reach')（S10 首个生产消费者；advance 失败不回滚批准，响应注明）；env-guards.ts:117 DEPENDENCY_NOT_IMPLEMENTED 替换为真判定——EnvGuardContext 扩 hasApprovedMatchPlan（纯函数边界保持，调用方组装，两调用点同步扩）+grep 字面量确认零残留；POST /api/match/refresh?projectId= 手动重跑入口（本批无 UI 按钮，验收与后续用）；集成测试：批准事务原子/单选语义/批准后 canEnter('reach') 放行/未批准拒/重复批准幂等或 409+【D20】approved 流转变异断言；lint + tsc + test:unit 绿",
       "description": "spec §2 F004 + P3。勘查实证 env-guards.ts:115-117 待解锁 + advanceStage 唯一消费者为集成测试（S10，M1-B signoff :165）。"
     },

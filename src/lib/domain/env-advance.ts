@@ -69,10 +69,18 @@ export async function advanceStage(
   const cur = project.cur as Stage;
   const maxReached = project.maxReached as Stage;
 
+  // M2-A F004：→reach 判据（守卫保持纯函数，存在性在此调用点查好传入）。
+  // 恒查不按 next 分支：单索引 count 查询廉价，分支反而引入「漏组装」缺口。
+  const approvedPlan = await prisma.matchPlan.findFirst({
+    where: { projectId, status: 'approved' },
+    select: { id: true },
+  });
+
   const guard = canAdvance({
     cur,
     maxReached,
     goal: parseProjectGoal(project.goal),
+    hasApprovedMatchPlan: approvedPlan != null,
   });
 
   // 守卫拒绝：不写日志，只回理由（acceptance 明令「守卫拒绝的推进不写日志」）。

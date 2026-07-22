@@ -37,6 +37,11 @@ export default async function ProjectDetailPage({
   let health: HealthResult | null = null;
   if (row) {
     const goal = parseProjectGoal(row.goal);
+    // M2-A F004：→reach 守卫判据（canEnter ctx；守卫纯函数，存在性由 RSC 查好传入）
+    const approvedPlan = await prisma.matchPlan.findFirst({
+      where: { projectId: row.id, status: 'approved' },
+      select: { id: true },
+    });
     // 缺失因子填 null（分子无存处，D15 该因子记 0 分）；now 在 RSC 边界注入，
     // 纯度约束只在 domain 函数（computeHealth 自身不读时钟）。
     health = computeHealth({
@@ -60,6 +65,7 @@ export default async function ProjectDetailPage({
       cur: row.cur,
       maxReached: row.maxReached, // D5：F004 前端守卫的数据源，从 DB 直读
       goal, // F004 canEnter ctx（→match 判据）所需
+      hasApprovedMatchPlan: approvedPlan != null, // M2-A F004 →reach 判据
     };
   }
 

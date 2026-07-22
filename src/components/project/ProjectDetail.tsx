@@ -65,6 +65,8 @@ export interface ProjectDetailData {
   maxReached: Stage;
   /** goal 解析结果（F004 →match 判据） */
   goal: ProjectGoal | null;
+  /** 是否存在已批准 MatchPlan（M2-A F004 →reach 判据，RSC 查好传入） */
+  hasApprovedMatchPlan: boolean;
 }
 
 export default function ProjectDetail({
@@ -111,6 +113,7 @@ export default function ProjectDetail({
           cur: project.cur,
           maxReached: project.maxReached,
           goal: project.goal,
+          hasApprovedMatchPlan: project.hasApprovedMatchPlan,
         },
         next,
       );

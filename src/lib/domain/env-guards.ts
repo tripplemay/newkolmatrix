@@ -24,11 +24,15 @@ export type EnvGuardReason =
   | 'STAGE_NOT_UNLOCKED'
   /** →match：brief 目标尚未确认 */
   | 'BRIEF_GOAL_NOT_CONFIRMED'
+  /** →reach：尚无 status=approved 的 MatchPlan（M2-A F004 真判定，architecture :487） */
+  | 'MATCH_PLAN_NOT_APPROVED'
   /**
    * D9 保守拒绝：该流转的前置依赖表本批尚未建，验不了。
    *
-   * 与真实业务拒绝理由**刻意可区分** —— M2 建 MatchPlan、M3 建 Deal 时，
+   * 与真实业务拒绝理由**刻意可区分** —— M3 建 Deal 时，
    * 直接 grep 这个字面量就能定位到所有待替换的分支，不会漏。
+   * （→reach 分支已于 M2-A F004 替换为 MATCH_PLAN_NOT_APPROVED 真判定，
+   *   现存命中 = delivery / insight 两条，均归 M3。）
    */
   | 'DEPENDENCY_NOT_IMPLEMENTED'
   /** 已在末环节，无可推进 */
@@ -50,6 +54,12 @@ export interface EnvGuardContext {
   maxReached: Stage;
   /** `Project.goal` 的解析结果。null = 目标未确认（→match 的判据） */
   goal: ProjectGoal | null;
+  /**
+   * 是否存在 status=approved 的 MatchPlan（→reach 的判据，M2-A F004）。
+   * 必填非可选：守卫是安全机制，强迫每个调用方显式查好传入——
+   * 可选缺省会把「忘了查」静默降级成拒绝，错在正确一侧但掩盖调用方 bug。
+   */
+  hasApprovedMatchPlan: boolean;
 }
 
 const allow = (): EnvGuardResult => ({ allowed: true, reason: null });
@@ -101,10 +111,7 @@ export function canEnter(ctx: EnvGuardContext, target: Stage): EnvGuardResult {
  * 只有 `→brief`（无条件）与 `→match`（可由 `goal` 判定）在本批**真正可判**；
  * 其余三条的依赖表尚未建，按 D9 一律保守拒绝。
  */
-function transitionGuard(
-  target: Stage,
-  ctx: EnvGuardContext,
-): EnvGuardResult {
+function transitionGuard(target: Stage, ctx: EnvGuardContext): EnvGuardResult {
   switch (target) {
     case 'brief':
       // 无条件：项目创建即入
@@ -113,8 +120,11 @@ function transitionGuard(
       // brief 目标已确认 —— 本批以 Project.goal 是否解析成功为判据
       return ctx.goal == null ? deny('BRIEF_GOAL_NOT_CONFIRMED') : allow();
     case 'reach':
-      // 依赖 status=approved 的 MatchPlan —— M2 建表
-      return deny('DEPENDENCY_NOT_IMPLEMENTED');
+      // 存在 status=approved 的 MatchPlan（architecture :487；M2-A F004 真判定，
+      // 存在性由调用方查好经 ctx 传入——守卫保持纯函数不读 DB）
+      return ctx.hasApprovedMatchPlan
+        ? allow()
+        : deny('MATCH_PLAN_NOT_APPROVED');
     case 'delivery':
       // 依赖 >=1 Deal（由 committed quote 生成）—— M3 建表
       return deny('DEPENDENCY_NOT_IMPLEMENTED');

@@ -25,12 +25,22 @@ const GOAL: ProjectGoal = {
 };
 
 function ctx(over: Partial<EnvGuardContext> = {}): EnvGuardContext {
-  return { cur: 'brief', maxReached: 'brief', goal: GOAL, ...over };
+  // hasApprovedMatchPlan 默认 false（M2-A F004 扩列）：既有用例语义不变——
+  // 无已批准组合时 →reach 拒绝（理由从 DEPENDENCY_NOT_IMPLEMENTED 翻为真判定理由）。
+  return {
+    cur: 'brief',
+    maxReached: 'brief',
+    goal: GOAL,
+    hasApprovedMatchPlan: false,
+    ...over,
+  };
 }
 
 describe('canEnter：可回看已解锁，不可跳未解锁（FR-7.9）', () => {
   it('目标 = maxReached → 放行', () => {
-    expect(canEnter(ctx({ cur: 'reach', maxReached: 'reach' }), 'reach')).toEqual({
+    expect(
+      canEnter(ctx({ cur: 'reach', maxReached: 'reach' }), 'reach'),
+    ).toEqual({
       allowed: true,
       reason: null,
     });
@@ -72,12 +82,16 @@ describe('canEnter：可回看已解锁，不可跳未解锁（FR-7.9）', () =>
 
 describe('canAdvance：五条流转的业务前置条件（architecture.md:483-489）', () => {
   it('brief→match：goal 已确认 → 放行', () => {
-    const r = canAdvance(ctx({ cur: 'brief', maxReached: 'brief', goal: GOAL }));
+    const r = canAdvance(
+      ctx({ cur: 'brief', maxReached: 'brief', goal: GOAL }),
+    );
     expect(r).toEqual({ allowed: true, reason: null });
   });
 
   it('brief→match：goal 未确认 → 拒绝，理由 BRIEF_GOAL_NOT_CONFIRMED', () => {
-    const r = canAdvance(ctx({ cur: 'brief', maxReached: 'brief', goal: null }));
+    const r = canAdvance(
+      ctx({ cur: 'brief', maxReached: 'brief', goal: null }),
+    );
     expect(r).toEqual({ allowed: false, reason: 'BRIEF_GOAL_NOT_CONFIRMED' });
   });
 
@@ -87,10 +101,10 @@ describe('canAdvance：五条流转的业务前置条件（architecture.md:483-4
   });
 });
 
-describe('D9：依赖表未建的三条一律保守拒绝，绝不返回 true', () => {
+describe('D9：依赖表未建的两条一律保守拒绝，绝不返回 true（M2-A F004 后余 M3 两条）', () => {
   // 逐条实测（acceptance 明令「逐条实测返回 false，不得有任一条返回 true」）
+  // match→reach 已于 M2-A F004 替换为真判定（见下方「→reach 真判定」组）
   const D9_TRANSITIONS: Array<{ from: Stage; to: Stage; dep: string }> = [
-    { from: 'match', to: 'reach', dep: 'MatchPlan（M2 建表）' },
     { from: 'reach', to: 'delivery', dep: 'Deal（M3 建表）' },
     { from: 'delivery', to: 'insight', dep: 'Deal 收尾（M3 建表）' },
   ];
@@ -110,19 +124,61 @@ describe('D9：依赖表未建的三条一律保守拒绝，绝不返回 true', 
     }
   });
 
-  it('三条的理由与真实业务拒绝理由可区分（供 M2/M3 逐条替换时 grep 定位）', () => {
+  it('两条的理由与真实业务拒绝理由可区分（供 M3 逐条替换时 grep 定位）', () => {
     const businessDeny = canAdvance(
       ctx({ cur: 'brief', maxReached: 'brief', goal: null }),
     );
-    const depDeny = canAdvance(ctx({ cur: 'match', maxReached: 'match' }));
+    const depDeny = canAdvance(ctx({ cur: 'reach', maxReached: 'reach' }));
     expect(businessDeny.reason).not.toBe(depDeny.reason);
   });
 
-  it('全环节穷举：canAdvance 只在 brief→match 且 goal 齐备时放行，其余一律拒', () => {
+  it('全环节穷举（无已批准组合）：canAdvance 只在 brief→match 且 goal 齐备时放行', () => {
     for (const from of STAGES) {
       const r = canAdvance(ctx({ cur: from, maxReached: from, goal: GOAL }));
       expect(r.allowed, `cur=${from}`).toBe(from === 'brief');
     }
+  });
+});
+
+describe('→reach 真判定（M2-A F004：MATCH_PLAN_NOT_APPROVED 替换 D9 保守拒）', () => {
+  it('match→reach：无已批准组合 → 拒绝，理由 MATCH_PLAN_NOT_APPROVED', () => {
+    const r = canAdvance(
+      ctx({ cur: 'match', maxReached: 'match', hasApprovedMatchPlan: false }),
+    );
+    expect(r).toEqual({ allowed: false, reason: 'MATCH_PLAN_NOT_APPROVED' });
+  });
+
+  it('match→reach：存在已批准组合 → 放行', () => {
+    const r = canAdvance(
+      ctx({ cur: 'match', maxReached: 'match', hasApprovedMatchPlan: true }),
+    );
+    expect(r).toEqual({ allowed: true, reason: null });
+  });
+
+  it('真判定理由与 D9 占位理由可区分（grep 零残留的行为面证据）', () => {
+    const real = canAdvance(ctx({ cur: 'match', maxReached: 'match' }));
+    expect(real.reason).toBe('MATCH_PLAN_NOT_APPROVED');
+    expect(real.reason).not.toBe('DEPENDENCY_NOT_IMPLEMENTED');
+  });
+
+  it('hasApprovedMatchPlan 只解锁 →reach，不旁路其他守卫（M3 两条仍拒）', () => {
+    for (const cur of ['reach', 'delivery'] as Stage[]) {
+      const r = canAdvance(
+        ctx({ cur, maxReached: cur, hasApprovedMatchPlan: true }),
+      );
+      expect(r.allowed, `cur=${cur}`).toBe(false);
+      expect(r.reason).toBe('DEPENDENCY_NOT_IMPLEMENTED');
+    }
+    // goal 判据同样不受影响
+    const brief = canAdvance(
+      ctx({
+        cur: 'brief',
+        maxReached: 'brief',
+        goal: null,
+        hasApprovedMatchPlan: true,
+      }),
+    );
+    expect(brief.reason).toBe('BRIEF_GOAL_NOT_CONFIRMED');
   });
 });
 
@@ -195,11 +251,15 @@ function invariantBehaviourSuite(
   held: (cur: Stage, maxReached: Stage) => boolean,
 ): void {
   // 合法态必须成立
-  if (!held('brief', 'insight')) throw new Error('合法态 brief<=insight 被判不成立');
-  if (!held('reach', 'reach')) throw new Error('合法态 reach<=reach 被判不成立');
+  if (!held('brief', 'insight'))
+    throw new Error('合法态 brief<=insight 被判不成立');
+  if (!held('reach', 'reach'))
+    throw new Error('合法态 reach<=reach 被判不成立');
   // 非法态必须不成立 —— 这是不变量的实质内容
-  if (held('insight', 'brief')) throw new Error('非法态 insight>brief 被判成立');
-  if (held('delivery', 'match')) throw new Error('非法态 delivery>match 被判成立');
+  if (held('insight', 'brief'))
+    throw new Error('非法态 insight>brief 被判成立');
+  if (held('delivery', 'match'))
+    throw new Error('非法态 delivery>match 被判成立');
 }
 
 /** 同一组行为断言，作用在任意「maxReached 抬升」实现上。 */
@@ -249,7 +309,8 @@ describe('变异测试：证明上面的断言确有检测力（非死断言）'
     // 用行为等价的方式模拟「三条流转改成 allow」，再跑与 D9 用例同构的断言。
     const mutantAdvance = (c: EnvGuardContext): EnvGuardResult => {
       const next = nextStage(c.cur);
-      if (next == null) return { allowed: false, reason: 'ALREADY_AT_FINAL_STAGE' };
+      if (next == null)
+        return { allowed: false, reason: 'ALREADY_AT_FINAL_STAGE' };
       if (next === 'match') {
         return c.goal == null
           ? { allowed: false, reason: 'BRIEF_GOAL_NOT_CONFIRMED' }

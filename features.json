@@ -60,7 +60,7 @@
       "title": "architecture.md 口径校准（17 条清单，S8/S1 兑现）",
       "priority": "low",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "按 spec §2 F007 清单 17 条逐条校准：A 类 8 条「未实装」翻牌为已实装+指向实物路径（:84 vitest/:283 domain//:654 schemas//:758 Project 列/:1128 compute_health/:1628 §12.6.1/:1632 §12.6.2/:481 游标）；B/C 类改写措辞（:402 章头拆分/:521 逐行拆标/:563/:629-635 契约层范围/:929/:1642-1669 D17/D18 as-built/:1684 CI 流程图/:1797-1798 §14 M0.5 置 done+M1 行拆分/:1833 ADR-16 部分兑现）；游标校准须按 as-built 写（仅 →brief/→match 可判，其余保守拒 DEPENDENCY_NOT_IMPLEMENTED）；本批交付项在 §14 M1 行同步标注；只改口径不改设计决策，每条附实物路径；文档 commit 随批次尾实质 push 验证",
       "description": "spec §2 F007。M1-A signoff S1 + M1-B signoff S8 两批顺延的文档校准，勘查已产出逐条清单（17 条含行号与实物证据）。"
     }

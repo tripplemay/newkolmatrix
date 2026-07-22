@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "M1-C LIST-TODAY 第三批（列表页/今天页真数据纵切 + 例程调度器最小闭环）：把 M1-B 验证过的 mock→真数据契约层扩展到列表页与今天页（RSC 直读 + Link 化归零 client 泄漏），雷达接 PendingAction 真数据（expand projectId/agentId），例程调度器立骨架（node-cron + health-scan 写 OperationLog kind=auto），mock/projects+mock/today 退役，f008 探针修缮，architecture.md 17 条口径校准。knowledge 域顺延 M1-D（存储后端裁决留人类闸门）。用户 /goal 授权自动推进直到部署上线。",
   "total_features": 7,
-  "completed_features": 6,
+  "completed_features": 7,
   "fix_rounds": 0,
   "current_sprint": "M1-C-LIST-TODAY",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-22T19:55",
+  "last_updated": "2026-07-22T20:30",
   "reference_docs": [
     "docs/specs/M1-C-LIST-TODAY-spec.md",
     "docs/specs/M1-B-BRIEF-spec.md",

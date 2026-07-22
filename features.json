@@ -24,7 +24,7 @@
       "title": "解析管道（文本 chat + 图片 vision）+ 状态机变异测试",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "src/lib/knowledge/parse.ts parseMaterial：pending→parsing→按 mimeType 分流（文本直读/pdf 文本抽取；图片 image part 走 chatModel(AIGCGATEWAY_VISION_MODEL 默认 qwen3.5-flash，立项实测可用)）→ generateText → zod 校验 → GameKnowledge 三类 kind 生成 +【P3】supersede 同事务（新链头+旧条目 supersededById，读取恒取 supersededById IS NULL）→ parsed；失败 → failed+parseError 状态机内消化不外抛；POST /api/materials/{id}/parse（上传后自动触发+重新分析复用；【P2】同步+轮询不建队列+进程内防重入拒并发）；logUsage 照记；【D20】状态机变异测试：四态流转+supersede 链+链头读取各配变异断言；【P7】单测 mock 网关（解析调用可注入替换），真网关属 L2 留验收授权；lint + tsc + test:unit 绿",
       "description": "spec §2 F003 + U3/P2/P3/P4/P7 + D20 义务（architecture :479）。src/ 首个 server 侧一次性 generateText 调用点（勘查实证现仅 route.ts:109 streamText）。"
     },

@@ -72,7 +72,8 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     duty: '目标拆解·预算配比·健康度监测·复盘框架',
     isolation: '不联系创作者、不放款——交给触达/交付',
     uiSyntax: '仪表',
-    tools: ['get_kol_detail'],
+    // compute_health：M1-B F003（D8）——duty 含健康度监测，挂本人格
+    tools: ['get_kol_detail', 'compute_health'],
   },
   {
     id: 'match',

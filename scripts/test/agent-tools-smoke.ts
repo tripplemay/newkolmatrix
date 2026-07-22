@@ -91,6 +91,44 @@ async function main(): Promise<void> {
   }
   assert(unknownErr, 'executeTool 对未知工具抛错');
 
+  // compute_health（M1-B F003）：projectId-only（D8），与页面同源 domain/health.ts。
+  // 当前数据可得性下（分子无存处）四 canonical 项目按 D15 恒 cr——断言锚死这一点，
+  // M2/M3 接真实指标后此断言随 spec 更新。
+  assert(
+    getTool('compute_health')?.class === 'internal',
+    'compute_health class=internal',
+  );
+  const healthOut = (
+    await executeTool('compute_health', { projectId: 'xg' }, ctx)
+  ).output as {
+    found: boolean;
+    project: { slug: string | null } | null;
+    health: { score: number; band: string } | null;
+    breakdown: Record<string, number> | null;
+  };
+  assert(healthOut.found === true, 'compute_health 按 slug=xg 命中项目');
+  assert(
+    healthOut.health !== null &&
+      healthOut.health.band === 'cr' &&
+      healthOut.health.score >= 0 &&
+      healthOut.health.score <= 100,
+    `compute_health 恒返 cr（D15 空因子记 0，实得 ${healthOut.health?.band} score=${healthOut.health?.score}）`,
+  );
+  assert(
+    healthOut.breakdown !== null &&
+      ['exposure', 'budget', 'time', 'blockers'].every(
+        (k) => typeof healthOut.breakdown?.[k] === 'number',
+      ),
+    'compute_health 返回四因子拆解',
+  );
+  const healthMiss = (
+    await executeTool('compute_health', { projectId: 'no-such-project' }, ctx)
+  ).output as { found: boolean; health: unknown };
+  assert(
+    healthMiss.found === false && healthMiss.health === null,
+    'compute_health 未命中项目 → found=false 不抛错',
+  );
+
   // outbound 门控（F009）：临时注册 outbound 工具，executeTool 无令牌时返回 pending 信封、不执行副作用。
   let sideEffect = false;
   registerTool({

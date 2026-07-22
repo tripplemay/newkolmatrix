@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "M1-B BRIEF-CAMPAIGNS 第二批（纵切 project+brief 之页面层）：验证 M1-A mock→真数据契约层能否平滑换——详情页 RSC 直读 Project + health 接真算 + 修 brief 分流真 bug + compute_health 工具 + 页面守卫前端半边 + ProjectHealth/HEALTH_LABEL 三重收敛 + image/ 死代码删除。用户裁决收窄范围，列表页/今天页顺延 M1-C。接受 health 全红（数据可得性诚实反映，不掩盖）。",
   "total_features": 6,
-  "completed_features": 2,
+  "completed_features": 3,
   "fix_rounds": 0,
   "current_sprint": "M1-B-BRIEF",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-21T22:05",
+  "last_updated": "2026-07-21T22:18",
   "reference_docs": [
     "docs/specs/M1-B-BRIEF-spec.md",
     "docs/specs/M1-A-BRIEF-spec.md",

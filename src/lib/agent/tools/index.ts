@@ -7,12 +7,14 @@ import { getTool, registerTool } from './registry';
 import { searchKolsTool } from './search-kols';
 import { getKolDetailTool } from './get-kol-detail';
 import { sendOutreachTool } from './send-outreach';
+import { computeHealthTool } from './compute-health';
 import type { ToolDefinition } from './types';
 
 const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
   searchKolsTool as unknown as ToolDefinition<never, unknown>,
   getKolDetailTool as unknown as ToolDefinition<never, unknown>,
   sendOutreachTool as unknown as ToolDefinition<never, unknown>, // outbound（F009 闸门）
+  computeHealthTool as unknown as ToolDefinition<never, unknown>, // M1-B F003（internal，health.compute 薄封装）
 ];
 
 let registered = false;

@@ -24,7 +24,7 @@
       "title": "compute_health 工具（Agent 与页面同源）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "新建 src/lib/agent/tools/compute-health.ts：class:'internal'（纯计算只读，无需 buildHarm）、source:'native'，薄封装 domain/health.ts 的 computeHealth，范式对齐 tools/get-kol-detail.ts；【D8】输入契约 = projectId-only，工具自读 Project + parseProjectGoal + 缺失因子填 null → 按 D15 恒返 cr（与 F001 页面同源，同一 computeHealth 逻辑零重复），now 在工具 execute 边界 new Date() 注入（纯度约束只在 domain 函数）；注册——tools/index.ts 的 NATIVE_TOOLS 加一条 + 挂 strategy 人格（registry.ts duty 含健康度监测）的 tools 数组；smoke（npm run agent:smoke 走 executeTool 直调）+ 单测（tests/unit/ 复用 health 测试基座）；lint + tsc 绿",
       "description": "spec §2 F003 + D8。工具注册表 tools/index.ts NATIVE_TOOLS + 唯一执行入口 execute.ts executeTool（勘查确认范式）。architecture.md:184 定义 compute_health 为 health.compute 薄封装、Agent 与页面同源。"
     },

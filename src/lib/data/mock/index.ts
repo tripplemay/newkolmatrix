@@ -7,8 +7,8 @@
 //
 // | 文件（约定名）        | 归属 feature | 服务页面 |
 // |---------------------|-------------|---------|
-// | today.ts            | F006        | /admin/today 今天雷达 |
-// | projects.ts         | F007        | /admin/projects 项目列表 + 详情外壳 |
+// | ~~today.ts~~        | F006        | 已退役（M1-C F003/F005：今天页 RSC 直读真数据） |
+// | ~~projects.ts~~     | F007        | 已退役（M1-B F001 详情页 + M1-C F001 列表页接真） |
 // | env-brief.ts        | F008        | 策略环节语法面 |
 // | env-match.ts        | F009        | 匹配环节语法面 |
 // | env-reach.ts        | F010        | 触达环节语法面 |

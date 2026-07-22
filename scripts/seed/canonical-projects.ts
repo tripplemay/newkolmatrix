@@ -50,7 +50,7 @@ interface SeedProject {
   periodEnd: string;
 }
 
-/** 与 mock/projects.ts:36-81 对齐。budgetUsd 由 budget 串解析，周期为 D14 补齐。 */
+/** 取值源自原 mock/projects.ts:36-81（已于 M1-C F005 退役，历史对照见 git）。budgetUsd 由 budget 串解析，周期为 D14 补齐。 */
 const SEED_PROJECTS: SeedProject[] = [
   {
     slug: 'xg',

@@ -42,7 +42,7 @@
       "title": "收敛与 mock 退役链（ENV_NAME/env-brief/tone + mock 整删）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "ENV_NAME 消费切 ENV_META[].name（mock/today.ts:16 EXTENSION POINT 兑现）；【D-E】env-brief.ts 分流判定改内联 slug 比对 + 内联 LEGACY_ID_ALIAS（starlight-protocol→xg 保留，f007/f010 零回归），不再 import mock/projects；删除 lib/data/mock/today.ts 与 lib/data/mock/projects.ts，按被删路径为 needle 全仓 grep 零残留（含 scripts/tests/package.json/mock/index.ts，M1-B F006 教训）；【D-F】新建 src/lib/display/health-tone.ts 单点导出 PILL_TONE（canonical 取 today 版全 dark 变体）+ DOT_TONE，campaigns/今天页/ProjectDetail 三处 import 单点，浅色基线零漂移；回归：tsc 全绿 + grep 实证零副本残留；lint + tsc + test:unit 绿",
       "description": "spec §2 F005 + D-E/D-F。勘查实证 mock/today 唯一消费方是今天页；mock/projects 还有 env-brief.ts:166-168 消费点与 LEGACY_ID_ALIAS（f007/f010 依赖）；PILL_TONE 两份 DOT_TONE 一份（S4 顺手收敛）。"
     },

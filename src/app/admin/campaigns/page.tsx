@@ -31,15 +31,10 @@ import { computeHealth, type HealthBand } from 'lib/domain/health';
 import { parseProjectGoal } from 'lib/data/schemas/project';
 import { formatBudget, formatGoalText } from 'lib/display/project-format';
 import { HEALTH_LABEL } from 'lib/display/health-label';
+// M1-C F005（D-F/S4）：PILL_TONE 收敛到展示层单点（canonical=today 版全 dark 变体；
+// 本页浅色渲染零漂移，深色略变属登记项）。
+import { PILL_TONE } from 'lib/display/health-tone';
 import { PENDING_TEXT } from 'lib/data/provenance';
-
-/** 原型 .pill 四色调（nu 中性 + 健康度三态 gd/wn/cr，不得压成二态） */
-const PILL_TONE: Record<'nu' | HealthBand, string> = {
-  nu: 'bg-lightPrimary text-gray-600 dark:bg-navy-700 dark:text-gray-400',
-  gd: 'bg-green-50 text-green-600',
-  wn: 'bg-orange-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-400',
-  cr: 'bg-red-50 text-red-500',
-};
 
 function Pill({
   tone,

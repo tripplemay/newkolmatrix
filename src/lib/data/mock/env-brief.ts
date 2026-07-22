@@ -15,7 +15,6 @@
 // - URL 化状态位（?env=）是路由状态，不入 mock（裁决 #4）。
 
 import { z } from 'zod';
-import { getMockProject } from 'lib/data/mock/projects';
 
 /* ------------------------------------------------------------------ *
  * V4-2/3/4 HalfGauge 读数（中央 32px 读数 = `${percent}%`，HalfGauge 内建）
@@ -154,15 +153,21 @@ const emptyBrief: EnvBrief = {
 };
 
 /**
- * 按项目取态势简报数据：经 projects.ts 单一出处解析（含旧 demo id 兼容，
- * mock 目录规则 5——跨页共用实体不复制）。
- *
- * M1-B F002（D3）机械分流：canonicalBrief 的内容全部出自《星轨协议》xg 行
- *（300 万曝光 / $18,000 / 停在触达谈判），故**仅 xg 可得它**；lc/aw/mf 无真数据源，
- * 一律 emptyBrief → 页面渲染「待接入」占位（readContractSlot null 降级，绝不抛错）。
- * 不为 lc/aw/mf 补写 mock——补即造假数据（projects.ts:5「绝不填 0/'' 冒充实测」）。
- * 修复前四项目共享同一 canonicalBrief 引用，mf 头部与面内数据打架（线上真 bug）。
+ * 旧 demo 深链兼容（M1-C F005/D-E：原 mock/projects 的 LEGACY_ID_ALIAS 内联迁入——
+ * mock/projects 已退役，本文件是该别名的唯一存续消费方）。
+ * starlight-protocol 即《星轨协议》xg（scripts/test f007/f010 探针仍以旧 id 访问）。
+ */
+const LEGACY_ID_ALIAS: Record<string, string> = {
+  'starlight-protocol': 'xg',
+};
+
+/**
+ * 按项目取态势简报数据（M1-B F002/D3 机械分流，M1-C F005/D-E 改内联 slug 判定）：
+ * canonicalBrief 的内容全部出自《星轨协议》xg 行（300 万曝光 / $18,000 / 停在触达
+ * 谈判），故**仅 xg 可得它**；其余项目无真数据源，一律 emptyBrief → 页面渲染
+ * 「待接入」占位（readContractSlot null 降级，绝不抛错）。不补 mock——补即造假数据。
  */
 export function getEnvBrief(projectId: string): EnvBrief {
-  return getMockProject(projectId)?.id === 'xg' ? canonicalBrief : emptyBrief;
+  const canonical = LEGACY_ID_ALIAS[projectId] ?? projectId;
+  return canonical === 'xg' ? canonicalBrief : emptyBrief;
 }

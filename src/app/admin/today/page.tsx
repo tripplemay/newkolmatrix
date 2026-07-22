@@ -47,6 +47,7 @@ import { readContractSlot, PENDING_TEXT } from 'lib/data/provenance';
 import { formatBudget } from 'lib/display/project-format';
 import { formatRelativeTime } from 'lib/display/relative-time';
 import { HEALTH_LABEL } from 'lib/display/health-label';
+import { PILL_TONE } from 'lib/display/health-tone';
 import { getPersona, isAgentId } from 'lib/agent/registry';
 
 // RSC 直读 DB：无 dynamic API 的页面 Next 默认构建期静态化（数据冻结 + CI 无
@@ -57,10 +58,7 @@ export const dynamic = 'force-dynamic';
  * 图标映射（原型 ic 名 → react-icons）
  * ------------------------------------------------------------------ */
 /** OperationLog kind → feed 图标（auto 例程 / gate 闸门 / block 拦截 / irrev 不可逆执行） */
-const LOG_KIND_ICONS: Record<
-  string,
-  React.ComponentType<{ size?: number }>
-> = {
+const LOG_KIND_ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
   auto: MdAutoAwesome,
   gate: MdShield,
   block: MdWarningAmber,
@@ -120,12 +118,8 @@ function SecHead({ title, meta }: { title: string; meta: string }) {
  * ------------------------------------------------------------------ */
 type PillTone = 'nu' | HealthBand;
 
-const PILL_TONE: Record<PillTone, string> = {
-  nu: 'bg-lightPrimary text-gray-600 dark:bg-white/5 dark:text-gray-400',
-  gd: 'bg-green-50 text-green-600 dark:bg-green-400/10 dark:text-green-400',
-  wn: 'bg-orange-50 text-orange-600 dark:bg-orange-400/10 dark:text-orange-400',
-  cr: 'bg-red-50 text-red-600 dark:bg-red-400/10 dark:text-red-400',
-};
+// M1-C F005（D-F/S4）：PILL_TONE 收敛到 lib/display/health-tone.ts 单点
+//（canonical 即本页原值，本页零漂移），本页副本已删。
 
 function Pill({
   tone = 'nu',
@@ -286,9 +280,7 @@ export default async function TodayPage() {
   // 雷达 + KPI「待你确认」同一次查询派生（D-D 防两处各算）
   const pending = await aggregatePending(ctx);
   const projectIds = [
-    ...new Set(
-      pending.flatMap((p) => (p.projectId ? [p.projectId] : [])),
-    ),
+    ...new Set(pending.flatMap((p) => (p.projectId ? [p.projectId] : []))),
   ];
   const [projectRows, projectCount, autoToday, feedRows] = await Promise.all([
     projectIds.length
@@ -401,7 +393,8 @@ export default async function TodayPage() {
           // D-A 空态：可见文案硬渲染（绝不 null——§4.3 反静默空白；基线与 waitFor 锚此）
           <SurfaceCard className="p-[22px]">
             <p className="text-compact text-gray-600 dark:text-gray-400">
-              今天没有需要你确认的事——Agent 推进中，对外动作会先停在这里等你拍板。
+              今天没有需要你确认的事——Agent
+              推进中，对外动作会先停在这里等你拍板。
             </p>
           </SurfaceCard>
         )}

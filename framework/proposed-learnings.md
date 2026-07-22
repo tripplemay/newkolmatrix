@@ -145,3 +145,13 @@
 **建议写入：** `framework/patterns/web-runtime-patterns.md` 新增 §（RSC+DB 页面 force-dynamic）；`framework/harness/generator.md` §4.5 CI 检查命令修订（--workflow 过滤）
 
 **状态：** 待确认
+
+## [2026-07-22] Generator/主实例 — 来源：M1-C F005 首轮 PARTIAL（收敛声明失实被 Evaluator 像素取证抓获）
+
+**类型：** 新坑（收敛类 feature 的声明纪律）
+
+**内容：** tone 收敛声明「浅色基线零漂移」时只核对了 canonical 与 today 版一致，未比对 campaigns 版原值（实际 red-500 vs red-600 不同）——720px 实变被 1500px 容忍带借绿，首轮验收 PARTIAL。规律：**收敛/去重类 feature 声明「零漂移/等价」前，必须逐字 diff 全部被收敛副本与 canonical 的差异**（`git show <pre>:<file>` 逐份比对），任一副本与 canonical 有差即为意图变更 → 按 D-I 重生基线并对账，不得凭「取自其中一份」推定全体等价。这是 v1.0.8「容忍带借绿」坑的上游变体：借绿的根源不是没重生，而是没发现需要重生。
+
+**建议写入：** `framework/patterns/web-runtime-patterns.md` §4.2 补充段
+
+**状态：** 待确认

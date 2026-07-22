@@ -110,3 +110,45 @@ testing-env-patterns.md 全部 7 条（字体子集烟测 / fire-and-forget audi
 acceptance 主体（17 条 + §14 标注 + 游标 as-built + 设计决策零改动 + push 验证）兑现属实（本报告 §2 抽样交叉验证无异议）；3 处均为一行级文档反向漂移，未伤及设计决策与代码面——PARTIAL（而非 FAIL）判级与 clause 及缺陷量级相称，不予改判。
 
 **revised_result = PARTIAL（维持原判，refuted = false）。**
+
+---
+
+## 复验（fix_round=1 · reverifying · 隔离 fresh context）
+
+- **复验人：** Andy/evaluator-subagent（隔离 fresh context，独立于首轮与修复过程）
+- **日期：** 2026-07-22 · **被验对象：** 修复 commit `c362711`，文档现状 @ HEAD `11d606c`（`git log c362711..HEAD -- docs/dev/architecture.md` 为空——修复后 architecture.md 零后续改动；c362711 已在 origin/main）
+- **复验结论：PASS** — 3 处批内反向漂移全部修复且与实物一致，未引入新矛盾，宽 needle 复扫无新漏网，「只改口径不改设计决策」边界守住。
+
+### R1. 三处逐条核对（修复后原文 vs 实物）
+
+| # | 位置 | 修复后原文（磁盘实读） | 实物交叉 | 判定 |
+|---|---|---|---|---|
+| 1 | :1161 §8.10 表列头 | 「Proactive 例程（**骨架已实装，M1-C F004**）」 | `ls` src/lib/jobs/scheduler.ts + routines/health-scan.ts + src/instrumentation.ts 三件在仓 | ✅ 与节头 :1157 一致，同节矛盾消除 |
+| 2 | :280 §4.2 作业通道 | 「调度器例程（**已实装 M1-C F004**：health-scan 落 OperationLog 经今天页 feed/KPI 呈现）+ 信号 webhook（演进目标，归 M3）」 | health-scan.ts 写 OperationLog kind=auto（F004 首轮实测在案）；webhook 确无实物、归 M3 准确 | ✅ 联写拆分正确，「归 M1/M3」变体全文归零（grep 0 命中） |
+| 3 | :1746 §13 存在性断言 | 「无集中 `serverEnv()`；`src/instrumentation.ts` **已存在但只承担例程调度启动（M1-C F004），不做 env 校验**」 | `head -12 src/instrumentation.ts`：register() 仅 nodejs runtime 动态 import startScheduler，无任何 env 校验代码；`ls src/lib/env.ts` 不存在 | ✅ 字面断言与实物逐项吻合 |
+
+### R2. 修复未引入新矛盾（全节通读）
+
+- **§8.10 全节**（:1157-1185）：节头/表列头现均标「骨架已实装（M1-C F004）」；下方「例程清单（**规划值**）」表含 health-scan「每小时（示意）」与实装 `HEALTH_SCAN_CRON='0 2 * * *'`（scheduler.ts:17）不同——表头「规划值」+ 频率列「示意」明示非 as-built，且节头已声明「其余 4 条规划例程随 M2-M4 表落地」，不构成状态矛盾（登记为观察 O1）。「实现要点」四条（node-cron 互斥锁/无 outbound 直通/克制）与 scheduler.ts 实物一致。
+- **:280 上下文**（§4.2 :275-283）：通道三分法、「产物一律落库留痕再经雷达/记录页呈现」设计语义原样保留，仅状态层拆分。
+- **§13 周边**（:1738-1775）：:1751「演进目标（未实装）——集中式 fail-fast」（src/lib/env.ts 确不存在 ✅）；:1772 演进段「fail-fast 时机：instrumentation.ts 的 register() 调一次 serverEnv()」与 :1746 新口径（文件已在、现不做 env 校验）自洽——演进 = 向既有文件加校验，无冲突。
+
+### R3. 宽 needle 复扫（未实装 37 处 / 归 M1 变体 / 演进目标）
+
+- `grep -n '未实装'` 全文 37 处逐条筛查：除首轮已核 50 处清单外无新增；全部属 M1-D（:517/:519/:901/:1035/:1545）、M2+（:834/:842）、M3/M4/M5（:221-224/:491/:503/:515/:535/:993/:1267/:1380/:1408/:1461/:1482/:1496/:1519）、既有 as-built 校准注（:735/:1244/:1835 部分唯一索引，schema 实证无）或图例/纪律条款（:24/:26/:422/:1912），:1140「子 Agent 调用未实装」属实（无该形态代码）。**与本批（M1-C）交付物相关的反向漂移 = 0**。
+- `grep '归 M1'` 裸变体：:653（M1+）/:1863 R11/:1869 R17 为风险表里程碑指派（M1 尚有 M1-D 未完，指派仍成立），其余均 M1-D 合法。「归 M1）」与「归 M1/M3」均 0 命中。
+- 修复 commit 自述「15 处剩余命中」与本人 37 处计数不符——按 role-context「计数不符先逐站点追溯」处理：本人 37 处独立逐条筛查全数落位（needle 口径差异，非漏检），判据落终态不落过程计数。
+
+### R4. 边界核查（只改口径不改设计决策）
+
+`git show c362711 -- docs/dev/architecture.md` 全量 diff 恰 3 行改动（6 +++---），逐 hunk 核对：全部为状态/措辞层翻牌，守卫表、例程规划表、ADR 决策本体、懒校验设计理由（「为何懒校验/代价」两条）零改动。commit 其余文件 = spec D-F Planner 注记（F005 域）+ features/progress 状态文件 + campaigns-darwin.png 基线（F005 域），**零产品代码** ✅。
+
+### R5. 观察（不计问题，随手可修）
+
+- **O1**：§8.10 规划表 health-scan「每小时（示意）」与实装每日 02:00 不同——表已标「规划值/示意」不算矛盾，M2+ 丰富例程时可顺手补 as-built 注。
+- **O2**：首轮 §4 两条次要观察（:1035 knowledge 域里程碑引用 M1→M1-D 漏改、:1112「需 vitest」阻塞理由过时）未随修——首轮即登记为「不计问题」，维持原分级。
+- **O3**：风险表 R17「无单测 runner」风险标题相对 M1-A 已装 vitest+覆盖率门显陈旧（状态列「归 M1」因 M1-D 未完尚可站住）——属 M1-A 相关而非本批反向漂移，新鲜度 clause 不命中，留 M1-D 校准时顺手翻。
+
+### R6. 复验判定
+
+result = **PASS**。首轮 acceptance 主体（17 条 + §14 + 游标 as-built + 设计决策零改动 + push 验证）本就全数兑现；导致 PARTIAL 的 3 处新鲜度 clause 缺陷全部修复且实物一致、无新引入矛盾。环境误报排查：纯静态文档核对无运行时依赖，testing-env-patterns 7 条均不适用；L2 不适用（无外部调用面）。

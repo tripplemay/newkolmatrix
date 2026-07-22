@@ -78,7 +78,7 @@
       "title": "收尾：SW-R1 探针退役 + OBS-1 image part 迁移 + 文档翻牌",
       "priority": "low",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "SW-R1（U3）：删 scripts/test/f007-browser-check.mjs+package.json f007:browser 入口，替代探针与 f010 覆盖保持，被删路径 needle 全仓 grep（docs 就绪回归引用处翻牌注记）；OBS-1：parse.ts image part type:'image'→type:'file' 迁移（mock 网关单测回归+断言弃用告警消除；真 vision 属 L2 留验收授权）；文档翻牌：architecture.md §14 M2-A 行+§5.2/§5.3/§5.4/§8 as-built+env-guards →reach 段校准+M1-C S7 顺手校准（§8.10 频率注记）；agent-architecture.md 工具/canvas 段同步；lint + tsc + test:unit 绿",
       "description": "spec §2 F009 + U3。SW-R1 裁决欠两批（M1-C S1→M1-D 补账复现）；OBS-1 出自 M1-D signoff :78。"
     }

@@ -80,6 +80,31 @@ function escapeForXml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/**
+ * image 模式的 user content 构造（M2-A F009 / OBS-1）：AI SDK v7 弃用 ImagePart
+ *（type:'image'）→ 统一 FilePart（type:'file' + data + mediaType 必填）。
+ * 独立导出供单测断言「构造出的消息不再含弃用 part 形态」（真 vision 调用属 L2）。
+ */
+export function buildImageUserContent(input: {
+  prompt: string;
+  imageBytes?: Buffer;
+  imageMediaType?: string;
+}): Array<
+  | { type: 'file'; data: Buffer; mediaType: string }
+  | { type: 'text'; text: string }
+> {
+  return [
+    {
+      type: 'file',
+      data: input.imageBytes!,
+      // FilePart.mediaType 必填；调用点恒传 Material.mimeType，兜底顶级段 'image'
+      //（AI SDK 文档允许 top-level IANA segment）
+      mediaType: input.imageMediaType ?? 'image',
+    },
+    { type: 'text', text: input.prompt },
+  ];
+}
+
 const defaultLlmCaller: LlmCaller = async (input) => {
   const model = chatModel(input.modelId);
   const abortSignal = AbortSignal.timeout(AIGC_TIMEOUT_MS * 2); // 解析比对话重，双倍预算
@@ -90,14 +115,7 @@ const defaultLlmCaller: LlmCaller = async (input) => {
       messages: [
         {
           role: 'user',
-          content: [
-            {
-              type: 'image',
-              image: input.imageBytes!,
-              mediaType: input.imageMediaType,
-            },
-            { type: 'text', text: input.prompt },
-          ],
+          content: buildImageUserContent(input),
         },
       ],
       maxOutputTokens: PARSE_MAX_OUTPUT_TOKENS,
@@ -248,7 +266,12 @@ export async function parseMaterial(
         where: { id: materialId },
         data: { parseStatus: 'failed', parseError: reason.slice(0, 500) },
       });
-      return { ok: false, code: 'PARSE_FAILED', material: failed, error: reason };
+      return {
+        ok: false,
+        code: 'PARSE_FAILED',
+        material: failed,
+        error: reason,
+      };
     };
 
     let bytes: Buffer;
@@ -262,10 +285,14 @@ export async function parseMaterial(
     try {
       extracted = await extractContent(parsing, bytes);
     } catch (e) {
-      return failWith(`素材内容抽取失败：${e instanceof Error ? e.message : String(e)}`);
+      return failWith(
+        `素材内容抽取失败：${e instanceof Error ? e.message : String(e)}`,
+      );
     }
     if (!extracted) {
-      return failWith('类型暂不支持解析（视频等媒体格式，M2+ 能力升级后可重试）');
+      return failWith(
+        '类型暂不支持解析（视频等媒体格式，M2+ 能力升级后可重试）',
+      );
     }
 
     // LLM 调用（P4 模型路由 + §4.3 注入防御）
@@ -274,7 +301,9 @@ export async function parseMaterial(
       if (extracted.mode === 'image') {
         rawText = await llm({
           mode: 'image',
-          prompt: `请解析这张游戏素材图片（文件名：${escapeForXml(material.fileName)}），按约定 JSON 输出游戏知识。`,
+          prompt: `请解析这张游戏素材图片（文件名：${escapeForXml(
+            material.fileName,
+          )}），按约定 JSON 输出游戏知识。`,
           imageBytes: bytes,
           imageMediaType: material.mimeType,
           modelId: visionModelId(),
@@ -282,11 +311,18 @@ export async function parseMaterial(
       } else {
         const truncated =
           extracted.content.length > MAX_CONTENT_CHARS
-            ? `${extracted.content.slice(0, MAX_CONTENT_CHARS)}\n（内容超长已截断）`
+            ? `${extracted.content.slice(
+                0,
+                MAX_CONTENT_CHARS,
+              )}\n（内容超长已截断）`
             : extracted.content;
         rawText = await llm({
           mode: 'text',
-          prompt: `请解析以下游戏素材（文件名：${escapeForXml(material.fileName)}），按约定 JSON 输出游戏知识。\n<USER_MATERIAL_CONTENT>\n${escapeForXml(truncated)}\n</USER_MATERIAL_CONTENT>`,
+          prompt: `请解析以下游戏素材（文件名：${escapeForXml(
+            material.fileName,
+          )}），按约定 JSON 输出游戏知识。\n<USER_MATERIAL_CONTENT>\n${escapeForXml(
+            truncated,
+          )}\n</USER_MATERIAL_CONTENT>`,
           modelId: DEFAULT_CHAT_MODEL,
         });
       }
@@ -340,13 +376,20 @@ export async function parseMaterial(
     return { ok: true, material: parsed, knowledgeCount: drafts.length };
   } catch (error) {
     // 兜底：任何未预期异常也收敛为 failed（状态机内消化，不外抛）
-    const reason = `解析异常：${error instanceof Error ? error.message : String(error)}`;
+    const reason = `解析异常：${
+      error instanceof Error ? error.message : String(error)
+    }`;
     try {
       const failed = await prisma.material.update({
         where: { id: materialId },
         data: { parseStatus: 'failed', parseError: reason.slice(0, 500) },
       });
-      return { ok: false, code: 'PARSE_FAILED', material: failed, error: reason };
+      return {
+        ok: false,
+        code: 'PARSE_FAILED',
+        material: failed,
+        error: reason,
+      };
     } catch {
       return { ok: false, code: 'PARSE_FAILED', error: reason };
     }

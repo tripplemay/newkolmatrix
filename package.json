@@ -23,7 +23,6 @@
     "agent:smoke": "node --env-file=.env --import tsx scripts/test/agent-tools-smoke.ts",
     "orch:smoke": "node --env-file=.env --import tsx scripts/test/orchestration-smoke.ts",
     "seed:demo-handoff": "node --env-file=.env --import tsx scripts/seed/demo-handoff.ts",
-    "f007:browser": "node scripts/test/f007-browser-check.mjs",
     "f008:browser": "node scripts/test/f008-browser-check.mjs",
     "gate:smoke": "node --env-file=.env --import tsx scripts/test/gate-smoke.ts",
     "f010:e2e": "node --env-file=.env --import tsx scripts/seed/demo-handoff.ts && node scripts/test/f010-e2e-check.mjs",

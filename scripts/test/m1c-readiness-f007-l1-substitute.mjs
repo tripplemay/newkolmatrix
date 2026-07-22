@@ -1,6 +1,10 @@
 // M1-C-LIST-TODAY READINESS — f007 守护面 L1 替代探针（Evaluator 产物，2026-07-22）
 //
-// 背景：`npm run f007:browser`（scripts/test/f007-browser-check.mjs）自 AGENT-FOUNDATION
+// 【SW-R1 退役注记（M2-A F009，U3 裁决）】原探针 scripts/test/f007-browser-check.mjs 与
+// package.json f007:browser 入口已删除——守护面由本替代探针 + f010:e2e 双重覆盖，
+// 本文件即 f007 守护面的现行唯一 L1 探针。以下「背景」保留为历史依据：
+//
+// 背景：`npm run f007:browser`（scripts/test/f007-browser-check.mjs，已删）自 AGENT-FOUNDATION
 // （2026-07-20 最后跑绿）后锚点陈旧，当前无法跑绿，且陈旧点全部先于 M1-C：
 //   1. :34 「多 Agent 编队」— ARCH-M05-F003 (2284333) 三区外壳改造后仅存于 /preview/agent-canvas
 //   2. :36 「隔离」— FE-REFACTOR-F001 (f7fc3cf) 术语统一为「职责/边界」

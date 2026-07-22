@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
   extractJsonObject,
   draftsFromLlmOutput,
+  buildImageUserContent,
 } from '../../src/lib/knowledge/parse';
 import { parseLlmOutput } from '../../src/lib/data/schemas/knowledge';
 
@@ -30,7 +31,9 @@ describe('extractJsonObject（双 shape 兼容）', () => {
 
   it('前后带说明文字的对象可提取（截取 {..} 区间）', () => {
     expect(
-      extractJsonObject('好的，以下是解析结果：\n' + JSON.stringify(VALID) + '\n以上。'),
+      extractJsonObject(
+        '好的，以下是解析结果：\n' + JSON.stringify(VALID) + '\n以上。',
+      ),
     ).toEqual(VALID);
   });
 
@@ -63,5 +66,35 @@ describe('draftsFromLlmOutput（只为非空类别建行）', () => {
     const drafts = draftsFromLlmOutput(out);
     expect(drafts.length).toBe(1);
     expect(drafts[0].kind).toBe('selling_point');
+  });
+});
+
+describe('buildImageUserContent（M2-A F009 / OBS-1：ImagePart → FilePart 迁移）', () => {
+  const INPUT = {
+    prompt: '请解析这张图',
+    imageBytes: Buffer.from('fake-image-bytes'),
+    imageMediaType: 'image/png',
+  };
+
+  it('图片以 FilePart（type:file + data + mediaType）承载，text part 随后', () => {
+    const parts = buildImageUserContent(INPUT);
+    expect(parts).toEqual([
+      { type: 'file', data: INPUT.imageBytes, mediaType: 'image/png' },
+      { type: 'text', text: '请解析这张图' },
+    ]);
+  });
+
+  it('弃用告警消除：构造出的消息不含任何 type:"image" 弃用 part 形态', () => {
+    const parts = buildImageUserContent(INPUT) as Array<{ type: string }>;
+    expect(parts.some((p) => p.type === 'image')).toBe(false);
+    expect(parts.some((p) => 'image' in (p as object))).toBe(false); // 旧 ImagePart 的 image 字段也零残留
+  });
+
+  it('mediaType 缺省兜底顶级段 image（FilePart.mediaType 必填）', () => {
+    const parts = buildImageUserContent({
+      prompt: 'p',
+      imageBytes: Buffer.from('x'),
+    });
+    expect(parts[0]).toMatchObject({ type: 'file', mediaType: 'image' });
   });
 });

@@ -1,12 +1,12 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "M2-A-MATCH（match 域纵切第一批）：MatchPlan/PlanKol/MatchCandidate 三表 → matchScore 可解释评分纯函数 → 候选/组合规则化生成（无 LLM 打分）→ 对比矩阵/待裁定接真 + mock 退役 → 批准 internal 落库 + →reach 守卫解锁（S10 消解）→ nightly-screen 例程（scheduler 注册表化）→ match 工具 + canvas ADR-28 + uiSyntax 注入 → 侧栏徽标接真（U4）→ SW-R1 退役 + OBS-1 迁移收尾。用户四裁决：U1 compose learning 已沉淀 v1.0.10 / U2 纵切先行（抽屉七分区+深字段数据源留 M2-B）/ U3 SW-R1 退役 / U4 徽标纳入。",
   "total_features": 9,
-  "completed_features": 8,
+  "completed_features": 9,
   "fix_rounds": 0,
   "current_sprint": "M2-A-MATCH",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-22T21:05",
+  "last_updated": "2026-07-22T21:40",
   "reference_docs": [
     "docs/specs/M2-A-MATCH-spec.md",
     "docs/dev/architecture.md",
@@ -27,7 +27,7 @@
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M2-A-MATCH planning 完成 → building · 2026-07-22】\n■ 立项四裁决（AskUserQuestion 实答）：U1 compose 漂移 learning Accept（已沉淀 v1.0.10 deploy-patterns §8）；U2 M2-A 纵切先行（抽屉七分区/Kol 深字段数据源裁决/ProvenanceTag 接 Kol 真数据留 M2-B）；U3 SW-R1 f007 原样探针退役；U4 侧栏徽标接真纳入本批。\n■ 勘查基础 = 三路 recon 报告（match-ui / creators-kol / m2-target，2026-07-22 本会话，文件:行 全核）。铁律 8 前置：无新外部模型（bge-m3 embedding 生产已验证 2525 行）。\n■ 本批注意：F003/F005 embedText 注入可替换（P7 mock 向量）；F005 lazy 生成 CI 无凭据必须静默降级（硬要求）；F008 徽标改动 → 13 张基线全量对账重生（§4.4 首推红预期 + D-H 扩展清 Match 三表）；D20 义务落 F003/F004（status/verdict 流转变异测试）；批准 = internal 不产生 PendingAction（K10=0 双边铁律）。\n■ M1-D 收尾已全清：OBS-6 补账（5/6 PASS + f007 归因 SW-R1）@ 639acaa；proposed-learnings 清零。\n■ 未挂自动推进授权——building 开工等用户指令（/build 或「继续」）。",
+    "Andy": "【M2-A-MATCH building 9/9 完成 → verifying · 2026-07-22】\n■ 九 feature 全交付（36db288→F009），CI 逐 push 全绿（F003 首推红=集成测试 dev tenant 并行竞态，bdda9d1 夹具租户独立化修复，fix-round 前置消化非质量债）。\n■ 关键实证已做：F005 改→验→复原（rationale sentinel）+ lazy 真机（3 draft+20 候选）+ approve API 冒烟 + 两视口；F006 routine:nightly-screen 真机（料理次元 20 候选/3 组/留痕）；F007 executeTool 直调两工具真机（evaluate_creator 真余弦 0.34）；F008 13 基线全量重生（1500px 借绿已识别，按 §4.2 意图变更强制重生）。\n■ 踩坑记录：F005 期 next dev 残活 :3000 致 F008 首轮基线对着 dev server 拍摄（reuseExistingServer 静默复用 + EADDRINUSE 被 /dev/null 吞）——已还原重拍，坑沉淀 proposed-learnings 待 done 阶段裁决。\n■ 验收提示（evaluator）：D-H 基线态 = Match 三表零行 + PendingAction/OperationLog 清态（当前已清）；L2 真网关（embedText/真对话）与 f008:browser/f010:e2e 需授权口径沿 M1-D；spec §5 就绪回归含 m1c-readiness-f007-l1-substitute（f007 原样探针已退役 U3）；linux 基线已经两轮 update-visual-baselines 重生（7eb8401 + F008 后一轮）。\n■ 部署未做（deploy-prod 人类闸门）；compose 本批零变更（不需 scp 同步）。",
     "Reviewer": null
   },
   "lane": "fast"

@@ -1,12 +1,12 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "M1-B BRIEF-CAMPAIGNS 第二批（纵切 project+brief 之页面层）：验证 M1-A mock→真数据契约层能否平滑换——详情页 RSC 直读 Project + health 接真算 + 修 brief 分流真 bug + compute_health 工具 + 页面守卫前端半边 + ProjectHealth/HEALTH_LABEL 三重收敛 + image/ 死代码删除。用户裁决收窄范围，列表页/今天页顺延 M1-C。接受 health 全红（数据可得性诚实反映，不掩盖）。",
   "total_features": 6,
   "completed_features": 6,
   "fix_rounds": 0,
   "current_sprint": "M1-B-BRIEF",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-21T23:10",
+  "last_updated": "2026-07-21T23:30",
   "reference_docs": [
     "docs/specs/M1-B-BRIEF-spec.md",
     "docs/specs/M1-A-BRIEF-spec.md",
@@ -27,7 +27,8 @@
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M1-B-BRIEF 交接给新会话 · 快车道 · 2026-07-22】\nplanning 已完成，status=building，spec 与 features.json 均已落盘推远端。新会话请先 git pull --ff-only origin main，再 /build。\n※ 车道说明：换会话的原因是上一会话上下文渐满，属【会话搬家】而非角色分布。本批仍走快车道——\n  新会话独自跑完整个批次：Generator 主上下文，verifying 以隔离 evaluator subagent 运行（/verify），role_assignments 保持 null。\n\n■ 本批是什么：M1 纵线的【页面层】，接 M1-A（地基与领域层，已交付上线 @ fa52f861）。\n  用户裁决收窄范围（D1）：只做详情页纵切 + brief 真 bug + compute_health 工具 + 页面守卫前端半边 + 三重收敛 + 死代码删除。\n  列表页/今天页 RSC 直读顺延 M1-C。6 features 全 generator。\n\n■ 本批的价值不是「页面更真更丰富」——恰恰相反：当前数据可得性下接真数据会让页面变【差】：\n  health 四项目全变 cr（分子无存处，D15）· brief 的 lc/aw/mf 显「待接入」空面（无真数据源）· goal 散文丢失。\n  真正价值 = 验证 M1-A mock→真数据契约层能否平滑换 + 修 brief 线上真 bug + 补守卫前端半边。内容丰富化等 M2/M3。\n\n■ 用户四条裁决（spec §3 D1-D4，不得自行改动）：\n  D1 范围收窄（详情页纵切，列表/今天页顺延 M1-C）；D2 接受 health 全红（不掩盖，不打补丁不 seed 假指标）；\n  D3 brief 机械分流（xg 真数据，lc/aw/mf 优雅降级「待接入」，不补 mock）；D4 未解锁环节可点+toast 拦截。\n\n■ Planner 五条默认（spec §3 D5-D9，Generator 严格照此实装）：\n  D5 maxReached 从详情页 RSC 直读的 DB 拿（不给 MockProject 加字段）；D6 类型收敛入 domain/health.ts、label 入展示层单点；\n  D7 visual job 起 pgvector service + migrate + seed（RSC 直连 DB 无法 route-mock，CI visual job 无 DB 则硬红——本批最易踩）；\n  D8 compute_health 输入 projectId-only、挂 strategy 人格；D9 goal 从结构化字段合成展示串。\n\n■ 勘查已核到的关键实物（spec §1.1，均文件:行）：\n  1) brief bug：env-brief.ts:160-162 四项目共享同一 canonicalBrief（全是 xg）。修法=:161 按 projectId 分流。\n     emptyBrief（:148-154 全 null）已就绪，readContractSlot 支持 null→占位。\n  2) 详情页 [id]/page.tsx:12-13 已是 server component（async + await params/searchParams）——RSC 直读成本最低。\n     ProjectDetail.tsx:65 getMockProject → 换 project prop（保持 'use client'，tab 交互不可去）。\n  3) 页面守卫前端半边完全缺失：selectEnv（ProjectDetail.tsx:80-84）无 canEnter 校验，rail（:145-204）任意 env 可点。\n     M1-A 已建服务端半边 env-guards（canEnter/canAdvance）+ env-advance（唯一写入点），本批接前端 UX 层。\n  4) 三重重复：类型 ProjectHealth 在 projects.ts:11 + today.ts:59；label HEALTH_LABEL 在 projects.ts:13 + today/page.tsx:133。\n  5) image/ 死代码：src/components/image/{Avatar,Image}.tsx，src/ 零引用。删时须一并退役 scripts/test/f003-harness/ + f003-reverify/（硬 import 真实 src 路径，未接 CI）。\n\n■ 过渡态已知不一致（D2，非缺陷，验收需知）：\n  列表页仍 mock（wn/gd/gd/cr）、详情页真算（全 cr），同一项目列表说「正常」详情说「风险」。M1-C 列表接真后消解。\n\n■ 环境与前置：\n  UI 实测一律 standalone 不走 next dev（testing-env-patterns §7）。本地 dev DB 已跑，DATABASE_URL 在 .env。\n  seed:projects 灌了 4 canonical 项目（xg reach / lc match / aw delivery / mf insight）。\n  vitest 自行加载 .env（M1-A vitest.config 已配）。CI unit job 已起 pgvector service（F001 的 visual job 照此加）。\n  部署的 SHA≠HEAD（纯文档/状态 commit 命中 build-push paths-ignore 不构建镜像）——见 project-status。\n\n■ 框架版本 v1.0.8（M1-A 刚沉淀 3 条：勘查按语义 grep 划面 / 探针代理前提失效 / 覆盖率门 include 边界）。\n  与本批直接相关：audit-methodology §2.1（语义划勘查面）· §5.1（代理判据前提失效，改视觉/探针时须 grep 全部代理点）。"
+    "Andy": "【M1-B-BRIEF building 完成 → verifying · 2026-07-21】\n6/6 features 已实现，每条独立 commit（e946b49 F001 / e600977 F002 / 8babdfa F003 / 2e212f1 F004 / 599dbfb F005 / 6c8018f F006），全部 push 后 CI 绿；linux 基线已经 update-visual-baselines workflow 重生（d9ae875）。\n■ 验收需知（勿误判为缺陷）：\n1) health 四项目全 cr 是 D2 裁决接受的预期（分子无存处，xg score=26）；列表页 mock（wn/gd/gd/cr）vs 详情页真值（全 cr）不一致是记录在案的过渡态，M1-C 消解；\n2) 就绪回归口径已裁决修订：四条 p2 探针 → 三条（f001/f002/f004）——p2:f003 探针硬读被删的 image/Avatar.tsx，随 F006 一并退役。裁决记录 docs/specs/M1-B-BRIEF-f006-p2probe-audit.md（实装期发现 spec 勘查遗漏，快车道 §4.6 即时裁决）；\n3) D4 spec 字面=只拦 selectEnv/rail 点击，深链 ?env= 不拦（URL 即状态契约不变，f007/f010/视觉深链探针零回归——这是设计不是漏拦）；\n4) 旧 id starlight-protocol 不在 DB → 详情页走 D2 空态降级（名回退+待补充），env 面照常渲染，f010 e2e 断言的都是 env 面/Copilot 元素，实测不受影响；\n5) F001 基线漂移已逐张对账：仅 header（goal 散文→D9 合成串 + wn→cr 红点），重生前旧基线在 1500px 紧阈值内仍绿=无布局回归证明；campaigns/en-today 零漂移。\n■ 环境：本地 standalone :3000 跑着 F004 构建产物（F006 纯删除不影响）；dev DB up、四项目已 seed；CI visual job 与基线重生 workflow 均已起 pgvector+migrate+seed:projects（D7，seed 自建 dev tenant）。\n■ 下一步：启动隔离 evaluator subagent 验收（/verify，6 features ≥4 → 按 orchestration §4 fan-out+对抗复核）。framework/proposed-learnings.md 新增 1 条（勘查 grep 面按被删路径划）待 done 阶段裁决。",
+    "Reviewer": null
   },
   "lane": "fast"
 }

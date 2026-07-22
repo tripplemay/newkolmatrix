@@ -6,7 +6,7 @@
       "title": "schema：Material + GameKnowledge 两表 + zod 契约",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "expand 迁移新增 Material（gameId/type 枚举 lore~video/source/fileName/storageRef/mimeType/sizeBytes/parseStatus 枚举 pending~failed @default(pending)/parseError?/parsedAt?）与 GameKnowledge（gameId/kind 枚举 selling_point|audience|compliance_redline/content/structured Json?/sourceMaterialIds String[] 非空溯源 FR-11.9 应用层校验/confidence?/generatedBy 默认 strategy/supersededById?）两模型，均带 tenantId+publicId，软引用沿 D13 先例；src/lib/data/schemas/knowledge.ts 落 zod（表深字段 + LLM 解析产物 schema）；单测：脏数据宽松降级 null 不抛错（D2）；schema+migration+引用代码同 commit；lint + tsc + test:unit 绿",
       "description": "spec §2 F001。字段按 architecture §7.6（:900-908）；勘查实证现无两表（schema.prisma:146-159 Game 最小占位注记「素材上传/AI 解析 → M1」）。"
     },

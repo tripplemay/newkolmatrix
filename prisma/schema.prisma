@@ -141,8 +141,8 @@ model Project {
   @@index([gameId])
 }
 
-/// 游戏 / 知识库实体。本批最小占位——素材上传 / AI 解析抽取 → M1。
-/// EXTENSION POINT：知识库领域字段本批不实装。
+/// 游戏 / 知识库实体。M1-D-KNOWLEDGE F001：接上素材（Material）与知识（GameKnowledge）两平面。
+/// EXTENSION POINT：其余知识库领域字段随业务充实。
 model Game {
   id        String   @id @default(cuid())
   publicId  String   @unique @default(cuid()) // D-INTEROP 稳定对外标识
@@ -152,10 +152,94 @@ model Game {
   owner     String? // D29 分工标记
   createdAt DateTime @default(now())
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  projects Project[] // M1-A-BRIEF F003：Project.gameId 的反向关系
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projects  Project[] // M1-A-BRIEF F003：Project.gameId 的反向关系
+  materials Material[] // M1-D F001：Game 1—N Material（architecture §7.6）
+  knowledge GameKnowledge[] // M1-D F001：Game 1—N GameKnowledge
 
   @@index([tenantId])
+}
+
+// ───────────────────────── 游戏知识平面（M1-D-KNOWLEDGE F001，architecture §7.6）─────────────────────────
+
+/// 素材类型（architecture §7.6 六值枚举）。video 本批仅存元数据不解析（P6：落库即 failed + parseError 明示）。
+enum MaterialType {
+  lore
+  art
+  gameplay_doc
+  review
+  data
+  video
+}
+
+/// 解析状态机 ⑤（architecture §5.3）：pending → parsing → parsed / failed；failed 可重试回 parsing。
+/// D20：状态机类必须配变异测试（tests/unit，F003）。
+enum ParseStatus {
+  pending
+  parsing
+  parsed
+  failed
+}
+
+/// 上传素材（M1-D F001/F002）。文件本体落本地盘 docker 卷（U2），storageRef = 卷内相对路径；
+/// 表只存元数据。gameId 真 FK（沿 Project.gameId 先例，Game 1—N Material）。
+model Material {
+  id       String @id @default(cuid())
+  publicId String @unique @default(cuid()) // D-INTEROP 稳定对外标识
+  tenantId String
+  gameId   String
+
+  type       MaterialType
+  source     String? // 来源（官方 / 第三方 / 投放后台 / 你上传）
+  fileName   String // 原始文件名（展示用；落盘名经白名单化，见 storageRef）
+  storageRef String // MATERIALS_DIR 内相对路径：{gameId}/{cuid}-{safeName}
+  mimeType   String
+  sizeBytes  Int
+
+  parseStatus ParseStatus @default(pending)
+  parseError  String? // failed 时明示原因（D2 诚实降级，不静默）
+  parsedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([gameId])
+}
+
+/// 知识三类 kind（architecture §7.6）。下游消费映射（FR-8.4.8）：
+/// audience→匹配 · selling_point→触达 · compliance_redline→合规；strategy 三类全量（F005 ⑤层注入）。
+enum KnowledgeKind {
+  selling_point
+  audience
+  compliance_redline
+}
+
+/// 解析产物（M1-D F001/F003）。版本链 ⑥（architecture §5.3）：重解析不物理删——新条目落库、
+/// 旧条目 supersededById 指向新条目（FR-11.11），读取恒取链头（supersededById IS NULL）。
+/// sourceMaterialIds[] 软引用 N—N Material（D13 先例，不强 FK）：非空即知识溯源，空则非法
+/// （FR-11.9，应用层 zod 校验——schemas/knowledge.ts）。
+model GameKnowledge {
+  id       String @id @default(cuid())
+  publicId String @unique @default(cuid()) // D-INTEROP 稳定对外标识
+  tenantId String
+  gameId   String
+
+  kind              KnowledgeKind
+  content           String // 人类可读知识文本
+  structured        Json? // 按 kind 定型的结构化载荷（zod 见 schemas/knowledge.ts，脏数据读时降级）
+  sourceMaterialIds String[] // 溯源 Material.id 列表（软引用；FR-11.9 非空由应用层保证）
+  confidence        Float? // 0-1（LLM 自报，保守下限原则展示为 ai_estimate 档）
+  generatedBy       String  @default("strategy") // 解析人格（PRD §9.2：策略 Agent）
+  supersededById    String? // → GameKnowledge.id（软引用；null = 链头）
+
+  createdAt DateTime @default(now())
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([gameId, kind]) // 链头读取热路径：WHERE gameId+kind AND supersededById IS NULL
 }
 
 // ───────────────────────── 运行时表（闸门 / 留痕 / 交接）─────────────────────────

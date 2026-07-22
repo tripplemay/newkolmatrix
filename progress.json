@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "M1-D KNOWLEDGE 第四批（knowledge 域纵切）：素材上传（本地盘 docker 卷）→ Material 落库 → AI 解析管道（文本 chat + 图片 vision，网关 qwen3.5-flash 立项实测可用）→ GameKnowledge 三类 kind + supersede 链 → knowledge 页面接真 + mock 退役 → prompt ⑤层知识注入（strategy/match/reach/compliance 按 kind 映射）→ 部署面 materials 卷。用户四裁决：learnings 全收（已沉淀 v1.0.9）/ 本地盘卷 / 文本+图片 vision / 含 ⑤层注入。",
   "total_features": 6,
-  "completed_features": 0,
+  "completed_features": 1,
   "fix_rounds": 0,
   "current_sprint": "M1-D-KNOWLEDGE",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-22T23:40",
+  "last_updated": "2026-07-22T12:15",
   "reference_docs": [
     "docs/specs/M1-D-KNOWLEDGE-spec.md",
     "docs/dev/architecture.md",

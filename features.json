@@ -1,59 +1,59 @@
 {
-  "sprint": "M1-A-BRIEF",
+  "sprint": "M1-B-BRIEF",
   "features": [
     {
       "id": "F001",
-      "title": "vitest 地基 + CRA 模板残留清理",
+      "title": "详情页 RSC 直读 Project + health 接真算 + visual job 起 DB",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "装 vitest + @vitest/coverage-v8（【D18】vite-tsconfig-paths 不装——Vite 8 已原生化该能力，装了每次跑测都打弃用警告；改用原生 resolve.tsconfigPaths，等效性已实测 19/19 双配置同样通过）；建 vitest.config.ts（environment:'node'；include:['tests/unit/**/*.test.ts','tests/integration/**/*.test.ts']；coverage:{provider:'v8', thresholds:{lines:80}}，配置口径见 architecture.md:1648-1660；【D17】coverage.include 收窄为 ['src/lib/domain/**','src/lib/data/provenance.ts']——实测 src/lib/** 整体行覆盖仅 6.2%，照字面配则接 CI 必红、不接则门从不执行退化为假门；收窄后门是真的且已接 CI，后续批次逐步放宽回 src/lib/**，不得反向下调 thresholds）；package.json 补 test:unit 脚本并接入 CI workflow 与 lint/typecheck 同级（验收须核 CI 实际跑了该步，不能只看 package.json 有 script）；摘除 CRA 模板残留——@types/jest（dependencies :57 与 devDependencies :97 各一处，共 2 处）+ @testing-library/{jest-dom,react,user-event}（:54-56）+ eslintConfig 段（:126-131），摘除前须 grep 实证全仓零引用；把 scripts/test/provenance-smoke.ts:42-190 改写为 tests/unit/provenance.test.ts（vitest 断言，覆盖 readContractSlot 三态 / isPendingVerification / resolveProvenance 三级回退）作为首个样板，原脚本删除；不做 jsdom 组件单测（architecture.md:1670：已装 @testing-library/react ^13 与 React 19 不兼容，组件正确性由 Playwright 兜底）；lint + tsc 绿",
-      "description": "spec §2 F001。勘查确认项目单测框架实际为零——@types/jest ^25 是 CRA 遗留（无 jest 本体/无配置/无测试文件），@testing-library 三件全仓零 import，故摘除是清理不是降级。"
+      "status": "pending",
+      "acceptance": "[id]/page.tsx（已 server component）内 prisma.project.findUnique（按 slug 或 id + tenant 过滤，复用 getDevTenantId()），把 project 作 prop 传进 ProjectDetail，找不到项目走优雅降级（现有 D2 空态或 404）；ProjectDetail.tsx 保持 'use client'（tab 交互不可去），把 :65 的 getMockProject(projectId) 换成入参 project prop；RSC 内调 domain/health.ts 的 computeHealth（先 parseProjectGoal 解析 goal jsonb + actualExposure/budgetSpent/blockerCount 填 null）→ health 作 prop 传入，【D2】四项目含 xg 全显 cr 是接受的预期结果非缺陷，不得为消除「列表页 mock wn/gd/gd/cr vs 详情页真值全 cr」的过渡态不一致而给算法打补丁或 seed 假指标；货币格式化 helper 把 budgetTotal(Decimal)+currency 转显示串（详情页 :120）；【D9】goal 从结构化 {targetExposure, period} 合成展示串不再用整句 mock；【D7】.github/workflows/ci.yml 的 visual job 起 pgvector/pgvector:pg16 service + prisma migrate deploy + seed（RSC 直连 DB 无法 route-mock，CI visual job 无 DB 则详情页渲染错误态使套件硬红，同 M1-A unit job 做法）；受影响视觉基线 project-{brief,match,reach,delivery,insight}.png 因详情页头部 health 变 cr 而漂移，逐张对账说明成因（数据变更非布局/字体回归）不盲重生（框架 v1.0.6 §4.2）；lint + tsc + test:unit 绿",
+      "description": "spec §2 F001 + D2/D7/D9。详情页已是 server component（勘查确认 [id]/page.tsx:12-13 async），RSC 直读成本最低，是验证 M1-A mock→真数据契约层能否平滑换的纵切点。"
     },
     {
       "id": "F002",
-      "title": "拆 NoSSR → 恢复 SSR（D3 RSC 直读的前置）",
+      "title": "brief 分流 bug 修复（机械分流，优雅降级）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "AppWrappers.tsx:20-22 移除 NoSSR(ssr:false) 包装，全站恢复服务端渲染；spec §1.2 列出的 6 个活文件逐个 SSR-safe 化（components/dropdown/index.tsx、components/common/HalfGauge.tsx、app/AppWrappers.tsx、app/layout.tsx、hooks/useColorMode.ts、hooks/useMediaQuery.ts），手法为 typeof window === 'undefined' 守卫 / 移入 useEffect / 必要时局部 dynamic(ssr:false)；D6 四个死代码文件（navbar/RTL.tsx、navbar/Configurator.tsx、fixedPlugin/FixedPlugin.tsx、rtlProvider/RtlProvider.tsx）不碰；四个 ApexCharts 组件不需改（charts/{LineArea,Line,Pie,Bar}Chart.tsx:4 各自已 dynamic ssr:false）；实证要求——六个 admin 页 curl 首屏 HTML 须含实际内容而非空壳（这是「真的恢复了 SSR」的证据，非「代码里删了那行」）；浏览器控制台零 hydration mismatch 警告（桌面+移动两视口 × 六页实测，非推断）；P2-CLEANUP 回归红线不得破——npm run p2:f001 / p2:f002 / p2:f004 三条探针全绿（须先起 standalone 并 export BASE），且深色刷新无浅色闪烁需肉眼确认（layout.tsx 的 pre-paint 内联脚本在 SSR 下仍须 paint 前置 body.dark）；13 张视觉基线期望零漂移，若有漂移须逐处对账并说明成因，不得直接重生（框架 v1.0.6 §4.2）；lint + tsc 绿；【实装期发现，spec §1.2 审查面遗漏】utils/navigation.ts:11 findCurrentRoute 首行 `if (!isWindowAvailable()) return null` 是模板遗留的服务端/客户端分支——恢复 SSR 后服务端恒回落 'Main Dashboard' 而客户端解析真实路由名，使每个 admin 页 navbar 标题触发 React #418；已删除该守卫（客户端行为不变，仅服务端从恒 null 改为正常匹配）。spec §1.2 的 6 文件审查面只扫了 components/ 与 hooks/，未覆盖 utils/，此为勘查盲区；另 styles/index.css 补 :root 兜底定义 12 个运行时色阶变量（此前只由 AppWrappers 的 useEffect 注入，SSR 首帧会把 var(--color-500) 解析成未定义值 → 品牌色整片 FOUC）；navbar 主题图标由 isDark 三元改为 CSS dark: 变体择一（isDark 服务端恒 false，参与渲染即失配）",
-      "description": "spec §2 F002。本批最高风险项。勘查发现全站 AppWrappers 包 NoSSR 故无 SSR 首屏，D3 裁决的 RSC 直读通道若不先拆则零收益。实际审查面比预估小——图表已各自处理。 实证：线上（拆前，0c36fc2f）六页首屏可见文本 0 字符=真空壳；本地（拆后）today 1195 / campaigns 585 / insight 666 / knowledge 1073 字符。creators 与 runs 仅 233/238 字符是这两页自身 useSearchParams 的 Suspense fallback（Next 15 要求），非 F002 缺陷，外壳已 SSR。"
+      "status": "pending",
+      "acceptance": "env-brief.ts:161 按 projectId 分流——仅 xg → canonicalBrief，lc/aw/mf → emptyBrief（全 null 深字段，readContractSlot 已支持 null→「待接入」占位绝不抛错）；【D3】不为 lc/aw/mf 补写 mock（无真数据源，补即造假数据，违反 projects.ts:5「绝不填 0/'' 冒充实测」纪律）；回归测试（tests/unit/）验证 getEnvBrief('mf') 五深字段（gauge/metrics/blocker/trend/timeline）全 null 不再是 xg 数据、getEnvBrief('xg') 仍为 canonical，测试须能对比修复前（四项目共享 xg）与修复后；先核实 tests/visual 的 project-brief.png 截的是哪个项目——若 xg 则 brief 内容不变（仅 F001 的 health 头部变），若非 xg 则该页变「待接入」空面须逐处对账后更新基线；lint + tsc 绿",
+      "description": "spec §2 F002 + D3。勘查确认 env-brief.ts:160-162 仍是三元式，四 canonical 项目全拿同一 canonicalBrief 引用（全是 xg 数据）——线上真 bug（mf 头部萌宠农场/$7,500/风险 与面内 xg $11.5k/触达谈判 打架）。"
     },
     {
       "id": "F003",
-      "title": "Prisma schema 扩展 Project + expand-contract 迁移 + seed",
-      "priority": "high",
+      "title": "compute_health 工具（Agent 与页面同源）",
+      "priority": "medium",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "按 spec D5 给 Project 加列：gameId String? + FK→Game.id、goal Json?、budgetTotal Decimal?、currency String?、market String?、cur Stage enum 默认 brief、maxReached Stage enum 默认 brief；新建 Prisma Stage enum，取值与 lib/agent/stage-routing.ts:10 的 TS 类型逐字一致（brief|match|reach|delivery|insight）；不加 status 列（D5：架构列了但未定义取值语义）；不加 health 列（D6：它是 health.compute 产物，建列即固化成可漂移的第二真相，违反 DP-6）；goal jsonb 形状按 D6 = {targetExposure:number, periodStart:string, periodEnd:string}，不含预算（预算单一真相在 budgetTotal + currency），配 zod schema 落 src/lib/data/schemas/（architecture.md:655 登记的演进目录，本批首次落地）；【D13】同一迁移给 OperationLog 加两列 projectId String? + @@index([projectId]) 与 payloadJson Json?（与 Handoff 同形态），ref 列语义保持不变仍专指 PendingAction.id，不得一列两义；expand-contract 迁移（architecture.md:938）——新列一律 nullable 或带默认，不得加 NOT NULL 无默认列；通用列约定遵 architecture.md:646-655（String @id @default(cuid())、无 @map/@@map、createdAt @default(now())）；seed 四个 canonical 项目 xg/lc/aw/mf 落库（复用 getDevTenantId() 惯例；gameId 需先 seed 四条 Game 否则 FK 悬空），id/name/game/market/owner/cur 与 mock/projects.ts:36-81 逐字一致，budget 串解析为 budgetTotal+currency（$18,000→18000+USD）；【D14】goal jsonb 填满不留 null——targetExposure 按 xg 的 $18,000/300 万曝光得基准 ≈167 曝光/美元、其余三条按预算等比派生（lc 2000000 / aw 1500000 / mf 1250000），periodStart/periodEnd 按各项目 cur 阶段配置，seed 注释须标明二者为演示夹具非实测；health 不 seed（D6）；npm run db:migrate 本地跑通且幂等重跑不报错；回滚验证——生产当前 IMAGE_TAG 对应代码（0c36fc2f24395be5bbf9af60a0cf4342dde057be）跑在新 schema 上不崩（D12，须实测不得只靠 prisma validate）；lint + tsc 绿",
-      "description": "spec §2 F003。勘查确认 Project 现仅 6 列，mock 在用的 market/budget/goal/health/cur/game 在 DB 里一个都没有，且 Project 与 Game 无关联字段。"
+      "status": "pending",
+      "acceptance": "新建 src/lib/agent/tools/compute-health.ts：class:'internal'（纯计算只读，无需 buildHarm）、source:'native'，薄封装 domain/health.ts 的 computeHealth，范式对齐 tools/get-kol-detail.ts；【D8】输入契约 = projectId-only，工具自读 Project + parseProjectGoal + 缺失因子填 null → 按 D15 恒返 cr（与 F001 页面同源，同一 computeHealth 逻辑零重复），now 在工具 execute 边界 new Date() 注入（纯度约束只在 domain 函数）；注册——tools/index.ts 的 NATIVE_TOOLS 加一条 + 挂 strategy 人格（registry.ts duty 含健康度监测）的 tools 数组；smoke（npm run agent:smoke 走 executeTool 直调）+ 单测（tests/unit/ 复用 health 测试基座）；lint + tsc 绿",
+      "description": "spec §2 F003 + D8。工具注册表 tools/index.ts NATIVE_TOOLS + 唯一执行入口 execute.ts executeTool（勘查确认范式）。architecture.md:184 定义 compute_health 为 health.compute 薄封装、Agent 与页面同源。"
     },
     {
       "id": "F004",
-      "title": "domain/health.ts — 健康度纯函数",
+      "title": "页面守卫前端半边（selectEnv + rail + toast 拦截）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "新建 src/lib/domain/health.ts，按 spec D7 用 kebab-case 文件名 + 具名导出（不用 namespace object；架构 :525 表格的 health.compute 点号是注册表标签不是模块路径，实装对齐项目惯例 lib/agent/stage-routing.ts）；导出 computeHealth() + HEALTH_WEIGHTS + HEALTH_THRESHOLDS 常量；算法按 PRD :373 加权（目标达成度·预算消耗率·时间进度·阻塞项数）→ 0-100，分档 >=80 达标 gd / 55-79 注意 wn / <55 风险 cr；权重与阈值必须是导出常量不得是函数体内魔数（PRD 原文「权重与阈值为示意，上线以真实数据校准」，验收会 grep 实证）；三态不得压成二态（mock/projects.ts:10-17 明令）；百分比与分档由同一函数产出、一一映射，不得两处各算；计算值不进契约位（D11：不走 readContractSlot，强类型直读）；【D16】入参契约 HealthInput = {targetExposure, actualExposure, budgetTotal, budgetSpent: number|null; periodStart, periodEnd: Date|null; now: Date; blockerCount: number}，返回 HealthResult = {score:number, band:'gd'|'wn'|'cr'}，now 显式注入保持纯函数可测，blockerCount 无阻塞源时调用方传 0；【D15】任一因子输入为 null 时该因子按 0 分计入加权，不退出加权、不归一化、返回类型无空态——已知后果是四条 seed 项目健康度全落 cr（actualExposure/budgetSpent 本批无存处），此为数据可得性事实非算法缺陷，M1-B 接真实指标后消解，不得靠给算法打补丁（如「无实测就当达标」）掩盖；tests/unit/health.test.ts 覆盖三档 + 两个分档边界 55/80 的两侧（如 54/55/56、79/80/81）+ 零阻塞/多阻塞 + 周期未开始/已结束 + 除零防护 + null 因子按 0 分计入的实证；lint + tsc 绿",
-      "description": "spec §2 F004。architecture.md:525 登记为 M1 交付、消费方 Brief 画布与雷达。本函数也是 M1-B 修 brief 面「四个项目共享同一份数据」bug 的分流点。"
+      "status": "pending",
+      "acceptance": "ProjectDetail.tsx:80 selectEnv(next) 加 canEnter 拦截：放行则切换，拒绝则不切并弹 toast（复用 components/common/Toast 的 useToast，creators 页已有拦截提示先例）；【D4】rail（:145-204）未解锁环节仍可点（不 disabled），点后由 canEnter 判定 → 拒绝弹 toast，保留探索感；【D5】maxReached 数据源=详情页 RSC 直读从 DB 拿（F001 已传 project prop 含 maxReached），不给 MockProject 加字段（列表页 D1 顺延不接）；reason → 文案映射——EnvGuardReason 字面量联合（D8 领域层产出）在展示层映射成中文 toast 文案（M1-A D8 明写文案映射留展示层归 M1-B，本批兑现），映射表落展示层单点；架构 :483 明确服务端校验才是真守卫前端仅 UX，前端拦截不得削弱服务端 env-advance 的 canAdvance 硬闸（M1-A 已建，本批不碰）；未解锁环节点击被拦截弹 toast 须两视口实测；lint + tsc 绿",
+      "description": "spec §2 F004 + D4/D5。勘查确认 selectEnv（ProjectDetail.tsx:80-84）无条件 setEnv 无任何 canEnter 校验，rail 每个环节按钮无 disabled 无守卫——现在任意 env 都能点进包括未解锁的。M1-A 只做了服务端半边（env-guards/env-advance），前端半边完全缺失。"
     },
     {
       "id": "F005",
-      "title": "domain/env-guards.ts — 环节流转守卫 + 变异测试",
-      "priority": "high",
+      "title": "ProjectHealth / HEALTH_LABEL 三重收敛",
+      "priority": "medium",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "新建 src/lib/domain/env-guards.ts，具名导出 canEnter() / canAdvance()（形态同 D7）；返回结构按 D8 = {allowed:boolean, reason:EnvGuardReason|null}，EnvGuardReason 为字符串字面量联合，不得是自由文本、不得是 i18n key（依据 ADR-16 三处复用：自由文本无法在工具层做分支，i18n key 会把展示层耦合进领域层；文案映射留展示层归 M1-B）；守卫条件按 architecture.md:483-489 五条；依赖表未建的三条按 D9 保守拒绝——→reach 依赖 MatchPlan（M2 建表）、→delivery 与 →insight 依赖 Deal（M3 建表），这三条一律返回 {allowed:false, reason:'DEPENDENCY_NOT_IMPLEMENTED'}，绝不返回 true（返回 true 即假守卫，正是 PRD :129 点名的反模式「只有文案的阶段门」；该 reason 须与真实业务拒绝理由可区分，供 M2/M3 逐条替换时能 grep 到）；维护 D2 双值不变量 curIdx <= maxReachedIdx 且 maxReached 单调不减；tests/unit/env-guards.test.ts + 变异测试（D20 要求守卫/闸门/状态机类必配，断言验行为不验源码关键字）——须证明检测器活性：把不变量反转后测试必须翻红（框架 v1.0.6 纪律）；D9 三条 DEPENDENCY_NOT_IMPLEMENTED 逐条实测返回 false，不得有任一条返回 true；lint + tsc 绿",
-      "description": "spec §2 F005。architecture.md:481 标注游标守卫为演进目标归 M1，:563 要求页面与工具层双重执行（本批只做服务端半边，页面半边归 M1-B）。"
+      "status": "pending",
+      "acceptance": "类型收敛——ProjectHealth 现有类型副本 projects.ts:11 与 today.ts:59 两份，反转依赖收敛到 domain/health.ts 的 HealthBand（M1-A :14 已定义但当前 import 自 mock，须反转为 mock/页面/today import domain，因 mock/* 接真数据后要消亡类型不能留 projects.ts）；【D6】label 收敛——HEALTH_LABEL 现有 projects.ts:13 与 today/page.tsx:133 两份，收敛到展示层单点（D9 明写文案留展示层不入 domain 保持 domain 无 i18n 耦合），新建展示层常量文件承载单点导出供各页 import；domain/health.ts 计算逻辑不动；回归——tsc 全绿证 import 重接无遗漏 + grep 实证 ProjectHealth/HEALTH_LABEL 各只剩一份 canonical 无第二份副本残留 + domain/health.ts 无中文文案；lint + tsc + test:unit 绿",
+      "description": "spec §2 F005 + D6。勘查确认三处：类型 ProjectHealth 在 projects.ts:11 与 today.ts:59 各一份，label HEALTH_LABEL 在 projects.ts:13 与 today/page.tsx:133 各一份。campaigns/page 与 ProjectDetail 是正确消费方（import 自 projects.ts 未重复）。"
     },
     {
       "id": "F006",
-      "title": "环节推进写 OperationLog（北极星指标的唯一存处）",
-      "priority": "medium",
+      "title": "BL-FE-17 + image/ 死代码删除",
+      "priority": "low",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "推进动作（cur 前进 / maxReached 抬升）落 domain/ 的推进函数，实现服务端强制那一半（architecture.md:563 要求页面与工具层双重执行，页面半边归 M1-B）；每次成功推进写一条 OperationLog，取值按 D10 + D13——kind='auto'（architecture.md:800 定义 auto = 工具直接执行的可逆动作，环节推进正是可逆动作，不扩枚举），projectId 填 D13 新增的 OperationLog.projectId 列，载荷 {from,to,maxReachedBefore,maxReachedAfter} 落 D13 新增的 payloadJson 列（不得塞进 summary——summary 是 runs.ts:5 固定的展示契约，也不得复用 ref——ref 专指 PendingAction.id）；summary 仍写人类可读一句话；守卫拒绝的推进不写日志、仅返回 reason；append-only 由应用层保证（DB 触发器是既有欠账 R14，不在本批）；tests/integration/env-advance.test.ts 覆盖三条——推进成功写一条、守卫拒绝零写入、maxReached 抬升幂等；lint + tsc 绿",
-      "description": "spec §2 F006 + D4 用户裁决。依据：北极星「操盘手杠杆」= 环节推进事件计数 × 周活（architecture.md:1695），而 ADR-21 明确不建 EventStore（:539）——不写就没有任何地方存，且永久不可补录。"
+      "status": "pending",
+      "acceptance": "删除整个 src/components/image/（Avatar.tsx + Image.tsx）——src/ 零引用（勘查实证 NextAvatar/ChakraNextAvatar/image-Image 在 src/ 除定义文件外零命中），BL-FE-17（showBorder 恒不渲染，Avatar.tsx:53 shouldForwardProp 白名单不含）缺陷随之作废，无需修白名单+补测试；一并退役 scripts/test/f003-harness/ + scripts/test/f003-reverify/（P2-CLEANUP F003 遗留，硬 import 真实 src 路径如 f003-harness/entry.tsx:6，未接任何 CI/npm script，不删则留悬空 import 死脚本）；删除前 grep 实证全仓（含 scripts/、tests/）除上述两处 harness 外零引用；BL-FE-16 不做（暴露面为零，唯一消费者 navbar 工作正常无纯读取方，本批亦不引入）backlog 条目保留；lint + tsc 绿",
+      "description": "spec §2 F006。勘查确认 image/ 目录仅 Avatar.tsx + Image.tsx 两文件，对 src/ 是死代码（零引用），删除比修白名单+补测试更彻底。三个 f003 历史测试 harness 硬 import 真实 src 路径须一并退役。"
     }
   ]
 }

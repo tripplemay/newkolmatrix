@@ -4,7 +4,11 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **M1-A-BRIEF done ✅ 并已上线（2026-07-22）· 快车道** — 6/6 PASS，fix_rounds=1，signoff 已签发（隔离 evaluator）。生产已部署验证通过
+- **M1-B-BRIEF building 🔨（2026-07-22 起）· 快车道** — 6 features 全 generator；spec `docs/specs/M1-B-BRIEF-spec.md`（换会话=会话搬家，非角色分布；verifying 走隔离 evaluator subagent）
+- **定位：** M1 纵线的页面层。价值=验证 mock→真数据契约层能否平滑换 + 修 brief 真 bug + 补守卫前端半边（非内容丰富化——当前接真数据反而更红/更空）
+- **范围（D1 收窄）：** 详情页 RSC 直读 + health 真算 · brief 分流 bug 修复 · compute_health 工具 · 页面守卫前端半边 · 三重收敛 · image/ 死代码删除。列表页/今天页顺延 M1-C
+- **四裁决：** 范围收窄 · 接受 health 全红（不掩盖）· brief 机械分流（xg 真数据其余优雅降级）· 未解锁环节可点+toast 拦截
+- **上一批 M1-A-BRIEF done ✅ 并已上线** — 6/6 PASS，生产 @ fa52f861
 - **交付：** vitest 地基（+CI unit job 起 pgvector 跑集成测）· 拆 NoSSR 恢复全站 SSR · Project/OperationLog expand 迁移 + canonical seed · `domain/` 三件（health / env-guards / env-advance）· 变异测试
 - **下一站 M1-B：** 页面接真数据 + brief 分流 bug + compute_health 工具 + 页面层守卫 + BL-FE-16/17
 

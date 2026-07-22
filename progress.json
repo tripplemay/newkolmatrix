@@ -1,77 +1,33 @@
 {
-  "status": "done",
-  "user_goal": "M1-A BRIEF-CAMPAIGNS 首批（纵切 project+brief）：最小域打通「schema → domain/ 纯函数 → API → 页面接真数据」整条纵线，vitest 作为副产品立起；验证 ARCH-M05 mock 契约层能否平滑换真数据。顺带清掉需求池 BL-FE-16/17（image/ 模板残留）。knowledge 域 / 例程调度器 / 雷达聚合照此范式留后续批次。",
+  "status": "building",
+  "user_goal": "M1-B BRIEF-CAMPAIGNS 第二批（纵切 project+brief 之页面层）：验证 M1-A mock→真数据契约层能否平滑换——详情页 RSC 直读 Project + health 接真算 + 修 brief 分流真 bug + compute_health 工具 + 页面守卫前端半边 + ProjectHealth/HEALTH_LABEL 三重收敛 + image/ 死代码删除。用户裁决收窄范围，列表页/今天页顺延 M1-C。接受 health 全红（数据可得性诚实反映，不掩盖）。",
   "total_features": 6,
-  "completed_features": 6,
-  "fix_rounds": 1,
-  "current_sprint": "M1-A-BRIEF",
+  "completed_features": 0,
+  "fix_rounds": 0,
+  "current_sprint": "M1-B-BRIEF",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-22T15:10",
+  "last_updated": "2026-07-22T15:40",
   "reference_docs": [
+    "docs/specs/M1-B-BRIEF-spec.md",
     "docs/specs/M1-A-BRIEF-spec.md",
     "docs/dev/architecture.md",
-    "docs/dev/agent-architecture.md",
-    "docs/product/KOLMatrix-PRD.md",
     "framework/patterns/web-runtime-patterns.md",
     "framework/patterns/testing-env-patterns.md",
-    "framework/patterns/audit-methodology.md",
     "framework/patterns/database-patterns.md",
-    "docs/test-reports/P2-CLEANUP-signoff.md"
+    "framework/patterns/audit-methodology.md",
+    "docs/test-reports/M1-A-BRIEF-signoff-2026-07-22.md"
   ],
   "docs": {
-    "spec": "specs/M1-A-BRIEF-spec.md",
+    "spec": "specs/M1-B-BRIEF-spec.md",
     "test_cases": null,
-    "signoff": "test-reports/M1-A-BRIEF-signoff-2026-07-22.md",
+    "signoff": null,
     "framework_reviewed": true
   },
   "role_assignments": null,
-  "evaluator_feedback": [
-    {
-      "feature_id": "F001",
-      "result": "PASS",
-      "original_defect_resolved": true,
-      "description": "上一轮 F001 判 PARTIAL 的唯一缺陷——vitest 覆盖率产物 coverage/（16 个文件）被提交进 git 且 .gitignore 未登记，导致 acceptance 要求接入 CI 的 `npm run test:unit:coverage` 每跑一次弄脏 8-9 个 tracked 文件、并在仓内留下会过期的假覆盖率快照——本轮已真正消除。我亲自复现了缺陷的消失：干净树上跑该 CI 命令后 git status 仍完全干净，0 个 tracked 文件被弄脏，coverage/ 虽在磁盘重生但全部被忽略。git ls-files coverage/ 现为 0；/coverage/ 已登记于 .gitignore:27；git check-ignore coverage/index.html 返回 exit 0。新增回归测试 tests/unit/repo-hygiene.test.ts 经实测确有检测力（非恒真）：基线 6/6 绿，我在隔离 worktree 中注入原缺陷（git add -f coverage + 摘掉 /coverage/ 条目）后精确翻红——6 条中恰好 2 条 coverage 断言失败，其余 4 条 test-results/playwright-report 断言保持绿。修复 commit 3aa6be8 只改 .gitignore + 删 coverage + 加回归测试，零产品代码/构建配置改动，F001 上一轮已 PASS 的字面 acceptance 无回归风险。该测试位于 tests/unit/**（vitest include 内），CI unit job 实跑，缺陷在 CI 有守门。原缺陷已消除且未引入新问题，判 PASS。",
-      "steps_to_reproduce": "【原缺陷消失复现，主 worktree，非破坏性——coverage/ 现已 gitignore】\n1. cd /Users/yixingzhou/project/newkolmatrix; set -a; source .env; set +a\n2. git status --short → 空（干净）\n3. npm run test:unit:coverage → Test Files 6 passed / Tests 109 passed / Lines 98.05%（门 lines:80 通过）\n4. git status --short → 空（0 个 tracked 文件被弄脏；对比原 PARTIAL 弄脏 8-9 个）\n5. ls coverage/ → base.css/clover.xml/... 磁盘重生；git ls-files coverage/ | wc -l → 0\n6. git check-ignore coverage/index.html coverage/clover.xml coverage/base.css → 全部 exit 0（已忽略）\n7. grep -n '/coverage/' .gitignore → 27:/coverage/\n8. git rev-parse HEAD → fa52f861（未变）\n\n【回归测试检测力实证——隔离 worktree，不碰共享主树】\n9. git worktree add --detach <scratch>/hygiene-wt HEAD; ln -s <main>/node_modules <wt>/node_modules\n10. 基线：<wt> 内 npx vitest run tests/unit/repo-hygiene.test.ts → 6 passed\n11. 注入缺陷：<wt> 内 mkdir coverage、写 index.html/base.css/coverage-final.json；grep -v '^/coverage/$' 剔除 .gitignore 中 /coverage/ 行；git add -f coverage（worktree 独立 index）→ ls-files coverage=3、check-ignore exit=1\n12. <wt> 内重跑该测试 → Tests 2 failed | 4 passed；失败正是「coverage/ 无 git 跟踪文件」与「coverage/ 已被 .gitignore 登记」两条，另 4 条 test-results/playwright-report 断言保持绿\n13. 清理：rm 符号链接、git worktree remove --force、git worktree prune\n14. 复核主树未被污染：git status --short 空 / .gitignore:27 /coverage/ 完好 / ls-files coverage=0 / HEAD 未变 / worktree list 仅剩主树\n\n【修复范围核验】\n15. git show --name-only 3aa6be8 → 仅 .gitignore(+5) + 16 个 coverage 文件删除(-3354) + tests/unit/repo-hygiene.test.ts(+60)；grep 产品路径(src/|prisma/|package.json|vitest.config|tsconfig|.github/) → 零命中\n16. grep include vitest.config.ts:42 → include:['tests/unit/**/*.test.ts', ...] → 回归测试在 CI 覆盖范围内",
-      "evidence": "HEAD=fa52f8619b2277e578d3a6e1bbd5b77a5bd062ad。F001 修复 commit=3aa6be8。关键实测输出：npm run test:unit:coverage 后 git status --short 空、git ls-files coverage/=0、check-ignore coverage/index.html exit 0；隔离 worktree 注入缺陷后 repo-hygiene.test.ts 报「coverage/ 下有 3 个文件被 git 跟踪... expected [...] to deeply equal []」与「coverage/index.html 未被 .gitignore 忽略... expected false to be true」两条精确失败，其余 4 断言绿。相关文件（绝对路径）：/Users/yixingzhou/project/newkolmatrix/.gitignore（:27 /coverage/）、/Users/yixingzhou/project/newkolmatrix/tests/unit/repo-hygiene.test.ts、/Users/yixingzhou/project/newkolmatrix/vitest.config.ts（:42 include）。上一轮 F001 PARTIAL 全文见 /Users/yixingzhou/project/newkolmatrix/docs/test-reports/M1-A-BRIEF-verify-fanout-2026-07-22.md。",
-      "regression_check": "F001 相关既有回归全绿（p2 探针/视觉基线属 F002 范畴，本轮 F001 不涉）：(1) 全量单测+集成 `npm run test:unit:coverage` → 6 test files / 109 tests passed，覆盖率门 lines:80 在 98.05% 通过；(2) 新增回归测试 tests/unit/repo-hygiene.test.ts 基线 6/6 pass 且在注入缺陷下精确翻红 2/6，已入 vitest include，CI unit job 实跑；(3) 仓库卫生实测：跑完 CI 覆盖率命令后 git status --short 保持空，git ls-files coverage/=0。修复 commit 零产品代码改动，F001 上轮已 PASS 的字面 acceptance 条目无回归。未 build、未重启 3300 服务、未占端口；仅在 scratchpad 建/删隔离 worktree + 跑 vitest。",
-      "new_findings": "无（本轮无新发现的问题）。仅重申上一轮已记录的一条不扣分 soft-watch，状态未变、不属 F001 acceptance、不阻断：docs/dev/architecture.md §12.6.3（约 :1642-1660）仍写 vitest「未装/规划态」且仍规定 vite-tsconfig-paths + coverage.include:['src/lib/**']，均已被 D18/D17 推翻且实物落地，口径文档滞后于 as-built，建议 M1-B 顺手校准。",
-      "round": "reverify-1"
-    },
-    {
-      "feature_id": "F002",
-      "result": "PASS",
-      "original_defect_resolved": true,
-      "description": "上一轮 F002 判 PARTIAL 的唯一缺陷——p2:f004 探针 readPanel 的卡数竞态（拆 NoSSR 恢复 SSR 后文案锚点进入服务端 HTML，不再隐含「hydration 完成、数据到位」，读数落在 1 卡中间态，「A 生产侧多卡路径仍在 cardCount>=2」在并发/CPU 施压下 ~20-25% 概率误红）——本轮已真正消除。修复（commit 1f11836，纯测试产物）给 readPanel 增 expectCards，用 page.waitForFunction({timeout:15000,polling:50}) 轮询 DOM 卡数到落定；关键分寸是超时被 catch 吞掉后仍读真实 DOM 交给断言，因此不是恒真断言。三条判据我亲自实测全部成立：(1) 原缺陷消失——上轮红 2/8 的同一 4 路并发×2 轮条件下实测 8/8 绿，6 路并发×3 轮 18/18 绿，回归脚本 4x CPU 节流下 NEW 读法 8/8 稳定 vs OLD 8/8 踩中间态，共 27/27 施压运行全绿；(2) 未矫枉过正——临时 route 拦截 /api/handoffs 使其永不返回（hang）/返回空列表（empty），readPanel 在 15002ms 超时后读到 cardCount=1，临界断言如实报红，总耗时 16043ms 有限（非无限挂死、非误绿），证明是可证伪断言而非「等到为止」的恒真；(3) 回归证据脚本如声称——默认 4x 节流 OLD 8/8 踩中间态、NEW 8/8 稳定、产品恒 settled=2，且区分力自检真实有效：THROTTLE=1 无节流时 OLD 未踩中，脚本判「无区分力」并 exit 1，不会给假绿。无新问题：姊妹红线探针 p2:f001=12/0、p2:f002=14/0 完好；F002 修复 commit 仅动 scripts/test/（探针+回归脚本），全轮零 src/ 与 prisma/ 改动；工作树干净。原缺陷已消除且未引入新问题，判 PASS。",
-      "steps_to_reproduce": "环境 HEAD=fa52f86（reverifying 待验版本），standalone 服务在 127.0.0.1:3300，export BASE=http://127.0.0.1:3300。\n【1 原缺陷消除】\n- 基线：node scripts/test/p2-cleanup-f004-handoff-panel.mjs → 15 passed, 0 failed。\n- 4 并发×2 轮（上轮此条件红 2/8）：8 个进程全部 15 passed/0 failed，「A 生产侧多卡路径仍在」8/8 ✓。\n- 6 并发×3 轮：18 个进程全部 15 passed/0 failed。\n- node scripts/test/m1a-f002-p2f004-race-regression.mjs（4x CPU 节流×8 轮）→ OLD 卡数序列[1,1,1,1,1,1,1,1] 不足 8/8；NEW[2,2,2,2,2,2,2,2] 不足 0/8；「修复前可复现竞态：是 修复后稳定：是 ✓ 对照成立」，REGRESSION_EXIT=0。\n【2 非恒真验证】scratchpad/f002/tautology-check.mjs 逐字复制 shipped readPanel 逻辑 + page.route 拦截 /api/handoffs：\n- MODE=hang（永不返回）：readPanel cardCount=1 waitMs=15002 timedOut=true，total elapsed=16043ms，临界断言 FAIL(red)，EXIT=0（NON-TAUTOLOGY）。\n- MODE=empty（返回空列表）：cardCount=1 waitMs=15005 timedOut=true，total elapsed=15897ms，断言 FAIL(red)。\n  → 数据真不到位时探针报红而非挂死/误绿。\n【3 区分力自检】THROTTLE=1 ROUNDS=6 node scripts/test/m1a-f002-p2f004-race-regression.mjs → OLD[2,2,2,2,2,2] 不足 0/6，脚本打印「✗ 旧做法未踩中中间态…该结论无区分力」，REAL_EXIT=1（自检真实，不给假绿）。\n【无新问题】node scripts/test/p2-cleanup-f001-drawer-close.mjs → 12 passed/0；node scripts/test/p2-cleanup-f002-colormode-persist.mjs → 14 passed/0。git diff --name-only 168dba87 HEAD -- src/ prisma/ → 空。git status --short → 空（未污染仓库）。",
-      "evidence": "",
-      "regression_check": "跑了 F002 相关既有回归：p2:f001=12 passed/0 failed、p2:f002=14 passed/0 failed（红线三探针中另两条完好）；p2:f004 在 4 并发×2 轮 + 6 并发×3 轮共 26 次施压运行全部 15/0，加基线 27/27 绿。产品行为对照恒正确（回归脚本每轮 settled=2）。修复隔离性已证：F002 fix commit 1f11836 仅改 scripts/test/p2-cleanup-f004-handoff-panel.mjs 与新增 scripts/test/m1a-f002-p2f004-race-regression.mjs，全轮 168dba87..HEAD 零 src/ 与 prisma/ 改动，工作树干净。未 build、未重启 3300、未占端口，未干扰并发 F001 evaluator。",
-      "new_findings": "无。修复干净、隔离、可证伪，未观察到任何残留竞态或新引入问题。（范围说明：本轮仅复验 F002；F001 由并发 evaluator 复验，故未改动状态文件、未写 signoff——全 PASS 门槛不由我单独判定。）",
-      "round": "reverify-1"
-    },
-    {
-      "feature_id": "F003",
-      "result": "PASS",
-      "round": "verify-1（本轮 src/prisma 零改动，结论沿用）"
-    },
-    {
-      "feature_id": "F004",
-      "result": "PASS",
-      "round": "verify-1（本轮 src/prisma 零改动，结论沿用）"
-    },
-    {
-      "feature_id": "F005",
-      "result": "PASS",
-      "round": "verify-1（本轮 src/prisma 零改动，结论沿用）"
-    },
-    {
-      "feature_id": "F006",
-      "result": "PASS",
-      "round": "verify-1（本轮 src/prisma 零改动，结论沿用）"
-    }
-  ],
+  "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M1-A-BRIEF done ✅ · 快车道 · 2026-07-22】\n6/6 features PASS 收官。fix_rounds=1（F001/F002 首轮 PARTIAL → 修复 → 复验 PASS）。\n\n■ 验收轨迹（三段，全部隔离 evaluator）\n1. verify-1（fan-out 6 evaluator）：F003/F004/F005/F006 PASS，F001/F002 PARTIAL，两条对抗复核均未证伪\n   → docs/test-reports/M1-A-BRIEF-verify-fanout-2026-07-22.md\n2. fixing-1：F001 coverage 产物移出 git + repo-hygiene 回归；F002 p2:f004 锚点竞态改轮询等落定 + 回归证据脚本。产品代码零改动。\n3. reverify-1（2 evaluator）：F001/F002 PASS（各验了「回归测试非恒真」「探针非假绿」）\n   → docs/test-reports/M1-A-BRIEF-reverify-2026-07-22.md\n   终审 evaluator 独立抽验全批后签 signoff → docs/test-reports/M1-A-BRIEF-signoff-2026-07-22.md\n\n■ 交付物形态（M1-B 直接接手）\n- vitest 地基已立：node 环境，include tests/unit + tests/integration，覆盖率门 domain/**+data/provenance ≥80% 已接 CI unit job（起 pgvector service 跑集成测）\n- 全站已恢复 SSR（拆 NoSSR）。D3 的 RSC 直读通道现在真正有收益，M1-B 页面接真数据可直接用\n- Project schema 扩齐 brief 纵线字段 + Stage enum；OperationLog 加 projectId/payloadJson（D13）\n- domain/ 三件：health.ts（computeHealth）· env-guards.ts（canEnter/canAdvance + 变异测试）· env-advance.ts（推进写 OperationLog）\n- seed:projects 灌了 4 canonical 项目（goal 为 D14 演示夹具非实测）\n\n■ M1-B 待接（已在 backlog / spec §5 / signoff soft-watch 登记，勿遗漏）\n- 页面接真数据 + brief 按项目分流 bug（env-brief.ts:160 四项目共享同一引用）+ compute_health 工具 + 页面层守卫（双重执行前端半边）\n- seed 全 cr 是 D15 记录在案的预期，页面接真数据时会全显红——接真实曝光/消耗指标后消解，不得改算法掩盖\n- architecture.md §12.6.3/§5.3 口径滞后于 as-built（vitest 已装 / vite-tsconfig-paths 未装 / include 已收窄 / 游标守卫已落地），signoff S1 建议 M1-B 校准\n- BL-FE-16/17（image/ 模板残留）· api/envelope.ts 信封 · OperationLog append-only 触发器（R14）\n- 5 条 soft-watch 详见 signoff（S2 seed 未接部署链 / S3 seed 写入侧无 zod 运行时校验 / S4 F006 幂等用例判别力 / S5 既有欠账）\n\n■ 待人类：framework/proposed-learnings.md 有本批新增 3 条待裁决（见下方 done 阶段提案）+ 历史挂起项。"
+    "Andy": "【M1-B-BRIEF 交接给新会话 · 快车道 · 2026-07-22】\nplanning 已完成，status=building，spec 与 features.json 均已落盘推远端。新会话请先 git pull --ff-only origin main，再 /build。\n※ 车道说明：换会话的原因是上一会话上下文渐满，属【会话搬家】而非角色分布。本批仍走快车道——\n  新会话独自跑完整个批次：Generator 主上下文，verifying 以隔离 evaluator subagent 运行（/verify），role_assignments 保持 null。\n\n■ 本批是什么：M1 纵线的【页面层】，接 M1-A（地基与领域层，已交付上线 @ fa52f861）。\n  用户裁决收窄范围（D1）：只做详情页纵切 + brief 真 bug + compute_health 工具 + 页面守卫前端半边 + 三重收敛 + 死代码删除。\n  列表页/今天页 RSC 直读顺延 M1-C。6 features 全 generator。\n\n■ 本批的价值不是「页面更真更丰富」——恰恰相反：当前数据可得性下接真数据会让页面变【差】：\n  health 四项目全变 cr（分子无存处，D15）· brief 的 lc/aw/mf 显「待接入」空面（无真数据源）· goal 散文丢失。\n  真正价值 = 验证 M1-A mock→真数据契约层能否平滑换 + 修 brief 线上真 bug + 补守卫前端半边。内容丰富化等 M2/M3。\n\n■ 用户四条裁决（spec §3 D1-D4，不得自行改动）：\n  D1 范围收窄（详情页纵切，列表/今天页顺延 M1-C）；D2 接受 health 全红（不掩盖，不打补丁不 seed 假指标）；\n  D3 brief 机械分流（xg 真数据，lc/aw/mf 优雅降级「待接入」，不补 mock）；D4 未解锁环节可点+toast 拦截。\n\n■ Planner 五条默认（spec §3 D5-D9，Generator 严格照此实装）：\n  D5 maxReached 从详情页 RSC 直读的 DB 拿（不给 MockProject 加字段）；D6 类型收敛入 domain/health.ts、label 入展示层单点；\n  D7 visual job 起 pgvector service + migrate + seed（RSC 直连 DB 无法 route-mock，CI visual job 无 DB 则硬红——本批最易踩）；\n  D8 compute_health 输入 projectId-only、挂 strategy 人格；D9 goal 从结构化字段合成展示串。\n\n■ 勘查已核到的关键实物（spec §1.1，均文件:行）：\n  1) brief bug：env-brief.ts:160-162 四项目共享同一 canonicalBrief（全是 xg）。修法=:161 按 projectId 分流。\n     emptyBrief（:148-154 全 null）已就绪，readContractSlot 支持 null→占位。\n  2) 详情页 [id]/page.tsx:12-13 已是 server component（async + await params/searchParams）——RSC 直读成本最低。\n     ProjectDetail.tsx:65 getMockProject → 换 project prop（保持 'use client'，tab 交互不可去）。\n  3) 页面守卫前端半边完全缺失：selectEnv（ProjectDetail.tsx:80-84）无 canEnter 校验，rail（:145-204）任意 env 可点。\n     M1-A 已建服务端半边 env-guards（canEnter/canAdvance）+ env-advance（唯一写入点），本批接前端 UX 层。\n  4) 三重重复：类型 ProjectHealth 在 projects.ts:11 + today.ts:59；label HEALTH_LABEL 在 projects.ts:13 + today/page.tsx:133。\n  5) image/ 死代码：src/components/image/{Avatar,Image}.tsx，src/ 零引用。删时须一并退役 scripts/test/f003-harness/ + f003-reverify/（硬 import 真实 src 路径，未接 CI）。\n\n■ 过渡态已知不一致（D2，非缺陷，验收需知）：\n  列表页仍 mock（wn/gd/gd/cr）、详情页真算（全 cr），同一项目列表说「正常」详情说「风险」。M1-C 列表接真后消解。\n\n■ 环境与前置：\n  UI 实测一律 standalone 不走 next dev（testing-env-patterns §7）。本地 dev DB 已跑，DATABASE_URL 在 .env。\n  seed:projects 灌了 4 canonical 项目（xg reach / lc match / aw delivery / mf insight）。\n  vitest 自行加载 .env（M1-A vitest.config 已配）。CI unit job 已起 pgvector service（F001 的 visual job 照此加）。\n  部署的 SHA≠HEAD（纯文档/状态 commit 命中 build-push paths-ignore 不构建镜像）——见 project-status。\n\n■ 框架版本 v1.0.8（M1-A 刚沉淀 3 条：勘查按语义 grep 划面 / 探针代理前提失效 / 覆盖率门 include 边界）。\n  与本批直接相关：audit-methodology §2.1（语义划勘查面）· §5.1（代理判据前提失效，改视觉/探针时须 grep 全部代理点）。"
   },
   "lane": "fast"
 }

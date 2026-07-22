@@ -6,7 +6,7 @@
   "fix_rounds": 1,
   "current_sprint": "M1-C-LIST-TODAY",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-22T22:20",
+  "last_updated": "2026-07-22T22:50",
   "reference_docs": [
     "docs/specs/M1-C-LIST-TODAY-spec.md",
     "docs/specs/M1-B-BRIEF-spec.md",
@@ -109,7 +109,7 @@
   ],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M1-C-LIST-TODAY building 完成 → verifying · 2026-07-22】\n■ 授权记账（orchestration §6）：本批全程按用户 /goal 书面授权自动推进（开批→building→verifying→done→deploy），各阶段边界照常落盘。\n■ 7/7 features 各自独立 commit（7f86062+42a534a F001 / 5bdc47a F002 / d222374 F003 / 948d327 F004 / 2289343 F005 / 9d4aaa4 F006 / 022003e F007），CI 全绿（F007 纯文档 paths-ignore）。\n■ 验收需知（勿误判为缺陷）：\n1) 列表页/雷达 health 全 cr = D2 纪律预期（xg26/lc37/aw23/mf20，三方同源）；S2 过渡态已消解；\n2) 雷达/feed/KPI 基线态 = 零 PendingAction/OperationLog（CI 天然，本地实测后已清态复原 D-H）——空态可见文案是硬断言锚（dashboard.spec waitFor）；\n3) 侧栏徽标仍 mock（D-B 登记过渡态，today 3 vs 雷达 0 同页不一致是已知项，M1-D 消解）；\n4) F001 曾踩构建期静态化冻结数据坑（prerender error 两次 CI 红），已 force-dynamic 修复（42a534a）并排队 2 条 proposed-learnings（含 CI watch --workflow 过滤教训）；\n5) f008 修缮为双态断言（有待办 anchor / 零待办空态文案），两态均 12/12 实测过；\n6) eval-m1a-f003-seed-parity.ts 随 mock 退役删除（M1-A Evaluator 产物，比对对象消亡，f003-harness 先例）；\n7) 基线重生 3 次（campaigns-linux ×1 + en-today-linux ×1 + F004 push §4.4 复验全绿）。\n■ 环境：standalone :3000 @ F007 前构建；dev DB 四项目 canonical、pending/oplog 已清零。\n■ 下一步：fan-out 验收（7 features ≥4，orchestration §4 Workflow 编排，沿 M1-B 模式）→ 全 PASS 后 signoff → done → 部署（S7 已入部署链无前置）。",
+    "Andy": "【M1-C-LIST-TODAY 全流程收官 · 2026-07-22 · /goal 授权自动推进完成】\n开批（三路勘查）→ planning（spec D1/D-A~D-I + 7 features）→ building（7/7，含 F001 force-dynamic 返工修复）→ verifying（fan-out 10 agents：6 PASS + F005/F007 PARTIAL 对抗复核维持）→ fixing → reverifying（双 PASS，fix_rounds=1）→ done（signoff 签发）→ 部署 8438dab 生产验证通过。\n■ 生产 @ 8438dab1a07eced2e211dfebd07da7f43df9c701（deploy run 见 Actions；回滚=19af7f1b03f00241fbac001559fcf5845a100bfc M1-B 版）。\n■ 生产实测：health ok · 列表页 4 anchor + D9 串 + 全 cr · 今天页空态/占位诚实降级 · 详情页 M1-B 功能零回归（xg 26/cr 同值）。\n■ 观察项：prod 例程 02:00 首跑 health-scan（次日可查 OperationLog 4 条 kind=auto + 今天页 feed）；侧栏徽标 mock 过渡态（M1-D）；F005 wn 档差异 M2/M3 显形。\n■ 待用户裁决：proposed-learnings 4 条（勘查按被删路径 grep / force-dynamic / CI watch 过滤 / 收敛零漂移两侧比对）；下一批候选 M1-D knowledge 域（存储后端裁决须人类闸门）。",
     "Reviewer": null
   },
   "lane": "fast"

@@ -7,10 +7,10 @@ type: project
 - **M1-C-LIST-TODAY done ✅（2026-07-22）· 快车道 · /goal 授权自动推进** — 首轮 6 PASS + F005/F007 PARTIAL（对抗复核维持）→ 修复 → 复验双 PASS，fix_rounds=1；signoff `docs/test-reports/M1-C-LIST-TODAY-signoff-2026-07-22.md`
 - **已交付：** 列表页/今天页 RSC 直读（force-dynamic）· 雷达接 PendingAction 真数据（expand projectId/agentId）· 例程调度器（node-cron + health-scan + instrumentation）· mock/projects+today 退役 · tone/label 展示层单点 · f008 修缮双态断言 · architecture.md 口径校准（M1 置✅已交付，knowledge 拆 M1-D）
 - **M1（project+brief 域）三批全交付**：M1-A 地基 → M1-B 详情页纵切 → M1-C 列表/今天页 + 例程
-- **部署**：待触发（image_tag 用收官 commit 完整 40 位 SHA；S7 已入部署链，例程随镜像自动生效，prod 02:00 首跑巡检为观察项）
+- **已部署 ✅**：生产 @ `8438dab`（2026-07-22，health+三页 SSR 实测全过）；prod 例程 02:00 首跑巡检为观察项
 
 ## 已上线
-- `https://newkol.guangai.ai` 现跑 **M1-B 版 @ `19af7f1b03f00241fbac001559fcf5845a100bfc`**（M1-C 部署后更新此行）
+- `https://newkol.guangai.ai` 现跑 **M1-C 版 @ `8438dab1a07eced2e211dfebd07da7f43df9c701`**（2026-07-22 部署，列表/今天页真数据+例程调度器已上线）。回滚=deploy-prod 填 `19af7f1b03f00241fbac001559fcf5845a100bfc`
 - ⚠️ **image_tag 必须完整 40 位 SHA**；**部署 SHA≠HEAD**——纯文档/状态 commit 不构建镜像
 
 ## 演进路线（architecture.md §14，M1-C F007 已校准）

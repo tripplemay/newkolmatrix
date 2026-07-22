@@ -6,12 +6,11 @@ type: project
 ## 当前批次
 - **M1-B-BRIEF done ✅（2026-07-22）· 快车道** — 6/6 + 就绪回归首轮全 PASS，fix_rounds=0，对抗复核零触发；signoff `docs/test-reports/M1-B-BRIEF-signoff-2026-07-22.md`
 - **已交付：** 详情页 RSC 直读+health 真算（契约层平滑换证实）· brief 分流 bug 修复 · compute_health 工具 · 守卫前端半边 · HealthBand/HEALTH_LABEL 收敛 · image/ 死代码删除
-- **⚠️ 部署前必办（signoff S7，M1-A S2 顺延）：** `scripts/deploy/migrate-seed.sh` 只灌 Kol 不跑 `seed:projects`——直接部署则 prod 详情页全 D2 空态。部署前纳入部署链或部署后手动跑一次
-- **未部署：** 生产仍跑 M1-A 版；M1-B 部署待用户手动触发（人类闸门）
+- **S7 已兑现：** `migrate-seed.sh` 第 3 步纳入 `seed:projects`（幂等 upsert，19af7f1）——prod Project 表已灌，每次 deploy 安全重跑
 
 ## 已上线
-- `https://newkol.guangai.ai` 现跑 **M1-A 版 @ `fa52f8619b2277e578d3a6e1bbd5b77a5bd062ad`**
-- ⚠️ **image_tag 必须完整 40 位 SHA**；**部署 SHA≠HEAD**——纯文档/状态 commit 不构建镜像，须部署最后一个含代码的已构建 SHA（M1-B 产品代码尾 commit = `6c8018f`）
+- `https://newkol.guangai.ai` 现跑 **M1-B 版 @ `19af7f1b03f00241fbac001559fcf5845a100bfc`**（2026-07-22 部署，run 29900851056；health+四项目 SSR 真数据+D2 降级实测全过）。回滚=deploy-prod 填 `fa52f8619b2277e578d3a6e1bbd5b77a5bd062ad`
+- ⚠️ **image_tag 必须完整 40 位 SHA**；**部署 SHA≠HEAD**——纯文档/状态 commit 不构建镜像，须部署最后一个含代码的已构建 SHA
 
 ## 演进路线（architecture.md v1.2 §14）
 - M0 ✅ → M0.5 ✅ → M1-A ✅ → **M1-B ✅ → M1-C（列表/今天页 RSC 直读/knowledge/例程）** → M2 MATCH → M3 REACH/DELIVERY → M4 INSIGHT → M5 硬化

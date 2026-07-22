@@ -1,59 +1,68 @@
 {
-  "sprint": "M1-B-BRIEF",
+  "sprint": "M1-C-LIST-TODAY",
   "features": [
     {
       "id": "F001",
-      "title": "详情页 RSC 直读 Project + health 接真算 + visual job 起 DB",
+      "title": "列表页 RSC 直读 Project",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "[id]/page.tsx（已 server component）内 prisma.project.findUnique（按 slug 或 id + tenant 过滤，复用 getDevTenantId()），把 project 作 prop 传进 ProjectDetail，找不到项目走优雅降级（现有 D2 空态或 404）；ProjectDetail.tsx 保持 'use client'（tab 交互不可去），把 :65 的 getMockProject(projectId) 换成入参 project prop；RSC 内调 domain/health.ts 的 computeHealth（先 parseProjectGoal 解析 goal jsonb + actualExposure/budgetSpent/blockerCount 填 null）→ health 作 prop 传入，【D2】四项目含 xg 全显 cr 是接受的预期结果非缺陷，不得为消除「列表页 mock wn/gd/gd/cr vs 详情页真值全 cr」的过渡态不一致而给算法打补丁或 seed 假指标；货币格式化 helper 把 budgetTotal(Decimal)+currency 转显示串（详情页 :120）；【D9】goal 从结构化 {targetExposure, period} 合成展示串不再用整句 mock；【D7】.github/workflows/ci.yml 的 visual job 起 pgvector/pgvector:pg16 service + prisma migrate deploy + seed（RSC 直连 DB 无法 route-mock，CI visual job 无 DB 则详情页渲染错误态使套件硬红，同 M1-A unit job 做法）；受影响视觉基线 project-{brief,match,reach,delivery,insight}.png 因详情页头部 health 变 cr 而漂移，逐张对账说明成因（数据变更非布局/字体回归）不盲重生（框架 v1.0.6 §4.2）；lint + tsc + test:unit 绿",
-      "description": "spec §2 F001 + D2/D7/D9。详情页已是 server component（勘查确认 [id]/page.tsx:12-13 async），RSC 直读成本最低，是验证 M1-A mock→真数据契约层能否平滑换的纵切点。"
+      "status": "pending",
+      "acceptance": "campaigns/page.tsx 去 'use client' 转 RSC：getDevTenantId + prisma.project.findMany({include:{game:true}, orderBy:{slug:'asc'}})；「进入」钮 Link 化（next/link 包 Button 视觉，client 泄漏归零，Button 作 island 无碍）；字段映射复用 M1-B display 层——game=Game.name 关联、budget=formatBudget（与 mock 串同形零漂移）、goal=formatGoalText(parseProjectGoal)（D9 合成串）、health=RSC 内 computeHealth（null 因子组装与 [id]/page.tsx:42-51 逐字段一致）；【D2 延续】四项目全 cr 是预期非缺陷；campaigns.png 漂移逐张对账（health pill×4 + goal 句×4）后重生 darwin 基线，waitFor『只做进入』保留；lint + tsc + test:unit 绿",
+      "description": "spec §2 F001。勘查实证 campaigns/page.tsx:8 'use client' 唯一原因是 :47 useRouter + :94 router.push，Link 化即整页转 RSC；Pill/ProjectAvatar/Card 均 server-safe。"
     },
     {
       "id": "F002",
-      "title": "brief 分流 bug 修复（机械分流，优雅降级）",
+      "title": "PendingAction expand（projectId/agentId）+ aggregatePending 扩列",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "env-brief.ts:161 按 projectId 分流——仅 xg → canonicalBrief，lc/aw/mf → emptyBrief（全 null 深字段，readContractSlot 已支持 null→「待接入」占位绝不抛错）；【D3】不为 lc/aw/mf 补写 mock（无真数据源，补即造假数据，违反 projects.ts:5「绝不填 0/'' 冒充实测」纪律）；回归测试（tests/unit/）验证 getEnvBrief('mf') 五深字段（gauge/metrics/blocker/trend/timeline）全 null 不再是 xg 数据、getEnvBrief('xg') 仍为 canonical，测试须能对比修复前（四项目共享 xg）与修复后；先核实 tests/visual 的 project-brief.png 截的是哪个项目——若 xg 则 brief 内容不变（仅 F001 的 health 头部变），若非 xg 则该页变「待接入」空面须逐处对账后更新基线；lint + tsc 绿",
-      "description": "spec §2 F002 + D3。勘查确认 env-brief.ts:160-162 仍是三元式，四 canonical 项目全拿同一 canonicalBrief 引用（全是 xg 数据）——线上真 bug（mf 头部萌宠农场/$7,500/风险 与面内 xg $11.5k/触达谈判 打架）。"
+      "status": "pending",
+      "acceptance": "expand 迁移：PendingAction 加 projectId String? + agentId String?（nullable，expand-contract 回滚安全）；闸门创建 PendingAction 处从 ToolContext.projectId/agentId 填列——只填不判，null 合法；aggregatePending（orchestrator.ts:45）select+返回结构扩两字段，harm 仍原样透传；回归测试：aggregatePending 返回新字段 + gate 创建带 ctx.projectId 落列/不带为 null（复用 gate 测试基座）；schema 变更+migration+引用代码同一 commit；lint + tsc + test:unit 绿",
+      "description": "spec §2 F002 + D-A。勘查实证 PendingAction（schema.prisma:171-186）无 projectId/agentId；aggregatePending 骨架已建（orchestrator.ts:45-68）未接今天页。雷达真数据的前置。"
     },
     {
       "id": "F003",
-      "title": "compute_health 工具（Agent 与页面同源）",
-      "priority": "medium",
+      "title": "今天页 RSC 重构 + 雷达/KPI/feed 接真 + 无存处降级",
+      "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "新建 src/lib/agent/tools/compute-health.ts：class:'internal'（纯计算只读，无需 buildHarm）、source:'native'，薄封装 domain/health.ts 的 computeHealth，范式对齐 tools/get-kol-detail.ts；【D8】输入契约 = projectId-only，工具自读 Project + parseProjectGoal + 缺失因子填 null → 按 D15 恒返 cr（与 F001 页面同源，同一 computeHealth 逻辑零重复），now 在工具 execute 边界 new Date() 注入（纯度约束只在 domain 函数）；注册——tools/index.ts 的 NATIVE_TOOLS 加一条 + 挂 strategy 人格（registry.ts duty 含健康度监测）的 tools 数组；smoke（npm run agent:smoke 走 executeTool 直调）+ 单测（tests/unit/ 复用 health 测试基座）；lint + tsc 绿",
-      "description": "spec §2 F003 + D8。工具注册表 tools/index.ts NATIVE_TOOLS + 唯一执行入口 execute.ts executeTool（勘查确认范式）。architecture.md:184 定义 compute_health 为 health.compute 薄封装、Agent 与页面同源。"
+      "status": "pending",
+      "acceptance": "today/page.tsx 转 RSC；client 叶子仅 chartcard（ApexCharts dynamic ssr:false）+ AgentSquad（已 island）+ 进入钮优先 Link 化归零；AGENT_ICONS 迁出 'use client' 模块至 server-safe 单点；【D-A】雷达接 aggregatePending：有 projectId 联 Project 渲染完整卡（真 health/name/budget + harm.summary/amount + outbound 红标=kind==='outbound'，stage 深链由 agentId 经 STAGE_AGENT 反查），无 projectId 渲染极简卡，空态渲染可见文案不得 null（§4.3 反静默空白）并加 waitFor 硬断言；【D-D】KPI：进行中项目=count 真值、待你确认=与雷达同一次 aggregatePending 派生（防两处各算）、Agent 今日完成=OperationLog count(kind=auto,今日)、本月有效触达=「待接入」占位、delta 不渲染；feed=OperationLog 最近 8 条（空则可见空态）；monthlyAutoDone chartcard 与 teamLoads 保留区块结构内渲染「待接入」（设计稿保护规则不删区块）；【D-B】侧栏徽标本批不接真登记过渡态；en-today.png 漂移逐处对账后重生（D-H：本地重生前清空 PendingAction 表保决定论）；两视口实测；lint + tsc + test:unit 绿",
+      "description": "spec §2 F003 + D-A/D-B/D-D/D-H。勘查实证今天页全无 useState、唯一 hook 是 RadarCard useRouter；waitFor『需要你确认』锚在无条件渲染的 SecHead（today/page.tsx:327-331）雷达空态不超时。"
     },
     {
       "id": "F004",
-      "title": "页面守卫前端半边（selectEnv + rail + toast 拦截）",
+      "title": "例程调度器最小闭环（node-cron + health-scan）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "ProjectDetail.tsx:80 selectEnv(next) 加 canEnter 拦截：放行则切换，拒绝则不切并弹 toast（复用 components/common/Toast 的 useToast，creators 页已有拦截提示先例）；【D4】rail（:145-204）未解锁环节仍可点（不 disabled），点后由 canEnter 判定 → 拒绝弹 toast，保留探索感；【D5】maxReached 数据源=详情页 RSC 直读从 DB 拿（F001 已传 project prop 含 maxReached），不给 MockProject 加字段（列表页 D1 顺延不接）；reason → 文案映射——EnvGuardReason 字面量联合（D8 领域层产出）在展示层映射成中文 toast 文案（M1-A D8 明写文案映射留展示层归 M1-B，本批兑现），映射表落展示层单点；架构 :483 明确服务端校验才是真守卫前端仅 UX，前端拦截不得削弱服务端 env-advance 的 canAdvance 硬闸（M1-A 已建，本批不碰）；未解锁环节点击被拦截弹 toast 须两视口实测；lint + tsc 绿",
-      "description": "spec §2 F004 + D4/D5。勘查确认 selectEnv（ProjectDetail.tsx:80-84）无条件 setEnv 无任何 canEnter 校验，rail 每个环节按钮无 disabled 无守卫——现在任意 env 都能点进包括未解锁的。M1-A 只做了服务端半边（env-guards/env-advance），前端半边完全缺失。"
+      "status": "pending",
+      "acceptance": "新建 src/lib/jobs/scheduler.ts（node-cron 注册 + 进程内互斥锁：上轮未结束不重入）+ src/lib/jobs/routines/health-scan.ts；【D-C】instrumentation.ts 在 NEXT_RUNTIME==='nodejs' 时启动，ROUTINES_DISABLED=true 可关（默认开），cron 常量默认 '0 2 * * *'；新增 node-cron 依赖；health-scan：读 tenant 全部 Project → computeHealth（null 因子同页面/工具口径）→ 每项目写 OperationLog{kind:'auto',actor:'strategy',projectId,summary 巡检文案,payloadJson:{score,band}}，纯计算不调网关不涉闸门；手动触发口 npm run routine:health-scan（不等 cron 到点）；单测：例程逻辑 + 幂等重跑 + 互斥锁行为；可见面闭环：跑一次后今天页「Agent 今日完成」>0 且 feed 出现巡检行；lint + tsc + test:unit 绿",
+      "description": "spec §2 F004 + D-C。勘查实证：OperationLogKind 含 auto + projectId/payloadJson 列已在（schema.prisma:189,209-210）零建表；5 条规划例程仅 health-scan 本批可做（architecture.md:1170-1183，ADR-20 锁定 node-cron/不建队列）。"
     },
     {
       "id": "F005",
-      "title": "ProjectHealth / HEALTH_LABEL 三重收敛",
+      "title": "收敛与 mock 退役链（ENV_NAME/env-brief/tone + mock 整删）",
       "priority": "medium",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "类型收敛——ProjectHealth 现有类型副本 projects.ts:11 与 today.ts:59 两份，反转依赖收敛到 domain/health.ts 的 HealthBand（M1-A :14 已定义但当前 import 自 mock，须反转为 mock/页面/today import domain，因 mock/* 接真数据后要消亡类型不能留 projects.ts）；【D6】label 收敛——HEALTH_LABEL 现有 projects.ts:13 与 today/page.tsx:133 两份，收敛到展示层单点（D9 明写文案留展示层不入 domain 保持 domain 无 i18n 耦合），新建展示层常量文件承载单点导出供各页 import；domain/health.ts 计算逻辑不动；回归——tsc 全绿证 import 重接无遗漏 + grep 实证 ProjectHealth/HEALTH_LABEL 各只剩一份 canonical 无第二份副本残留 + domain/health.ts 无中文文案；lint + tsc + test:unit 绿",
-      "description": "spec §2 F005 + D6。勘查确认三处：类型 ProjectHealth 在 projects.ts:11 与 today.ts:59 各一份，label HEALTH_LABEL 在 projects.ts:13 与 today/page.tsx:133 各一份。campaigns/page 与 ProjectDetail 是正确消费方（import 自 projects.ts 未重复）。"
+      "status": "pending",
+      "acceptance": "ENV_NAME 消费切 ENV_META[].name（mock/today.ts:16 EXTENSION POINT 兑现）；【D-E】env-brief.ts 分流判定改内联 slug 比对 + 内联 LEGACY_ID_ALIAS（starlight-protocol→xg 保留，f007/f010 零回归），不再 import mock/projects；删除 lib/data/mock/today.ts 与 lib/data/mock/projects.ts，按被删路径为 needle 全仓 grep 零残留（含 scripts/tests/package.json/mock/index.ts，M1-B F006 教训）；【D-F】新建 src/lib/display/health-tone.ts 单点导出 PILL_TONE（canonical 取 today 版全 dark 变体）+ DOT_TONE，campaigns/今天页/ProjectDetail 三处 import 单点，浅色基线零漂移；回归：tsc 全绿 + grep 实证零副本残留；lint + tsc + test:unit 绿",
+      "description": "spec §2 F005 + D-E/D-F。勘查实证 mock/today 唯一消费方是今天页；mock/projects 还有 env-brief.ts:166-168 消费点与 LEGACY_ID_ALIAS（f007/f010 依赖）；PILL_TONE 两份 DOT_TONE 一份（S4 顺手收敛）。"
     },
     {
       "id": "F006",
-      "title": "BL-FE-17 + image/ 死代码删除",
+      "title": "f008 探针修缮（Link 化使断言复活）",
       "priority": "low",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "删除整个 src/components/image/（Avatar.tsx + Image.tsx）——src/ 零引用（勘查实证 NextAvatar/ChakraNextAvatar/image-Image 在 src/ 除定义文件外零命中），BL-FE-17（showBorder 恒不渲染，Avatar.tsx:53 shouldForwardProp 白名单不含）缺陷随之作废，无需修白名单+补测试；一并退役 scripts/test/f003-harness/ + scripts/test/f003-reverify/（P2-CLEANUP F003 遗留，硬 import 真实 src 路径如 f003-harness/entry.tsx:6，未接任何 CI/npm script，不删则留悬空 import 死脚本）；删除前 grep 实证全仓（含 scripts/、tests/）除上述两处 harness 外零引用；BL-FE-16 不做（暴露面为零，唯一消费者 navbar 工作正常无纯读取方，本批亦不引入）backlog 条目保留；lint + tsc 绿",
-      "description": "spec §2 F006。勘查确认 image/ 目录仅 Avatar.tsx + Image.tsx 两文件，对 src/ 是死代码（零引用），删除比修白名单+补测试更彻底。三个 f003 历史测试 harness 硬 import 真实 src 路径须一并退役。"
+      "status": "pending",
+      "acceptance": "【D-G 预裁决】修缮而非退役：更新历史漂移锚点（:70『五环节』文案改现渲染文案；其余按实跑逐条校准）；F001/F003 Link 化后 §4 a[href^=/admin/campaigns/] 与 §5 a[href*=env=] 断言复活确认；修缮后 npm run f008:browser 全绿（standalone 实测）；修缮说明落 commit 正文（历史漂移非 M1-C 引入，对照 p2:f003 先例）；lint + tsc 绿",
+      "description": "spec §2 F006 + D-G。勘查实证 f008 §4 anchor 断言因列表卡 router.push 早已中断（ARCH-M05-verify-B:65）且未入 backlog；死链/redirect/侧栏检查仍有守护价值。"
+    },
+    {
+      "id": "F007",
+      "title": "architecture.md 口径校准（17 条清单，S8/S1 兑现）",
+      "priority": "low",
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "按 spec §2 F007 清单 17 条逐条校准：A 类 8 条「未实装」翻牌为已实装+指向实物路径（:84 vitest/:283 domain//:654 schemas//:758 Project 列/:1128 compute_health/:1628 §12.6.1/:1632 §12.6.2/:481 游标）；B/C 类改写措辞（:402 章头拆分/:521 逐行拆标/:563/:629-635 契约层范围/:929/:1642-1669 D17/D18 as-built/:1684 CI 流程图/:1797-1798 §14 M0.5 置 done+M1 行拆分/:1833 ADR-16 部分兑现）；游标校准须按 as-built 写（仅 →brief/→match 可判，其余保守拒 DEPENDENCY_NOT_IMPLEMENTED）；本批交付项在 §14 M1 行同步标注；只改口径不改设计决策，每条附实物路径；文档 commit 随批次尾实质 push 验证",
+      "description": "spec §2 F007。M1-A signoff S1 + M1-B signoff S8 两批顺延的文档校准，勘查已产出逐条清单（17 条含行号与实物证据）。"
     }
   ]
 }

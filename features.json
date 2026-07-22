@@ -15,7 +15,7 @@
       "title": "PendingAction expand（projectId/agentId）+ aggregatePending 扩列",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "expand 迁移：PendingAction 加 projectId String? + agentId String?（nullable，expand-contract 回滚安全）；闸门创建 PendingAction 处从 ToolContext.projectId/agentId 填列——只填不判，null 合法；aggregatePending（orchestrator.ts:45）select+返回结构扩两字段，harm 仍原样透传；回归测试：aggregatePending 返回新字段 + gate 创建带 ctx.projectId 落列/不带为 null（复用 gate 测试基座）；schema 变更+migration+引用代码同一 commit；lint + tsc + test:unit 绿",
       "description": "spec §2 F002 + D-A。勘查实证 PendingAction（schema.prisma:171-186）无 projectId/agentId；aggregatePending 骨架已建（orchestrator.ts:45-68）未接今天页。雷达真数据的前置。"
     },

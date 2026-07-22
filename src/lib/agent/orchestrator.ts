@@ -35,6 +35,10 @@ export interface PendingItem {
   status: string;
   harm: unknown;
   createdAt: Date;
+  /** M1-C F002：指回项目（软引用，null=创建时无项目上下文） */
+  projectId: string | null;
+  /** M1-C F002：提案人格（雷达深链经 STAGE_AGENT 反查环节；null=历史行） */
+  agentId: string | null;
 }
 
 /**
@@ -55,6 +59,8 @@ export async function aggregatePending(
       status: true,
       harmJson: true,
       createdAt: true,
+      projectId: true,
+      agentId: true,
     },
   });
   return rows.map((r) => ({
@@ -64,6 +70,8 @@ export async function aggregatePending(
     status: r.status,
     harm: r.harmJson, // 原样透传，不改写
     createdAt: r.createdAt,
+    projectId: r.projectId,
+    agentId: r.agentId,
   }));
 }
 

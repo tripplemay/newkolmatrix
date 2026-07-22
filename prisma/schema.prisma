@@ -181,6 +181,12 @@ model PendingAction {
   expiresAt             DateTime?
   createdAt             DateTime            @default(now())
 
+  // ── M1-C F002（D-A）。今天页雷达接真的前置：待办要能指回「哪个项目、哪个人格」。
+  //    nullable expand 迁移（回滚安全）；创建点只填不判，历史行 null 合法。
+  //    软引用不强 FK（同 OperationLog.projectId D13 先例，单租户 dev）。
+  projectId String? // 来源 ToolContext.projectId
+  agentId   String? // 提案人格（雷达深链经 STAGE_AGENT 反查环节）
+
   @@index([tenantId])
   @@index([status])
 }

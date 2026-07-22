@@ -79,6 +79,9 @@ export async function createPendingAction(
       harmJson: parsedHarm as unknown as Prisma.InputJsonValue,
       status: 'pending',
       expiresAt,
+      // M1-C F002（D-A）：只填不判——雷达要能指回项目与提案人格；null 合法
+      projectId: ctx.projectId ?? null,
+      agentId: ctx.agentId,
     },
     select: { id: true },
   });

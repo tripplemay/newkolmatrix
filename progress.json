@@ -1,12 +1,12 @@
 {
-  "status": "reverifying",
+  "status": "done",
   "user_goal": "M1-A BRIEF-CAMPAIGNS 首批（纵切 project+brief）：最小域打通「schema → domain/ 纯函数 → API → 页面接真数据」整条纵线，vitest 作为副产品立起；验证 ARCH-M05 mock 契约层能否平滑换真数据。顺带清掉需求池 BL-FE-16/17（image/ 模板残留）。knowledge 域 / 例程调度器 / 雷达聚合照此范式留后续批次。",
   "total_features": 6,
   "completed_features": 6,
   "fix_rounds": 1,
   "current_sprint": "M1-A-BRIEF",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-22T14:30",
+  "last_updated": "2026-07-22T15:10",
   "reference_docs": [
     "docs/specs/M1-A-BRIEF-spec.md",
     "docs/dev/architecture.md",
@@ -21,7 +21,7 @@
   "docs": {
     "spec": "specs/M1-A-BRIEF-spec.md",
     "test_cases": null,
-    "signoff": null,
+    "signoff": "test-reports/M1-A-BRIEF-signoff-2026-07-22.md",
     "framework_reviewed": true
   },
   "role_assignments": null,
@@ -71,7 +71,7 @@
   ],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M1-A-BRIEF fixing-1 完成 → reverifying · 快车道 · 2026-07-22】\nverifying 判定 4 PASS（F003/F004/F005/F006）+ 2 PARTIAL（F001/F002），两条 PARTIAL 的对抗复核均证伪失败、维持原判。\n两条已修复并各自独立 commit，附回归证据。上一轮完整验收报告 → docs/test-reports/M1-A-BRIEF-verify-fanout-2026-07-22.md\n（含 evaluator 逐条 acceptance 判定与复核理由，供复验对照）。\n\n■ fixing-1 修了什么\nF001 — coverage/ 16 个产物文件入库且 .gitignore 未登记。acceptance 要求接入 CI 的\n  `npm run test:unit:coverage` 每跑一次弄脏 9 个 tracked 文件；批次内 4 个 commit 分别夹带 11/7/8/9 个。\n  根因是我一路用 `git add -A`。修：.gitignore 补 /coverage/ + git rm -r --cached coverage。\n  回归测试 tests/unit/repo-hygiene.test.ts —— 对 coverage/test-results/playwright-report 三个产物目录\n  各断言「无 git 跟踪文件」+「已被 gitignore 登记」。活性已证：临时还原到修复前状态 → 6 条中 2 条翻红。\nF002 — p2:f004 的 readPanel 只等文案锚点就读卡数。该锚点在无 SSR 年代隐含「hydration 完成、数据到位」，\n  F002 恢复 SSR 后它进了服务端 HTML，前提失效。修：增 expectCards，轮询 DOM 卡数到落定。\n  两处分寸写进了注释——(a) 轮询超时不抛而是交给断言判红，否则「等到为止」会把断言变成恒真；\n  (b) 不用 waitForResponse，因为响应落地后 React setState→commit 之间还有第二段间隙。\n  回归证据 scripts/test/m1a-f002-p2f004-race-regression.mjs：同页同刻对照新旧读法 + CPU 4x 节流，\n  实测 OLD 8/8 读到 1 张卡、NEW 8/8 读到 2 张。脚本自带区分力自检（OLD 未踩中则判节流不足并退 1）。\n\n■ 复验建议重点核这两处\n1. F001 的回归测试是否真会红 —— 可临时 `git add -f coverage` 后跑 tests/unit/repo-hygiene.test.ts\n2. F002 的探针在并发下是否真稳 —— 4 路并发 × 2 轮（复核当时同条件红 2/8，修复后我实测 8/8 绿）\n\n■ fixing-1 全量复验结果（我自测，供对照，不替代验收）\n四条 p2 探针 55 断言全绿 · 单测+集成 109 通过（新增 repo-hygiene 6 条）· 覆盖率 98.05% ·\n视觉基线 13/13 零漂移 · lint + tsc 绿。\n\n■ 未变更事项\n产品代码（src/ prisma/）本轮零改动——两条 PARTIAL 都不在产品，一条是仓库卫生、一条是探针资产。\nD13-D18 裁决不变。seed 全 cr 与 creators/runs 只有外壳仍是记录在案的预期行为，上一轮 evaluator 已正确识别未误报。\n\n■ 环境\n本地 dev DB 在跑；验收用 standalone 我已停（端口 3300）。UI 实测一律 standalone 不走 next dev。\n上一轮 evaluator 留下的诊断脚本已入库（scripts/test/m1a-f002-*.mjs 等），可复用。"
+    "Andy": "【M1-A-BRIEF done ✅ · 快车道 · 2026-07-22】\n6/6 features PASS 收官。fix_rounds=1（F001/F002 首轮 PARTIAL → 修复 → 复验 PASS）。\n\n■ 验收轨迹（三段，全部隔离 evaluator）\n1. verify-1（fan-out 6 evaluator）：F003/F004/F005/F006 PASS，F001/F002 PARTIAL，两条对抗复核均未证伪\n   → docs/test-reports/M1-A-BRIEF-verify-fanout-2026-07-22.md\n2. fixing-1：F001 coverage 产物移出 git + repo-hygiene 回归；F002 p2:f004 锚点竞态改轮询等落定 + 回归证据脚本。产品代码零改动。\n3. reverify-1（2 evaluator）：F001/F002 PASS（各验了「回归测试非恒真」「探针非假绿」）\n   → docs/test-reports/M1-A-BRIEF-reverify-2026-07-22.md\n   终审 evaluator 独立抽验全批后签 signoff → docs/test-reports/M1-A-BRIEF-signoff-2026-07-22.md\n\n■ 交付物形态（M1-B 直接接手）\n- vitest 地基已立：node 环境，include tests/unit + tests/integration，覆盖率门 domain/**+data/provenance ≥80% 已接 CI unit job（起 pgvector service 跑集成测）\n- 全站已恢复 SSR（拆 NoSSR）。D3 的 RSC 直读通道现在真正有收益，M1-B 页面接真数据可直接用\n- Project schema 扩齐 brief 纵线字段 + Stage enum；OperationLog 加 projectId/payloadJson（D13）\n- domain/ 三件：health.ts（computeHealth）· env-guards.ts（canEnter/canAdvance + 变异测试）· env-advance.ts（推进写 OperationLog）\n- seed:projects 灌了 4 canonical 项目（goal 为 D14 演示夹具非实测）\n\n■ M1-B 待接（已在 backlog / spec §5 / signoff soft-watch 登记，勿遗漏）\n- 页面接真数据 + brief 按项目分流 bug（env-brief.ts:160 四项目共享同一引用）+ compute_health 工具 + 页面层守卫（双重执行前端半边）\n- seed 全 cr 是 D15 记录在案的预期，页面接真数据时会全显红——接真实曝光/消耗指标后消解，不得改算法掩盖\n- architecture.md §12.6.3/§5.3 口径滞后于 as-built（vitest 已装 / vite-tsconfig-paths 未装 / include 已收窄 / 游标守卫已落地），signoff S1 建议 M1-B 校准\n- BL-FE-16/17（image/ 模板残留）· api/envelope.ts 信封 · OperationLog append-only 触发器（R14）\n- 5 条 soft-watch 详见 signoff（S2 seed 未接部署链 / S3 seed 写入侧无 zod 运行时校验 / S4 F006 幂等用例判别力 / S5 既有欠账）\n\n■ 待人类：framework/proposed-learnings.md 有本批新增 3 条待裁决（见下方 done 阶段提案）+ 历史挂起项。"
   },
   "lane": "fast"
 }

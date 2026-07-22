@@ -119,9 +119,11 @@
 每次 `git push origin main` 之后，**必须**跟踪 CI 运行状态。推荐后台方式（不阻塞后续工作）：
 
 ```bash
-# 后台跟踪最新 run，完成时收到通知；期间可继续下一个功能的实现
-gh run watch $(gh run list --limit 1 --branch main --json databaseId -q '.[0].databaseId')
-# 或快速查看：gh run list --limit 3 --branch main
+# 后台跟踪最新 CI run（v1.0.9：必须 --workflow 过滤——不过滤会抓到同 SHA 的其他
+# workflow（如 Build&Push），其 exit 0 会掩盖 CI 红灯；watch 结束后必须显式核 conclusion，
+# `gh run watch --exit-status` 的退出码不可尽信）
+RUN=$(gh run list --workflow CI --branch main --limit 1 --json databaseId -q '.[0].databaseId')
+gh run watch $RUN ; gh run view $RUN --json conclusion -q .conclusion
 ```
 
 **判断规则：**

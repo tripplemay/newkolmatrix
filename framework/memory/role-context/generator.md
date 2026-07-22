@@ -28,6 +28,7 @@ type: feedback
 ## CI 守门（铁律）
 
 - 每次 `git push origin main` 后必须检查 CI（可后台 `gh run watch`，期间可继续工作）
+- **watch 必须 `--workflow CI` 过滤 + 结束后显式核 conclusion**（v1.0.9：不过滤会抓到同 SHA 其他 workflow 的 exit 0 掩盖红灯——M1-C 曾因此漏看两个 feature 的 Build failure）
 - CI 红色 → 立即停止新功能，先修复 CI；通过后才继续下一个功能
 
 ## IA refactor redirect scope 评估（v1.0 — BL-064 沉淀）

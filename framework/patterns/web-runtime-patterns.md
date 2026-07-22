@@ -132,6 +132,8 @@ tests/visual/fonts/          # woff2 + 改写 src: 指向本地的 CSS
 
 **落地纪律：** 阈值收紧后先**本地连跑 3 次**验证抗抖动（4.1 处理完再跑，否则测的是字体抖动），再入 CI。
 
+**§4.2 补充（v1.0.9 — KOLMatrix M1-C F005 沉淀）——借绿的上游：没发现需要重生。** 收敛/去重类 feature（多份 token/tone/样式副本收敛为单点）声明「零漂移/等价」前，必须**逐字 diff 全部被收敛副本与 canonical 的差异**（`git show <pre-commit>:<file>` 逐份比对），任一副本与 canonical 有差即为意图变更 → 重生基线并对账。不得凭「canonical 取自其中一份」推定全体等价。反面：M1-C F005 tone 收敛只核对了 today 版（canonical 出处），未比对 campaigns 版原值（red-500 vs red-600），720px 实变被 1500px 容忍带借绿，首轮验收 PARTIAL 由 Evaluator 像素取证抓获。
+
 ### 4.3 纯 CI 环境「空数据渲染 null」会被基线静默编码为合法空白
 
 **背景：** BL-FE-11 / FE-REFACTOR F003+F007：CI 无 DB，组件读不到数据渲染 `null`，linux 基线于是把 `HandoffCollab` 的**空区域固化成「正确」**——该组件的回归覆盖长期为零，无人察觉。截图对比永远绿，因为两边都是空白。
@@ -182,6 +184,27 @@ tests/visual/fonts/          # woff2 + 改写 src: 指向本地的 CSS
 
 ---
 
+## 6. RSC 直读 DB 的页面必须显式 force-dynamic（v1.0.9 — KOLMatrix M1-C F001 沉淀）
+
+**背景：** Next.js App Router 中无 dynamic API（不读 `params`/`searchParams`/`cookies`/`headers`）的页面，`next build` 默认**构建期静态预渲染**。RSC 里的 prisma 查询会在 build 时执行——两种结局都坏：
+
+1. **构建环境有 DB**（本地/带 service 的 CI job）：查询成功，**数据冻结进静态 HTML**，运行时不再读库——「RSC 直读」退化为构建期快照，且 curl 上与真直读**不可分辨**（M1-C F001 首轮 SSR 实测即被快照骗过）；
+2. **构建环境无 DB**（典型 CI Build job）：prisma 初始化抛错 → `Export encountered an error … exiting the build` 硬红。
+
+**规律：** 任何 RSC 直读 DB 的页面必须显式声明：
+
+```ts
+export const dynamic = 'force-dynamic';
+```
+
+**Spec/acceptance 硬要求：** 「RSC 直读」类 feature 的 acceptance 必须含 (a) `force-dynamic` 声明；(b) **运行时改→验→复原实证**（改一行库数据 → 刷新页面立即可见 → 复原）——这是唯一能区分「真直读」与「构建期快照」的证据；(c) build 后核 `prerender-manifest.json` 不含该路由。
+
+**注意：** 读 `await searchParams` 的页面（如动态路由详情页）天然动态不会踩此坑——这正是 M1-B 详情页未暴露、M1-C 列表页首踩的原因。
+
+**反面：** KOLMatrix M1-C F001 列表页转 RSC 未声明 → 本地构建静态化冻结数据 + CI Build job 连红两次（`7f86062`/`5bdc47a`），`42a534a` 修复。
+
+**来源：** KOLMatrix M1-C F001。
+
 ## 版本历史
 
 | 日期 | 修订 | 来源 |
@@ -190,3 +213,4 @@ tests/visual/fonts/          # woff2 + 改写 src: 指向本地的 CSS
 | 2026-07-14 | §3 付费/第三方模板 scaffold 首推前 secret 预扫（含 `--amend` 清历史铁律） | KOLMatrix DS-FOUNDATION F001 |
 | 2026-07-21 | §4 视觉回归基线三个静默坑（CDN 字体抖动 / 容忍带双向 / 空数据基线）+ §5 Tailwind JIT 双域 token 分工 | KOLMatrix FE-REFACTOR + ARCH-M05 |
 | 2026-07-22 | §4.4 新增视觉用例 CI 首推必红且补基线不自动复验（`[skip ci]` 陷阱） | KOLMatrix P2-CLEANUP F005 |
+| 2026-07-22 | §4.2 补充（收敛声明须逐份 diff 副本——借绿的上游）+ §6 RSC 直读 DB 页面必须 force-dynamic | KOLMatrix M1-C F005 / F001（v1.0.9） |

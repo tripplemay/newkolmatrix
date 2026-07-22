@@ -36,6 +36,8 @@
 
 **落地：** 风险面用**语义 grep** 划定，不用目录直觉。例：SSR 风险 = 全仓 `grep -rn 'typeof window\|typeof document\|localStorage\|isWindowAvailable' src`，命中的每个文件都进审查面，无论它在哪个目录。把这条列进 spec 的勘查清单，别留给 Generator 开工时才撞见。
 
+**反面之二（KOLMatrix M1-B F006 / M1-C F005，v1.0.9）：** 删除类 feature 的勘查面按「历史批次名」为 needle grep（如 grep "f003"），连续两批各漏一处硬引用被删文件的存活脚本：M1-B 漏 `p2-cleanup-f003-avatar-colormode.mjs`（readFileSync 被删文件 + 接 npm script + 被就绪回归口径点名），M1-C 漏 `eval-m1a-f003-seed-parity.ts`（import 被删 mock）。**规律：删除类 feature 必须以「被删路径」为 needle 全仓 grep（含 scripts/、tests/、package.json scripts、CI yml），不能只以批次名/文件名直觉圈面。**
+
 ---
 
 ## 3. 汇总层必须是对抗复核层，不是转述层

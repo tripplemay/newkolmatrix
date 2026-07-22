@@ -960,3 +960,12 @@ framework/
 [本次改动的背景，如：Evaluator 反复在某个点上 PARTIAL、新技术栈带来新约定等]
 
 -->
+
+## v1.0.9（2026-07-22）
+
+M1-B/M1-C 两批沉淀 4 条（用户逐条 Accept）：
+
+1. **删除类 feature 勘查面按被删路径 grep**（M1-B F006 + M1-C F005 连续两批各漏一处）→ `patterns/audit-methodology.md` §2.1 反面之二
+2. **RSC 直读 DB 页面必须 force-dynamic**（M1-C F001 构建期静态化冻结数据 + CI 连红两次）→ `patterns/web-runtime-patterns.md` 新增 §6（含 acceptance 硬要求：运行时改→验→复原实证）
+3. **CI watch 必须 --workflow 过滤 + 显式核 conclusion**（M1-C 同 SHA 其他 workflow exit 0 掩盖红灯漏看两 feature）→ `harness/generator.md` §4.5 + 项目根 generator.md + memory/role-context 两份（铁律 7 四副本同步）
+4. **收敛类「零漂移」声明须逐份 diff 全部副本**（M1-C F005 借绿 PARTIAL，Evaluator 像素取证）→ `patterns/web-runtime-patterns.md` §4.2 补充

@@ -277,7 +277,7 @@ flowchart TB
 2. **三条请求通道分离**：
    - **对话通道**：`POST /api/agent`，SSE 流式（`toUIMessageStreamResponse`），承载「NL → 规划 → 工具 → 画布结果」；
    - **数据通道**：页面读类数据走普通 Route Handler / Server Component 直读 repository——**读数据不经过模型**；
-   - **作业通道**：调度器例程 + 信号 webhook（**演进目标，未实装，归 M1/M3**）——产物一律落库留痕，再经雷达/记录页呈现。
+   - **作业通道**：调度器例程（**已实装 M1-C F004**：health-scan 落 OperationLog 经今天页 feed/KPI 呈现）+ 信号 webhook（演进目标，归 M3）——产物一律落库留痕，再经雷达/记录页呈现。
 3. **工具结果协议解耦四柱**（FR-12.3）：新增工具或结果类型不改运行时 route 核心与对话面外壳（见 §8.5 as-built 路由键说明）。
 4. **运行时不保存会话状态**（FR-12.9）：`/api/agent` 无状态；对话历史由前端 `useChat` 持有并逐轮回传。为多租户 RLS 留干净边界。
 5. **领域逻辑是纯函数**：健康度、匹配分、交付达标、环节流转守卫、CRM 状态推断全部落在 `src/lib/domain/`（**部分实装**：health / env-guards / env-advance 三件已落 M1-A；匹配分/交付达标/CRM 推断归 M2+），可单测、可变异测试，不藏在组件或 prompt 里（DP-6）。
@@ -1158,7 +1158,7 @@ interface HandoffEnvelope {
 
 PRD 的核心体验（J1：夜间筛查 3,100 位、为 6 位起草邀约、同步 14 条信号、拦下 2 笔放款）要求 Agent **在无人值守时推进工作**。请求-响应式 loop 回答不了这个——架构上增加与「应答」并列的第二种触发形态：
 
-| | Reactive 应答（✅已建） | Proactive 例程（**未实装**） |
+| | Reactive 应答（✅已建） | Proactive 例程（**骨架已实装，M1-C F004**） |
 |---|---|---|
 | 触发 | 用户消息 → `/api/agent` | `jobs/scheduler` 定时触发 |
 | 人格 | 当值专家（按 route+env） | 例程指定专家 |
@@ -1743,7 +1743,7 @@ flowchart LR
 
 > **`GATE_TOKEN_SECRET` 不存在**（v1.1 曾列入）——as-built 闸门令牌为 `randomBytes(32)` 随机串，**无签名密钥**（§9.3）。
 
-**启动校验现状（as-built）**：**无集中 `serverEnv()`、无 `src/instrumentation.ts`**。校验为**分散的懒校验**——`gateway.ts` 的 `requireEnv(name)` 在 `getGateway()` 工厂内首次调用时检查，缺失则抛出带变量名与 `.env.example` 指引的清晰错误。
+**启动校验现状（as-built，M1-C 校准）**：**无集中 `serverEnv()`**；`src/instrumentation.ts` 已存在但只承担例程调度启动（M1-C F004），**不做 env 校验**。校验为**分散的懒校验**——`gateway.ts` 的 `requireEnv(name)` 在 `getGateway()` 工厂内首次调用时检查，缺失则抛出带变量名与 `.env.example` 指引的清晰错误。
 
 - **为何懒校验**（刻意设计）：`/api/agent` route import `gateway.ts` 后，若模块顶层 throw，`next build` / CI 在无 secret 环境下会**构建失败**。懒初始化把校验推迟到首次真实调用。
 - **代价**：配错的 env 在**首个请求时**才暴露，而非启动时。

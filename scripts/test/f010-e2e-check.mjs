@@ -60,10 +60,16 @@ try {
   await input.fill('帮我从创作者库找《坦克世界》题材的游戏解说 KOL 候选');
   await page.getByRole('button', { name: '发送' }).first().click();
 
-  // 等画布 KOL 卡片流渲染（KolResultCards 头「N 位候选」或卡片「% 匹配」）。活网关，给足超时。
+  // 等画布 KOL 卡片流渲染（KolResultCards 头「N 位候选 · 「query」」或卡片 Badge「% 匹配」）。
+  // M2-A READINESS 校准（Andy/evaluator-subagent 2026-07-22）：锚点收窄进 Copilot <aside>
+  //（全站唯一 aside，f008/f007-substitute 同锚先例）——F005 起 match 环节页自身渲染真数据
+  // meta「{candidates.length} 位候选」（mock era 恒 4，legacy id 深链下真值 0），页面级
+  // getByText 会先命中它：等待支假绿（0 位候选 也匹配 /位候选/）、计数支误读页面值。
+  // 收窄后语义回归 F017 原意：断的是 canvas 卡片流，不是环节页 meta。
+  const canvas = page.locator('aside');
   let cardsRendered = false;
   try {
-    await page.getByText(/位候选|% 匹配/).first().waitFor({ timeout: 90000 });
+    await canvas.getByText(/位候选 · 「|% 匹配/).first().waitFor({ timeout: 90000 });
     cardsRendered = true;
   } catch {
     cardsRendered = false;
@@ -72,8 +78,8 @@ try {
   if (cardsRendered) {
     // ARCH-M05 F017：计数改锚 canvas 头「N 位候选」的 N（F001 Badge 化后文案节点结构演进，
     // 文本子串计数不再稳定；头部计数是 KolResultCards 的单一权威输出）。
-    const headTxt = await page
-      .getByText(/位候选/)
+    const headTxt = await canvas
+      .getByText(/位候选 · 「/)
       .first()
       .textContent()
       .catch(() => '');

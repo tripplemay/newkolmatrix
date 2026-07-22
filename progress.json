@@ -1,12 +1,12 @@
 {
-  "status": "verifying",
+  "status": "done",
   "user_goal": "M2-A-MATCH（match 域纵切第一批）：MatchPlan/PlanKol/MatchCandidate 三表 → matchScore 可解释评分纯函数 → 候选/组合规则化生成（无 LLM 打分）→ 对比矩阵/待裁定接真 + mock 退役 → 批准 internal 落库 + →reach 守卫解锁（S10 消解）→ nightly-screen 例程（scheduler 注册表化）→ match 工具 + canvas ADR-28 + uiSyntax 注入 → 侧栏徽标接真（U4）→ SW-R1 退役 + OBS-1 迁移收尾。用户四裁决：U1 compose learning 已沉淀 v1.0.10 / U2 纵切先行（抽屉七分区+深字段数据源留 M2-B）/ U3 SW-R1 退役 / U4 徽标纳入。",
   "total_features": 9,
   "completed_features": 9,
   "fix_rounds": 0,
   "current_sprint": "M2-A-MATCH",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-22T21:40",
+  "last_updated": "2026-07-22T23:30",
   "reference_docs": [
     "docs/specs/M2-A-MATCH-spec.md",
     "docs/dev/architecture.md",
@@ -20,14 +20,14 @@
   "docs": {
     "spec": "specs/M2-A-MATCH-spec.md",
     "test_cases": null,
-    "signoff": null,
+    "signoff": "test-reports/M2-A-MATCH-signoff-2026-07-22.md",
     "framework_reviewed": true
   },
   "role_assignments": null,
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M2-A-MATCH building 9/9 完成 → verifying · 2026-07-22】\n■ 九 feature 全交付（36db288→F009），CI 逐 push 全绿（F003 首推红=集成测试 dev tenant 并行竞态，bdda9d1 夹具租户独立化修复，fix-round 前置消化非质量债）。\n■ 关键实证已做：F005 改→验→复原（rationale sentinel）+ lazy 真机（3 draft+20 候选）+ approve API 冒烟 + 两视口；F006 routine:nightly-screen 真机（料理次元 20 候选/3 组/留痕）；F007 executeTool 直调两工具真机（evaluate_creator 真余弦 0.34）；F008 13 基线全量重生（1500px 借绿已识别，按 §4.2 意图变更强制重生）。\n■ 踩坑记录：F005 期 next dev 残活 :3000 致 F008 首轮基线对着 dev server 拍摄（reuseExistingServer 静默复用 + EADDRINUSE 被 /dev/null 吞）——已还原重拍，坑沉淀 proposed-learnings 待 done 阶段裁决。\n■ 验收提示（evaluator）：D-H 基线态 = Match 三表零行 + PendingAction/OperationLog 清态（当前已清）；L2 真网关（embedText/真对话）与 f008:browser/f010:e2e 需授权口径沿 M1-D；spec §5 就绪回归含 m1c-readiness-f007-l1-substitute（f007 原样探针已退役 U3）；linux 基线已经两轮 update-visual-baselines 重生（7eb8401 + F008 后一轮）。\n■ 部署未做（deploy-prod 人类闸门）；compose 本批零变更（不需 scp 同步）。",
+    "Andy": "【M2-A-MATCH 首轮验收 10/10 PASS → done · 2026-07-22】\n■ fan-out 验收（9 features + READINESS 各 1 隔离 evaluator subagent，Workflow 编排）全 PASS，fix_rounds=0，对抗复核零触发；signoff = test-reports/M2-A-MATCH-signoff-2026-07-22.md（机械汇总，结论原样）。首轮 workflow 8 个 subagent 撞 API 连接故障（ECONNRESET/证书），resume 后全完成——基础设施故障非验收问题。\n■ READINESS 对 f008/f010 探针做锚点校准（断言语义零变更；f010 旧锚 mock 时代实为假绿）；Evaluator 新增 5 个 m2a-* 验证脚本入 scripts/test/。building 阶段关键实证与踩坑（dev server 残活 :3000 基线污染，坑已录 proposed-learnings 待裁决）见 git 历史与各 commit 正文。\n■ 待办：proposed-learnings 1 条待用户裁决；部署 = 用户目标已明示「完成上线」，按 deploy.md 执行（image_tag = 产品代码 commit 3d93f72 完整 40 位 SHA；本批 compose 零变更不需 scp）。\n■ 观察项（不阻塞）：Kol 实测 2524 行（口径惯写 2525）；仓内无 .nvmrc。",
     "Reviewer": null
   },
   "lane": "fast"

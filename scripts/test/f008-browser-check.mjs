@@ -76,7 +76,12 @@ try {
   ok(listText.includes('只做进入') && listText.includes('星轨协议'), '项目列表渲染（项目卡 + 🔒 lede IA 契约句「只做进入」）');
   // 点第一个项目卡进详情（真实 anchor，M1-C F001 Link 化复活）
   await page.locator('a[href^="/admin/campaigns/"]').first().click();
-  await page.waitForTimeout(1200);
+  // M2-A F005 起：项目零 plans 且 cur≥match 时，详情页 RSC 首访同步 lazy 生成
+  // （真网关 embedText，实测首访 ttfb ≈3.05s / 暖访 12ms）——原固定 1200ms 等待
+  // 会在导航完成前读到旧页 body，两条详情断言假红。改为条件等待导轨内容到场
+  // （超时吞掉不抛：内容不到场时下方 ok() 断言照常判红，语义不变）。
+  // M2-A-MATCH READINESS 验收校准（Andy/evaluator-subagent 2026-07-22）。
+  await page.locator('text=目标 Brief').first().waitFor({ timeout: 30_000 }).catch(() => {});
   const detailText = await page.textContent('body');
   const stages = ['目标 Brief', '创作者匹配', '触达谈判', '交付结算', '复盘洞察'];
   ok(stages.every((s) => detailText.includes(s)), '项目详情 = 五环节唯一容器（导轨五环节齐全，D22）');

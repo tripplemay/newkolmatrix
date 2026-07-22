@@ -60,7 +60,7 @@
       "title": "match_plan/evaluate_creator 工具 + canvas ADR-28 + uiSyntax 注入",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "两工具（class:'internal'，柱一注册表）：match_plan（projectId→现行组合+PlanKol 摘要）+evaluate_creator（projectId+kol idOrPublicId→matchScore.compute 单人评估+reasons）；match persona tools 扩四件（registry.ts:95）；canvas ADR-28：canvas-registry 路由键改 type+受控 register API（:1074/:1850）+MatchPlanCard 新 canvas 卡（沿 KolResultCards 先例）+search_kols 卡迁新 API 行为零变更；uiSyntax 注入 prompt（buildSystemPrompt 增「你的产出形态：{uiSyntax}」段，:1032 欠账消解）；单测：工具 zod 契约+mock 出参形状+registry 映射+prompt 拼接含 uiSyntax；真对话属 L2 留验收授权；lint + tsc + test:unit 绿",
       "description": "spec §2 F007。目标态 architecture :1098（match += evaluate_creator/match_plan）+ :1069 canvas match_plan 卡。"
     },

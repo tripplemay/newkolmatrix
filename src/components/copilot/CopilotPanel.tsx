@@ -96,7 +96,8 @@ function MessageParts({
               : part.type.slice('tool-'.length);
           if (
             part.state === 'output-available' &&
-            hasCanvasRenderer(toolName)
+            // ADR-28（M2-A F007）：路由键 = 结果 type 优先、工具名回退——判定需带 output
+            hasCanvasRenderer(toolName, part.output)
           ) {
             return <div key={i}>{renderToolResult(toolName, part.output)}</div>;
           }

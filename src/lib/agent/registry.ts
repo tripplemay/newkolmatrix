@@ -46,17 +46,21 @@ export interface AgentPersona {
 const BASE_SYSTEM =
   '你是 KOLMatrix 专家 Agent 编队的一员，服务单角色营销操盘手。基于工具返回的真实数据作答，不编造。';
 
-/** 由职责 + 否定式护栏组合 system prompt（人格 = 我做什么 + 我不做什么）。 */
+/** 由职责 + 否定式护栏 + 界面语法组合 system prompt（人格 = 我做什么 + 我不做什么 + 我怎么呈现）。 */
 function buildSystemPrompt(
   name: string,
   duty: string,
   isolation: string,
+  uiSyntax: string,
 ): string {
   return [
     `${BASE_SYSTEM}`,
     `你的身份：${name}。`,
     `你的职责：${duty}。`,
     `你的边界（不可越）：${isolation}。越出边界的请求应说明不属于你的职责并建议交接给对应专家。`,
+    // M2-A F007：uiSyntax 注入（architecture :1032 欠账消解）——约束产出形态
+    //（match 出对比矩阵、reach 出对话流……），与 personaBoundary UI 卡同源不漂移。
+    `你的产出形态：${uiSyntax}。`,
   ].join('\n');
 }
 
@@ -92,7 +96,8 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     duty: '创作者筛查·组合生成·受众匹配·可信度核验',
     isolation: '只做发现与匹配，不发起触达、不谈价',
     uiSyntax: '对比矩阵',
-    tools: ['search_kols', 'get_kol_detail'],
+    // M2-A F007：+= match_plan / evaluate_creator（architecture :1098 目标态兑现）
+    tools: ['search_kols', 'get_kol_detail', 'match_plan', 'evaluate_creator'],
     knowledgeKinds: ['audience'], // ⑤层：受众→匹配（FR-8.4.8）
   },
   {
@@ -138,7 +143,10 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
 const PERSONAS: Record<AgentId, AgentPersona> = Object.fromEntries(
   PERSONA_SEED.map((p) => [
     p.id,
-    { ...p, systemPrompt: buildSystemPrompt(p.name, p.duty, p.isolation) },
+    {
+      ...p,
+      systemPrompt: buildSystemPrompt(p.name, p.duty, p.isolation, p.uiSyntax),
+    },
   ]),
 ) as Record<AgentId, AgentPersona>;
 

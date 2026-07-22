@@ -21,6 +21,24 @@ import {
 
 export type { MatchSurfaceData };
 
+/**
+ * 现行轮 plan id（按展示序 A/B/C）：最新 3 条（buildMatchPlans 同事务落库恒同轮）
+ * 按组合名稳定排序。单点导出——页面组装与 F007 match_plan 工具共用同一「现行轮」口径。
+ */
+export async function currentRoundPlanIds(
+  projectId: string,
+): Promise<string[]> {
+  const rows = await prisma.matchPlan.findMany({
+    where: { projectId },
+    orderBy: { createdAt: 'desc' },
+    take: 3,
+    select: { id: true, name: true },
+  });
+  return [...rows]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((r) => r.id);
+}
+
 export async function loadMatchSurfaceData(
   projectId: string,
   cur: Stage,
@@ -40,10 +58,9 @@ export async function loadMatchSurfaceData(
     }
   }
 
+  const roundIds = await currentRoundPlanIds(projectId);
   const latest = await prisma.matchPlan.findMany({
-    where: { projectId },
-    orderBy: { createdAt: 'desc' },
-    take: 3,
+    where: { id: { in: roundIds } },
     include: {
       kols: {
         select: { matchScore: true },
@@ -52,8 +69,10 @@ export async function loadMatchSurfaceData(
       },
     },
   });
-  const plans = [...latest]
-    .sort((a, b) => a.name.localeCompare(b.name)) // A/B/C 稳定列序
+  const byId = new Map(latest.map((p) => [p.id, p]));
+  const plans = roundIds
+    .map((id) => byId.get(id))
+    .filter((p): p is NonNullable<typeof p> => p != null)
     .map((p) =>
       toPlanView({
         id: p.id,

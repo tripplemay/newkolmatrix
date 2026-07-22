@@ -71,21 +71,27 @@ interface CandidateRow {
   distance: number;
 }
 
-/** 游戏知识受众画像链头 → 受众切片扁平化（无画像 → null，评分层降级）。 */
-async function loadKnowledgeAudience(
+/** 游戏知识受众画像链头 → 受众切片扁平化（无画像 → null，评分层降级）。
+ *  导出供 F007 evaluate_creator 单人评估复用（同一画像口径，不重复实现）。 */
+export async function loadKnowledgeAudience(
   gameId: string,
 ): Promise<AudienceSlice[] | null> {
   const heads = await getKnowledgeHeads(gameId, ['audience']);
   const slices = heads.flatMap(
     (h) =>
-      (parseKnowledgeStructured('audience', h.structured) as AudienceStructured | null)
-        ?.slices ?? [],
+      (
+        parseKnowledgeStructured(
+          'audience',
+          h.structured,
+        ) as AudienceStructured | null
+      )?.slices ?? [],
   );
   return slices.length > 0 ? slices : null;
 }
 
-/** 查询文本 = Project name/goal + 游戏名 + 受众画像标签（spec §2 F003）。 */
-function buildQueryText(
+/** 查询文本 = Project name/goal + 游戏名 + 受众画像标签（spec §2 F003）。
+ *  导出供 F007 evaluate_creator 复用（项目画像口径单点）。 */
+export function buildQueryText(
   projectName: string,
   gameName: string | null,
   goalRaw: unknown,

@@ -1,12 +1,12 @@
 {
-  "status": "verifying",
+  "status": "fixing",
   "user_goal": "M1-C LIST-TODAY 第三批（列表页/今天页真数据纵切 + 例程调度器最小闭环）：把 M1-B 验证过的 mock→真数据契约层扩展到列表页与今天页（RSC 直读 + Link 化归零 client 泄漏），雷达接 PendingAction 真数据（expand projectId/agentId），例程调度器立骨架（node-cron + health-scan 写 OperationLog kind=auto），mock/projects+mock/today 退役，f008 探针修缮，architecture.md 17 条口径校准。knowledge 域顺延 M1-D（存储后端裁决留人类闸门）。用户 /goal 授权自动推进直到部署上线。",
   "total_features": 7,
   "completed_features": 7,
   "fix_rounds": 0,
   "current_sprint": "M1-C-LIST-TODAY",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-22T20:40",
+  "last_updated": "2026-07-22T21:35",
   "reference_docs": [
     "docs/specs/M1-C-LIST-TODAY-spec.md",
     "docs/specs/M1-B-BRIEF-spec.md",
@@ -23,7 +23,90 @@
     "framework_reviewed": true
   },
   "role_assignments": null,
-  "evaluator_feedback": [],
+  "evaluator_feedback": [
+    {
+      "feature_id": "F001",
+      "result": "PASS",
+      "summary": "F001 列表页 RSC 直读 Project 全部 acceptance 实证通过：RSC 转换 grep 实证、DB 改行→变→复原闭环、4 个真实 anchor 卡序 xg/lc/aw/mf、display 层逐字段复用、全 cr 预期确认、基线对账+针对性视觉复跑绿、lint/tsc/unit 全绿，0 缺陷。",
+      "evidence": "1) grep 'use client'/useRouter/useState 于 campaigns/page.tsx 仅注释命中，async RSC + prisma.findMany({where:{tenantId},include:{game:true},orderBy:{createdAt:'asc'}}) @ :56-61，force-dynamic @ :21；2) DB 实证：UPDATE xg 名→curl 即见 EVAL-F001-MUTATION ×2（运行时读库）→seed:projects 复原→串归 0、原名回归、createdAt 序仍 xg,lc,aw,mf、PendingAction 全程 0；3) SSR HTML 含真实 <a href=\"/admin/campaigns/xg?env=reach\"> 等 4 anchor；「风险」pill ×4、正常/注意 ×0（D2 预期）；$18,000/$12,000/$9,000/$7,500 + 4 条 D9 goal 合成串同形；4) computeHealth 因子组装与 [id]/page.tsx:42-51 逐字段比对一致；5) 视觉：commit 7f86062 载 21,987px 对账（pill×4+goal×4 数据级），waitFor『只做进入』@ workbench.spec.ts:26 保留，本机针对性复跑 1 passed (2.3s)；6) L1：prisma generate→tsc exit 0、lint 0 err/0 warn、test:unit 139/139 passed。备注：验收窗口内 OperationLog 出现 4 行例程巡检（09:42:49 UTC，时间线排除本 agent 操作，吻合并行 F004 agent 手动触发 routine:health-scan），属他人在途夹具未清除，campaigns 页不消费 OperationLog 不影响判定。",
+      "problems": [],
+      "report_path": "docs/test-reports/M1-C-LIST-TODAY-verify-F001.md"
+    },
+    {
+      "feature_id": "F002",
+      "result": "PASS",
+      "summary": "F002 六条 acceptance 全部实物核验通过：nullable expand 迁移已应用在库、唯一闸门创建点只填不判、aggregatePending 扩两字段且 harm 原样透传、3 条真库回归测试实跑绿、schema+migration+引用代码同 commit、L1（tsc/lint/139 unit+integration）本地与 CI 均绿。",
+      "evidence": "(1) dev DB `\\d \"PendingAction\"` 实证 projectId/agentId 两列 nullable text，_prisma_migrations 含 20260722082147_pending_action_project_agent；migration.sql 为纯 ADD COLUMN。(2) grep 全仓 pendingAction.create 唯一命中 gate.ts:72，:83-84 `projectId: ctx.projectId ?? null, agentId: ctx.agentId` 无判定。(3) orchestrator.ts:55-64/73-74 select+返回扩列，:71 harm 透传。(4) `npx vitest run tests/integration/pending-action-columns.test.ts` 3/3 passed；全套 `npm run test:unit` 139/139。(5) `git show --stat 5bdc47a` 同 commit 含 schema/migration/gate/orchestrator/测试。(6) 本地 HEAD prisma generate→tsc 0 errors、lint 0 warnings；CI run 29903937676 Lint/Typecheck/Unit 三 job success（Build/Visual 失败 log 实证为 F001 prerender 连带，42a534a 已修，后续 commits 全绿）。(7) Evaluator 独立探针 PROBE_PASS：带 projectId 落列 / 缺省为 NULL（raw SQL 直读）/ aggregatePending 往返带回 / harm 逐字段一致；探针夹具全清恢复零行。残留行 evalf006fixture001 属并行 F006 验收 agent 活跃夹具，未代删。",
+      "problems": [],
+      "report_path": "docs/test-reports/M1-C-LIST-TODAY-verify-F002.md"
+    },
+    {
+      "feature_id": "F003",
+      "result": "PASS",
+      "summary": "F003 今天页 RSC 重构逐条 acceptance 全实证通过：RSC/client 叶子边界 grep 零泄漏、雷达空态/完整卡/极简卡/脏 harm 降级四态 fixture 实测全命中（红标=harm.irreversible、agentId 反查深链）、KPI 与雷达同源实证、feed 两态实测、无存处区块保结构占位、en-today 基线对账重生且针对性视觉用例 1 passed、两视口 0 console error、lint+tsc+test:unit(139) 全绿——零缺陷。",
+      "evidence": "1) grep 实证：today/page.tsx 无 'use client'/useRouter/useState/useEffect（仅注释命中）、无 mock import；AgentSquad/Button 为仅存 client island；agent-icons.ts 无指令且 AgentSquad:14 import + :16 re-export。2) 三态实测（standalone :3000 + docker psql fixture 改→验→恢复）：空态 curl 命中「今天没有需要你确认的事」+「0 个待办在等你」；插入 eval-f003-full/mini/dirty 三条后命中《星轨协议》完整卡（amt「首轮触达 · 3 个对象 · $1,200」、红标仅 irreversible=true 卡、href=/admin/campaigns/xg?env=reach、data-enter=\"xg\" data-goenv=\"reach\"）、极简卡无项目头无深链（全页仅 1 个进入项目钮）、脏 harm 回退「工具「share_external」」；DELETE 后空态复归。3) KPI 同源：3 fixture 时 KPI=3 与 SecHead「3 个待办在等你」同步；进行中项目=4；F004 agent 巡检留痕窗口实测 Agent 今日完成=4 + feed 4 条巡检行（actor→「策略 Agent」、时间「3 分钟前」）。4) 基线：d222374 重生 en-today-darwin（commit 正文逐处对账+D-H 清表声明）、941bea7 重生 linux；本人基线零行态实跑 npx playwright test tests/visual/dashboard.spec.ts → 1 passed（dashboard.spec:16-19 空态 waitFor 硬断言在位）。5) 两视口：Playwright desktop 1440/mobile 390 六锚点全命中、console error 0、截图目检布局正常（侧栏徽标 3 vs 雷达 0 = D-B 登记过渡态）。6) L1：prisma generate → tsc 0 errors；lint 0 warnings；test:unit 12 files/139 tests 全过。终态 DB：pending=0/oplog=0/projects=4（基线复原）。",
+      "problems": [],
+      "report_path": "docs/test-reports/M1-C-LIST-TODAY-verify-F003.md"
+    },
+    {
+      "feature_id": "F004",
+      "result": "PASS",
+      "summary": "F004 例程调度器最小闭环全部 acceptance 通过：node-cron 注册/互斥锁/ROUTINES_DISABLED 开关/instrumentation nodejs gate 均实证，routine:health-scan 落 4 条 OperationLog(kind=auto) 且今天页 KPI/feed 可见面闭环，L1 全绿，数据面已复原。",
+      "evidence": "1) L1：npx prisma generate 后 tsc --noEmit exit 0；next lint 0 errors/0 warnings；vitest run 139/139（12 文件）。2) 集成测试 tests/integration/health-scan-routine.test.ts 3/3 过（留痕形状/幂等重跑 append-only/互斥锁），活性证明：DATABASE_URL 指死端口重跑 → 1 failed（真打库非 mock）。3) 探针 scripts/test/f004-scheduler-probe.ts：disabled 模式 cron.getTasks().size=0 + 「例程调度未启动」；default 模式 size=1、重复调用 startScheduler 仍 1（幂等），cron 常量 '0 2 * * *'。4) 可见面闭环（改→验→恢复）：基线 OperationLog=0/今天页 KPI=0 → npm run routine:health-scan 输出「✅ 扫描 4 项目，留痕 4 条（kind=auto）」，DB 抽查 4 行 kind=auto/actor=strategy/projectId 非空/payloadJson{routine,score,band}，分值 xg26/lc37/aw23/mf20 与 spec §4 逐字吻合（D2 全 cr 预期）→ curl :3000/admin/today KPI「Agent 今日完成」=4 + feed 4 条「例程巡检…策略 Agent·刚刚」→ DELETE 4 行后 KPI 复归 0 零残留。5) 代码面：health-scan.ts null 因子组装与 [id]/page.tsx:42-51 逐字段一致；仅 import prisma/domain/schema/display 无网关无 PendingAction；src/instrumentation.ts:8 NEXT_RUNTIME gate，.next/standalone/.next/server/instrumentation.js + chunks/735.js（含 ROUTINES_DISABLED）+ standalone/node_modules/node-cron 均在（BUILD_ID @02:31:54 即 HEAD 5a666a9 构建）。6) git status 仅新增测试产物，产品代码零改动。非阻断观察 3 条（summary 双层书名号系 spec 原样模板+数据内容；node-cron 双构建探针坑已固化注释；v4 自带类型）详见分报告 §4。",
+      "problems": [],
+      "report_path": "docs/test-reports/M1-C-LIST-TODAY-verify-F004.md"
+    },
+    {
+      "evidence": "① mock 整删：ls 实证 src/lib/data/mock/{projects,today}.ts 不存在；全仓正则 grep import/require 被删路径零命中；needle 残留仅 6 处注释历史标注（符合 spec「零悬空引用」）；package.json 零残留；mock/index.ts 已标退役。② D-E：env-brief.ts:160-173 内联 LEGACY_ID_ALIAS + 内联 slug 判定，import 仅剩 zod；curl 差分：starlight-protocol?env=brief 出 canonical『192万 / 300万 曝光』×2 / 0 待接入，nonexistent-id 4×待接入，?env=reach 200 + 触达 Agent。③ ENV_NAME 全仓零命中，today/page.tsx:197 用 ENV_META[].name（值与旧 ENV_NAME 逐字同）。④ tone 单点：HealthBand 域 PILL_TONE/DOT_TONE 全仓仅 health-tone.ts 1 处定义，campaigns:36/today:50/ProjectDetail:29 三处 import；canonical 与 pre-F005 today 版逐字一致。⑤ L1：next lint 0 warnings、tsc exit 0、vitest 139/139。⑥ 借绿实锤：基线拍摄口径 7f86062 campaigns cr=text-red-500(#f53939)，当前 curl 渲染 4× text-red-600(#ea0606)；同口径截图 vs campaigns-darwin.png 逐像素比对 exact-diff 720px（max Δ=51，bbox 恰为四卡 health pill 区，其余全图零 diff），抽样像素 (245,57,57)→(234,6,6) 精确对应 red-500→red-600；git log 证基线最后重生于 7f86062/11e67ba（均早于 F005 commit 2289343）；playwright campaigns 断言在旧基线仍 1 passed（720<1500 容忍带吸收）。",
+      "feature_id": "F005",
+      "problems": [
+        {
+          "description": "acceptance 子项【D-F】「浅色基线零漂移」不成立：canonical 取 today 版使 campaigns 浅色 cr pill 文字色 text-red-500(#f53939)→text-red-600(#ea0606)（spec D-F「仅深色略变」的前提对 campaigns 不成立——其 wn/cr 浅色类原本就与 today 版不同）。实测浅色渲染 720px 实变（全部落在四卡 health pill 文本区），campaigns-darwin/linux 基线均未按 D-I「意图变更必重生」重生，变更被 maxDiffPixels 1500 容忍带吸收（借绿，framework v1.0.8 明文反模式），基线守护余量降至 780px；commit 正文「浅色 canonical 与原值逐字同」与实物不符。另有潜在登记项：wn text-amber-700→text-orange-600 当前无渲染面（四项目全 cr），M2/M3 三态丰富化后显形。建议修复：重生 campaigns darwin+linux 基线并按 D-I 附对账说明（cr 文字色变更系 D-F 意图变更），同步更正 D-F 登记；不建议回改旧值（与 canonical 裁决冲突）。",
+          "steps_to_reproduce": "1. curl -s http://127.0.0.1:3000/admin/campaigns | grep -o 'bg-red-50 [^\"]*' | sort | uniq -c → 4× text-red-600；2. git show 7f86062:src/app/admin/campaigns/page.tsx | sed -n '31,36p' → 基线拍摄口径 cr: text-red-500；3. git log --oneline -- tests/screenshots/baseline/campaigns-darwin.png → 最后重生 = 7f86062（早于 F005 commit 2289343）；4. 同口径截图（viewport 1512x982 + mockFonts/mockHandoffs + fonts.ready + 1500ms settle）与 campaigns-darwin.png 逐像素比对 → exact-diff 720px，抽样 (245,57,57)→(234,6,6) ≡ red-500→red-600（脚本：scratchpad/f005-campaigns-pixel-diff.mjs）；5. BASE=http://127.0.0.1:3000 npx playwright test -c tests/visual/playwright.evaluator.config.ts -g 'campaigns list' → 1 passed（借绿确认）"
+        }
+      ],
+      "report_path": "docs/test-reports/M1-C-LIST-TODAY-verify-F005.md",
+      "result": "PARTIAL",
+      "summary": "F005 退役链主体全部达成（mock 整删零悬空引用、env-brief 内联解耦、ENV_NAME→ENV_META、tone 单点、L1 全绿、旧 id 深链零回归），但「浅色基线零漂移」子项实测不成立：campaigns 浅色 cr pill red-500→red-600 共 720px 实变未重生基线、被 1500px 容忍带借绿，违反 D-I，判 PARTIAL。"
+    },
+    {
+      "feature_id": "F006",
+      "result": "PASS",
+      "summary": "F006 f008 探针修缮 6/6 acceptance 全过：历史漂移锚点校准实证（旧锚现构建 0 命中）、§4/§5 断言复活正反两态亲测各 12/12（standalone）、fixture 改验恢复合规、commit 正文修缮说明完整、lint+tsc 绿——PASS，0 findings。",
+      "evidence": "(1) npm run f008:browser 零待办态 PASS 12/FAIL 0（§5 空态分支「今天零待办→雷达空态可见文案」）；(2) SQL 造 PendingAction fixture（kind=gate/projectId=xg/agentId=reach，harmJson 合 harmSchema）后再跑 PASS 12/FAIL 0（§5 输出 href=/admin/campaigns/xg?env=reach），随即 DELETE 复原至 pending=0/oplog=0、空态文案回归；(3) curl 实证 §4 anchor 复活：/admin/campaigns 服务端 HTML 含 4 真实 anchor（xg?env=reach 等），campaigns/page.tsx 无 'use client'/router.push、import next/link；(4) 旧锚已死实证：现构建「五环节」=0、「本环节专家职责」=0，新锚「只做进入」=2、「刻意不同」=1、5 中文环节名全 ≥1；ARCH-M05-verify-B §1.3 原文在案记录 §4 anchor 断言历史中断；(5) git show 9d4aaa4^ :70 确为『五环节』断言，与 acceptance 行号一致；git show 9d4aaa4 --stat 仅测试脚本+状态文件零产品代码；commit 正文含 D-G/历史漂移/双态实跑完整说明；(6) 服务器实证 standalone（lsof cwd=.next/standalone）；prisma generate → tsc --noEmit exit 0 → next lint 零告警。双态断言失败安全性核验：有 pending 但深链损坏时 fallback 空态断言必 FAIL，无静默放行。L2 不适用（无外部调用面）。",
+      "problems": [],
+      "report_path": "docs/test-reports/M1-C-LIST-TODAY-verify-F006.md"
+    },
+    {
+      "feature_id": "F007",
+      "result": "PARTIAL",
+      "summary": "17 条清单逐条兑现且 A 类 8 条翻牌与实物全部一致（§14 标注/游标 as-built/设计决策零改动/push 验证均过），但新鲜度全文筛查发现 3 处批内反向漂移：本批 F004 已交付的例程调度器/instrumentation.ts 在 :280/:1161/:1746 仍标「未实装/不存在」，其中 §8.10 节头已翻牌而同节表格未翻构成同节自相矛盾——按 evaluator 文档新鲜度 clause 判 PARTIAL（修复合计 ≤5 行文档改动）。",
+      "evidence": "① 17 条对账：git show 022003e 全量 diff 逐 hunk 对应 spec 行号（:84/:283/:402/:481/:521/:563/:629-635/:654/:758/:929/:1128/:1628/:1632/:1642-1669/:1684/:1797-1798/:1833），022003e..HEAD 对 architecture.md 零改动。② A 类实物：package.json vitest/@vitest/coverage-v8 均 ^4.1.10 且无 vite-tsconfig-paths；ls src/lib/domain/ = health.ts+env-guards.ts+env-advance.ts；env-guards.ts:109-123 brief 无条件/match 按 goal 判/reach·delivery·insight 全 deny('DEPENDENCY_NOT_IMPLEMENTED')（与 :481 as-built 注逐字吻合）；schema.prisma:124-132 Project 七列 + PendingAction projectId/agentId + OperationLog projectId/payloadJson；src/lib/data/schemas/project.ts 在仓；compute-health.ts:18-23 import domain/health，computeHealth 消费面=today/campaigns/campaigns[id] 三页 RSC（无 'use client' 指令）+ health-scan.ts:11,37。③ B/C 实物：vitest.config.ts resolve:{tsconfigPaths:true} + include 收窄两路径 + thresholds lines:80（D17/D18）；ci.yml:63-91 unit job pgvector service+migrate+coverage、:112-143 visual job pgvector+migrate+seed；advanceStage 全仓 grep 消费仅 tests/integration+scripts/test 探针（S10 注属实）；mock/ 目录无 projects.ts/today.ts。④ push：git branch -r --contains 022003e → origin/main；批次尾 9d4aaa4 CI+Build&Push 双 success（gh run list）。⑤ 反向漂移：sed -n '1157p;1161p' 实证 §8.10 节头「骨架已实装（M1-C F004）」vs 表格「Proactive 例程（未实装）」矛盾；:280 作业通道「调度器例程…未实装，归 M1/M3」（『归 M1）』grep needle 漏掉联写变体）；:1746「无 src/instrumentation.ts」vs ls src/instrumentation.ts 在仓（F004 建立）。其余 50 处未实装标记逐条筛查均与实物相符（prompt.ts/ops/api/env.ts 均不存在、schema 无 deletedAt/platformUserId/embeddingTextHash、PendingActionStatus 恰 3 值）。",
+      "problems": [
+        {
+          "description": "§8.10 同节自相矛盾：节头（architecture.md:1157）已翻牌「主动式 Agent（例程调度）— 骨架已实装（M1-C F004：lib/jobs/ scheduler + 互斥锁 + health-scan）」，但 4 行之下对照表列头（:1161）仍标「Proactive 例程（**未实装**）」。实物 src/lib/jobs/scheduler.ts + routines/health-scan.ts + src/instrumentation.ts 均在仓。校准前节头/表格一致（均标未实装），F007 只翻节头引入了同节矛盾——commit 自述「例程调度器翻牌（§1/§8.10/§11.6/ADR-20）」的 sanity 扫描在 §8.10 内部不完整。",
+          "steps_to_reproduce": "sed -n '1157p;1161p' docs/dev/architecture.md — 对比节头「骨架已实装」与表格列头「未实装」；ls src/lib/jobs/scheduler.ts src/lib/jobs/routines/health-scan.ts 确认实物在仓"
+        },
+        {
+          "description": "§4.2 三条请求通道（architecture.md:280）仍标「作业通道：调度器例程 + 信号 webhook（演进目标，未实装，归 M1/M3）」——调度器例程半边已在本批实装（health-scan 落 OperationLog 经今天页 feed/雷达呈现，正是该行描述的形态），信号 webhook 归 M3 仍准确。commit 的「全文『归 M1）』归零」grep needle 收窄，漏掉「归 M1/M3」联写变体。",
+          "steps_to_reproduce": "grep -n '作业通道' docs/dev/architecture.md — 输出 :280 含「未实装，归 M1/M3」；npm run routine:health-scan 可实证调度器例程真实可跑（写 OperationLog kind=auto）"
+        },
+        {
+          "description": "§13 存在性断言失实（architecture.md:1746）：「启动校验现状（as-built）：无集中 serverEnv()、无 `src/instrumentation.ts`」——该文件已由本批 F004 建立（nodejs runtime 启动 scheduler）。周边叙述（无集中 fail-fast、gateway 懒校验、src/lib/env.ts 不存在）仍准确，但「无 src/instrumentation.ts」字面断言与实物直接冲突，后续读者会据此误判 instrumentation 钩子占用情况。",
+          "steps_to_reproduce": "grep -n '无 `src/instrumentation.ts`' docs/dev/architecture.md（命中 :1746）&& ls src/instrumentation.ts && head -12 src/instrumentation.ts — 文件在仓且注释自述 M1-C F004"
+        }
+      ],
+      "report_path": "/Users/yixingzhou/project/newkolmatrix/docs/test-reports/M1-C-LIST-TODAY-verify-F007.md"
+    },
+    {
+      "evidence": "1) L1：next lint「✔ No ESLint warnings or errors」；tsc --noEmit exit 0（prisma generate 先行，F002 有 schema 变更）；vitest 12 文件/139 tests 全过（含本批 pending-action-columns/health-scan-routine/relative-time，集成测打真库且自清）。2) test:visual 13/13（23.0s，复用 :3000 standalone PID 41879，BUILD_ID 02:31 晚于产品树最后 commit 9d4aaa4 02:18；跑前实测 PendingAction=0/OperationLog=0/Project=4，D-H 基线态成立）。3) p2:f001 12/12、p2:f002 14/14、p2:f004 15/15。4) f008:browser 双态各 12/12：空态支「雷达空态可见文案」；自插 1 行 PendingAction（projectId=xg cuid，agentId=reach）后翻至「待办直达真实 anchor href=/admin/campaigns/xg?env=reach」（STAGE_AGENT 反查实证），夹具即插即删，终态 0|0|4 复原。5) f007:browser 原样跑不能绿（2✗ 后 :40 input.fill 超时）——5 处锚点溯源全部先于 M1-C（「多 Agent 编队」/placeholder「说」→ ARCH-M05 2284333；「隔离」→FE-REFACTOR f7fc3cf；「协同交接」reach 页现为「本环节协同」；「→」现为「↔」）；git diff 19af7f1..HEAD -- src/components/copilot/ 为空 → 失败签名与 M1-B 生产 SHA 逐字相同，非本批回归；且 §2 为网关计费调用 [L2] 未授权本就不可全绿。守护面以新写 scripts/test/m1c-readiness-f007-l1-substitute.mjs 复刻全部非网关断言 10/10 全绿（含旧 id 深链 starlight-protocol?env=reach 切触达 Agent、demo handoff 经 /api/handoffs 200 在场可展开）。6) 基线漂移：批级净变更恰 5 文件（campaigns/en-today × darwin/linux + creator-drawer-linux −8B 附带重拍噪声）；7f86062/d222374 commit 正文逐张对账在案；独立 canvas diff（通道差>8）：campaigns 差异封闭 x[343-1123] y[244-581] 四卡区、en-today 封闭主内容列，两图尺寸不变、侧栏/顶栏/aside 逐像素稳定 → 数据/占位级非布局/字体回归；CI 旁证 9d4aaa4 success（linux visual job 对重生基线绿），d222374 一次红为重生前预期红。验收零产品代码改动，:3000 未重启。",
+      "feature_id": "READINESS",
+      "problems": [],
+      "report_path": "docs/test-reports/M1-C-LIST-TODAY-verify-READINESS.md",
+      "result": "PASS",
+      "summary": "就绪回归全绿：lint/tsc/unit 139/vs 13/13 视觉/三 p2 探针/f008 双态各 12/12 全过，基线漂移 5 文件逐张成因核对+独立像素取证均为数据/占位级；f007:browser 探针锚点陈旧系 FE-REFACTOR/ARCH-M05 时代遗留（copilot 零 diff 实证非 M1-C 回归，守护面替代探针 10/10 无回归），列 SW-R1 测试债附兜底不阻塞。"
+    }
+  ],
   "generator_handoff": null,
   "session_notes": {
     "Andy": "【M1-C-LIST-TODAY building 完成 → verifying · 2026-07-22】\n■ 授权记账（orchestration §6）：本批全程按用户 /goal 书面授权自动推进（开批→building→verifying→done→deploy），各阶段边界照常落盘。\n■ 7/7 features 各自独立 commit（7f86062+42a534a F001 / 5bdc47a F002 / d222374 F003 / 948d327 F004 / 2289343 F005 / 9d4aaa4 F006 / 022003e F007），CI 全绿（F007 纯文档 paths-ignore）。\n■ 验收需知（勿误判为缺陷）：\n1) 列表页/雷达 health 全 cr = D2 纪律预期（xg26/lc37/aw23/mf20，三方同源）；S2 过渡态已消解；\n2) 雷达/feed/KPI 基线态 = 零 PendingAction/OperationLog（CI 天然，本地实测后已清态复原 D-H）——空态可见文案是硬断言锚（dashboard.spec waitFor）；\n3) 侧栏徽标仍 mock（D-B 登记过渡态，today 3 vs 雷达 0 同页不一致是已知项，M1-D 消解）；\n4) F001 曾踩构建期静态化冻结数据坑（prerender error 两次 CI 红），已 force-dynamic 修复（42a534a）并排队 2 条 proposed-learnings（含 CI watch --workflow 过滤教训）；\n5) f008 修缮为双态断言（有待办 anchor / 零待办空态文案），两态均 12/12 实测过；\n6) eval-m1a-f003-seed-parity.ts 随 mock 退役删除（M1-A Evaluator 产物，比对对象消亡，f003-harness 先例）；\n7) 基线重生 3 次（campaigns-linux ×1 + en-today-linux ×1 + F004 push §4.4 复验全绿）。\n■ 环境：standalone :3000 @ F007 前构建；dev DB 四项目 canonical、pending/oplog 已清零。\n■ 下一步：fan-out 验收（7 features ≥4，orchestration §4 Workflow 编排，沿 M1-B 模式）→ 全 PASS 后 signoff → done → 部署（S7 已入部署链无前置）。",

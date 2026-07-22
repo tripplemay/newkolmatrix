@@ -42,7 +42,7 @@
       "title": "收敛与 mock 退役链（ENV_NAME/env-brief/tone + mock 整删）",
       "priority": "medium",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "acceptance": "ENV_NAME 消费切 ENV_META[].name（mock/today.ts:16 EXTENSION POINT 兑现）；【D-E】env-brief.ts 分流判定改内联 slug 比对 + 内联 LEGACY_ID_ALIAS（starlight-protocol→xg 保留，f007/f010 零回归），不再 import mock/projects；删除 lib/data/mock/today.ts 与 lib/data/mock/projects.ts，按被删路径为 needle 全仓 grep 零残留（含 scripts/tests/package.json/mock/index.ts，M1-B F006 教训）；【D-F】新建 src/lib/display/health-tone.ts 单点导出 PILL_TONE（canonical 取 today 版全 dark 变体）+ DOT_TONE，campaigns/今天页/ProjectDetail 三处 import 单点，浅色基线零漂移；回归：tsc 全绿 + grep 实证零副本残留；lint + tsc + test:unit 绿",
       "description": "spec §2 F005 + D-E/D-F。勘查实证 mock/today 唯一消费方是今天页；mock/projects 还有 env-brief.ts:166-168 消费点与 LEGACY_ID_ALIAS（f007/f010 依赖）；PILL_TONE 两份 DOT_TONE 一份（S4 顺手收敛）。"
     },
@@ -60,7 +60,7 @@
       "title": "architecture.md 口径校准（17 条清单，S8/S1 兑现）",
       "priority": "low",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "acceptance": "按 spec §2 F007 清单 17 条逐条校准：A 类 8 条「未实装」翻牌为已实装+指向实物路径（:84 vitest/:283 domain//:654 schemas//:758 Project 列/:1128 compute_health/:1628 §12.6.1/:1632 §12.6.2/:481 游标）；B/C 类改写措辞（:402 章头拆分/:521 逐行拆标/:563/:629-635 契约层范围/:929/:1642-1669 D17/D18 as-built/:1684 CI 流程图/:1797-1798 §14 M0.5 置 done+M1 行拆分/:1833 ADR-16 部分兑现）；游标校准须按 as-built 写（仅 →brief/→match 可判，其余保守拒 DEPENDENCY_NOT_IMPLEMENTED）；本批交付项在 §14 M1 行同步标注；只改口径不改设计决策，每条附实物路径；文档 commit 随批次尾实质 push 验证",
       "description": "spec §2 F007。M1-A signoff S1 + M1-B signoff S8 两批顺延的文档校准，勘查已产出逐条清单（17 条含行号与实物证据）。"
     }

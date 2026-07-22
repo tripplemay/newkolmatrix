@@ -25,8 +25,11 @@ import {
 } from 'lib/agent/stage-routing';
 import { HEALTH_LABEL, type ProjectHealth } from 'lib/data/mock/projects';
 import type { HealthResult } from 'lib/domain/health';
+import { canEnter } from 'lib/domain/env-guards';
+import { ENV_GUARD_MESSAGE } from 'lib/display/env-guard-messages';
 import type { ProjectGoal } from 'lib/data/schemas/project';
 import { PENDING_TEXT } from 'lib/data/provenance';
+import { useToast } from 'components/common/Toast';
 import BriefEnv from 'components/envs/brief';
 import MatchEnv from 'components/envs/match';
 import ReachEnv from 'components/envs/reach';
@@ -87,6 +90,7 @@ export default function ProjectDetail({
   legacyStage?: string;
 }) {
   const router = useRouter();
+  const toast = useToast();
 
   // 初始环节：?env= 优先 → 旧 ?stage= → 项目当前推进环节（原型 data-goenv=p.cur 语义）→ brief 兜底。
   const fromUrl = initialEnv ?? legacyStage;
@@ -101,7 +105,26 @@ export default function ProjectDetail({
     }
   }, [initialEnv, legacyStage, projectId, router]);
 
+  // F004（D4）：进入环节前过 canEnter——放行则切换，拒绝则不切、弹 toast。
+  // rail 未解锁环节仍可点（不 disabled，保留探索感），拦截发生在这里。
+  // 前端拦截只是 UX 层：服务端 env-advance 的 canAdvance 才是硬闸（架构 :483），
+  // 本批不碰。project 未命中（D2 降级态）无判据 → 保持可自由切换，绝不抛错。
   const selectEnv = (next: Stage) => {
+    if (project) {
+      const verdict = canEnter(
+        {
+          cur: project.cur,
+          maxReached: project.maxReached,
+          goal: project.goal,
+        },
+        next,
+      );
+      if (!verdict.allowed) {
+        // reason 在 allowed=false 时恒非 null（守卫契约）；?? 仅作类型兜底
+        toast(ENV_GUARD_MESSAGE[verdict.reason ?? 'STAGE_NOT_UNLOCKED']);
+        return;
+      }
+    }
     setEnv(next);
     // 同步 URL ?env=（router.replace 非硬跳转，保持页内 tab 语义，D22）。
     router.replace(stageHref(projectId, next), { scroll: false });

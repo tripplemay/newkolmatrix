@@ -33,7 +33,7 @@
       "title": "页面守卫前端半边（selectEnv + rail + toast 拦截）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "ProjectDetail.tsx:80 selectEnv(next) 加 canEnter 拦截：放行则切换，拒绝则不切并弹 toast（复用 components/common/Toast 的 useToast，creators 页已有拦截提示先例）；【D4】rail（:145-204）未解锁环节仍可点（不 disabled），点后由 canEnter 判定 → 拒绝弹 toast，保留探索感；【D5】maxReached 数据源=详情页 RSC 直读从 DB 拿（F001 已传 project prop 含 maxReached），不给 MockProject 加字段（列表页 D1 顺延不接）；reason → 文案映射——EnvGuardReason 字面量联合（D8 领域层产出）在展示层映射成中文 toast 文案（M1-A D8 明写文案映射留展示层归 M1-B，本批兑现），映射表落展示层单点；架构 :483 明确服务端校验才是真守卫前端仅 UX，前端拦截不得削弱服务端 env-advance 的 canAdvance 硬闸（M1-A 已建，本批不碰）；未解锁环节点击被拦截弹 toast 须两视口实测；lint + tsc 绿",
       "description": "spec §2 F004 + D4/D5。勘查确认 selectEnv（ProjectDetail.tsx:80-84）无条件 setEnv 无任何 canEnter 校验，rail 每个环节按钮无 disabled 无守卫——现在任意 env 都能点进包括未解锁的。M1-A 只做了服务端半边（env-guards/env-advance），前端半边完全缺失。"
     },

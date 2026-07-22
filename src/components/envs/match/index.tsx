@@ -6,10 +6,13 @@
 //（130px 行标 + 3 组合列，min-w 700 横滚，独立结构非 DataTable）
 // + 「Agent 拿不准 · 待你裁定」候选表（common/DataTable 5 列）。
 //
+// M2-A F005 接真：数据 = RSC 组装的 MatchSurfaceData prop（mock/env-match.ts 已退役），
+// 布局结构零变更（V5 22 元素 🔒 逐项保持）——变的只是供给侧与「批准这组」动线。
+//
 // 🔒 本环节刻意无闸门（V5 闸门列「无（刻意）」）：批准组合 = internal 动作——只让
 // 方案生效并交给触达谈判，不发任何邮件，所以没有确认弹窗（D27 解释义务由底部
-// shield 声明逐字承担）。mock 反馈 = Toast，不真切环节（真 MatchPlan approve →
-// cur='reach' 推进归 M2）。
+// shield 声明逐字承担）。「批准这组」→ POST /api/match/plans/{id}/approve（F004）
+// → toast + 跳 ?env=reach + router.refresh（原型 L995 语义，S10 真推进）。
 //
 // 「待核」= 字段缺失 / 契约层 null（裁决 #2，isPendingVerification）——低置信度不显裸分。
 
@@ -27,29 +30,12 @@ import {
   readContractSlot,
 } from 'lib/data/provenance';
 import {
-  matchCandidateListSchema,
-  matchPlanListSchema,
-  mockMatchCandidates,
-  mockMatchPlans,
-  type MatchCandidate,
-  type MatchPlan,
-} from 'lib/data/mock/env-match';
-
-/* ------------------------------------------------------------------ *
- * 契约层读取（D2）：校验失败 → null 降级走占位 / 空态，绝不抛错
- * ------------------------------------------------------------------ */
-
-const PLANS: MatchPlan[] | null = readContractSlot(
-  matchPlanListSchema,
-  mockMatchPlans,
-  'envMatch.plans',
-);
-const CANDIDATES: MatchCandidate[] =
-  readContractSlot(
-    matchCandidateListSchema,
-    mockMatchCandidates,
-    'envMatch.candidates',
-  ) ?? [];
+  matchCandidateViewListSchema,
+  matchPlanViewListSchema,
+  type MatchCandidateView,
+  type MatchPlanView,
+  type MatchSurfaceData,
+} from 'lib/display/match-format';
 
 /* ------------------------------------------------------------------ *
  * V5-1..12 `.cmatrix` 对比矩阵（独立结构非 DataTable，D8）
@@ -81,8 +67,8 @@ function CompareMatrix({
   plans,
   onApprove,
 }: {
-  plans: MatchPlan[];
-  onApprove: (plan: MatchPlan) => void;
+  plans: MatchPlanView[];
+  onApprove: (plan: MatchPlanView) => void;
 }) {
   // V5-1 `.compare` 横滚容器 > `.cmatrix` 网格：130px 行标 + 3 组合列，min-w 700
   return (
@@ -194,13 +180,13 @@ function ReviewButton({ name }: { name: string }) {
 }
 
 /** V5-19 初判 pill 三态（原型 .pill 高 gd / 中 wn / ? nu，不得合并；runs KIND_PILL 同族用色） */
-const FIT_PILL_TONE: Record<MatchCandidate['fit'], string> = {
+const FIT_PILL_TONE: Record<MatchCandidateView['fit'], string> = {
   高: 'bg-horizonGreen-50 text-horizonGreen-500 dark:bg-horizonGreen-500/10',
   中: 'bg-horizonOrange-50 text-horizonOrange-700 dark:bg-horizonOrange-500/10 dark:text-horizonOrange-500',
   '?': 'bg-lightPrimary text-gray-700 dark:bg-white/10 dark:text-gray-400',
 };
 
-const columnHelper = createColumnHelper<MatchCandidate>();
+const columnHelper = createColumnHelper<MatchCandidateView>();
 
 /* V5-15 FUZZY 表 5 列（创作者 / 受众匹配 / 存疑原因 / 初判 / 审阅位） */
 const FUZZY_COLUMNS = [
@@ -272,22 +258,65 @@ const FUZZY_COLUMNS = [
  * 语法面（挂载契约：default export + { projectId }，ProjectDetail 静态映射）
  * ------------------------------------------------------------------ */
 
-export default function MatchEnv({ projectId }: { projectId: string }) {
+export default function MatchEnv({
+  projectId,
+  data = null,
+  onApproved,
+}: {
+  projectId: string;
+  /** RSC 组装的 match 面数据（F005）；null/缺省 = 项目未命中（D2 降级态）。
+      可选是挂载契约（ENV_SURFACE Record 只保证 { projectId }）的类型要求，
+      真实挂载点（ProjectDetail match 分支）恒显式传入。 */
+  data?: MatchSurfaceData | null;
+  /** 批准成功后的导航回调（ProjectDetail：跳 ?env=reach + refresh） */
+  onApproved?: () => void;
+}) {
   const toast = useToast();
 
-  // V5-22 批准 = internal（🔒 刻意无闸门 / 无确认弹窗，D27）：文案逐字对照原型
-  // [data-approve] 处理器 L995；mock 不真切环节（真 approve → cur='reach' 归 M2）。
-  const handleApprove = (plan: MatchPlan) =>
-    toast(`方案「${plan.name}」已生效，交给触达谈判`);
+  // 契约层读取（D2）：序列化边界再校验一次，失败 → null 降级走占位 / 空态，绝不抛错。
+  // plans schema 锁 3 组（.length(3)）：未生成 / lazy 降级（0 条）→ null → 空态占位。
+  const plans: MatchPlanView[] | null = readContractSlot(
+    matchPlanViewListSchema,
+    data?.plans,
+    'envMatch.plans',
+  );
+  const candidates: MatchCandidateView[] =
+    readContractSlot(
+      matchCandidateViewListSchema,
+      data?.candidates,
+      'envMatch.candidates',
+    ) ?? [];
+
+  // V5-22 批准 = internal（🔒 刻意无闸门 / 无确认弹窗，D27）：POST approve（F004）
+  // → 成功 toast（文案逐字对照原型 [data-approve] L995）+ 跳 ?env=reach + refresh。
+  // 失败（409 过时方案 / 5xx）→ toast 服务端信息，不切环节。
+  const handleApprove = async (plan: MatchPlanView) => {
+    try {
+      const res = await fetch(
+        `/api/match/plans/${encodeURIComponent(plan.id)}/approve`,
+        { method: 'POST' },
+      );
+      const body = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        toast(body.error ?? '批准失败，请重试');
+        return;
+      }
+      toast(`方案「${plan.name}」已生效，交给触达谈判`);
+      onApproved?.();
+    } catch {
+      toast('批准失败，请重试');
+    }
+  };
 
   return (
     <div data-project={projectId}>
-      {PLANS ? (
-        <CompareMatrix plans={PLANS} onApprove={handleApprove} />
+      {plans ? (
+        <CompareMatrix plans={plans} onApprove={handleApprove} />
       ) : (
-        // D2：契约层 null → 占位渲染，绝不抛错 / 填 0
+        // D2：契约层 null / 组合未生成 → 空态占位渲染，绝不抛错 / 填 0
+        //（CI 无网关凭据的 lazy 降级也落此态——基线态文案，视觉测试硬断言锚点）
         <SurfaceCard className="p-6 text-sm text-gray-600 dark:text-gray-400">
-          {PENDING_TEXT.connect}
+          组合方案尚未生成——进入匹配环节后由匹配 Agent 自动筛查生成
         </SurfaceCard>
       )}
 
@@ -298,11 +327,11 @@ export default function MatchEnv({ projectId }: { projectId: string }) {
             Agent 拿不准 · 待你裁定
           </h3>
           <span className="ml-auto text-compact font-semibold text-gray-700 dark:text-gray-400">
-            {CANDIDATES.length} 位候选
+            {candidates.length} 位候选
           </span>
         </div>
         <DataTable
-          data={CANDIDATES}
+          data={candidates}
           columns={FUZZY_COLUMNS}
           emptyText="暂无待裁定候选——匹配 Agent 拿不准的判断会放到这里等你拍板。"
         />

@@ -40,6 +40,14 @@ test('project env=match visual baseline', async ({ page }) => {
     waitUntil: 'domcontentloaded',
   });
   await page.getByText('待你裁定').first().waitFor({ timeout: 30_000 });
+  // M2-A F005 接真后的基线态 = CI 无网关凭据 lazy 静默降级空态（v1.0.9 §4.3）：
+  // 空态文案硬断言使「数据源整个消失 / 降级路径回归」都超时硬红，杜绝静默空白入基线。
+  await page
+    .getByText('组合方案尚未生成——进入匹配环节后由匹配 Agent 自动筛查生成')
+    .waitFor({ timeout: 30_000 }); // 矩阵空态占位（D2 降级）
+  await page
+    .getByText('暂无待裁定候选——匹配 Agent 拿不准的判断会放到这里等你拍板。')
+    .waitFor({ timeout: 30_000 }); // 待裁定表空态
   await shot(page, 'project-match.png');
 });
 

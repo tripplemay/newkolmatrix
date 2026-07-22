@@ -17,6 +17,8 @@ import { getDevTenantId } from 'lib/agent/context';
 import { computeHealth, type HealthResult } from 'lib/domain/health';
 import { parseProjectGoal } from 'lib/data/schemas/project';
 import { formatBudget, formatGoalText } from 'lib/display/project-format';
+import { loadMatchSurfaceData } from 'lib/match/surface-data';
+import type { Stage } from 'lib/agent/stage-routing';
 
 export default async function ProjectDetailPage({
   params,
@@ -42,6 +44,8 @@ export default async function ProjectDetailPage({
       where: { projectId: row.id, status: 'approved' },
       select: { id: true },
     });
+    // M2-A F005：match 面数据组装（含 P2 首访 lazy；失败静默降级空态，CI 安全）
+    const match = await loadMatchSurfaceData(row.id, row.cur as Stage);
     // 缺失因子填 null（分子无存处，D15 该因子记 0 分）；now 在 RSC 边界注入，
     // 纯度约束只在 domain 函数（computeHealth 自身不读时钟）。
     health = computeHealth({
@@ -66,6 +70,7 @@ export default async function ProjectDetailPage({
       maxReached: row.maxReached, // D5：F004 前端守卫的数据源，从 DB 直读
       goal, // F004 canEnter ctx（→match 判据）所需
       hasApprovedMatchPlan: approvedPlan != null, // M2-A F004 →reach 判据
+      match, // M2-A F005：match 语法面真数据（可序列化视图）
     };
   }
 

@@ -30,6 +30,7 @@ import { DOT_TONE } from 'lib/display/health-tone';
 import { canEnter } from 'lib/domain/env-guards';
 import { ENV_GUARD_MESSAGE } from 'lib/display/env-guard-messages';
 import type { ProjectGoal } from 'lib/data/schemas/project';
+import type { MatchSurfaceData } from 'lib/display/match-format';
 import { PENDING_TEXT } from 'lib/data/provenance';
 import { useToast } from 'components/common/Toast';
 import BriefEnv from 'components/envs/brief';
@@ -67,6 +68,8 @@ export interface ProjectDetailData {
   goal: ProjectGoal | null;
   /** 是否存在已批准 MatchPlan（M2-A F004 →reach 判据，RSC 查好传入） */
   hasApprovedMatchPlan: boolean;
+  /** match 语法面真数据（M2-A F005，RSC 组装可序列化视图） */
+  match: MatchSurfaceData;
 }
 
 export default function ProjectDetail({
@@ -259,8 +262,25 @@ export default function ProjectDetail({
         </span>
       </div>
 
-      {/* 落地面：env → components/envs/<env> 静态映射（F008-F012 替换 stub） */}
-      <Surface projectId={projectId} />
+      {/* 落地面：env → components/envs/<env> 静态映射（F008-F012 替换 stub）。
+          match 面接真 prop（M2-A F005）：RSC 组装的 match 数据只有该面消费，
+          显式分支传入，其余环节保持 { projectId } 挂载契约不动。
+          onApproved：批准已在服务端生效（approve API + advanceStage），跳 reach 不再走
+          selectEnv 的 canEnter——本地 project prop 是批准前的旧照（refresh 才更新），
+          旧照守卫会误拒真实已解锁的 reach。 */}
+      {env === 'match' ? (
+        <MatchEnv
+          projectId={projectId}
+          data={project?.match ?? null}
+          onApproved={() => {
+            setEnv('reach');
+            router.replace(stageHref(projectId, 'reach'), { scroll: false });
+            router.refresh(); // RSC 重组装（cur/守卫判据/match 面随批准后状态刷新）
+          }}
+        />
+      ) : (
+        <Surface projectId={projectId} />
+      )}
     </div>
   );
 }

@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "M2-A-MATCH（match 域纵切第一批）：MatchPlan/PlanKol/MatchCandidate 三表 → matchScore 可解释评分纯函数 → 候选/组合规则化生成（无 LLM 打分）→ 对比矩阵/待裁定接真 + mock 退役 → 批准 internal 落库 + →reach 守卫解锁（S10 消解）→ nightly-screen 例程（scheduler 注册表化）→ match 工具 + canvas ADR-28 + uiSyntax 注入 → 侧栏徽标接真（U4）→ SW-R1 退役 + OBS-1 迁移收尾。用户四裁决：U1 compose learning 已沉淀 v1.0.10 / U2 纵切先行（抽屉七分区+深字段数据源留 M2-B）/ U3 SW-R1 退役 / U4 徽标纳入。",
   "total_features": 9,
-  "completed_features": 4,
+  "completed_features": 5,
   "fix_rounds": 0,
   "current_sprint": "M2-A-MATCH",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-22T18:20",
+  "last_updated": "2026-07-22T19:10",
   "reference_docs": [
     "docs/specs/M2-A-MATCH-spec.md",
     "docs/dev/architecture.md",

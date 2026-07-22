@@ -42,7 +42,7 @@
       "title": "match 语法面接真 + mock 退役",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "campaigns/[id] RSC 扩组装 match 面数据（plans 3 组+candidates，可序列化；展示串格式化单点 src/lib/display/match-format.ts：reachTotal→万级串/budgetUsd null→「待核」/risk→低中高/【P5】bars=组内 PlanKol top6 matchScore 归一 0-9）；【P2】首访 lazy 生成（零 plans 且 cur≥match→服务端同步生成；失败静默降级空态占位 log warn 不抛错——CI 无凭据必须构建渲染安全）；match/index.tsx 接真 prop：矩阵/待裁定表消费真数据，scorePending→「待核」（裁决 #2），「批准这组」接 approve API→toast+router.refresh+跳 ?env=reach（原型 L995 语义），「审阅」保持 toast，布局零变更（ui-inventory V5 22 元素 🔒 逐项保持）；mock/env-match.ts 退役按被删路径 needle 全仓 grep 零代码残留+mock/index.ts 翻牌；project-match.png 基线漂移逐处对账后重生（CI 空态=基线态，waitFor 校准+空态可见文案硬断言 §4.3）；运行时改→验→复原实证（RSC 组装层）；两视口实测；lint + tsc + test:unit + test:visual 绿",
       "description": "spec §2 F005 + P2/P5/P6。勘查实证页面全建好只换供给侧（match/index.tsx 321 行；mock 消费方唯一 :36）。"
     },

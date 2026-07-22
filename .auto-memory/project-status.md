@@ -8,7 +8,7 @@ type: project
 - **M1 全域 done ✅**（A/B/C/D 四批全 PASS）
 
 ## 已上线
-- `https://newkol.guangai.ai` 现跑 **M1-D 版 @ `ecde6cd...7110`**；M2-A 部署进行中（image_tag=`3d93f72` 完整 40 位 SHA，deploy-prod workflow）。回滚=deploy-prod 填 `ecde6cdfabc7cae570ace4006d6af7a307457110`
+- `https://newkol.guangai.ai` 现跑 **M2-A 版 @ `3d93f72a65681c6787d2daba9cf6cf4c76e5c087`**（2026-07-22 部署，health+nav-badges 真计数+today+match 面 lazy 真生成 四项验证过）。回滚=deploy-prod 填 `ecde6cdfabc7cae570ace4006d6af7a307457110`
 - ⚠️ **image_tag 必须完整 40 位 SHA**；**部署 SHA≠HEAD**——状态/文档 commit 不构建镜像
 - ⚠️ **compose 是 VPS 人工副本**：M2-A 零 compose 变更，本次不需 scp
 

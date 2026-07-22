@@ -51,7 +51,7 @@
       "title": "nightly-screen 例程 + scheduler 注册表化",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "scheduler.ts 注册表化（ROUTINES 数组+循环注册；runExclusive/ROUTINES_DISABLED/失败不炸进程语义逐条保持；health-scan 迁入行为零变更）；routines/nightly-screen.ts：对 cur='match' 在跑项目逐个 generateCandidates+buildMatchPlans（approved 不动 P4）+OperationLog(kind=auto,actor='match',payloadJson{routine:'nightly-screen'}) 照 health-scan 先例；internal only 无 outbound（:1182）；网关失败逐项目消化不中断整轮；scripts/jobs/run-nightly-screen.ts+package script；cron 默认 30 2 * * *（错峰）；集成测试：注册表两例程/幂等/approved 不动；lint + tsc + test:unit 绿",
       "description": "spec §2 F006。勘查实证 scheduler as-built 硬编码单例程（scheduler.ts:55-67）与 :1815「自动获得调度」口径差——本批消解。"
     },

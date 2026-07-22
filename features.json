@@ -33,7 +33,7 @@
       "title": "例程调度器最小闭环（node-cron + health-scan）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "新建 src/lib/jobs/scheduler.ts（node-cron 注册 + 进程内互斥锁：上轮未结束不重入）+ src/lib/jobs/routines/health-scan.ts；【D-C】instrumentation.ts 在 NEXT_RUNTIME==='nodejs' 时启动，ROUTINES_DISABLED=true 可关（默认开），cron 常量默认 '0 2 * * *'；新增 node-cron 依赖；health-scan：读 tenant 全部 Project → computeHealth（null 因子同页面/工具口径）→ 每项目写 OperationLog{kind:'auto',actor:'strategy',projectId,summary 巡检文案,payloadJson:{score,band}}，纯计算不调网关不涉闸门；手动触发口 npm run routine:health-scan（不等 cron 到点）；单测：例程逻辑 + 幂等重跑 + 互斥锁行为；可见面闭环：跑一次后今天页「Agent 今日完成」>0 且 feed 出现巡检行；lint + tsc + test:unit 绿",
       "description": "spec §2 F004 + D-C。勘查实证：OperationLogKind 含 auto + projectId/payloadJson 列已在（schema.prisma:189,209-210）零建表；5 条规划例程仅 health-scan 本批可做（architecture.md:1170-1183，ADR-20 锁定 node-cron/不建队列）。"
     },

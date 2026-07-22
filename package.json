@@ -30,7 +30,8 @@
     "p2:f001": "node scripts/test/p2-cleanup-f001-drawer-close.mjs",
     "p2:f002": "node scripts/test/p2-cleanup-f002-colormode-persist.mjs",
     "p2:f004": "node scripts/test/p2-cleanup-f004-handoff-panel.mjs",
-    "seed:projects": "node --env-file=.env --import tsx scripts/seed/canonical-projects.ts"
+    "seed:projects": "node --env-file=.env --import tsx scripts/seed/canonical-projects.ts",
+    "routine:health-scan": "node --env-file=.env --import tsx scripts/jobs/run-health-scan.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.16",
@@ -64,6 +65,7 @@
     "mapbox-gl": "^2.10.0",
     "next": "15.5.20",
     "next-transpile-modules": "^9.0.0",
+    "node-cron": "^4.6.0",
     "rc-slider": "^10.0.1",
     "react": "19.2.7",
     "react-accessible-accordion": "^5.0.0",

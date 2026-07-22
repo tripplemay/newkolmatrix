@@ -24,7 +24,7 @@
       "title": "候选生成 + 组合生成服务（src/lib/match/）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "generateCandidates(projectId)：gameId→getKnowledgeHeads(['audience'])受众画像+Project name/goal 构造查询→embedText（【P7】注入可替换，单测/集成测 mock 向量不打网关）→pgvector cosine topN=20（复用 search-kols.ts:54-81 SQL 范式）→matchScore.compute→MatchCandidate upsert（幂等；【P4】已 kept/dropped 不回退 pending）+doubts 规则化+preJudge 分档；buildMatchPlans(projectId)：候选(≠dropped)规则化 3 组【P1 无 LLM 打分】（A 生活流精投/B 均衡 recommended/C 头部拉动，沿 mock 命名语义）+PlanKol ≤10 人 reasons 可解释+metrics（reachTotal=Σfollowers 真值/budgetUsd=null P6/risk 由 doubts 占比分档/people）；【P4】新 3 组 draft+旧 draft→superseded 同事务，approved 永不动；集成测试打真库 mock 向量：幂等刷新/人工 verdict 保留/supersede/approved 不动+【D20】status/verdict 流转变异断言；lint + tsc + test:unit 绿",
       "description": "spec §2 F003 + P1/P4/P6/P7。首个 match 域服务层；单一真相源供 F005 页面/F006 例程/F007 工具复用。"
     },

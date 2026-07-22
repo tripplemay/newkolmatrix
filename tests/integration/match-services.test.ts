@@ -9,8 +9,13 @@
 // 6. embedding 缺失的 KOL 不入候选池（P2 定案：score null 仅当 embedding 缺失）。
 //
 // 夹具向量设计：query = e1（基向量）；夹具 KOL 余弦相似度 = 向量首二维点积，
-// 分别锚定 1.0 / 0.8 / 0.6 / 0.3 四档。本地 dev 库 2525 真 KOL 的 bge-m3 向量与 e1
-// 点积 ≈ ±0.05（10σ 之外），夹具恒居 top——断言不依赖真库为空。
+// 分别锚定 1.0 / 0.8 / 0.6 / 0.3 四档。
+//
+// 夹具租户独立（env-advance ${process.pid} 先例，不共享 dev tenant）：
+// 1. CI 并行文件竞态安全——共享 dev tenant 的 find+create 在 fresh DB 上并行必撞
+//    P2002（首推实测），upsert 也解不了「他人 afterAll 删我在用的 tenant」；
+// 2. 检索按 project.tenantId 圈定 → 本租户只有夹具 KOL，断言全确定（total 恒 4），
+//    不受本地 dev 库 2525 真 KOL 干扰。
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '../../src/lib/db/prisma';
@@ -39,10 +44,11 @@ const mockEmbed = async (): Promise<number[]> => {
   return v;
 };
 
+const FIXTURE_SLUG = `test-tenant-m2a-match-${process.pid}`;
+
 let tenantId: string;
 let gameId: string;
 let projectId: string;
-let createdDevTenant = false;
 
 // 夹具 KOL：id 按相似度档位命名
 let kolTop: string; // sim 1.0 · 长尾(3万) · audienceDemo null → 降级
@@ -78,16 +84,10 @@ async function makeKol(
 }
 
 beforeAll(async () => {
-  const existing = await prisma.tenant.findUnique({ where: { slug: 'dev' } });
-  if (existing) {
-    tenantId = existing.id;
-  } else {
-    const t = await prisma.tenant.create({
-      data: { slug: 'dev', name: 'dev tenant（F003 match 集成测试夹具建）' },
-    });
-    tenantId = t.id;
-    createdDevTenant = true;
-  }
+  const t = await prisma.tenant.create({
+    data: { slug: FIXTURE_SLUG, name: 'M2A match 集成测试夹具租户' },
+  });
+  tenantId = t.id;
 
   const game = await prisma.game.create({
     data: { tenantId, name: 'M2A F003 夹具游戏' },
@@ -132,7 +132,12 @@ beforeAll(async () => {
     { interests: ['fps'] },
     vecLiteral({ 0: 0.8, 1: 0.6 }),
   );
-  kolHead = await makeKol('head', 1_200_000, null, vecLiteral({ 0: 0.6, 1: 0.8 }));
+  kolHead = await makeKol(
+    'head',
+    1_200_000,
+    null,
+    vecLiteral({ 0: 0.6, 1: 0.8 }),
+  );
   kolLow = await makeKol(
     'low',
     5_000,
@@ -143,30 +148,24 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // D-H 扩展：Match 三表验收产物测毕清零复原（project Cascade 清 MatchPlan/PlanKol/MatchCandidate）
-  await prisma.project.deleteMany({ where: { id: projectId } });
+  // D-H 扩展：Match 三表验收产物测毕清零复原（tenant Cascade 清 Project→MatchPlan/
+  // PlanKol/MatchCandidate + Kol + Game→GameKnowledge，夹具租户整体删除）
   await prisma.gameKnowledge.deleteMany({ where: { gameId } });
-  await prisma.game.deleteMany({ where: { id: gameId } });
-  await prisma.kol.deleteMany({
-    where: { canonicalHandle: { startsWith: 'm2a-f003-' } },
-  });
-  if (createdDevTenant) {
-    await prisma.tenant.deleteMany({ where: { id: tenantId } });
-  }
+  await prisma.tenant.deleteMany({ where: { id: tenantId } });
   await prisma.$disconnect();
 });
 
 describe('generateCandidates（检索 + 评分 + 幂等 upsert）', () => {
   it('首跑：夹具四档全部入池、评分/doubts/preJudge 按规则落库；无 embedding 不入池', async () => {
     const r = await generateCandidates(projectId, { embed: mockEmbed });
-    expect(r.total).toBeGreaterThanOrEqual(4);
+    expect(r.total).toBe(4); // 夹具租户内恰 4 个带 embedding 的 KOL
     expect(r.total).toBeLessThanOrEqual(CANDIDATE_TOP_N);
     expect(r.created).toBe(r.total);
 
     const byKol = new Map(
-      (
-        await prisma.matchCandidate.findMany({ where: { projectId } })
-      ).map((c) => [c.kolId, c]),
+      (await prisma.matchCandidate.findMany({ where: { projectId } })).map(
+        (c) => [c.kolId, c],
+      ),
     );
 
     // sim 1.0 · audienceDemo null → 降级纯向量分 + 待接入 doubt + 高

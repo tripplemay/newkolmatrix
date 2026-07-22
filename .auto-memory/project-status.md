@@ -4,7 +4,7 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **M1-A-BRIEF done ✅（2026-07-22）· 快车道** — 6/6 PASS，fix_rounds=1，signoff 已签发（隔离 evaluator）。**尚未部署**
+- **M1-A-BRIEF done ✅ 并已上线（2026-07-22）· 快车道** — 6/6 PASS，fix_rounds=1，signoff 已签发（隔离 evaluator）。生产已部署验证通过
 - **交付：** vitest 地基（+CI unit job 起 pgvector 跑集成测）· 拆 NoSSR 恢复全站 SSR · Project/OperationLog expand 迁移 + canonical seed · `domain/` 三件（health / env-guards / env-advance）· 变异测试
 - **下一站 M1-B：** 页面接真数据 + brief 分流 bug + compute_health 工具 + 页面层守卫 + BL-FE-16/17
 
@@ -18,8 +18,9 @@ type: project
 - **architecture.md §12.6.3/§5.3 口径滞后于 as-built**（vitest 已装 / vite-tsconfig-paths 未装 / include 已收窄 / 游标守卫已落地）→ signoff S1 建议 M1-B 校准
 
 ## 已上线
-- `https://newkol.guangai.ai` 仍跑 **P2-CLEANUP 版 @ `0c36fc2f24395be5bbf9af60a0cf4342dde057be`**（M1-A 待部署）
+- `https://newkol.guangai.ai` 现跑 **M1-A-BRIEF 版 @ `fa52f8619b2277e578d3a6e1bbd5b77a5bd062ad`**（2026-07-22 部署，healthy + F002 六页 SSR 首屏实测确证）。回滚=deploy-prod 填上一版 **完整 SHA** `0c36fc2f24395be5bbf9af60a0cf4342dde057be`（P2-CLEANUP 版）
 - ⚠️ **deploy 的 image_tag 必须填完整 40 位 SHA**，短 SHA 会 pull 失败（见 environment.md）
+- ⚠️ **部署的 SHA ≠ 当前 HEAD**：done 收官的纯文档/状态 commit 命中 build-push 的 paths-ignore 不构建镜像；须部署最后一个含代码改动的已构建 SHA（本批 = fa52f861，非 done commit ffd9a15）
 
 ## 演进路线（architecture.md v1.2 §14）
 - M0 ✅ → M0.5 ✅ → **M1-A ✅ → M1-B（下一站）** → M2 MATCH → M3 REACH/DELIVERY → M4 INSIGHT → M5 PROD-HARDENING
@@ -29,7 +30,6 @@ type: project
 
 ## 待人类处理
 - `framework/proposed-learnings.md`：**M1-A 新增 3 条待裁决**（勘查审查面按语义划 / 探针代理前提随架构失效 / 覆盖率门 include 不可大于批次范围）+ P2-CLEANUP 4 条 + harness-fit 9 条长期挂起
-- **M1-A 部署未触发**（用户手动闸门）
 
 ## 关键技术坑（沿用 framework v1.0.7 + 本批新踩）
 - UI 实测一律 standalone 不走 next dev · CDN 字体是视觉抖动总根源 · 基线重生用 `--update-snapshots=all`

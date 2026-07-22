@@ -13,6 +13,12 @@
 
 import Link from 'next/link';
 import { MdChevronRight } from 'react-icons/md';
+
+// 本页无 dynamic API（不读 params/searchParams/cookies），Next 默认会在构建期
+// 静态预渲染——prisma 查询在 build 时执行、数据冻结进 HTML，运行时不再读库
+//（CI Build job 无 DB 时更是直接 prerender error 红灯）。RSC 直读 DB 的页面
+// 必须显式声明动态渲染，每次请求真实查库。
+export const dynamic = 'force-dynamic';
 import Card from 'components/card';
 import Button from 'components/common/Button';
 import PageHeader from 'components/common/PageHeader';

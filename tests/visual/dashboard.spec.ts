@@ -9,8 +9,14 @@ test('today dashboard visual baseline', async ({ page }) => {
   await mockFonts(page);
   await mockHandoffs(page);
   await page.goto('/admin/today', { waitUntil: 'domcontentloaded' });
-  // 等客户端渲染的今天雷达就位（待办卡直达某项目某环节）。
+  // 雷达区块头（SecHead 无条件渲染）。
   await page.getByText('需要你确认').first().waitFor({ timeout: 30_000 });
+  // M1-C F003（D-A/D-H）：基线态 = 零 PendingAction（CI 天然如此；本地重生前须清表）。
+  // 空态文案是硬断言锚——雷达接真后若渲染 null（静默空白，§4.3 反面）此处超时硬红。
+  await page
+    .getByText('今天没有需要你确认的事')
+    .first()
+    .waitFor({ timeout: 30_000 });
   // 等 Copilot 侧栏的协同交接卡就位（route mock 保证确定性渲染）。
   await page.getByText('协同交接').first().waitFor({ timeout: 30_000 });
   await page.waitForTimeout(1_200);

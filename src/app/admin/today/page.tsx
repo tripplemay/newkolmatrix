@@ -2,79 +2,75 @@
 //
 // 四段硬要求落点：
 // §2.1 原型：KPI ×4 / 需要你确认雷达 / Agent 编队 / Agent 活动 feed / chartcard / 团队负荷。
-// §2.2 必用件：MiniStatistics（模板件首次消费，delta 有/无两态）· AgentSquad grid（首次接线）·
-//      LineAreaChart（模板件，12 点 + 末点圆标）· Progress（团队负荷 track）· SurfaceCard / Button。
-// §2.3 不得简化：🔒 sec-head meta IA 契约句 ×2、🔒🚪 irrev 红标（ask.outbound 条件渲染）、
+// §2.2 必用件：MiniStatistics（delta 有/无两态）· AgentSquad grid · SurfaceCard / Button。
+// §2.3 不得简化：🔒 sec-head meta IA 契约句 ×2、🔒🚪 irrev 红标（条件渲染）、
 //      🔒 feed sub 主动式宣示、🔒 团队负荷免责 eyebrow（裁决 #8，逐字）。
-// §2.4 视觉基线由 F017 统一重生（D10 期间口径）。
 //
-// D2 契约：ask 深字段经 lib/data/provenance readContractSlot 读取，null = 不进雷达（绝不抛错/填 0）。
-// D7 URL 即状态：「进入项目」直落 /admin/campaigns/{id}?env={env}（新约定 ?env=，F007 同批迁移路由层）。
-'use client';
+// M1-C F003 — RSC 重构 + 真数据纵切（D-A/D-D）：
+// · 去 'use client'：数据在 RSC 直读（aggregatePending / Project / OperationLog），
+//   client 叶子仅剩 AgentSquad island；「进入项目」Link 化（f008 §5 anchor 复活）。
+// · 雷达 = PendingAction 真数据（F009 闸门是真实的 ask 之源）：有 projectId 联
+//   Project 渲染完整卡，无则极简卡；空态渲染可见文案（§4.3 反静默空白）。
+// · KPI/feed 有真源接真源（count / OperationLog）；本月有效触达、chartcard、
+//   团队负荷无存处 →「待接入」占位，保留区块结构（设计稿保护规则不删区块）。
+//   原 mock 的 chartcard 图表（LineAreaChart）随数据源一并降级，M4 指标落地后回接。
+// · 侧栏徽标本批不接真（D-B）：today 徽标 mock 3 与雷达真值的不一致是登记过渡态。
+// D7 URL 即状态：「进入项目」直落 /admin/campaigns/{id}?env={stage}。
 
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   MdAccessTime,
   MdAutoAwesome,
-  MdCheck,
   MdChevronRight,
   MdMailOutline,
   MdNotificationsNone,
-  MdOutlineEdit,
   MdOutlineFolder,
   MdShield,
   MdTrendingUp,
   MdWarningAmber,
 } from 'react-icons/md';
 import MiniStatistics from 'components/card/MiniStatistics';
-import LineAreaChart from 'components/charts/LineAreaChart';
-import Progress from 'components/progress';
-import AgentSquad, { AGENT_ICONS } from 'components/common/AgentSquad';
+import AgentSquad from 'components/common/AgentSquad';
+import { AGENT_ICONS } from 'components/common/agent-icons';
 import Button from 'components/common/Button';
 import SurfaceCard from 'components/common/SurfaceCard';
-import { AVATAR_WHEEL, BRAND_500, WHITE } from 'lib/design-tokens';
-import { STAGE_AGENT } from 'lib/agent/stage-routing';
-import { readContractSlot } from 'lib/data/provenance';
-import type { HealthBand } from 'lib/domain/health';
+import { ENV_META } from 'components/project/env-meta';
+import { AVATAR_WHEEL } from 'lib/design-tokens';
+import { STAGE_AGENT, type Stage } from 'lib/agent/stage-routing';
+import { prisma } from 'lib/db/prisma';
+import { buildToolContext } from 'lib/agent/context';
+import { aggregatePending, type PendingItem } from 'lib/agent/orchestrator';
+import { harmSchema } from 'lib/agent/gate/harm';
+import { computeHealth, type HealthBand } from 'lib/domain/health';
+import { parseProjectGoal } from 'lib/data/schemas/project';
+import { readContractSlot, PENDING_TEXT } from 'lib/data/provenance';
+import { formatBudget } from 'lib/display/project-format';
+import { formatRelativeTime } from 'lib/display/relative-time';
 import { HEALTH_LABEL } from 'lib/display/health-label';
-import {
-  ENV_NAME,
-  monthlyAutoDone,
-  radarAskSchema,
-  teamLoads,
-  todayFeed,
-  todayKpis,
-  todayProjects,
-  type RadarAsk,
-  type TodayFeedIcon,
-  type TodayKpiIcon,
-  type TodayProject,
-} from 'lib/data/mock/today';
+import { getPersona, isAgentId } from 'lib/agent/registry';
+
+// RSC 直读 DB：无 dynamic API 的页面 Next 默认构建期静态化（数据冻结 + CI 无
+// DB 硬红，F001 fix 同因），必须显式每请求查库。
+export const dynamic = 'force-dynamic';
 
 /* ------------------------------------------------------------------ *
- * 图标映射（原型 ic 名 → react-icons；环节图标复用 AGENT_ICONS 不复制）
+ * 图标映射（原型 ic 名 → react-icons）
  * ------------------------------------------------------------------ */
-const KPI_ICONS: Record<
-  TodayKpiIcon,
+/** OperationLog kind → feed 图标（auto 例程 / gate 闸门 / block 拦截 / irrev 不可逆执行） */
+const LOG_KIND_ICONS: Record<
+  string,
   React.ComponentType<{ size?: number }>
 > = {
-  bell: MdNotificationsNone,
-  spark: MdAutoAwesome,
-  folder: MdOutlineFolder,
-  trend: MdTrendingUp,
+  auto: MdAutoAwesome,
+  gate: MdShield,
+  block: MdWarningAmber,
+  irrev: MdMailOutline,
 };
 
-const FEED_ICONS: Record<
-  TodayFeedIcon,
-  React.ComponentType<{ size?: number }>
-> = {
-  check: MdCheck,
-  pen: MdOutlineEdit,
-  trend: MdTrendingUp,
-  mail: MdMailOutline,
-  shield: MdShield,
-  spark: MdAutoAwesome,
-};
+/** agentId → 环节（STAGE_AGENT 反转；雷达深链用） */
+const AGENT_STAGE: Record<string, Stage> = Object.fromEntries(
+  Object.entries(STAGE_AGENT).map(([stage, agent]) => [agent, stage as Stage]),
+);
 
 /* ------------------------------------------------------------------ *
  * WheelAvatar — 6 色轮 + 首二字（原型 avatar helper L672 / AVC L559）
@@ -131,8 +127,6 @@ const PILL_TONE: Record<PillTone, string> = {
   cr: 'bg-red-50 text-red-600 dark:bg-red-400/10 dark:text-red-400',
 };
 
-// M1-B F005 收敛：HEALTH_LABEL 单点在 lib/display/health-label.ts（D6），本页副本已删。
-
 function Pill({
   tone = 'nu',
   children,
@@ -150,50 +144,99 @@ function Pill({
 }
 
 /* ------------------------------------------------------------------ *
- * RadarCard — 「需要你确认」待办卡（原型 .rcard，SurfaceCard 承载）
+ * 雷达数据组装（RSC 侧，全字段可序列化）
  * ------------------------------------------------------------------ */
-function RadarCard({
-  project,
-  index,
-  ask,
-}: {
-  project: TodayProject;
-  index: number;
-  ask: RadarAsk;
-}) {
-  const router = useRouter();
-  const envName = ENV_NAME[ask.env];
-  const EnvIcon = AGENT_ICONS[STAGE_AGENT[ask.env]];
-  // D7：?env= 新约定直落（F007 同批迁移路由层，含 ?stage= 兼容重写）
-  const href = `/admin/campaigns/${project.id}?env=${ask.env}`;
+interface RadarProject {
+  linkId: string;
+  name: string;
+  game: string;
+  market: string | null;
+  budgetText: string | null;
+  health: HealthBand;
+  cur: Stage;
+}
+
+interface RadarItem {
+  id: string;
+  /** null = 创建时无项目上下文 → 极简卡 */
+  project: RadarProject | null;
+  /** 卡内环节标（agentId 反查；无则回退项目当前环节 / brief） */
+  env: Stage;
+  title: string;
+  amt: string;
+  irreversible: boolean;
+}
+
+function buildRadarItem(
+  item: PendingItem,
+  project: RadarProject | null,
+): RadarItem {
+  // harm 经契约层读取：脏数据降级 null 渲染占位，绝不抛错（D2）
+  const harm = readContractSlot(
+    harmSchema,
+    item.harm,
+    `today.pending.${item.id}.harm`,
+  );
+  const env: Stage =
+    (item.agentId && AGENT_STAGE[item.agentId]) || project?.cur || 'brief';
+  const amtParts: string[] = [];
+  if (harm?.scope) amtParts.push(harm.scope);
+  if (harm?.quantity != null) amtParts.push(`${harm.quantity} 个对象`);
+  if (harm?.amount != null) {
+    const money = formatBudget(harm.amount, harm.currency ?? null);
+    if (money) amtParts.push(money);
+  }
+  return {
+    id: item.id,
+    project,
+    env,
+    title: harm?.summary ?? item.toolName,
+    amt: amtParts.length ? amtParts.join(' · ') : `工具「${item.toolName}」`,
+    irreversible: harm?.irreversible === true,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * RadarCard — 「需要你确认」待办卡（原型 .rcard，SurfaceCard 承载；server component）
+ * ------------------------------------------------------------------ */
+function RadarCard({ item, index }: { item: RadarItem; index: number }) {
+  const envName = ENV_META[item.env].name;
+  const EnvIcon = AGENT_ICONS[STAGE_AGENT[item.env]];
+  const href = item.project
+    ? `/admin/campaigns/${item.project.linkId}?env=${item.env}`
+    : null;
   return (
     <SurfaceCard className="flex flex-col gap-3.5 p-[22px]">
-      {/* rc-top：avatar 42（游戏名首二字+色轮）+ 项目全名 + 三 pill */}
-      <div className="flex items-center gap-2.5">
-        <WheelAvatar text={project.game} index={index} size={42} />
-        <div className="min-w-0">
-          <b className="text-sm font-bold text-navy-700 dark:text-white">
-            {project.name}
-          </b>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <Pill>{project.market}</Pill>
-            <Pill>{project.budget}</Pill>
-            <Pill tone={project.health}>{HEALTH_LABEL[project.health]}</Pill>
+      {/* rc-top：avatar 42（游戏名首二字+色轮）+ 项目全名 + 三 pill（极简卡省略此段） */}
+      {item.project && (
+        <div className="flex items-center gap-2.5">
+          <WheelAvatar text={item.project.game} index={index} size={42} />
+          <div className="min-w-0">
+            <b className="text-sm font-bold text-navy-700 dark:text-white">
+              {item.project.name}
+            </b>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <Pill>{item.project.market ?? PENDING_TEXT.fill}</Pill>
+              <Pill>{item.project.budgetText ?? PENDING_TEXT.fill}</Pill>
+              <Pill tone={item.project.health}>
+                {HEALTH_LABEL[item.project.health]}
+              </Pill>
+            </div>
           </div>
         </div>
-      </div>
-      {/* rc-ask：环节 lbl + 待办标题 + amt（🔒🚪 irrev 红标仅 ask.outbound 条件渲染） */}
+      )}
+      {/* rc-ask：环节 lbl + 待办标题 + amt（🔒🚪 irrev 红标 = harm.irreversible 条件渲染） */}
       <div className="rounded-2xl bg-lightPrimary p-[15px] dark:bg-white/5">
         <div className="mb-2 flex items-center gap-1.5 text-micro font-bold text-brand-500 dark:text-brand-400">
           <EnvIcon size={14} />
           {envName} · 需要你
         </div>
         <b className="block text-sm font-bold text-navy-700 dark:text-white">
-          {ask.title}
+          {item.title}
         </b>
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
-          {ask.amt}
-          {ask.outbound && (
+          {item.amt}
+          {item.irreversible && (
             <>
               <span>·</span>
               <span className="inline-flex items-center gap-1 text-micro font-bold text-red-500 dark:text-red-400">
@@ -204,118 +247,137 @@ function RadarCard({
           )}
         </div>
       </div>
-      {/* rc-foot：clock 停在「环节」 + 「进入项目」直落 ?env= */}
+      {/* rc-foot：clock 停在「环节」 + 「进入项目」Link 直落 ?env=（极简卡无深链） */}
       <div className="mt-auto flex items-center gap-2.5">
         <span className="inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
           <MdAccessTime size={14} />
           停在「{envName}」
         </span>
         <span className="flex-1" />
-        <Button
-          variant="solid"
-          size="sm"
-          rightIcon={<MdChevronRight size={16} />}
-          data-enter={project.id}
-          data-goenv={ask.env}
-          onClick={() => router.push(href)}
-        >
-          进入项目
-        </Button>
+        {href && item.project && (
+          <Link
+            href={href}
+            data-enter={item.project.linkId}
+            data-goenv={item.env}
+          >
+            <Button
+              variant="solid"
+              size="sm"
+              rightIcon={<MdChevronRight size={16} />}
+            >
+              进入项目
+            </Button>
+          </Link>
+        )}
       </div>
     </SurfaceCard>
   );
 }
 
 /* ------------------------------------------------------------------ *
- * chartcard options — 模板 lineChartOptionsTotalSpent 改造（12 点 + 末点圆标）
- * ------------------------------------------------------------------ */
-const BRAND = BRAND_500;
-
-const AUTO_DONE_CHART_OPTIONS = {
-  chart: {
-    toolbar: { show: false },
-    dropShadow: {
-      enabled: true,
-      top: 13,
-      left: 0,
-      blur: 10,
-      opacity: 0.1,
-      color: BRAND,
-    },
-  },
-  colors: [BRAND],
-  markers: {
-    size: 0,
-    strokeColors: BRAND,
-    strokeWidth: 3,
-    colors: [WHITE],
-    // 原型 areaChart 末点圆标（r4.5 白底描边，L513）
-    discrete: [
-      {
-        seriesIndex: 0,
-        dataPointIndex: monthlyAutoDone.series.length - 1,
-        fillColor: WHITE,
-        strokeColor: BRAND,
-        size: 5,
-        shape: 'circle',
-      },
-    ],
-  },
-  tooltip: { theme: 'dark' },
-  dataLabels: { enabled: false },
-  stroke: { curve: 'smooth', width: 3.5, lineCap: 'round' },
-  fill: {
-    type: 'gradient',
-    gradient: {
-      type: 'vertical',
-      shadeIntensity: 1,
-      opacityFrom: 0.28,
-      opacityTo: 0,
-      stops: [0, 100],
-    },
-  },
-  xaxis: {
-    type: 'numeric',
-    labels: { show: false },
-    axisBorder: { show: false },
-    axisTicks: { show: false },
-    tooltip: { enabled: false },
-  },
-  yaxis: { show: false },
-  legend: { show: false },
-  grid: {
-    show: false,
-    padding: { left: 6, right: 10, top: 6, bottom: 6 },
-  },
-};
-
-/* ------------------------------------------------------------------ *
  * 页面（原型 viewToday：无页内标题——「今天」26px 标题在 navbar S2-3）
  * ------------------------------------------------------------------ */
-export default function TodayPage() {
-  // D2：ask 深字段经契约层读取；null（含脏数据降级）= 今天无待办，不进雷达
-  //（原型 need=PROJECTS.filter(p=>p.ask) 同语义，绝不抛错）。
-  const radar = todayProjects.flatMap((project, index) => {
-    const ask = readContractSlot(
-      radarAskSchema,
-      project.ask,
-      `today.projects.${project.id}.ask`,
-    );
-    return ask ? [{ project, index, ask }] : [];
-  });
+export default async function TodayPage() {
+  const ctx = await buildToolContext();
+  const now = new Date();
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+
+  // 雷达 + KPI「待你确认」同一次查询派生（D-D 防两处各算）
+  const pending = await aggregatePending(ctx);
+  const projectIds = [
+    ...new Set(
+      pending.flatMap((p) => (p.projectId ? [p.projectId] : [])),
+    ),
+  ];
+  const [projectRows, projectCount, autoToday, feedRows] = await Promise.all([
+    projectIds.length
+      ? prisma.project.findMany({
+          where: { tenantId: ctx.tenantId, id: { in: projectIds } },
+          include: { game: true },
+        })
+      : Promise.resolve([]),
+    prisma.project.count({ where: { tenantId: ctx.tenantId } }),
+    prisma.operationLog.count({
+      where: {
+        tenantId: ctx.tenantId,
+        kind: 'auto',
+        createdAt: { gte: startOfToday },
+      },
+    }),
+    prisma.operationLog.findMany({
+      where: { tenantId: ctx.tenantId },
+      orderBy: { createdAt: 'desc' },
+      take: 8,
+      select: {
+        id: true,
+        kind: true,
+        summary: true,
+        actor: true,
+        createdAt: true,
+      },
+    }),
+  ]);
+
+  const projectMap = new Map<string, RadarProject>(
+    projectRows.map((row) => {
+      const goal = parseProjectGoal(row.goal);
+      // 与 [id]/page.tsx 同一 HealthInput 组装口径（D2/D15：分子无存处 → 恒 cr）
+      const health = computeHealth({
+        targetExposure: goal?.targetExposure ?? null,
+        actualExposure: null,
+        budgetTotal: row.budgetTotal == null ? null : Number(row.budgetTotal),
+        budgetSpent: null,
+        periodStart: goal ? new Date(goal.periodStart) : null,
+        periodEnd: goal ? new Date(goal.periodEnd) : null,
+        now,
+        blockerCount: 0,
+      });
+      return [
+        row.id,
+        {
+          linkId: row.slug ?? row.id,
+          name: row.name,
+          game: row.game?.name ?? row.name,
+          market: row.market,
+          budgetText: formatBudget(
+            row.budgetTotal == null ? null : Number(row.budgetTotal),
+            row.currency,
+          ),
+          health: health.band,
+          cur: row.cur,
+        },
+      ];
+    }),
+  );
+
+  const radar = pending.map((p) =>
+    buildRadarItem(p, p.projectId ? projectMap.get(p.projectId) ?? null : null),
+  );
+
+  // KPI ×4：名称/图标/顺序与原型逐字一致；有真源接真源，无存处「待接入」，delta 无存处不渲染（D-D）
+  const kpis = [
+    {
+      name: '待你确认',
+      value: String(pending.length),
+      icon: MdNotificationsNone,
+    },
+    { name: 'Agent 今日完成', value: String(autoToday), icon: MdAutoAwesome },
+    { name: '进行中项目', value: String(projectCount), icon: MdOutlineFolder },
+    { name: '本月有效触达', value: PENDING_TEXT.connect, icon: MdTrendingUp },
+  ];
 
   return (
     <div className="mt-3">
-      {/* V1 KPI ×4 — MiniStatistics 模板件首次消费（delta 有/无两态不得统一） */}
+      {/* V1 KPI ×4 — MiniStatistics（真值 / 待接入；delta 无存处不渲染） */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-        {todayKpis.map((k) => {
-          const Icon = KPI_ICONS[k.icon];
+        {kpis.map((k) => {
+          const Icon = k.icon;
           return (
             <MiniStatistics
               key={k.name}
               name={k.name}
               value={k.value}
-              delta={k.delta ?? undefined}
               icon={<Icon />}
               iconBg="bg-lightPrimary"
             />
@@ -323,20 +385,29 @@ export default function TodayPage() {
         })}
       </div>
 
-      {/* V1 需要你确认（sec-head + 🔒 meta IA 契约句 + 雷达卡） */}
+      {/* V1 需要你确认（sec-head + 🔒 meta IA 契约句 + 雷达卡 / 可见空态） */}
       <section className="mt-6">
         <SecHead
           title="需要你确认"
-          meta={`${radar.length} 个项目在等你 · 点进去从当前环节继续`}
+          meta={`${radar.length} 个待办在等你 · 点进去从当前环节继续`}
         />
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-          {radar.map((r) => (
-            <RadarCard key={r.project.id} {...r} />
-          ))}
-        </div>
+        {radar.length > 0 ? (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            {radar.map((item, i) => (
+              <RadarCard key={item.id} item={item} index={i} />
+            ))}
+          </div>
+        ) : (
+          // D-A 空态：可见文案硬渲染（绝不 null——§4.3 反静默空白；基线与 waitFor 锚此）
+          <SurfaceCard className="p-[22px]">
+            <p className="text-compact text-gray-600 dark:text-gray-400">
+              今天没有需要你确认的事——Agent 推进中，对外动作会先停在这里等你拍板。
+            </p>
+          </SurfaceCard>
+        )}
       </section>
 
-      {/* V1 Agent 编队（AgentSquad grid variant 首次接线 + 🔒 meta） */}
+      {/* V1 Agent 编队（AgentSquad grid variant + 🔒 meta；client island） */}
       <section className="mt-6">
         <SecHead
           title="Agent 编队"
@@ -346,7 +417,7 @@ export default function TodayPage() {
       </section>
 
       <section className="mt-6 grid grid-cols-1 items-start gap-5 lg:grid-cols-[1.6fr_1fr]">
-        {/* V1 Agent 活动 card-head + 🔒 sub 主动式宣示 + feed ×6 */}
+        {/* V1 Agent 活动 card-head + 🔒 sub 主动式宣示 + feed（OperationLog 真数据 / 可见空态） */}
         <SurfaceCard>
           <div className="flex flex-wrap items-center gap-2.5 px-[22px] pt-5">
             <h4 className="text-base font-bold text-navy-700 dark:text-white">
@@ -357,80 +428,71 @@ export default function TodayPage() {
             </span>
           </div>
           <div className="px-[22px] pb-4 pt-1">
-            {todayFeed.map((f) => {
-              const Icon = FEED_ICONS[f.icon];
-              return (
-                <div
-                  key={f.title}
-                  className="flex items-center gap-3.5 border-b border-gray-100 py-3 last:border-b-0 dark:border-white/10"
-                >
-                  <span className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl bg-lightPrimary text-brand-500 dark:bg-navy-900 dark:text-brand-400">
-                    <Icon size={16} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <b className="block text-compact font-bold text-navy-700 dark:text-white">
-                      {f.title}
-                    </b>
-                    <span className="text-xs text-gray-600 dark:text-gray-400">
-                      {f.sub}
+            {feedRows.length > 0 ? (
+              feedRows.map((f) => {
+                const Icon = LOG_KIND_ICONS[f.kind] ?? MdAutoAwesome;
+                const actorLabel =
+                  f.actor && isAgentId(f.actor)
+                    ? getPersona(f.actor).name
+                    : f.actor ?? '系统';
+                return (
+                  <div
+                    key={f.id}
+                    className="flex items-center gap-3.5 border-b border-gray-100 py-3 last:border-b-0 dark:border-white/10"
+                  >
+                    <span className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl bg-lightPrimary text-brand-500 dark:bg-navy-900 dark:text-brand-400">
+                      <Icon size={16} />
                     </span>
+                    <div className="min-w-0 flex-1">
+                      <b className="block text-compact font-bold text-navy-700 dark:text-white">
+                        {f.summary ?? f.kind}
+                      </b>
+                      <span className="text-xs text-gray-600 dark:text-gray-400">
+                        {actorLabel}
+                      </span>
+                    </div>
+                    <time className="whitespace-nowrap text-micro text-gray-400">
+                      {formatRelativeTime(f.createdAt, now)}
+                    </time>
                   </div>
-                  <time className="whitespace-nowrap text-micro text-gray-400">
-                    {f.time}
-                  </time>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <p className="py-3 text-compact text-gray-600 dark:text-gray-400">
+                暂无 Agent 活动记录——例程与闸门动作会在这里留痕。
+              </p>
+            )}
           </div>
         </SurfaceCard>
 
         <div className="flex flex-col gap-5">
-          {/* V1 chartcard：sub / big 312 / 绿 badge +18% / LineAreaChart 12 点末点圆标 */}
+          {/* V1 chartcard：区块保留，指标无存处「待接入」（M4 MetricSnapshot 落地后回接图表） */}
           <SurfaceCard className="p-[22px]">
             <div className="mb-1.5 flex items-end justify-between">
               <div>
                 <div className="text-xs text-gray-600 dark:text-gray-400">
-                  {monthlyAutoDone.label}
+                  本月自动完成
                 </div>
                 <div className="mt-0.5 text-3xl font-extrabold text-navy-700 dark:text-white">
-                  {monthlyAutoDone.value}
+                  {PENDING_TEXT.connect}
                 </div>
               </div>
-              <span className="inline-flex items-center gap-1 rounded-xl bg-green-50 px-2.5 py-1.5 text-compact font-bold text-green-500 dark:bg-green-400/10 dark:text-green-400">
-                <MdTrendingUp size={14} />
-                {monthlyAutoDone.delta}
-              </span>
             </div>
-            <div className="h-[110px] w-full">
-              <LineAreaChart
-                chartData={[
-                  {
-                    name: monthlyAutoDone.label,
-                    data: [...monthlyAutoDone.series],
-                  },
-                ]}
-                chartOptions={AUTO_DONE_CHART_OPTIONS}
-              />
+            <div className="grid h-[110px] w-full place-items-center rounded-2xl bg-lightPrimary dark:bg-white/5">
+              <span className="text-xs text-gray-400">
+                趋势图待指标数据源接入
+              </span>
             </div>
           </SurfaceCard>
 
-          {/* 🔒 V1 团队负荷（裁决 #8：免责 eyebrow 逐字必须；Progress track ×3） */}
+          {/* 🔒 V1 团队负荷（裁决 #8：免责 eyebrow 逐字必须；负荷度量无存处「待接入」） */}
           <SurfaceCard className="p-5">
             <div className="mb-3.5 text-micro font-bold uppercase tracking-wide text-gray-400">
               团队负荷 · 单一角色，仅用于分工
             </div>
-            {teamLoads.map((l, i) => (
-              <div
-                key={l.name}
-                className="mb-4 grid grid-cols-[34px_1fr_42px] items-center gap-3 last:mb-0"
-              >
-                <WheelAvatar text={l.name} index={i} size={34} />
-                <Progress value={l.percent} />
-                <span className="text-right text-xs font-bold text-gray-600 dark:text-gray-400">
-                  {l.percent}%
-                </span>
-              </div>
-            ))}
+            <p className="text-compact text-gray-600 dark:text-gray-400">
+              {PENDING_TEXT.connect} · 负荷度量尚无数据源。
+            </p>
           </SurfaceCard>
         </div>
       </section>

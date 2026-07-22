@@ -133,3 +133,15 @@
 **建议写入：** `framework/patterns/audit-methodology.md` §2.1 反面案例补一句
 
 **状态：** 待确认
+
+## [2026-07-22] Generator/主实例 — 来源：M1-C F001 构建期静态化冻结数据 + CI watch 盯错 run
+
+**类型：** 新坑 ×2
+
+**内容①：** RSC 直读 DB 的页面若无 dynamic API（params/searchParams/cookies），Next 默认构建期静态预渲染——prisma 查询在 build 时执行、数据冻结进 HTML，运行时不再读库；CI Build job（无 DB）则直接 prerender error 红灯。任何「RSC 直读 DB」的 feature，acceptance 应强制 `export const dynamic = 'force-dynamic'` + 「运行时改→验→复原」实证（构建期快照与运行时直读在 curl 上不可分辨——M1-C F001 的首轮 SSR 实测被快照骗过）。M1-B [id] 页因 await searchParams 天然动态而未暴露此坑。
+
+**内容②：** push 后 `gh run list --limit 1` 取最新 run 可能抓到同 SHA 的其他 workflow（Build&Push），导致 CI 红灯漏看两个 feature（F001/F002 的 Build failure 被 exit 0 的错对象掩盖）。CI watch 必须 `--workflow CI` 过滤。宜机制化：`.claude/` hook 或脚本封装。
+
+**建议写入：** `framework/patterns/web-runtime-patterns.md` 新增 §（RSC+DB 页面 force-dynamic）；`framework/harness/generator.md` §4.5 CI 检查命令修订（--workflow 过滤）
+
+**状态：** 待确认

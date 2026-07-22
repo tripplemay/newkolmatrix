@@ -4,30 +4,16 @@
 // - compact：Copilot 面板内嵌紧凑名册（原型 .squad-c，仅编排上下文，S3-7 🔒）
 // 数据 = registry 6 位专家人格（编排 Agent 自身不进名册）+ mock now/status。
 
-import type { IconType } from 'react-icons';
-import {
-  MdAutoAwesome,
-  MdGroups,
-  MdInsights,
-  MdMailOutline,
-  MdOutlineGpsFixed,
-  MdOutlineReceiptLong,
-  MdShield,
-} from 'react-icons/md';
+import { MdAutoAwesome } from 'react-icons/md';
 import { personaBoundary, type AgentId } from 'lib/agent/registry';
 import { AGENT_THEME } from 'lib/agent/agent-theme';
 import SurfaceCard from './SurfaceCard';
+// M1-C F003：AGENT_ICONS 迁出至 server-safe 单点（agent-icons.ts）——RSC 无法从
+// 'use client' 模块 import 非组件导出。此处保留 re-export，既有 client 消费方
+//（CopilotPanel 等）零改动。
+import { AGENT_ICONS } from './agent-icons';
 
-/** Agent 图标映射（原型 AGENTS.ic → react-icons）；cop-head dm 图标块复用同一映射。 */
-export const AGENT_ICONS: Record<AgentId, IconType> = {
-  orchestrator: MdAutoAwesome, // spark
-  strategy: MdOutlineGpsFixed, // target
-  match: MdGroups, // users
-  reach: MdMailOutline, // mail
-  delivery: MdOutlineReceiptLong, // ledger
-  insight: MdInsights, // chart
-  compliance: MdShield, // shield
-};
+export { AGENT_ICONS };
 
 export interface SquadMember {
   agentId: AgentId;
@@ -100,7 +86,10 @@ function GridRoster({ members }: { members: SquadMember[] }) {
           <SurfaceCard key={m.agentId} className="flex gap-3.5 p-5">
             <span
               className="grid h-[46px] w-[46px] shrink-0 place-items-center rounded-[14px]"
-              style={{ backgroundColor: `${theme.color}1A`, color: theme.color }}
+              style={{
+                backgroundColor: `${theme.color}1A`,
+                color: theme.color,
+              }}
             >
               <Icon size={22} />
             </span>

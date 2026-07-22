@@ -24,8 +24,8 @@
       "title": "今天页 RSC 重构 + 雷达/KPI/feed 接真 + 无存处降级",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
-      "acceptance": "today/page.tsx 转 RSC；client 叶子仅 chartcard（ApexCharts dynamic ssr:false）+ AgentSquad（已 island）+ 进入钮优先 Link 化归零；AGENT_ICONS 迁出 'use client' 模块至 server-safe 单点；【D-A】雷达接 aggregatePending：有 projectId 联 Project 渲染完整卡（真 health/name/budget + harm.summary/amount + outbound 红标=kind==='outbound'，stage 深链由 agentId 经 STAGE_AGENT 反查），无 projectId 渲染极简卡，空态渲染可见文案不得 null（§4.3 反静默空白）并加 waitFor 硬断言；【D-D】KPI：进行中项目=count 真值、待你确认=与雷达同一次 aggregatePending 派生（防两处各算）、Agent 今日完成=OperationLog count(kind=auto,今日)、本月有效触达=「待接入」占位、delta 不渲染；feed=OperationLog 最近 8 条（空则可见空态）；monthlyAutoDone chartcard 与 teamLoads 保留区块结构内渲染「待接入」（设计稿保护规则不删区块）；【D-B】侧栏徽标本批不接真登记过渡态；en-today.png 漂移逐处对账后重生（D-H：本地重生前清空 PendingAction 表保决定论）；两视口实测；lint + tsc + test:unit 绿",
+      "status": "completed",
+      "acceptance": "today/page.tsx 转 RSC；client 叶子仅 chartcard（ApexCharts dynamic ssr:false）+ AgentSquad（已 island）+ 进入钮优先 Link 化归零；AGENT_ICONS 迁出 'use client' 模块至 server-safe 单点；【D-A】雷达接 aggregatePending：有 projectId 联 Project 渲染完整卡（真 health/name/budget + harm.summary/amount + outbound 红标=harm.irreversible（Planner 修订：实物 PendingAction.kind 恒为 'gate'（gate.ts:75），红标真源是 harmSchema.irreversible），stage 深链由 agentId 经 STAGE_AGENT 反查），无 projectId 渲染极简卡，空态渲染可见文案不得 null（§4.3 反静默空白）并加 waitFor 硬断言；【D-D】KPI：进行中项目=count 真值、待你确认=与雷达同一次 aggregatePending 派生（防两处各算）、Agent 今日完成=OperationLog count(kind=auto,今日)、本月有效触达=「待接入」占位、delta 不渲染；feed=OperationLog 最近 8 条（空则可见空态）；monthlyAutoDone chartcard 与 teamLoads 保留区块结构内渲染「待接入」（设计稿保护规则不删区块）；【D-B】侧栏徽标本批不接真登记过渡态；en-today.png 漂移逐处对账后重生（D-H：本地重生前清空 PendingAction 表保决定论）；两视口实测；lint + tsc + test:unit 绿",
       "description": "spec §2 F003 + D-A/D-B/D-D/D-H。勘查实证今天页全无 useState、唯一 hook 是 RadarCard useRouter；waitFor『需要你确认』锚在无条件渲染的 SecHead（today/page.tsx:327-331）雷达空态不超时。"
     },
     {

@@ -1,12 +1,12 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "M1-D KNOWLEDGE 第四批（knowledge 域纵切）：素材上传（本地盘 docker 卷）→ Material 落库 → AI 解析管道（文本 chat + 图片 vision，网关 qwen3.5-flash 立项实测可用）→ GameKnowledge 三类 kind + supersede 链 → knowledge 页面接真 + mock 退役 → prompt ⑤层知识注入（strategy/match/reach/compliance 按 kind 映射）→ 部署面 materials 卷。用户四裁决：learnings 全收（已沉淀 v1.0.9）/ 本地盘卷 / 文本+图片 vision / 含 ⑤层注入。",
   "total_features": 6,
-  "completed_features": 5,
+  "completed_features": 6,
   "fix_rounds": 0,
   "current_sprint": "M1-D-KNOWLEDGE",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-22T14:35",
+  "last_updated": "2026-07-22T14:50",
   "reference_docs": [
     "docs/specs/M1-D-KNOWLEDGE-spec.md",
     "docs/dev/architecture.md",
@@ -26,7 +26,7 @@
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M1-D-KNOWLEDGE planning 完成 → building · 2026-07-22】\n■ 立项四裁决（AskUserQuestion 实答）：U1 四条 learnings 全 Accept（已沉淀 v1.0.9 @ 888bb60）；U2 存储=本地盘 docker 卷；U3 解析=文本+图片 vision；U4 含 prompt ⑤层注入。\n■ 铁律 8 前置已履行：网关 vision 实测通过（qwen3.5-flash 经 OpenAI 兼容 API 识别 32×32 纯红图→「红色」），附硬约束：图片最短边>10px（上游 InvalidParameter 实测得知，已入 F002 P5 前置校验）。\n■ 勘查基础=M1-C planning 的 recon-knowledge 报告（文件:行 全核）+ 立项补核（chatModel 签名/compose 卷面/route.ts:102 装配点）。\n■ 本批注意：F003 解析管道单测必须 mock 网关（P7，L2 边界）；F004 页面 force-dynamic（v1.0.9 §6 硬要求）；mock/knowledge.ts 退役按被删路径 needle grep；D20 状态机变异测试义务（parseStatus 四态+supersede 链）。\n■ 未挂自动推进授权——building 开工等用户指令（/build 或「继续」）。",
+    "Andy": "【M1-D-KNOWLEDGE building 完成 6/6 → verifying · 2026-07-22 · /goal 授权推进至上线部署】\n■ F001-F006 全 completed，六个 feature commit（27aeec1/ba13696/2c0abd0/426ee0b/cdc08ac/F006）逐推 CI 全绿（F004 visual 首推红=§4.4 预期，baseline workflow 重生 linux 基线后 F005 推送复验 visual 绿闭环）。\n■ 开工审计 1 次：小图处置 spec 自相矛盾（§2 落库failed vs §3 P5+acceptance 小图拒）→ 快车道即时裁决方案 A（HTTP 400 拒收），docs/specs/M1-D-KNOWLEDGE-f002-smallimage-adjudication.md。\n■ 关键实证已做：F004 build 后 prerender-manifest 零命中 + 运行时改→验→复原（插链头行立现/删即逝）+ 两视口（1512/720）+ 上传冒烟 201→复原零态（D-H：本地 Material/GameKnowledge 已清零，基线态干净）。\n■ 新 deps：image-size@2 / @paralleldrive/cuid2 / unpdf。\n■ Evaluator 注意：L2 真网关解析实测需最小素材+注明用量（spec §4）；测试夹具自建自清（tests/integration/knowledge-*）；deploy 前置=VPS compose 人工副本必须先同步（deploy.md §日常部署 ⚠️，proposed-learnings 已挂 1 条待裁决）。\n■ 上线链路待办：verifying→done 后用户闸门跑 deploy-prod（image_tag=完整 40 位 SHA），前置先拷新 compose 到 VPS。",
     "Reviewer": null
   },
   "lane": "fast"

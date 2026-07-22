@@ -51,6 +51,13 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-kol}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-kolmatrix}?schema=public
       - AIGCGATEWAY_BASE_URL=${AIGCGATEWAY_BASE_URL:-https://aigc.guangai.ai/v1}
       - AIGCGATEWAY_API_KEY=${AIGCGATEWAY_API_KEY:?AIGCGATEWAY_API_KEY 必填（放 /opt/apps/newkolmatrix/.env）}
+      # M1-D F006：素材文件卷（U2 本地盘通道）。storageRef 相对此根解析；.env 可覆盖。
+      - MATERIALS_DIR=${MATERIALS_DIR:-/app/materials}
+      # M1-D F006：图片解析 vision 模型路由（P4，默认 qwen3.5-flash 立项实测可用）。
+      - AIGCGATEWAY_VISION_MODEL=${AIGCGATEWAY_VISION_MODEL:-qwen3.5-flash}
+    volumes:
+      # M1-D F006：素材文件本体落卷（DB 只存元数据 + storageRef）。跨机迁移随卷搬（U2）。
+      - newkolmatrix-materials:/app/materials
     depends_on:
       db:
         condition: service_healthy
@@ -69,3 +76,6 @@ services:
 volumes:
   newkolmatrix-pgdata:
     name: newkolmatrix-pgdata
+  # M1-D F006：素材文件卷（备份纳入 R7 演练范围，docs/dev/deploy.md）
+  newkolmatrix-materials:
+    name: newkolmatrix-materials

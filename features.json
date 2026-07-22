@@ -51,7 +51,7 @@
       "title": "部署面：materials 卷 + env + 文档",
       "priority": "low",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "docker-compose.prod.yml 新增 newkolmatrix-materials 卷挂 app /app/materials + env MATERIALS_DIR/AIGCGATEWAY_VISION_MODEL；.env.example 补两项注释；.gitignore 补 .materials/；docs/dev/deploy.md 更新（materials 卷备份纳入 R7 记账）+ architecture.md §7.6/§11.3 as-built 翻牌；探针/测试漂移扫描（v1.0.5：grep 引用部署文件的探针）；lint + tsc 绿；部署验证随上线执行",
       "description": "spec §2 F006。勘查实证 compose 现仅 pgdata 卷（:69-71），app 无文件卷。"
     }

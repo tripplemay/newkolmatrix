@@ -132,3 +132,13 @@
 ---
 
 **当前无待确认提案**（harness-fit P0-3 / P1-1~3 / P2-1~5 长期挂起，非待办）。
+
+## [2026-07-22] Generator Andy — 来源：M1-D F006 部署面实装（探针漂移扫描时发现）
+
+**类型：** 新坑
+
+**内容：** deploy-prod workflow 只在 VPS 现场 `compose pull + up`，不同步 `docker-compose.prod.yml`（VPS 上是人工副本）。凡批次修改 compose（新增卷/env），若上线前忘记先拷 compose 到 VPS，deploy 会静默跑旧 compose——M1-D 场景下 materials 卷缺失时上传文件落容器层、容器重建即丢，不报错。已在 docs/dev/deploy.md §日常部署 加显式前置警示；长期解法候选：deploy-prod.yml 加 checkout + scp compose 同步步（与 deploy-patterns §5.1「deploy-script 与 yml 同 commit」同族——「compose 与 deploy workflow 的漂移」是其镜像问题）。
+
+**建议写入：** `framework/patterns/deploy-patterns.md` §3 或新小节「compose 人工副本漂移」
+
+**状态：** 待确认

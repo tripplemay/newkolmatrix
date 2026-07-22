@@ -64,28 +64,41 @@ try {
   const r3 = await status('/admin/discovery');
   ok(r3.finalUrl.endsWith('/admin/creators'), '旧 /admin/discovery → 重定向 /admin/creators');
 
-  // ── 4) 项目空间：列表 → 详情 → 五环节 tab（stagePanel）──
+  // ── 4) 项目空间：列表 → 详情 → 五环节导轨 ──
+  // M1-C F006 修缮（D-G）：锚点随 UI 演进校准——
+  //   · 「五环节」容器说明与「本环节专家职责」占位是 F008 时代 stagePanel 文案，
+  //     ARCH-M05 起被 IA 契约句「只做进入」与环节落地面取代（历史漂移，非 M1-C 引入）；
+  //   · 英文环节名 Brief/Match/… 在 ARCH-M05 F007 已中文化为 ENV_META 名；
+  //   · 列表卡 anchor 断言因 M1-C F001 Link 化复活（此前 router.push 无 anchor，
+  //     ARCH-M05-verify-B:65 记录在案）。
   await status('/admin/campaigns');
   const listText = await page.textContent('body');
-  ok(listText.includes('五环节') && listText.includes('星轨协议'), '项目列表渲染（项目卡 + 五环节容器说明）');
-  // 点第一个项目卡进详情
+  ok(listText.includes('只做进入') && listText.includes('星轨协议'), '项目列表渲染（项目卡 + 🔒 lede IA 契约句「只做进入」）');
+  // 点第一个项目卡进详情（真实 anchor，M1-C F001 Link 化复活）
   await page.locator('a[href^="/admin/campaigns/"]').first().click();
   await page.waitForTimeout(1200);
   const detailText = await page.textContent('body');
-  const stages = ['Brief', 'Match', 'Reach', 'Delivery', 'Insight'];
-  ok(stages.every((s) => detailText.includes(s)), '项目详情 = 五环节唯一容器（Brief/Match/Reach/Delivery/Insight tab 齐全，D22）');
-  ok(detailText.includes('环节') && detailText.includes('本环节专家职责'), 'stagePanel 渲染当前环节（专家职责占位）');
-  // 切到 Reach tab
-  await page.locator('button:has-text("Reach")').first().click();
+  const stages = ['目标 Brief', '创作者匹配', '触达谈判', '交付结算', '复盘洞察'];
+  ok(stages.every((s) => detailText.includes(s)), '项目详情 = 五环节唯一容器（导轨五环节齐全，D22）');
+  ok(detailText.includes('这一环节的界面与其它环节刻意不同'), '环节落地面渲染（🔒「刻意不同」宣示句）');
+  // 切到触达谈判环节（xg cur=reach 已解锁，canEnter 放行）
+  await page.locator('button:has-text("触达谈判")').first().click();
   await page.waitForTimeout(800);
   const afterTab = await page.locator('aside div.border-l-4').first().innerText().catch(() => '');
-  ok(afterTab.includes('触达 Agent'), '切 Reach 环节 tab → stagePanel + Copilot 切到触达 Agent（环节唯一渲染入口 + 专家绑定）');
+  ok(afterTab.includes('触达 Agent'), '切触达谈判环节 → Copilot 切到触达 Agent（环节唯一渲染入口 + 专家绑定）');
 
   // ── 5) 今天待办直达某项目某环节 ──
+  // M1-C F006 修缮（D-G/D-A）：雷达已接 PendingAction 真数据——有待办时卡内
+  // 「进入项目」是真实 anchor（F003 Link 化复活，href 含 ?env=）；零待办时空态
+  // 必须渲染可见文案（§4.3 反静默空白）。两态均为合法真值，各按其锚断言。
   await status('/admin/today');
-  // ARCH-M05 F007：环节 URL 态 ?stage= → ?env=（kimi §6.1）。
   const todoLink = await page.locator('a[href*="/admin/campaigns/"][href*="env="]').first().getAttribute('href').catch(() => null);
-  ok(!!todoLink && /\/admin\/campaigns\/[^/]+\?env=/.test(todoLink), `今天待办直达「某项目某环节」（复用 routeToStage，href=${todoLink}）`);
+  if (todoLink) {
+    ok(/\/admin\/campaigns\/[^/]+\?env=/.test(todoLink), `今天待办直达「某项目某环节」（真实 anchor，href=${todoLink}）`);
+  } else {
+    const emptyVisible = await page.locator('text=今天没有需要你确认的事').first().isVisible().catch(() => false);
+    ok(emptyVisible, '今天零待办 → 雷达空态可见文案（非静默空白；直达链形状由待办态覆盖）');
+  }
 
   // ── 6) 无角色切换器 ──
   const bodyAll = await page.textContent('body');

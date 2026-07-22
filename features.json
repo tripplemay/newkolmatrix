@@ -51,7 +51,7 @@
       "title": "f008 探针修缮（Link 化使断言复活）",
       "priority": "low",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "【D-G 预裁决】修缮而非退役：更新历史漂移锚点（:70『五环节』文案改现渲染文案；其余按实跑逐条校准）；F001/F003 Link 化后 §4 a[href^=/admin/campaigns/] 与 §5 a[href*=env=] 断言复活确认；修缮后 npm run f008:browser 全绿（standalone 实测）；修缮说明落 commit 正文（历史漂移非 M1-C 引入，对照 p2:f003 先例）；lint + tsc 绿",
       "description": "spec §2 F006 + D-G。勘查实证 f008 §4 anchor 断言因列表卡 router.push 早已中断（ARCH-M05-verify-B:65）且未入 backlog；死链/redirect/侧栏检查仍有守护价值。"
     },

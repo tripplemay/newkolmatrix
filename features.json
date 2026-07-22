@@ -42,7 +42,7 @@
       "title": "prompt ⑤层知识注入（U4）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "registry.ts persona 扩 knowledgeKinds?：strategy=三类全量、match=['audience']、reach=['selling_point']、compliance=['compliance_redline']（architecture :907 映射，本批仅注入 prompt）；新建 src/lib/agent/knowledge-context.ts gameKnowledgeSection(projectId,kinds)：经 Project.gameId 查链头拼知识段（含溯源计数），无知识返回空串不注水；route.ts:102 装配点拼接（ctx.projectId 空则跳过）；单测断言 prompt 拼接产物含知识段+kinds 过滤正确（mock 数据不打网关）；真对话实测属 L2 留验收授权；lint + tsc + test:unit 绿",
       "description": "spec §2 F005 + U4。立项补核实证装配点 = route.ts:102 persona.systemPrompt 拼接处；registry 现无 knowledgeKinds（grep 零命中）。"
     },

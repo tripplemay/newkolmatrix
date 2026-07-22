@@ -32,6 +32,7 @@ import {
   type CopilotEnv,
 } from 'lib/agent/persona-router';
 import { DEFAULT_AGENT_ID, isAgentId } from 'lib/agent/registry';
+import { gameKnowledgeSection } from 'lib/agent/knowledge-context';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -91,7 +92,13 @@ export async function POST(req: Request): Promise<Response> {
     const toolNames = personaToolSubset(persona);
     const tools = toAiSdkTools(toolNames, ctx);
 
-    // 系统提示 = 人格（身份+职责+否定式护栏）+ 该人格可用工具的使用指引。
+    // ⑤层知识注入（M1-D F005）：经 Project.gameId 查链头按 persona.knowledgeKinds 拼知识段；
+    // ctx.projectId 为空 / 人格未声明 kinds / 无知识 → 空串跳过（不注水）。
+    const knowledgeSection = copilot.projectId
+      ? await gameKnowledgeSection(copilot.projectId, persona.knowledgeKinds)
+      : '';
+
+    // 系统提示 = 人格（身份+职责+否定式护栏）+ ⑤层知识段 + 该人格可用工具的使用指引。
     const toolLines = toolNames
       .map((name) => {
         const t = getTool(name);
@@ -100,6 +107,7 @@ export async function POST(req: Request): Promise<Response> {
       .filter(Boolean);
     const system =
       persona.systemPrompt +
+      knowledgeSection +
       (toolLines.length
         ? `\n\n你可调用的工具（需要时主动调用，基于返回的真实数据作答）：\n${toolLines.join(
             '\n',

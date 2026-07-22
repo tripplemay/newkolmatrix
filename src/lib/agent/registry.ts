@@ -8,6 +8,8 @@
 // 【EXTENSION POINT】各人格 systemPrompt 精度、tools 精确子集、uiSyntax→canvas 组件映射，
 //   随 M1-M4 业务真实形态充实——本批给最小可用定义，不预测焊死（§3.2 D-ORCH / ADR-001）。
 
+import type { KnowledgeKindValue } from 'lib/data/schemas/knowledge';
+
 export type AgentId =
   | 'orchestrator'
   | 'strategy'
@@ -31,6 +33,12 @@ export interface AgentPersona {
   uiSyntax: string;
   /** 绑定工具子集（tools/registry 里的工具名）。router 按此收窄。 */
   tools: string[];
+  /**
+   * ⑤层知识注入（M1-D F005，FR-8.4.8 下游消费映射）：该人格对话时注入的
+   * GameKnowledge kind 子集——受众→匹配、卖点→触达、红线→合规、strategy 三类全量。
+   * 缺省 = 不注入（编排/交付/洞察本批不消费知识）。
+   */
+  knowledgeKinds?: KnowledgeKindValue[];
   /** 注入 runtime 的 system prompt。由 duty + iso 组合（EXTENSION POINT：精度随业务充实）。 */
   systemPrompt: string;
 }
@@ -74,6 +82,8 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     uiSyntax: '仪表',
     // compute_health：M1-B F003（D8）——duty 含健康度监测，挂本人格
     tools: ['get_kol_detail', 'compute_health'],
+    // ⑤层（M1-D F005）：知识生产者，三类全量感知
+    knowledgeKinds: ['selling_point', 'audience', 'compliance_redline'],
   },
   {
     id: 'match',
@@ -83,6 +93,7 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     isolation: '只做发现与匹配，不发起触达、不谈价',
     uiSyntax: '对比矩阵',
     tools: ['search_kols', 'get_kol_detail'],
+    knowledgeKinds: ['audience'], // ⑤层：受众→匹配（FR-8.4.8）
   },
   {
     id: 'reach',
@@ -92,6 +103,7 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     isolation: '不批预算、不放款；报价与发送需你确认',
     uiSyntax: '对话收件箱',
     tools: ['get_kol_detail', 'send_outreach'], // send_outreach 是 outbound（F009 闸门，发送需人确认）
+    knowledgeKinds: ['selling_point'], // ⑤层：卖点→触达（FR-8.4.8）
   },
   {
     id: 'delivery',
@@ -119,6 +131,7 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     isolation: '跨环节被调用，只做合规判断',
     uiSyntax: '嵌入各环节',
     tools: [],
+    knowledgeKinds: ['compliance_redline'], // ⑤层：红线→合规（FR-8.4.8）
   },
 ];
 

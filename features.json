@@ -15,7 +15,7 @@
       "title": "domain/match-score.ts 可解释评分纯函数",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "matchScore.compute 纯函数（无 IO）：输入{similarity, audienceDemo|null, knowledgeAudience|null}→{score 0-1, reasons[], pending}；audienceDemo null→纯向量分+pending=true+reason「受众数据待接入」（FR-11.6）；知识受众画像参与加权时 reason 注明来源；权重常量导出；三处复用铁律注明（architecture :533——页面/工具/例程共用，后续 feature 不得内联重算）；单测边界全覆盖（similarity 0/1/null 降级/画像有无/权重和）不打库不打网关；lint + tsc + test:unit 绿",
       "description": "spec §2 F002。公式落点 architecture :841（domain/match-score.ts 演进 M2）；health.ts 纯函数先例。"
     },

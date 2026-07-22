@@ -33,7 +33,7 @@
       "title": "knowledge 页面接真 + mock 退役",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "knowledge/page.tsx RSC 直读（force-dynamic 必须声明 + build 后 prerender-manifest 不含该路由，v1.0.9 §6）：Game 全列+Material 列表+GameKnowledge 链头组装可序列化 prop（沿 ProjectDetailData 范式)；KnowledgeWorkbench 保 'use client'：UploadZone→POST /api/materials→自动 parse→轮询至 parsed/failed→router.refresh；重新分析接 parse API；mock 时序（setTimeout 1100）与 mock/knowledge.ts 退役——按被删路径 needle 全仓 grep 零代码残留（v1.0.9）；D2 空态/降级可见文案（无素材/failed 红态+parseError/特点卡待解析占位，保区块结构）；knowledge.png 基线漂移逐处对账后重生（waitFor 按新实况校准+空态硬断言 §4.3）；运行时改→验→复原实证；两视口实测；lint + tsc + test:unit + test:visual 绿",
       "description": "spec §2 F004。勘查实证页面/组件全建好只换供给侧（KnowledgeWorkbench 130 行 + 三卡组件，数据契约 mock/knowledge.ts:34-52）。"
     },

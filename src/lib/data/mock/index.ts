@@ -15,7 +15,7 @@
 // | env-delivery.ts     | F011        | 交付环节语法面（反向 guardrail：无 KPI/图表） |
 // | env-insight.ts      | F012        | 洞察环节语法面 |
 // | creators.ts         | F013        | 创作者库 + 抽屉（V10，ProvenanceTag badge ×5） |
-// | knowledge.ts        | F014        | 知识页（V11，ProvenanceTag inline） |
+// | ~~knowledge.ts~~    | F014        | 已退役（M1-D F004：知识页 RSC 直读 + 上传/解析接真） |
 // | insight.ts          | F015        | 洞察页 |
 // | runs.ts             | F016        | Agent 记录页 |
 //

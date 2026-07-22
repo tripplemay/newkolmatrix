@@ -79,6 +79,14 @@ test('knowledge visual baseline', async ({ page }) => {
     .getByText('策略 Agent 分析出的游戏特点')
     .first()
     .waitFor({ timeout: 30_000 });
+  // M1-D F004 接真后的基线态 = CI DB 4 canonical Game 零素材空态（v1.0.9 §4.3）：
+  // 三条硬断言使「数据源整个消失 / 空态文案回归」都超时硬红，杜绝静默空白入基线。
+  await page.getByText('星轨协议').first().waitFor({ timeout: 30_000 }); // Game 行真渲染
+  await page.getByText('上传素材开始分析').waitFor({ timeout: 30_000 }); // 素材空态
+  await page
+    .getByText('待解析——上传素材后由策略 Agent 生成')
+    .first()
+    .waitFor({ timeout: 30_000 }); // 特点卡空态占位
   await shot(page, 'knowledge.png');
 });
 

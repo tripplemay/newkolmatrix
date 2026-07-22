@@ -1,59 +1,86 @@
 {
-  "sprint": "M1-D-KNOWLEDGE",
+  "sprint": "M2-A-MATCH",
   "features": [
     {
       "id": "F001",
-      "title": "schema：Material + GameKnowledge 两表 + zod 契约",
+      "title": "schema：MatchPlan + PlanKol + MatchCandidate 三表 + zod 契约",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "expand 迁移新增 Material（gameId/type 枚举 lore~video/source/fileName/storageRef/mimeType/sizeBytes/parseStatus 枚举 pending~failed @default(pending)/parseError?/parsedAt?）与 GameKnowledge（gameId/kind 枚举 selling_point|audience|compliance_redline/content/structured Json?/sourceMaterialIds String[] 非空溯源 FR-11.9 应用层校验/confidence?/generatedBy 默认 strategy/supersededById?）两模型，均带 tenantId+publicId，软引用沿 D13 先例；src/lib/data/schemas/knowledge.ts 落 zod（表深字段 + LLM 解析产物 schema）；单测：脏数据宽松降级 null 不抛错（D2）；schema+migration+引用代码同 commit；lint + tsc + test:unit 绿",
-      "description": "spec §2 F001。字段按 architecture §7.6（:900-908）；勘查实证现无两表（schema.prisma:146-159 Game 最小占位注记「素材上传/AI 解析 → M1」）。"
+      "status": "pending",
+      "acceptance": "expand 迁移新增三模型（architecture §5.2 :464-466，均带 tenantId+publicId）：MatchPlan（projectId 真 FK/name/metrics Json{reachTotal|null,budgetUsd 恒 null P6,risk|null,people}/rationale/recommended @default(false)/status enum draft|approved|superseded @default(draft)/approvedBy?/approvedAt?）· PlanKol（planId FK Cascade/kolId FK/matchScore Float/reasons String[] 非空即可解释依据——应用层 zod 校验空则非法）· MatchCandidate（projectId FK/kolId FK/verdict enum pending|kept|dropped @default(pending)/doubts String[]/preJudge 三态串/matchScore Float?/scorePending Boolean @default(false)，@@unique([projectId,kolId]) 幂等键）；src/lib/data/schemas/match.ts：metrics/doubts 读侧宽松降级 null 不抛错（D2）+ PlanKol.reasons 写侧非空；单测覆盖降级与拒收；单租户不建 RLS（D4 先例）；D20 标注（status/verdict 流转变异测试义务落 F003/F004）；schema+migration+引用代码同 commit；lint + tsc + test:unit 绿",
+      "description": "spec §2 F001。勘查实证现无三表（schema.prisma grep match 唯一命中 = enum Stage :105）。"
     },
     {
       "id": "F002",
-      "title": "存储通道 + 上传 API（本地盘卷，U2）",
+      "title": "domain/match-score.ts 可解释评分纯函数",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "src/lib/knowledge/storage.ts：MATERIALS_DIR（dev 默认 ./.materials 入 gitignore，prod /app/materials）+ {gameId}/{cuid}-{safeName} 落盘 + 路径穿越防护；POST /api/materials：formData（file+gameId+type）→ 类型白名单 pdf/txt/md/csv/png/jpg/webp + 20MB 上限 + 【P5】图片最短边>10px 前置校验（vision 实测约束）→ 存盘 → Material 落库 pending；【P6】video/不可解析类型落库即 failed+parseError 明示；【P8】rate-limit 10 req/min/tenantId fail-open + DISABLE_UPLOAD_RATELIMIT；GET /api/materials?gameId= 轮询列表；集成测试：上传落盘落库/路径穿越拒/超限拒/小图拒；lint + tsc 绿",
-      "description": "spec §2 F002 + U2/P1/P5/P6/P8。route handler 非 server action（P1：formData 大文件无 1MB 默认限制）。"
+      "status": "pending",
+      "acceptance": "matchScore.compute 纯函数（无 IO）：输入{similarity, audienceDemo|null, knowledgeAudience|null}→{score 0-1, reasons[], pending}；audienceDemo null→纯向量分+pending=true+reason「受众数据待接入」（FR-11.6）；知识受众画像参与加权时 reason 注明来源；权重常量导出；三处复用铁律注明（architecture :533——页面/工具/例程共用，后续 feature 不得内联重算）；单测边界全覆盖（similarity 0/1/null 降级/画像有无/权重和）不打库不打网关；lint + tsc + test:unit 绿",
+      "description": "spec §2 F002。公式落点 architecture :841（domain/match-score.ts 演进 M2）；health.ts 纯函数先例。"
     },
     {
       "id": "F003",
-      "title": "解析管道（文本 chat + 图片 vision）+ 状态机变异测试",
+      "title": "候选生成 + 组合生成服务（src/lib/match/）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "src/lib/knowledge/parse.ts parseMaterial：pending→parsing→按 mimeType 分流（文本直读/pdf 文本抽取；图片 image part 走 chatModel(AIGCGATEWAY_VISION_MODEL 默认 qwen3.5-flash，立项实测可用)）→ generateText → zod 校验 → GameKnowledge 三类 kind 生成 +【P3】supersede 同事务（新链头+旧条目 supersededById，读取恒取 supersededById IS NULL）→ parsed；失败 → failed+parseError 状态机内消化不外抛；POST /api/materials/{id}/parse（上传后自动触发+重新分析复用；【P2】同步+轮询不建队列+进程内防重入拒并发）；logUsage 照记；【D20】状态机变异测试：四态流转+supersede 链+链头读取各配变异断言；【P7】单测 mock 网关（解析调用可注入替换），真网关属 L2 留验收授权；lint + tsc + test:unit 绿",
-      "description": "spec §2 F003 + U3/P2/P3/P4/P7 + D20 义务（architecture :479）。src/ 首个 server 侧一次性 generateText 调用点（勘查实证现仅 route.ts:109 streamText）。"
+      "status": "pending",
+      "acceptance": "generateCandidates(projectId)：gameId→getKnowledgeHeads(['audience'])受众画像+Project name/goal 构造查询→embedText（【P7】注入可替换，单测/集成测 mock 向量不打网关）→pgvector cosine topN=20（复用 search-kols.ts:54-81 SQL 范式）→matchScore.compute→MatchCandidate upsert（幂等；【P4】已 kept/dropped 不回退 pending）+doubts 规则化+preJudge 分档；buildMatchPlans(projectId)：候选(≠dropped)规则化 3 组【P1 无 LLM 打分】（A 生活流精投/B 均衡 recommended/C 头部拉动，沿 mock 命名语义）+PlanKol ≤10 人 reasons 可解释+metrics（reachTotal=Σfollowers 真值/budgetUsd=null P6/risk 由 doubts 占比分档/people）；【P4】新 3 组 draft+旧 draft→superseded 同事务，approved 永不动；集成测试打真库 mock 向量：幂等刷新/人工 verdict 保留/supersede/approved 不动+【D20】status/verdict 流转变异断言；lint + tsc + test:unit 绿",
+      "description": "spec §2 F003 + P1/P4/P6/P7。首个 match 域服务层；单一真相源供 F005 页面/F006 例程/F007 工具复用。"
     },
     {
       "id": "F004",
-      "title": "knowledge 页面接真 + mock 退役",
+      "title": "批准动线 + →reach 守卫解锁（S10 消解）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "knowledge/page.tsx RSC 直读（force-dynamic 必须声明 + build 后 prerender-manifest 不含该路由，v1.0.9 §6）：Game 全列+Material 列表+GameKnowledge 链头组装可序列化 prop（沿 ProjectDetailData 范式)；KnowledgeWorkbench 保 'use client'：UploadZone→POST /api/materials→自动 parse→轮询至 parsed/failed→router.refresh；重新分析接 parse API；mock 时序（setTimeout 1100）与 mock/knowledge.ts 退役——按被删路径 needle 全仓 grep 零代码残留（v1.0.9）；D2 空态/降级可见文案（无素材/failed 红态+parseError/特点卡待解析占位，保区块结构）；knowledge.png 基线漂移逐处对账后重生（waitFor 按新实况校准+空态硬断言 §4.3）；运行时改→验→复原实证；两视口实测；lint + tsc + test:unit + test:visual 绿",
-      "description": "spec §2 F004。勘查实证页面/组件全建好只换供给侧（KnowledgeWorkbench 130 行 + 三卡组件，数据契约 mock/knowledge.ts:34-52）。"
+      "status": "pending",
+      "acceptance": "POST /api/match/plans/{id}/approve：internal 动作（不产生 PendingAction、无确认弹窗，FR-7.19/D27/D16+:1352 双边铁律）；事务=目标 plan approved+approvedBy/At+同项目其余 draft→superseded；随后 advanceStage(projectId,'reach')（S10 首个生产消费者；advance 失败不回滚批准，响应注明）；env-guards.ts:117 DEPENDENCY_NOT_IMPLEMENTED 替换为真判定——EnvGuardContext 扩 hasApprovedMatchPlan（纯函数边界保持，调用方组装，两调用点同步扩）+grep 字面量确认零残留；POST /api/match/refresh?projectId= 手动重跑入口（本批无 UI 按钮，验收与后续用）；集成测试：批准事务原子/单选语义/批准后 canEnter('reach') 放行/未批准拒/重复批准幂等或 409+【D20】approved 流转变异断言；lint + tsc + test:unit 绿",
+      "description": "spec §2 F004 + P3。勘查实证 env-guards.ts:115-117 待解锁 + advanceStage 唯一消费者为集成测试（S10，M1-B signoff :165）。"
     },
     {
       "id": "F005",
-      "title": "prompt ⑤层知识注入（U4）",
-      "priority": "medium",
+      "title": "match 语法面接真 + mock 退役",
+      "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "registry.ts persona 扩 knowledgeKinds?：strategy=三类全量、match=['audience']、reach=['selling_point']、compliance=['compliance_redline']（architecture :907 映射，本批仅注入 prompt）；新建 src/lib/agent/knowledge-context.ts gameKnowledgeSection(projectId,kinds)：经 Project.gameId 查链头拼知识段（含溯源计数），无知识返回空串不注水；route.ts:102 装配点拼接（ctx.projectId 空则跳过）；单测断言 prompt 拼接产物含知识段+kinds 过滤正确（mock 数据不打网关）；真对话实测属 L2 留验收授权；lint + tsc + test:unit 绿",
-      "description": "spec §2 F005 + U4。立项补核实证装配点 = route.ts:102 persona.systemPrompt 拼接处；registry 现无 knowledgeKinds（grep 零命中）。"
+      "status": "pending",
+      "acceptance": "campaigns/[id] RSC 扩组装 match 面数据（plans 3 组+candidates，可序列化；展示串格式化单点 src/lib/display/match-format.ts：reachTotal→万级串/budgetUsd null→「待核」/risk→低中高/【P5】bars=组内 PlanKol top6 matchScore 归一 0-9）；【P2】首访 lazy 生成（零 plans 且 cur≥match→服务端同步生成；失败静默降级空态占位 log warn 不抛错——CI 无凭据必须构建渲染安全）；match/index.tsx 接真 prop：矩阵/待裁定表消费真数据，scorePending→「待核」（裁决 #2），「批准这组」接 approve API→toast+router.refresh+跳 ?env=reach（原型 L995 语义），「审阅」保持 toast，布局零变更（ui-inventory V5 22 元素 🔒 逐项保持）；mock/env-match.ts 退役按被删路径 needle 全仓 grep 零代码残留+mock/index.ts 翻牌；project-match.png 基线漂移逐处对账后重生（CI 空态=基线态，waitFor 校准+空态可见文案硬断言 §4.3）；运行时改→验→复原实证（RSC 组装层）；两视口实测；lint + tsc + test:unit + test:visual 绿",
+      "description": "spec §2 F005 + P2/P5/P6。勘查实证页面全建好只换供给侧（match/index.tsx 321 行；mock 消费方唯一 :36）。"
     },
     {
       "id": "F006",
-      "title": "部署面：materials 卷 + env + 文档",
+      "title": "nightly-screen 例程 + scheduler 注册表化",
+      "priority": "medium",
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "scheduler.ts 注册表化（ROUTINES 数组+循环注册；runExclusive/ROUTINES_DISABLED/失败不炸进程语义逐条保持；health-scan 迁入行为零变更）；routines/nightly-screen.ts：对 cur='match' 在跑项目逐个 generateCandidates+buildMatchPlans（approved 不动 P4）+OperationLog(kind=auto,actor='match',payloadJson{routine:'nightly-screen'}) 照 health-scan 先例；internal only 无 outbound（:1182）；网关失败逐项目消化不中断整轮；scripts/jobs/run-nightly-screen.ts+package script；cron 默认 30 2 * * *（错峰）；集成测试：注册表两例程/幂等/approved 不动；lint + tsc + test:unit 绿",
+      "description": "spec §2 F006。勘查实证 scheduler as-built 硬编码单例程（scheduler.ts:55-67）与 :1815「自动获得调度」口径差——本批消解。"
+    },
+    {
+      "id": "F007",
+      "title": "match_plan/evaluate_creator 工具 + canvas ADR-28 + uiSyntax 注入",
+      "priority": "medium",
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "两工具（class:'internal'，柱一注册表）：match_plan（projectId→现行组合+PlanKol 摘要）+evaluate_creator（projectId+kol idOrPublicId→matchScore.compute 单人评估+reasons）；match persona tools 扩四件（registry.ts:95）；canvas ADR-28：canvas-registry 路由键改 type+受控 register API（:1074/:1850）+MatchPlanCard 新 canvas 卡（沿 KolResultCards 先例）+search_kols 卡迁新 API 行为零变更；uiSyntax 注入 prompt（buildSystemPrompt 增「你的产出形态：{uiSyntax}」段，:1032 欠账消解）；单测：工具 zod 契约+mock 出参形状+registry 映射+prompt 拼接含 uiSyntax；真对话属 L2 留验收授权；lint + tsc + test:unit 绿",
+      "description": "spec §2 F007。目标态 architecture :1098（match += evaluate_creator/match_plan）+ :1069 canvas match_plan 卡。"
+    },
+    {
+      "id": "F008",
+      "title": "侧栏徽标服务接真（U4，消解 D-B 两批悬置）",
+      "priority": "medium",
+      "executor": "generator",
+      "status": "pending",
+      "acceptance": "GET /api/nav-badges：{today: PendingAction(status=pending) 计数, projects: Project 计数}（tenantId 维度轻量查询）；sidebar NAV_BADGE_MOCK（index.tsx:18,:73）退役——client fetch on mount+路由变化 revalidate（保持 'use client' 不动布局）；计数 0→徽标隐藏；洞察徽标退役（无真源不显假数 D2，恢复归 M4）；fetch 失败→徽标全隐藏不抛错；13 张 admin 页基线全量漂移逐处对账后重生（假数 3/4/2→CI today 隐藏/projects=4/洞察隐藏；D-H 扩展：重生前清 PendingAction/OperationLog+Match 三表）；集成测计数正确性；needle grep NAV_BADGE_MOCK 零残留；lint + tsc + test:unit + test:visual 绿",
+      "description": "spec §2 F008 + U4。勘查实证 sidebar 双 'use client' 无 server 通道（M1-C spec :61,:104）。"
+    },
+    {
+      "id": "F009",
+      "title": "收尾：SW-R1 探针退役 + OBS-1 image part 迁移 + 文档翻牌",
       "priority": "low",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "docker-compose.prod.yml 新增 newkolmatrix-materials 卷挂 app /app/materials + env MATERIALS_DIR/AIGCGATEWAY_VISION_MODEL；.env.example 补两项注释；.gitignore 补 .materials/；docs/dev/deploy.md 更新（materials 卷备份纳入 R7 记账）+ architecture.md §7.6/§11.3 as-built 翻牌；探针/测试漂移扫描（v1.0.5：grep 引用部署文件的探针）；lint + tsc 绿；部署验证随上线执行",
-      "description": "spec §2 F006。勘查实证 compose 现仅 pgdata 卷（:69-71），app 无文件卷。"
+      "status": "pending",
+      "acceptance": "SW-R1（U3）：删 scripts/test/f007-browser-check.mjs+package.json f007:browser 入口，替代探针与 f010 覆盖保持，被删路径 needle 全仓 grep（docs 就绪回归引用处翻牌注记）；OBS-1：parse.ts image part type:'image'→type:'file' 迁移（mock 网关单测回归+断言弃用告警消除；真 vision 属 L2 留验收授权）；文档翻牌：architecture.md §14 M2-A 行+§5.2/§5.3/§5.4/§8 as-built+env-guards →reach 段校准+M1-C S7 顺手校准（§8.10 频率注记）；agent-architecture.md 工具/canvas 段同步；lint + tsc + test:unit 绿",
+      "description": "spec §2 F009 + U3。SW-R1 裁决欠两批（M1-C S1→M1-D 补账复现）；OBS-1 出自 M1-D signoff :78。"
     }
   ]
 }

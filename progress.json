@@ -1,32 +1,33 @@
 {
-  "status": "done",
-  "user_goal": "M1-D KNOWLEDGE 第四批（knowledge 域纵切）：素材上传（本地盘 docker 卷）→ Material 落库 → AI 解析管道（文本 chat + 图片 vision，网关 qwen3.5-flash 立项实测可用）→ GameKnowledge 三类 kind + supersede 链 → knowledge 页面接真 + mock 退役 → prompt ⑤层知识注入（strategy/match/reach/compliance 按 kind 映射）→ 部署面 materials 卷。用户四裁决：learnings 全收（已沉淀 v1.0.9）/ 本地盘卷 / 文本+图片 vision / 含 ⑤层注入。",
-  "total_features": 6,
-  "completed_features": 6,
+  "status": "building",
+  "user_goal": "M2-A-MATCH（match 域纵切第一批）：MatchPlan/PlanKol/MatchCandidate 三表 → matchScore 可解释评分纯函数 → 候选/组合规则化生成（无 LLM 打分）→ 对比矩阵/待裁定接真 + mock 退役 → 批准 internal 落库 + →reach 守卫解锁（S10 消解）→ nightly-screen 例程（scheduler 注册表化）→ match 工具 + canvas ADR-28 + uiSyntax 注入 → 侧栏徽标接真（U4）→ SW-R1 退役 + OBS-1 迁移收尾。用户四裁决：U1 compose learning 已沉淀 v1.0.10 / U2 纵切先行（抽屉七分区+深字段数据源留 M2-B）/ U3 SW-R1 退役 / U4 徽标纳入。",
+  "total_features": 9,
+  "completed_features": 0,
   "fix_rounds": 0,
-  "current_sprint": "M1-D-KNOWLEDGE",
+  "current_sprint": "M2-A-MATCH",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-22T16:20",
+  "last_updated": "2026-07-22T16:50",
   "reference_docs": [
-    "docs/specs/M1-D-KNOWLEDGE-spec.md",
+    "docs/specs/M2-A-MATCH-spec.md",
     "docs/dev/architecture.md",
     "docs/dev/agent-architecture.md",
     "framework/patterns/web-runtime-patterns.md",
     "framework/patterns/database-patterns.md",
     "framework/patterns/ai-action-contract.md",
-    "docs/test-reports/M1-C-LIST-TODAY-signoff-2026-07-22.md"
+    "docs/specs/ARCH-M05-ui-inventory.md",
+    "docs/test-reports/M1-D-KNOWLEDGE-signoff-2026-07-22.md"
   ],
   "docs": {
-    "spec": "specs/M1-D-KNOWLEDGE-spec.md",
-    "test_cases": "test-reports/M1-D-KNOWLEDGE-verify/",
-    "signoff": "test-reports/M1-D-KNOWLEDGE-signoff-2026-07-22.md",
+    "spec": "specs/M2-A-MATCH-spec.md",
+    "test_cases": null,
+    "signoff": null,
     "framework_reviewed": true
   },
   "role_assignments": null,
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M1-D-KNOWLEDGE done · 2026-07-22 · /goal 授权全程推进（building→verifying→done→deploy）】\n■ 首轮 fan-out 验收（Workflow 6 evaluator subagent，F004 独占 3000/零态 DB 后跑）6/6 全 PASS，fix_rounds=0，对抗复核零触发；signoff docs/test-reports/M1-D-KNOWLEDGE-signoff-2026-07-22.md；L2 真网关 5 次调用合计 <$0.0009 已注明。\n■ 开工审计 1 次（小图裁决方案 A=HTTP 400 拒收，f002-smallimage-adjudication.md）。新 deps：image-size@2/@paralleldrive/cuid2/unpdf。\n■ 遗留观察（signoff 6 条均不阻断）：OBS-1 AI SDK image part 弃用告警（建议迁 type:'file'）；OBS-2 VPS compose 人工副本=上线硬前置；OBS-6 p2/f008/f010 探针无分片证据待 Planner 裁决。proposed-learnings 挂 1 条待用户裁决（compose 人工副本漂移坑）。\n■ 部署已完成 ✅（/goal「直至完成上线部署」事先书面授权，signoff 放行意见执行）：compose scp 同步（旧版 .bak-m1c）→ deploy-prod run 29931308453 success @ ecde6cdfabc7cae570ace4006d6af7a307457110 → 四项验证过：health 200 / knowledge SSR 空态+4 游戏 / materials 卷挂载+MATERIALS_DIR+VISION_MODEL env / parse 路由 404 探针。下一批候选=M2 MATCH，待用户立项。",
+    "Andy": "【M2-A-MATCH planning 完成 → building · 2026-07-22】\n■ 立项四裁决（AskUserQuestion 实答）：U1 compose 漂移 learning Accept（已沉淀 v1.0.10 deploy-patterns §8）；U2 M2-A 纵切先行（抽屉七分区/Kol 深字段数据源裁决/ProvenanceTag 接 Kol 真数据留 M2-B）；U3 SW-R1 f007 原样探针退役；U4 侧栏徽标接真纳入本批。\n■ 勘查基础 = 三路 recon 报告（match-ui / creators-kol / m2-target，2026-07-22 本会话，文件:行 全核）。铁律 8 前置：无新外部模型（bge-m3 embedding 生产已验证 2525 行）。\n■ 本批注意：F003/F005 embedText 注入可替换（P7 mock 向量）；F005 lazy 生成 CI 无凭据必须静默降级（硬要求）；F008 徽标改动 → 13 张基线全量对账重生（§4.4 首推红预期 + D-H 扩展清 Match 三表）；D20 义务落 F003/F004（status/verdict 流转变异测试）；批准 = internal 不产生 PendingAction（K10=0 双边铁律）。\n■ M1-D 收尾已全清：OBS-6 补账（5/6 PASS + f007 归因 SW-R1）@ 639acaa；proposed-learnings 清零。\n■ 未挂自动推进授权——building 开工等用户指令（/build 或「继续」）。",
     "Reviewer": null
   },
   "lane": "fast"

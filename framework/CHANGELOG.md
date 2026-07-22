@@ -969,3 +969,10 @@ M1-B/M1-C 两批沉淀 4 条（用户逐条 Accept）：
 2. **RSC 直读 DB 页面必须 force-dynamic**（M1-C F001 构建期静态化冻结数据 + CI 连红两次）→ `patterns/web-runtime-patterns.md` 新增 §6（含 acceptance 硬要求：运行时改→验→复原实证）
 3. **CI watch 必须 --workflow 过滤 + 显式核 conclusion**（M1-C 同 SHA 其他 workflow exit 0 掩盖红灯漏看两 feature）→ `harness/generator.md` §4.5 + 项目根 generator.md + memory/role-context 两份（铁律 7 四副本同步）
 4. **收敛类「零漂移」声明须逐份 diff 全部副本**（M1-C F005 借绿 PARTIAL，Evaluator 像素取证）→ `patterns/web-runtime-patterns.md` §4.2 补充
+
+
+## v1.0.10（2026-07-22）
+
+M1-D 沉淀 1 条（用户 Accept）：
+
+1. **Compose 人工副本漂移**（deploy-prod 只 pull+up 不同步 compose，改 compose 的批次上线前必须先 scp 同步，否则静默跑旧配置——新卷缺失时数据落容器层容器重建即丢）→ `patterns/deploy-patterns.md` 新增 §8（含 M1-D 实操模板 + Planner/Evaluator checklist；长期解法「workflow 加 compose 同步步」登记为候选）

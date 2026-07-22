@@ -23,8 +23,8 @@ import {
   stageHref,
   type Stage,
 } from 'lib/agent/stage-routing';
-import { HEALTH_LABEL, type ProjectHealth } from 'lib/data/mock/projects';
-import type { HealthResult } from 'lib/domain/health';
+import type { HealthBand, HealthResult } from 'lib/domain/health';
+import { HEALTH_LABEL } from 'lib/display/health-label';
 import { canEnter } from 'lib/domain/env-guards';
 import { ENV_GUARD_MESSAGE } from 'lib/display/env-guard-messages';
 import type { ProjectGoal } from 'lib/data/schemas/project';
@@ -48,7 +48,7 @@ const ENV_SURFACE: Record<Stage, ComponentType<{ projectId: string }>> = {
 };
 
 /** pmeta 健康度三色 dot（原型 .dot gd/wn/cr） */
-const DOT_TONE: Record<ProjectHealth, string> = {
+const DOT_TONE: Record<HealthBand, string> = {
   gd: 'bg-green-500',
   wn: 'bg-amber-500',
   cr: 'bg-red-500',

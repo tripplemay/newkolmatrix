@@ -8,6 +8,7 @@
 
 import { z } from 'zod';
 import type { Stage } from 'lib/agent/stage-routing';
+import type { HealthBand } from 'lib/domain/health';
 
 /* ------------------------------------------------------------------ *
  * 五环节展示元数据（原型 ENVS L538-544 中文名）
@@ -56,8 +57,6 @@ export const radarAskSchema = z.object({
 });
 export type RadarAsk = z.infer<typeof radarAskSchema>;
 
-export type ProjectHealth = 'gd' | 'wn' | 'cr';
-
 export interface TodayProject {
   /** 原型 PROJECTS.id（F007 项目详情同源；「进入项目」直落 /admin/campaigns/{id}?env=） */
   id: string;
@@ -67,7 +66,8 @@ export interface TodayProject {
   market: string;
   budget: string;
   /** health pill 三态（gd 正常 / wn 注意 / cr 风险，不得压缩） */
-  health: ProjectHealth;
+  /** M1-B F005 收敛：类型 canonical 在 domain/health.ts */
+  health: HealthBand;
   /** 深字段：经 radarAskSchema 契约读取；null = 今天无待办，不进雷达 */
   ask: unknown;
 }
@@ -129,7 +129,13 @@ export const todayProjects: TodayProject[] = [
 /* ------------------------------------------------------------------ *
  * 「Agent 活动」feed ×6（原型 FEED L602 逐字）
  * ------------------------------------------------------------------ */
-export type TodayFeedIcon = 'check' | 'pen' | 'trend' | 'mail' | 'shield' | 'spark';
+export type TodayFeedIcon =
+  | 'check'
+  | 'pen'
+  | 'trend'
+  | 'mail'
+  | 'shield'
+  | 'spark';
 
 export interface TodayFeedItem {
   icon: TodayFeedIcon;

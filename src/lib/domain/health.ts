@@ -8,10 +8,14 @@
 // 纯函数：不读 DB、不读时钟（`now` 由调用方注入）、无副作用。
 // 这样它可被单测穷举，也可被 Agent 工具层与页面层同源调用（M1-B 的 compute_health 工具是它的薄封装）。
 
-import type { ProjectHealth } from 'lib/data/mock/projects';
-
-/** 健康度三档。复用 mock/projects.ts 的既有类型，避免同一概念出现第二套取值。 */
-export type HealthBand = ProjectHealth; // 'gd' | 'wn' | 'cr'
+/**
+ * 健康度三档（原型 .pill/.dot gd/wn/cr，不得压成二态）。
+ *
+ * M1-B F005 依赖反转：canonical 定义收敛到此处——mock/页面一律 import 本类型
+ *（此前反向：本文件 import 自 mock/projects，但 mock/* 接真数据后要消亡，
+ * 类型不能把 domain 拖着陪葬）。中文 label 在展示层 lib/display/health-label.ts（D6）。
+ */
+export type HealthBand = 'gd' | 'wn' | 'cr';
 
 /**
  * 分档阈值（PRD :373）。

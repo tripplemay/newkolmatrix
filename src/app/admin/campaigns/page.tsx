@@ -15,14 +15,12 @@ import PageHeader from 'components/common/PageHeader';
 import ProjectAvatar from 'components/project/ProjectAvatar';
 import { ENV_META } from 'components/project/env-meta';
 import { stageHref } from 'lib/agent/stage-routing';
-import {
-  HEALTH_LABEL,
-  mockProjects,
-  type ProjectHealth,
-} from 'lib/data/mock/projects';
+import { mockProjects } from 'lib/data/mock/projects';
+import type { HealthBand } from 'lib/domain/health';
+import { HEALTH_LABEL } from 'lib/display/health-label';
 
 /** 原型 .pill 四色调（nu 中性 + 健康度三态 gd/wn/cr，不得压成二态） */
-const PILL_TONE: Record<'nu' | ProjectHealth, string> = {
+const PILL_TONE: Record<'nu' | HealthBand, string> = {
   nu: 'bg-lightPrimary text-gray-600 dark:bg-navy-700 dark:text-gray-400',
   gd: 'bg-green-50 text-green-600',
   wn: 'bg-orange-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-400',
@@ -33,7 +31,7 @@ function Pill({
   tone,
   children,
 }: {
-  tone: 'nu' | ProjectHealth;
+  tone: 'nu' | HealthBand;
   children: React.ReactNode;
 }) {
   return (

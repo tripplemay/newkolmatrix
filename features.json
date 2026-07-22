@@ -42,7 +42,7 @@
       "title": "ProjectHealth / HEALTH_LABEL 三重收敛",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "类型收敛——ProjectHealth 现有类型副本 projects.ts:11 与 today.ts:59 两份，反转依赖收敛到 domain/health.ts 的 HealthBand（M1-A :14 已定义但当前 import 自 mock，须反转为 mock/页面/today import domain，因 mock/* 接真数据后要消亡类型不能留 projects.ts）；【D6】label 收敛——HEALTH_LABEL 现有 projects.ts:13 与 today/page.tsx:133 两份，收敛到展示层单点（D9 明写文案留展示层不入 domain 保持 domain 无 i18n 耦合），新建展示层常量文件承载单点导出供各页 import；domain/health.ts 计算逻辑不动；回归——tsc 全绿证 import 重接无遗漏 + grep 实证 ProjectHealth/HEALTH_LABEL 各只剩一份 canonical 无第二份副本残留 + domain/health.ts 无中文文案；lint + tsc + test:unit 绿",
       "description": "spec §2 F005 + D6。勘查确认三处：类型 ProjectHealth 在 projects.ts:11 与 today.ts:59 各一份，label HEALTH_LABEL 在 projects.ts:13 与 today/page.tsx:133 各一份。campaigns/page 与 ProjectDetail 是正确消费方（import 自 projects.ts 未重复）。"
     },

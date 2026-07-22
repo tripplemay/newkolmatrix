@@ -35,6 +35,8 @@ import SurfaceCard from 'components/common/SurfaceCard';
 import { AVATAR_WHEEL, BRAND_500, WHITE } from 'lib/design-tokens';
 import { STAGE_AGENT } from 'lib/agent/stage-routing';
 import { readContractSlot } from 'lib/data/provenance';
+import type { HealthBand } from 'lib/domain/health';
+import { HEALTH_LABEL } from 'lib/display/health-label';
 import {
   ENV_NAME,
   monthlyAutoDone,
@@ -43,7 +45,6 @@ import {
   todayFeed,
   todayKpis,
   todayProjects,
-  type ProjectHealth,
   type RadarAsk,
   type TodayFeedIcon,
   type TodayKpiIcon,
@@ -121,7 +122,7 @@ function SecHead({ title, meta }: { title: string; meta: string }) {
 /* ------------------------------------------------------------------ *
  * Pill — 原型 .pill 四色（nu 中性 / 健康度三态 gd·wn·cr，三态不得压缩）
  * ------------------------------------------------------------------ */
-type PillTone = 'nu' | ProjectHealth;
+type PillTone = 'nu' | HealthBand;
 
 const PILL_TONE: Record<PillTone, string> = {
   nu: 'bg-lightPrimary text-gray-600 dark:bg-white/5 dark:text-gray-400',
@@ -130,11 +131,7 @@ const PILL_TONE: Record<PillTone, string> = {
   cr: 'bg-red-50 text-red-600 dark:bg-red-400/10 dark:text-red-400',
 };
 
-const HEALTH_LABEL: Record<ProjectHealth, string> = {
-  gd: '正常',
-  wn: '注意',
-  cr: '风险',
-};
+// M1-B F005 收敛：HEALTH_LABEL 单点在 lib/display/health-label.ts（D6），本页副本已删。
 
 function Pill({
   tone = 'nu',

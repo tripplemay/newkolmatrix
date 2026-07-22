@@ -6,15 +6,11 @@
 // URL 化状态位（?env=）是路由状态，不入 mock（mock 目录规则 #4）。
 
 import type { Stage } from 'lib/agent/stage-routing';
+import type { HealthBand } from 'lib/domain/health';
 
-/** 健康度三态（原型 .pill/.dot gd/wn/cr，不得压成二态） */
-export type ProjectHealth = 'gd' | 'wn' | 'cr';
-
-export const HEALTH_LABEL: Record<ProjectHealth, string> = {
-  gd: '正常',
-  wn: '注意',
-  cr: '风险',
-};
+// M1-B F005 收敛：健康度类型 canonical 在 domain/health.ts（HealthBand），
+// 中文 label 在 lib/display/health-label.ts——本文件不再持有副本
+//（mock/* 接真数据后要消亡，类型与文案都不能留在这）。
 
 export interface MockProject {
   id: string;
@@ -26,7 +22,7 @@ export interface MockProject {
   budget: string;
   /** D29 分工标记（非权限） */
   owner: string;
-  health: ProjectHealth;
+  health: HealthBand;
   /** 项目当前推进到的环节（rc-foot「停在「{环节}」」与导轨 done/进行中 判定） */
   cur: Stage;
   goal: string;

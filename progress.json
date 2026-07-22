@@ -1,12 +1,12 @@
 {
-  "status": "verifying",
+  "status": "done",
   "user_goal": "M1-B BRIEF-CAMPAIGNS 第二批（纵切 project+brief 之页面层）：验证 M1-A mock→真数据契约层能否平滑换——详情页 RSC 直读 Project + health 接真算 + 修 brief 分流真 bug + compute_health 工具 + 页面守卫前端半边 + ProjectHealth/HEALTH_LABEL 三重收敛 + image/ 死代码删除。用户裁决收窄范围，列表页/今天页顺延 M1-C。接受 health 全红（数据可得性诚实反映，不掩盖）。",
   "total_features": 6,
   "completed_features": 6,
   "fix_rounds": 0,
   "current_sprint": "M1-B-BRIEF",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-21T23:30",
+  "last_updated": "2026-07-22T00:35",
   "reference_docs": [
     "docs/specs/M1-B-BRIEF-spec.md",
     "docs/specs/M1-A-BRIEF-spec.md",
@@ -20,11 +20,68 @@
   "docs": {
     "spec": "specs/M1-B-BRIEF-spec.md",
     "test_cases": null,
-    "signoff": null,
+    "signoff": "test-reports/M1-B-BRIEF-signoff-2026-07-22.md",
     "framework_reviewed": true
   },
   "role_assignments": null,
-  "evaluator_feedback": [],
+  "evaluator_feedback": [
+    {
+      "feature_id": "F001",
+      "result": "PASS",
+      "summary": "F001 详情页 RSC 直读 Project + health 接真算 + visual job 起 DB 全项通过：RSC 确读 DB（改名→页面即变→seed 恢复闭环实证）、D2 降级与四项目全 cr 符合裁决、D9 合成串/货币 helper 实测正确、CI visual job 实跑 migrate+seed（步骤级证据）、基线漂移经本人独立抽查确认仅 header 数据变更无布局回归。",
+      "evidence": "(1) RSC 直读实证：psql UPDATE xg 项目名→curl /admin/campaigns/xg 立即出现 EVALUATOR-PROBE-F001→npm run seed:projects 恢复→页面/DB 复核还原；(2) SSR payload 实测 xg health {score:26,band:cr}，四项目 xg 26/lc 37/aw 23/mf 20 全 cr 红点+「风险」（D2 预期）；(3) D2 降级：/admin/campaigns/starlight-protocol → 200，名回退+待补充×4，project:null、error:null 无错误边界；(4) goal 串「目标曝光 300 万 · 周期 2026-07-01 ～ 2026-07-31」+ 预算 $18,000 页面原文命中（D9/货币 helper）；(5) ci.yml visual job pgvector service+migrate deploy+seed:projects，CI run 29895524822 步骤级全 success（Apply migrations/Seed canonical projects 实跑）；update-visual-baselines.yml 同构起 DB；(6) 基线对账独立抽查：e946b49^ vs e946b49 的 project-brief/project-reach 两对目检——仅 header goal 散文→合成串 + 注意琥珀→风险红点，其余逐区一致；5 张均为 xg 深链（workbench.spec.ts:31-63）；(7) domain/health.ts 批内非注释改动仅 F005 类型反转，计算逻辑零改动，seed 无假指标；(8) tsc --noEmit exit 0、eslint F001 触改文件 0 问题、vitest project-format+health 42/42 passed。备注：acceptance 写 findUnique 实装 findFirst（OR 跨字段唯一正确实现，功能等价文本漂移，不改判）。",
+      "problems": [],
+      "report_path": "/Users/yixingzhou/project/newkolmatrix/docs/test-reports/M1-B-BRIEF-verify-F001.md"
+    },
+    {
+      "feature_id": "F002",
+      "result": "PASS",
+      "summary": "brief 分流 bug 修复验收通过：仅 xg 得 canonicalBrief，lc/aw/mf 优雅降级全 null「待接入」（RED/GREEN 亲测对照 + :3000 三页 SSR 实测零 xg 泄漏 + lint/tsc 绿），0 缺陷。",
+      "evidence": "1) 代码实证：env-brief.ts:166-168 现为 getMockProject(projectId)?.id==='xg' ? canonicalBrief : emptyBrief；修复前 worktree@e946b49 的 :161 为 getMockProject(projectId) ? canonicalBrief : emptyBrief（四项目共享 xg 引用，bug 属实）。2) RED/GREEN：npx vitest run tests/unit/env-brief.test.ts 在 HEAD 6 passed；同一测试在 pre-fix worktree 3 failed（mf/lc/aw 均报 \"gauge 应为 null: expected { percent: 64, sub: '192万 / 300万 曝光' }\"），测试确能区分修复前后且含 xg 64%/192万 防假绿锚定。3) 实测（standalone :3000 HEAD 构建，curl SSR）：mf/lc/aw ?env=brief 各 HTTP 200 + 4 处「待接入」+ $11.5k/硬核射击/在谈创作者/目标与预算确认 全 0 命中（blocker null=无阻塞不渲染卡是 D2 既有契约故 4 非 5）；mf 页仅存「触达谈判」=rail 环节名、「192万/300万」=copilot/mock.ts:322（ARCH-M05 既有，本批零改动，非 F002 范围）；xg 页 canonical 全量（192万/300万✓ $11.5k✓ 触达谈判中✓ 1 处阻塞✓ 待接入 0）。4) 基线：workbench.spec.ts:31 project-brief.png 截 /admin/campaigns/xg → 走「若 xg 则内容不变」分支，git show --stat e600977 -- tests/visual 为空。5) 门禁：npx tsc --noEmit exit 0；npx next lint \"No ESLint warnings or errors\"。6) readContractSlot（provenance.ts:80-101）null/校验失败均降级 null 无 throw 路径。worktree 已清理。",
+      "problems": [],
+      "report_path": "/Users/yixingzhou/project/newkolmatrix/docs/test-reports/M1-B-BRIEF-verify-F002.md"
+    },
+    {
+      "feature_id": "F003",
+      "result": "PASS",
+      "summary": "compute_health 工具逐条 acceptance 全过：internal/native 薄封装、projectId-only（D8）契约实证、D15 恒返 cr 运行时实测四项目全中、与 F001 页面三重同源实证（grep 唯二调用方 / 组装逐字段一致 / 运行时同值 26-cr）、NATIVE_TOOLS 注册 + strategy 人格挂载 grep 及运行时链路核实、单测 36/36、tsc+lint 绿。",
+      "evidence": "1) 静态：compute-health.ts:102-103 class='internal'/source='native' 无 buildHarm；:27-29 schema 仅 projectId(min 1)；:79 now=new Date() 在 execute 边界；index.ts:17 NATIVE_TOOLS 注册；registry.ts:72/:76 strategy duty 含「健康度监测」且 tools 含 compute_health；全仓 grep computeHealth 调用方仅 [id]/page.tsx:42 与 compute-health.ts:90 两处（零逻辑重复）。2) 运行时探针（executeTool 直调，不经网关）21/21 断言 PASS：四 canonical 项目恒 cr（xg=26/lc=37/aw=23/mf=20，exposure=0 budget=0 = D15 null 记 0）；id/publicId/slug 三寻址同项目；未命中 found=false 不抛错；空串被 zod 拦；模型硬塞 actualExposure=99999999 被 strip 分数不变（26==26）；页面口径独立复算 xg = 工具输出同值 score=26 band=cr。3) 实测：curl http://127.0.0.1:3000/admin/campaigns/xg 实渲染 bg-red-500 红点 +「健康度 风险」= cr 同档。4) 测试：npx vitest run tests/unit/compute-health-tool.test.ts tests/unit/health.test.ts → 36 passed；npx tsc --noEmit exit 0；npx next lint 零警告零错误（L1 前置：prisma generate 已先跑）。5) [L2] 注记：全量 agent:smoke 未跑（search_kols 段调真实网关 embedding，未授权）；smoke 的 compute_health 段（agent-tools-smoke.ts:94-130）断言已被探针超集覆盖，不影响判定。",
+      "problems": [],
+      "report_path": "docs/test-reports/M1-B-BRIEF-verify-F003.md"
+    },
+    {
+      "feature_id": "F004",
+      "result": "PASS",
+      "summary": "页面守卫前端半边 7 项 acceptance 全过：selectEnv 接 canEnter 拦截 + rail 不 disabled（D4）+ maxReached RSC 直读 DB（D5，mock 零改动）+ EnvGuardReason 中文映射展示层单点 + 服务端硬闸批内零改动 + 两视口实测 26/26 断言绿 + lint/tsc 绿。",
+      "evidence": "1) 代码 grep：ProjectDetail.tsx:112-131 canEnter 拦截（拒→toast+return 不切，放行→setEnv+router.replace）；rail :201-249 无 disabled；[id]/page.tsx:61-62 maxReached/goal 从 prisma 行直读作 prop；grep maxReached src/lib/data/mock/ = 0 命中（D5）；ENV_GUARD_MESSAGE Record<EnvGuardReason,string> 全量 5 字面量、全仓定义 1 处消费 1 处、中文文案无第二副本。2) 两视口实测：scripts/test/m1b-f004-guard-probe.mjs（playwright，standalone :3000 @126b410 + seed lc cur=match/maxReached=match）desktop 1512x982 与 mobile 390x844 各 13 断言全过（26/26）：未解锁 reach/insight 点击→toast 文案逐字=「该环节尚未解锁，项目推进到此处后即可进入」+URL 不变+面不切；rail 5 按钮 0 disabled；回看 brief/切回 match 正常+URL 同步；深链 ?env=reach 直达（D4 设计）；D2 降级态自由切换无 toast；零 pageerror。3) 硬闸：git diff --name-only e946b49^..126b410 -- env-guards.ts env-advance.ts src/app/api/ = 空；两文件最后触碰=M1-A e12421c；vitest env-guards 40/40 passed。4) L1：prisma generate→tsc exit=0；next lint 0 error 0 warning。",
+      "problems": [],
+      "report_path": "docs/test-reports/M1-B-BRIEF-verify-F004.md"
+    },
+    {
+      "feature_id": "F005",
+      "result": "PASS",
+      "summary": "F005 三重收敛全部落地：ProjectHealth 类型全仓归零（canonical 收敛为 domain/health.ts:18 的 HealthBand，依赖已反转）、HEALTH_LABEL 收敛到展示层单点 src/lib/display/health-label.ts、domain 计算逻辑零改动且无中文文案，lint/tsc/test:unit 全绿 + 运行时三页标签渲染实证正常。",
+      "evidence": "1) git grep \"ProjectHealth\" HEAD -- src/ tests/ scripts/ → 0 命中（exit=1）；同一 pattern 在 599dbfb^ 复现旧副本 projects.ts:11 + today.ts:59 + domain 反向 import（0-findings 活性证明三道齐）。2) HealthBand 唯一定义 domain/health.ts:18，其余 8 站点均为 import；排除该文件后全仓无 'gd'|'wn'|'cr' 联合重声明。3) HEALTH_LABEL 唯一定义 display/health-label.ts:11（Record<HealthBand,string>），band→中文映射 grep 仅此一处；三消费方 today/page.tsx:39、campaigns/page.tsx:20、ProjectDetail.tsx:27 全部 import 单点，today/page.tsx:133 旧副本已删。4) git diff 599dbfb^..599dbfb -- src/lib/domain/health.ts 仅删 mock import + 类型改字面量联合 + 注释；tests/unit/health.test.ts 亲跑 32/32 绿（行为不变双证）。5) health.ts 字符串字面量仅 'gd'/'wn'/'cr'，中文全在 JSDoc/行尾注释（非文案，无 i18n 耦合）。6) L1 亲跑：npx prisma generate → npx tsc --noEmit exit 0；npm run lint 0 errors 0 warnings；npm run test:unit 9 files/129 tests 全过。7) 运行时（standalone :3000 只读 curl）：/admin/campaigns 正常×2·注意×1·风险×1（匹配 mock wn/gd/gd/cr）、/admin/today 正常×2·注意×1、/admin/campaigns/xg?env=brief HTTP 200 显「风险」（真算 cr，D2 预期）。观察项（非缺陷）：PILL_TONE/DOT_TONE 样式映射仍各页一份，属 tone 非 label，不在 F005 范围。",
+      "problems": [],
+      "report_path": "/Users/yixingzhou/project/newkolmatrix/docs/test-reports/M1-B-BRIEF-verify-F005.md"
+    },
+    {
+      "evidence": "1) ls 实证四目标全消失：src/components/image/、scripts/test/f003-harness/、scripts/test/f003-reverify/、p2-cleanup-f003-avatar-colormode.mjs 均 No such file or directory；git show --stat 6c8018f 与实物一致（16 文件 -723 行）。2) 终态 grep：grep -rn -E \"components/image|NextAvatar|ChakraNextAvatar\" 覆盖 src/ scripts/ tests/ prisma/ sdk/ .github/ package.json tsconfig.json next.config.js（含未跟踪文件）→ 零命中 exit 1；git grep 全仓排除 docs/framework 后仅剩 features.json acceptance 自身文本。3) 检测器活性三道交叉：同一 pattern 在 6c8018f^ 复现全部删除前引用（Avatar.tsx/Image.tsx 定义 + f003-harness 3 文件 + f003-reverify 2 文件 + p2 探针 :47 硬读路径 + backlog.json:18 BL-FE-17）。4) package.json 现存 p2:f001/f002/f004 三条、p2:f003 已除，grep \"p2:f003|p2-cleanup-f003\" 全域零命中，三条存续探针脚本文件在位。5) backlog.json 唯一条目 = BL-FE-16 原文保留，BL-FE-17 已移除，作废登记在 project-status.md + commit 正文。6) useColorMode 消费者仅 navbar/index.tsx:32（持 toggle）+ hooks barrel，全批次 src/ diff 无新增消费者。7) npx prisma generate → npx tsc --noEmit exit 0（零悬空 import 编译级证据）；npx next lint \"No ESLint warnings or errors\" exit 0。",
+      "feature_id": "F006",
+      "problems": [],
+      "report_path": "docs/test-reports/M1-B-BRIEF-verify-F006.md",
+      "result": "PASS",
+      "summary": "F006 全部 7 项 acceptance 实物核验通过：image/ 及三处 P2-CLEANUP F003 遗留（harness/reverify/p2:f003 探针）删净且全仓零悬空引用（0 findings 配检测器活性三道交叉证明），BL-FE-17 作废登记、BL-FE-16 保留，lint+tsc 全绿。"
+    },
+    {
+      "feature_id": "READINESS",
+      "result": "PASS",
+      "summary": "M1-B-BRIEF 批次级就绪回归全绿：lint/tsc/unit(129)/visual(13) 全过，三条 p2 探针（12+14+15 断言）零回归且探针零篡改，p2:f003 按裁决退役实证到位，视觉基线漂移经独立像素取证确认为 header 数据变更 + 图表抗锯齿噪声、无布局/字体回归。",
+      "evidence": "被验对象 HEAD 126b410（产品树=6c8018f，diff 仅状态文件+linux 基线）。环境前置：prisma generate 后 tsc；:3000 standalone 为 post-F006 构建（BUILD_ID mtime 23:44:41 > F006 commit 23:02:36，PID 64821 起于 23:44:49），/api/health {\"ok\":true}，dev DB healthy。实测：next lint「No ESLint warnings or errors」；tsc exit 0；vitest 9 文件 129/129；playwright 13/13 passed (23.1s) 复用 :3000；CI run 29895524822（6c8018f）五 job 全 success 含起 DB 的 Visual regression。p2:f001=12 passed / p2:f002=14 passed（含 F-mut 变异活性对照）/ p2:f004=15 passed，三脚本本批零改动（git log 最后触碰均在 M1-A/P2-CLEANUP）；p2:f003 脚本与 npm script 均已删除（grep exit 1），符合 f006-p2probe-audit 裁决。基线取证：e946b49 恰改 5 张 project-*-darwin，自制 canvas 像素 diff 显示 4/5 张差异严格局限 header 条带 (381,156)-(835,201)（裁剪目检：散文 goal+注意橙点 → D9 合成串+风险红点，版式零变），project-insight 另 66px 为圆环图抗锯齿噪声；d9ae875 linux 重生中 creators/runs 0px、creator-drawer 4px、insight-linux 1811px 为折线描边抖动（曲线目检恒等）；campaigns/today 基线两 commit 均未触碰，零漂移声明属实。[L2] agent:smoke 未执行——不在就绪口径内且未获授权。",
+      "problems": [],
+      "report_path": "/Users/yixingzhou/project/newkolmatrix/docs/test-reports/M1-B-BRIEF-verify-READINESS.md"
+    }
+  ],
   "generator_handoff": null,
   "session_notes": {
     "Andy": "【M1-B-BRIEF building 完成 → verifying · 2026-07-21】\n6/6 features 已实现，每条独立 commit（e946b49 F001 / e600977 F002 / 8babdfa F003 / 2e212f1 F004 / 599dbfb F005 / 6c8018f F006），全部 push 后 CI 绿；linux 基线已经 update-visual-baselines workflow 重生（d9ae875）。\n■ 验收需知（勿误判为缺陷）：\n1) health 四项目全 cr 是 D2 裁决接受的预期（分子无存处，xg score=26）；列表页 mock（wn/gd/gd/cr）vs 详情页真值（全 cr）不一致是记录在案的过渡态，M1-C 消解；\n2) 就绪回归口径已裁决修订：四条 p2 探针 → 三条（f001/f002/f004）——p2:f003 探针硬读被删的 image/Avatar.tsx，随 F006 一并退役。裁决记录 docs/specs/M1-B-BRIEF-f006-p2probe-audit.md（实装期发现 spec 勘查遗漏，快车道 §4.6 即时裁决）；\n3) D4 spec 字面=只拦 selectEnv/rail 点击，深链 ?env= 不拦（URL 即状态契约不变，f007/f010/视觉深链探针零回归——这是设计不是漏拦）；\n4) 旧 id starlight-protocol 不在 DB → 详情页走 D2 空态降级（名回退+待补充），env 面照常渲染，f010 e2e 断言的都是 env 面/Copilot 元素，实测不受影响；\n5) F001 基线漂移已逐张对账：仅 header（goal 散文→D9 合成串 + wn→cr 红点），重生前旧基线在 1500px 紧阈值内仍绿=无布局回归证明；campaigns/en-today 零漂移。\n■ 环境：本地 standalone :3000 跑着 F004 构建产物（F006 纯删除不影响）；dev DB up、四项目已 seed；CI visual job 与基线重生 workflow 均已起 pgvector+migrate+seed:projects（D7，seed 自建 dev tenant）。\n■ 下一步：启动隔离 evaluator subagent 验收（/verify，6 features ≥4 → 按 orchestration §4 fan-out+对抗复核）。framework/proposed-learnings.md 新增 1 条（勘查 grep 面按被删路径划）待 done 阶段裁决。",

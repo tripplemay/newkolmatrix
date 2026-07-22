@@ -122,3 +122,53 @@ M1-D 立起 knowledge 域完整纵切：素材上传（本地盘 docker 卷，U2
 ---
 
 **签收人：Andy/evaluator-subagent · 2026-07-22**
+
+---
+
+## 就绪回归补账（OBS-6 处置，Planner 裁决=补跑）
+
+> 执行：**Andy/evaluator-subagent**（隔离 fresh context，2026-07-22，done 阶段后补账）。本段只追加，不改写上文任何既有内容与判定。
+> 被测对象：本机 standalone 产物（BUILD_ID `_TbX74kSZwV-WIX-5Bmav`，经 `node --env-file=.env scripts/serve-standalone.mjs` 起 127.0.0.1:3000，testing-env-patterns §7）。HEAD `ff3ba1b` 工作树 clean；`git diff ecde6cd..ff3ba1b -- src/ prisma/ package.json ...` = **0 文件**（仅状态/报告/记忆 commit）→ 被测产物与批次 HEAD `ecde6cd` 产品面等价。dev DB = `newkolmatrix-dev-db`（healthy）。
+
+### 六条探针结论
+
+| # | 命令 | 结论 | 关键输出行 |
+|---|---|---|---|
+| 1 | `npm run p2:f001` | **PASS** | `=== F001 关闭路径：12 passed, 0 failed ===`（桌面 1440×900 + 移动 390×844 双视口，A-E 全绿） |
+| 2 | `npm run p2:f002` | **PASS** | `=== F002 深色持久化：14 passed, 0 failed ===`（含 F pre-paint 活性三连断言） |
+| 3 | `npm run p2:f004` | **PASS** | `=== F004 HandoffPanel：15 passed, 0 failed ===`（生产/夹具容器 class 逐字相同） |
+| 4 | `npm run f007:browser` | **FAIL（原样跑；既有测试债 M1-C SW-R1，非 M1-D 回归——溯源见下）** | 2✗（`:34`「多 Agent 编队」/ `:36`「隔离」）后 `:40` `locator('aside input[placeholder*="说"]').fill` 30s TimeoutError 崩溃 |
+| 5 | `npm run f008:browser` | **PASS** | `[f008-browser] PASS 12 / FAIL 0`（零待办态；侧栏 6 项 / 重定向 / 五环节 / console 0 error） |
+| 6 | `npm run f010:e2e` | **PASS** | `[f010-e2e] 结果：6 通过 / 0 失败`（seed:demo-handoff 幂等跳过「已存在」；Part A NL→流式 loop→search_kols→**4 张 KOL 卡片**；Part B 人格切换；Part C handoff 可视化；console 0 error） |
+
+### f007 FAIL 的非回归溯源（判定不软化，归因有实证）
+
+- **失败签名与 M1-C READINESS §7.1 逐字相同**（同 2✗ 锚点 + 同 `:40 input.fill` 崩溃点）——即 M1-C Soft-watch **SW-R1** 记录的 5 处陈旧锚点测试债（漂移引入批次 = FE-REFACTOR / ARCH-M05，均先于 M1-C）。
+- **M1-D 零触碰 copilot**：`git diff 8438dab..HEAD -- src/components/copilot/` 与 `git diff ecde6cd..HEAD -- src/components/copilot/` 均为**空** → 失败签名批前批后一致，非本批引入。
+- **守护面无回归实证**：SW-R1 兜底③替代探针 `scripts/test/m1c-readiness-f007-l1-substitute.mjs` 本次复跑 **10/10 全绿**（面板常驻 / 专家头 / 多人格切换 / demo handoff 200 可展开 / console 0 error）。
+- **f007 的 [L2] 发消息面由 f010 覆盖**：f007 崩在发消息之前（零网关消耗）；同一 `/api/agent → search_kols → KOL 卡片流` 链路由 f010 Part A 以现行锚点实测 PASS。
+- 处置建议（沿 M1-C SW-R1 兜底①，仍挂起）：下批对 f007 探针做「修缮 vs 退役」裁决——本次补跑再次实证其原样不可绿，锚点校准清单在 M1-C READINESS §7.1，现行锚点已固化于替代探针可直接搬用。
+
+### 回归结论
+
+**六条探针覆盖面内无 M1-D 回归。** 5 条 PASS；唯一 FAIL（f007 原样跑）为先于 M1-C 的既有测试债 SW-R1，失败签名、git 溯源、守护面替代探针三方一致证明与 M1-D 无关。
+
+### L2 用量（已授权最小用量）
+
+- **f010 Part A：1 条真网关对话**（用户消息「帮我从创作者库找《坦克世界》题材的游戏解说 KOL 候选」→ agent loop 含 search_kols 工具往返，约 2 次 chat 请求，deepseek-v3）。流内无 usage 元数据（与上文 F005 同口径），按消息与上下文体量估算 **<2000 tokens ≈ <$0.0005**。
+- 其余五条零网关：p2×3 只读断言；f008 无对话步；f007 崩溃于发消息之前（0 调用）；替代探针为纯 L1。
+
+### DB 复原前后计数（终态复核）
+
+| 表 | 测前基线 | 测后 | 终态（服务杀净后） |
+|---|---|---|---|
+| Material | 0 | 0 | **0** |
+| GameKnowledge | 0 | 0 | **0** |
+| PendingAction | 0 | 0 | **0** |
+| OperationLog | 0 | 0 | **0** |
+| Handoff | 1 | 1 | **1**（同一行 id `cmrsw008l00009y0984ad4qbn` = demo handoff，测前已存在同款 → 按任务口径保持测前数量，seed 幂等未新增） |
+
+- 参照面不变：Game=4 canonical / Project=4 / Kol=2524。**探针全程零 DB 增量**（agent 对话为只读工具链路），无需删除性复原；行 ID 快照留存 scratchpad 备查。
+- Ops 清理：standalone 服务（:3000）测毕 SIGTERM 杀净，`lsof` 实证端口释放、无 serve-standalone 残留进程；例程调度（health-scan @ 02:00）在服务存活窗口内未触发（OperationLog=0 佐证）。工作树 clean，零产品代码改动，零 git 操作（本段落盘后由编排者提交）。
+
+**补账执行人：Andy/evaluator-subagent · 2026-07-22**

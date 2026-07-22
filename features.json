@@ -69,7 +69,7 @@
       "title": "侧栏徽标服务接真（U4，消解 D-B 两批悬置）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "GET /api/nav-badges：{today: PendingAction(status=pending) 计数, projects: Project 计数}（tenantId 维度轻量查询）；sidebar NAV_BADGE_MOCK（index.tsx:18,:73）退役——client fetch on mount+路由变化 revalidate（保持 'use client' 不动布局）；计数 0→徽标隐藏；洞察徽标退役（无真源不显假数 D2，恢复归 M4）；fetch 失败→徽标全隐藏不抛错；13 张 admin 页基线全量漂移逐处对账后重生（假数 3/4/2→CI today 隐藏/projects=4/洞察隐藏；D-H 扩展：重生前清 PendingAction/OperationLog+Match 三表）；集成测计数正确性；needle grep NAV_BADGE_MOCK 零残留；lint + tsc + test:unit + test:visual 绿",
       "description": "spec §2 F008 + U4。勘查实证 sidebar 双 'use client' 无 server 通道（M1-C spec :61,:104）。"
     },

@@ -1,10 +1,15 @@
 'use client';
 // ARCH-M05 F003 — 三区外壳·侧栏（fork 自 Horizon sidebar，对照原型 S1 12 元素，L432-437 / CSS L46-66）
 // S1：①KM 渐变方块 mark ②品牌双字重 KOL(800)+Matrix(300) ③分隔线 ④组标签「工作台」
-//     ⑤6 入口（routes.tsx 驱动）⑥🔒 active 右侧 4×36 竖条 ⑦🔒 待办数字徽标（mock）
+//     ⑤6 入口（routes.tsx 驱动）⑥🔒 active 右侧 4×36 竖条 ⑦🔒 待办数字徽标（M2-A F008 接真）
 //     ⑧.side-cta 渐变卡 ⑨🔒 orb 装饰半圆 ⑩shield 圆图标 44 ⑪🔒 标题「Agent 自动边界」⑫🔒 D26/D27 宣示文案
 // 固定 285px（kimi §6.2）；移除模板 mini/hover 折叠（三区外壳固定三列）；移动端保持抽屉开合。
+//
+// M2-A F008 — 徽标接真（U4）：GET /api/nav-badges 真计数（today=待办 pending /
+// 项目=Project 计数），client fetch on mount + 路由变化 revalidate；计数 0 → 隐藏；
+// fetch 失败 → 全隐藏不抛错（D2 诚实降级）；洞察徽标退役（无真源不显假数，恢复归 M4）。
 
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { HiX } from 'react-icons/hi';
 import { MdShield } from 'react-icons/md';
@@ -13,13 +18,19 @@ import NavLink from 'components/link/NavLink';
 import Badge from 'components/common/Badge';
 import { IRoute } from 'types/navigation';
 
-// ARCH-M05 mock — S1-7 🔒 待办数字徽标（原型 NAV cnt：today=3 / 项目=4 / 洞察=2，
-// 「今天雷达」入口信号非装饰）；M1 起由待办服务喂真值。
-const NAV_BADGE_MOCK: Record<string, number> = {
-  '/today': 3,
-  '/campaigns': 4,
-  '/insight': 2,
-};
+interface NavBadges {
+  today: number;
+  projects: number;
+}
+
+/** 徽标真值 → 各入口的映射（洞察不映射 = 徽标退役）。0 / 无值 → null 隐藏。 */
+function badgeFor(badges: NavBadges | null, path: string): number | null {
+  if (badges == null) return null;
+  if (path === '/today') return badges.today > 0 ? badges.today : null;
+  if (path === '/campaigns')
+    return badges.projects > 0 ? badges.projects : null;
+  return null;
+}
 
 function SidebarHorizon(props: {
   routes: IRoute[];
@@ -30,6 +41,29 @@ function SidebarHorizon(props: {
 }) {
   const { routes, open, setOpen, variant } = props;
   const pathname = usePathname();
+
+  // F008：徽标真计数——mount + 路由变化 revalidate；失败保持 null/旧值（徽标隐藏/沿用），
+  // 绝不抛错打断侧栏渲染（D2）。
+  const [badges, setBadges] = useState<NavBadges | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/nav-badges')
+      .then((r) => (r.ok ? (r.json() as Promise<unknown>) : null))
+      .then((data) => {
+        if (cancelled || data == null || typeof data !== 'object') return;
+        const d = data as { today?: unknown; projects?: unknown };
+        setBadges({
+          today: typeof d.today === 'number' ? d.today : 0,
+          projects: typeof d.projects === 'number' ? d.projects : 0,
+        });
+      })
+      .catch(() => {
+        // D2：fetch 失败 → 徽标全隐藏（badges 保持 null）/ 沿用上次值，不抛错
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
   return (
     <div
@@ -70,7 +104,7 @@ function SidebarHorizon(props: {
           {routes.map((route) => {
             const href = `${route.layout}${route.path}`;
             const active = pathname?.startsWith(href) ?? false;
-            const badge = NAV_BADGE_MOCK[route.path ?? ''];
+            const badge = badgeFor(badges, route.path ?? '');
             return (
               <NavLink key={route.path} href={href}>
                 <div className="relative flex cursor-pointer items-center gap-3.5 px-3.5 py-2.5">
@@ -124,7 +158,8 @@ function SidebarHorizon(props: {
           <b className="relative block text-[15px] font-bold">Agent 自动边界</b>
           {/* S1-12 🔒 说明（文案逐字原型 L436） */}
           <p className="relative mt-1.5 text-micro leading-relaxed text-white/85">
-            可检索 · 评估 · 匹配 · 起草。发送 / 报价 / 放款 / 分享一律停在你面前。
+            可检索 · 评估 · 匹配 · 起草。发送 / 报价 / 放款 /
+            分享一律停在你面前。
           </p>
         </div>
       </Card>

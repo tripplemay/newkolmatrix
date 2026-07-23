@@ -55,7 +55,9 @@ beforeAll(async () => {
       canonicalHandle: `m3a-send-has-email-${process.pid}`,
       displayName: '有邮箱创作者',
       contactEmail: TEST_EMAIL,
-      fieldProvenance: { contactEmail: 'user_input' },
+      fieldProvenance: {
+        contactEmail: { source: 'user_input', fetchedAt: new Date().toISOString() },
+      },
     },
   });
   kolWithEmail = k1.id;

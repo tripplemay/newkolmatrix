@@ -159,10 +159,11 @@ describe('D. 读写不对称（值缺失→待核占位；值在溯源空→ai_e
   });
 });
 
-describe('E. ProvenanceTag 来源双通道（图标+文字，六档全覆盖）', () => {
+describe('E. ProvenanceTag 来源双通道（图标+文字，七档全覆盖）', () => {
   it('E1 SOURCE_META 覆盖全部 DataSource 且每档 图标+文字 齐备', () => {
     const sources = dataSourceSchema.options;
-    expect(sources).toHaveLength(6);
+    // 6 → 7：M3-A F007 扩 user_input（contactEmail 人工录入档）
+    expect(sources).toHaveLength(7);
     for (const s of sources) {
       const meta = SOURCE_META[s];
       expect(meta, `${s} 缺 SOURCE_META 条目`).toBeTruthy();

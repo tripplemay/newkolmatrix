@@ -10,6 +10,7 @@ import { useState } from 'react';
 import type { IconType } from 'react-icons';
 import {
   MdAutoAwesome,
+  MdEditNote,
   MdHowToReg,
   MdReceiptLong,
   MdTravelExplore,
@@ -18,16 +19,19 @@ import {
 } from 'react-icons/md';
 import type { DataSource, ResolvedProvenance } from 'lib/data/provenance';
 
-/** 来源 → 图标+文字（双通道，六档全覆盖；顺序即可信度从高到低，§7.5） */
-export const SOURCE_META: Record<DataSource, { label: string; Icon: IconType }> =
-  {
-    platform_api: { label: '平台 API', Icon: MdVerified },
-    optin: { label: '主动入驻', Icon: MdHowToReg },
-    purchased: { label: '外购评估', Icon: MdReceiptLong },
-    crawl: { label: 'Apify 采集', Icon: MdTravelExplore },
-    user_upload: { label: '你上传', Icon: MdUploadFile },
-    ai_estimate: { label: 'AI 估算·未验证', Icon: MdAutoAwesome },
-  };
+/** 来源 → 图标+文字（双通道，七档全覆盖；顺序即可信度从高到低，§7.5） */
+export const SOURCE_META: Record<
+  DataSource,
+  { label: string; Icon: IconType }
+> = {
+  platform_api: { label: '平台 API', Icon: MdVerified },
+  optin: { label: '主动入驻', Icon: MdHowToReg },
+  purchased: { label: '外购评估', Icon: MdReceiptLong },
+  crawl: { label: 'Apify 采集', Icon: MdTravelExplore },
+  user_upload: { label: '你上传', Icon: MdUploadFile },
+  user_input: { label: '人工录入', Icon: MdEditNote }, // M3-A F007：contactEmail 抽屉录入
+  ai_estimate: { label: 'AI 估算·未验证', Icon: MdAutoAwesome },
+};
 
 const CONFIDENCE_LABEL: Record<'high' | 'medium' | 'low', string> = {
   high: '高',
@@ -35,11 +39,12 @@ const CONFIDENCE_LABEL: Record<'high' | 'medium' | 'low', string> = {
   low: '低',
 };
 
-const RESOLVED_FROM_LABEL: Record<ResolvedProvenance['resolvedFrom'], string> = {
-  field: '字段级溯源（fieldProvenance 覆盖）',
-  row: '实体级默认（dataSource）',
-  fallback: '保守下限（无溯源记录，按 AI 估算·未验证处理）',
-};
+const RESOLVED_FROM_LABEL: Record<ResolvedProvenance['resolvedFrom'], string> =
+  {
+    field: '字段级溯源（fieldProvenance 覆盖）',
+    row: '实体级默认（dataSource）',
+    fallback: '保守下限（无溯源记录，按 AI 估算·未验证处理）',
+  };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -115,7 +120,9 @@ export default function ProvenanceTag({
     return (
       <span
         title={RESOLVED_FROM_LABEL[provenance.resolvedFrom]}
-        className={`inline-flex items-center gap-1 text-micro text-gray-600 dark:text-gray-400${className ? ` ${className}` : ''}`}
+        className={`inline-flex items-center gap-1 text-micro text-gray-600 dark:text-gray-400${
+          className ? ` ${className}` : ''
+        }`}
       >
         <Icon size={12} aria-hidden className={`shrink-0 ${iconTone}`} />
         {text}

@@ -137,7 +137,9 @@ async function main(): Promise<void> {
       displayName: 'Gate Smoke 测试创作者',
       handle: FIXTURE.kolHandle,
       contactEmail: FIXTURE.email,
-      fieldProvenance: { contactEmail: 'user_input' },
+      fieldProvenance: {
+        contactEmail: { source: 'user_input', fetchedAt: new Date().toISOString() },
+      },
     },
     select: { id: true },
   });

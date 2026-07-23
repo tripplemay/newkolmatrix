@@ -116,9 +116,9 @@ export async function loadCreatorsPageData(
   const platformKey =
     platform === '全部'
       ? null
-      : (Object.entries(PLATFORM_CHIP_LABEL).find(
+      : Object.entries(PLATFORM_CHIP_LABEL).find(
           ([, label]) => label === platform,
-        )?.[0] ?? platform.toLowerCase());
+        )?.[0] ?? platform.toLowerCase();
   const listRows = await prisma.kol.findMany({
     where: {
       tenantId,
@@ -137,6 +137,7 @@ export async function loadCreatorsPageData(
       platform: true,
       followers: true,
       categories: true,
+      contactEmail: true, // M3-A F007：抽屉录入口读侧
       audienceDemo: true,
       credibility: true,
       brandSafety: true,

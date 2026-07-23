@@ -124,6 +124,8 @@ export interface CreatorView {
   /** 可信分级；null → 待核 */
   cred: CredGrade | null;
   ad: 'ok' | 'warn';
+  /** M3-A F007（P3）：联系邮箱——抽屉人工录入，send_outreach 收件地址源；null → 待补充 */
+  contactEmail: string | null;
   dataSource: unknown;
   fieldProvenance: unknown;
   deep: CreatorDeepView;
@@ -176,6 +178,7 @@ export type KolRowLike = Pick<
   | 'platform'
   | 'followers'
   | 'categories'
+  | 'contactEmail'
   | 'audienceDemo'
   | 'credibility'
   | 'brandSafety'
@@ -203,6 +206,8 @@ export function kolToCreatorView(kol: KolRowLike): CreatorView {
     cred: credGrade,
     // brandSafety 有值且 safe → 合规；其余（null/review/risk）→ 待核（现有二态 UI 语义）
     ad: safety?.rating === 'safe' ? 'ok' : 'warn',
+    // M3-A F007：抽屉行内录入的读侧（?? null 兜历史 KolRowLike 夹具缺键）
+    contactEmail: kol.contactEmail ?? null,
     dataSource: kol.dataSource,
     fieldProvenance: kol.fieldProvenance,
     deep: {

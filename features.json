@@ -60,7 +60,7 @@
       "title": "Kol.contactEmail 抽屉录入口 + PATCH API",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "CreatorDrawer 行内录入（M2-B 裁定入口同款交互）+ fieldProvenance=user_input。",
       "acceptance": "抽屉可录入/清除 contactEmail；PATCH API zod email 校验（坏格式 400 明示）；fieldProvenance 标 user_input；ProvenanceTag 正确显示；录入后 send_outreach 可用该地址（与 F003 联动断言）；涉及布局变更则视觉基线对账（§4.5）"
     },

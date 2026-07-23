@@ -23,6 +23,7 @@ export const dataSourceSchema = z.enum([
   'purchased', // 外购评估
   'crawl', // Apify 采集
   'user_upload', // 用户上传
+  'user_input', // 人工录入（M3-A F007：contactEmail 抽屉录入口；与 user_upload 同档人源）
   'ai_estimate', // AI 估算·未验证（保守下限）
 ]);
 export type DataSource = z.infer<typeof dataSourceSchema>;

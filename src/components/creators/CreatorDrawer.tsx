@@ -9,12 +9,13 @@
 // 深字段经 lib/data/provenance 契约层：null → 待接入/待补充/待核 占位、无数据点、无溯源徽标
 //（读写不对称 §7.5.2）；🔒 专家判断 dw-jc ×3 各带 Agent 主题色彩条（agent-theme），不得合并。
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Drawer, DrawerContent, DrawerOverlay } from '@chakra-ui/modal';
 import {
   MdAttachMoney,
   MdAutoAwesome,
   MdClose,
+  MdEditNote,
   MdMailOutline,
   MdOutlineFolder,
   MdOutlinePeopleAlt,
@@ -262,6 +263,151 @@ function ShareBars({
           </b>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * M3-A F007 — contactEmail 行内录入（M2-B F006 VerdictButtons 同款交互形态：
+ * ghost sm 按钮 + fetch + toast 错误明示；internal 动作无确认弹窗、零 PendingAction）。
+ * 展示态（有值：email + ProvenanceTag(user_input) + 修改/清除；无值：待补充 + 录入入口）
+ * ⇄ 编辑态（input + 保存/取消）；PATCH 成功后本地状态即时更新（抽屉内真值，
+ * 列表 RSC 数据下次刷新对齐）。格式校验在服务端（zod email，坏格式 400 明示 → toast 原文）。
+ * ⚠️ P1（M3-A spec §3/§7）：真实 KOL 行不得写入测试地址——测试/验收只对夹具行或
+ * VK-FULL 白名单行录入 OUTREACH_TEST_RECIPIENT 的值。
+ */
+function ContactEmailField({
+  kolId,
+  initialEmail,
+  initialProv,
+}: {
+  kolId: string;
+  initialEmail: string | null;
+  /** 初值溯源（resolveProvenance('contactEmail')）；无值行 = null 不渲染徽标（§7.5.2） */
+  initialProv: ResolvedProvenance | null;
+}) {
+  const toast = useToast();
+  const [email, setEmail] = useState(initialEmail);
+  const [prov, setProv] = useState(initialProv);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (value: string | null) => {
+    setSaving(true);
+    try {
+      const res = await fetch(
+        `/api/kols/${encodeURIComponent(kolId)}/contact`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contactEmail: value }),
+        },
+      );
+      const body = (await res.json()) as {
+        contactEmail?: string | null;
+        error?: string;
+      };
+      if (!res.ok) {
+        toast(body.error ?? '录入失败，请重试');
+        return;
+      }
+      const saved = body.contactEmail ?? null;
+      setEmail(saved);
+      // fieldProvenance 已在服务端标 user_input（field 级）；本地镜像同形状
+      setProv(
+        saved
+          ? {
+              source: 'user_input',
+              confidence: null,
+              fetchedAt: new Date().toISOString(),
+              resolvedFrom: 'field',
+            }
+          : null,
+      );
+      setEditing(false);
+      toast(saved ? '联系邮箱已录入（来源：人工录入）' : '联系邮箱已清除');
+    } catch {
+      toast('录入失败，请重试');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="border-b border-gray-100 py-[9px] dark:border-white/10">
+      <div className="flex items-center justify-between gap-3 text-compact text-gray-700 dark:text-gray-400">
+        <span>联系邮箱</span>
+        {editing ? null : email ? (
+          <span className="flex min-w-0 items-center gap-2">
+            <b className="truncate font-bold text-navy-700 dark:text-white">
+              {email}
+            </b>
+            {prov ? <ProvenanceTag variant="badge" provenance={prov} /> : null}
+          </span>
+        ) : (
+          <span className="text-gray-600 dark:text-gray-500">
+            {PENDING_TEXT.fill}
+          </span>
+        )}
+      </div>
+      {editing ? (
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            type="email"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void submit(draft);
+            }}
+            placeholder="talent@example.com"
+            aria-label="联系邮箱"
+            autoFocus
+            className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm text-navy-700 outline-none focus:border-brand-500 dark:border-white/10 dark:bg-navy-900 dark:text-white"
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={saving}
+            onClick={() => void submit(draft)}
+          >
+            保存
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={saving}
+            onClick={() => setEditing(false)}
+          >
+            取消
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-1.5 flex gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            leftIcon={<MdEditNote className="h-4 w-4" aria-hidden />}
+            onClick={() => {
+              setDraft(email ?? '');
+              setEditing(true);
+            }}
+          >
+            {email ? '修改' : '录入邮箱'}
+          </Button>
+          {email ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={saving}
+              leftIcon={<MdClose className="h-4 w-4" aria-hidden />}
+              onClick={() => void submit(null)}
+            >
+              清除
+            </Button>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
@@ -616,6 +762,15 @@ export default function CreatorDrawer({
             title="商务与档期"
             prov={deep.price ? provOf(CREATOR_PROV_FIELDS.commerce) : null}
           >
+            {/* M3-A F007：联系邮箱行内录入（send_outreach 收件地址源，P3）。
+                key=creator.id 使切换创作者时状态重置；
+                ⚠️ P1：真实 KOL 行不得写入测试地址（验收仅 VK-FULL 白名单行）。 */}
+            <ContactEmailField
+              key={creator.id}
+              kolId={creator.id}
+              initialEmail={creator.contactEmail}
+              initialProv={creator.contactEmail ? provOf('contactEmail') : null}
+            />
             {deep.price ? (
               <>
                 <KvRow label="长视频报价" value={deep.price.video} />

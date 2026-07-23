@@ -156,18 +156,15 @@ describe('HTTP 层（旧项目样例回放）', () => {
     expect(await res.json()).toMatchObject({ ok: true, matched: 0 });
   });
 
-  it('providerMessageId 未匹配本项目消息 → matched=0 不落库', async () => {
+  it('providerMessageId 未匹配本项目消息 → matched=0 不落库（应用层直调：route 依赖 dev tenant，CI 库无 seed）', async () => {
     const before = await prisma.signal.count({ where: { tenantId } });
-    const res = await POST(
-      buildSignedRequest(
-        SECRET,
-        { type: 'email.opened', data: { email_id: 'someone-elses-message' } },
-        { ip: '198.51.100.14' },
-      ),
+    const out = normalizeResendEvent(
+      { type: 'email.opened', data: { email_id: 'someone-elses-message' } },
+      'svix_unmatched_1',
     );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as { matched: number };
-    expect(body.matched).toBe(0);
+    if (!out.ok) throw new Error('normalize 应通过');
+    const r = await ingestDeliverySignal(out.signal, { tenantId });
+    expect(r).toMatchObject({ matched: 0, duplicate: false });
     expect(await prisma.signal.count({ where: { tenantId } })).toBe(before);
   });
 

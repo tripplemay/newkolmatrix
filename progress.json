@@ -1,33 +1,32 @@
 {
-  "status": "done",
-  "user_goal": "M2-A-MATCH（match 域纵切第一批）：MatchPlan/PlanKol/MatchCandidate 三表 → matchScore 可解释评分纯函数 → 候选/组合规则化生成（无 LLM 打分）→ 对比矩阵/待裁定接真 + mock 退役 → 批准 internal 落库 + →reach 守卫解锁（S10 消解）→ nightly-screen 例程（scheduler 注册表化）→ match 工具 + canvas ADR-28 + uiSyntax 注入 → 侧栏徽标接真（U4）→ SW-R1 退役 + OBS-1 迁移收尾。用户四裁决：U1 compose learning 已沉淀 v1.0.10 / U2 纵切先行（抽屉七分区+深字段数据源留 M2-B）/ U3 SW-R1 退役 / U4 徽标纳入。",
-  "total_features": 9,
-  "completed_features": 9,
+  "status": "building",
+  "user_goal": "M2-B-CREATORS（创作者域纵切）：apify-kol 外采接入（纯外部采集 U1，拉模型只读存量零投喂 P1）→ Kol 库真数据增强 + 深字段规则派生填充（interests/credibility；brandSafety 契约先立无源待接入）→ creators 页/抽屉七分区接真 + mock 退役 + ProvenanceTag 真溯源（dataSource 归一消解恒 ai_estimate bug）→ MatchCandidate 裁定写入口（行内双钮 U3 布局变更 + 原型/清单同步）→ 评分受众加权端到端升级验证 → 部署面（kol-shared 网络 + compose 人工步 ×2）。用户五裁决：U1 纯外采+复裁规则派生 / U2 基线+裁定写入口 / U3 行内双钮 / U4 v1.0.11 Accept / U5 BL-FE-16 搁置。",
+  "total_features": 8,
+  "completed_features": 0,
   "fix_rounds": 0,
-  "current_sprint": "M2-A-MATCH",
+  "current_sprint": "M2-B-CREATORS",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-22T23:30",
+  "last_updated": "2026-07-23T09:40",
   "reference_docs": [
-    "docs/specs/M2-A-MATCH-spec.md",
+    "docs/specs/M2-B-CREATORS-spec.md",
     "docs/dev/architecture.md",
-    "docs/dev/agent-architecture.md",
     "framework/patterns/web-runtime-patterns.md",
     "framework/patterns/database-patterns.md",
-    "framework/patterns/ai-action-contract.md",
+    "framework/patterns/ui-fidelity-guardrail.md",
     "docs/specs/ARCH-M05-ui-inventory.md",
-    "docs/test-reports/M1-D-KNOWLEDGE-signoff-2026-07-22.md"
+    "docs/test-reports/M2-A-MATCH-signoff-2026-07-22.md"
   ],
   "docs": {
-    "spec": "specs/M2-A-MATCH-spec.md",
+    "spec": "specs/M2-B-CREATORS-spec.md",
     "test_cases": null,
-    "signoff": "test-reports/M2-A-MATCH-signoff-2026-07-22.md",
+    "signoff": null,
     "framework_reviewed": true
   },
   "role_assignments": null,
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M2-A-MATCH 首轮验收 10/10 PASS → done · 2026-07-22】\n■ fan-out 验收（9 features + READINESS 各 1 隔离 evaluator subagent，Workflow 编排）全 PASS，fix_rounds=0，对抗复核零触发；signoff = test-reports/M2-A-MATCH-signoff-2026-07-22.md（机械汇总，结论原样）。首轮 workflow 8 个 subagent 撞 API 连接故障（ECONNRESET/证书），resume 后全完成——基础设施故障非验收问题。\n■ READINESS 对 f008/f010 探针做锚点校准（断言语义零变更；f010 旧锚 mock 时代实为假绿）；Evaluator 新增 5 个 m2a-* 验证脚本入 scripts/test/。building 阶段关键实证与踩坑（dev server 残活 :3000 基线污染，坑已录 proposed-learnings 待裁决）见 git 历史与各 commit 正文。\n■ 待办：proposed-learnings 1 条待用户裁决；部署 = 用户目标已明示「完成上线」，按 deploy.md 执行（image_tag = 产品代码 commit 3d93f72 完整 40 位 SHA；本批 compose 零变更不需 scp）。\n■ 观察项（不阻塞）：Kol 实测 2524 行（口径惯写 2525）；仓内无 .nvmrc。",
+    "Andy": "【M2-B-CREATORS planning 完成 → building · 2026-07-23】\n■ 立项五裁决（AskUserQuestion 实答）：U1 纯外部采集 + 复裁规则派生填充（实物披露：apify-kol 无受众/真实性/内容安全能力）；U2 基线+裁定写入口；U3 行内双钮（布局变更标注）；U4 v1.0.11 Accept 已沉淀；U5 BL-FE-16 搁置。\n■ 勘查底座 = 双路侦察（apify-kol 服务实物 + creators/drawer UI 实物，文件:行 全核）+ API 真样本四平台 9 行 pin（v0.9.19 铁律；YT Bobicraft id=282974）。存量 8800+ 行（YT 4064/TT 4302/IG 469/X 枚举缺口）。\n■ 本批注意：F003 sync dev 环境不可达内网（探活静默跳过属预期，L2 走 ssh 隧道）；F004/F005 基线重生必按 §4.5 重生序（先杀 :3000）；F006 布局变更 = 原型+ui-inventory 同批同步；F008 compose 人工步 ×2（scp + VPS .env 加 key）；embedding 一次性用量 <1M token；TikHub 零调用零充值。\n■ M2-A done + 已上线 @ 3d93f72（四项验证过）；proposed-learnings 清零（harness-fit 长期挂起除外）。\n■ 用户已指令开工（spec lock 实答「锁定，开工」）。",
     "Reviewer": null
   },
   "lane": "fast"

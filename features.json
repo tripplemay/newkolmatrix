@@ -60,7 +60,7 @@
       "title": "评分升级端到端验证",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "集成测试打真库 mock 向量：外采派生 interests 入场→generateCandidates scorePending=false 真路径/「受众数据待接入」doubt 消失/preJudge 分档变化/matchScore=0.7 similarity+0.3 audienceFit 加权断言；evaluate_creator 消费真 audienceDemo 同断言；interests 全空行仍降级待核（D2 回归）；match 面候选列 scorePending=false 显真 %（真库集成断言）；M2-A D20 全量回归无损（match-services/match-approve/nightly-screen 套件绿）；lint + tsc + test:unit 绿",
       "description": "spec §2 F007。勘查实证：extractInterests 只认 {interests:string[]}，落库即零代码自动升级（:73-81）。"
     },

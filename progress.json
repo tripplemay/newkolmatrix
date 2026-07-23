@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "M2-B-CREATORS（创作者域纵切）：apify-kol 外采接入（纯外部采集 U1，拉模型只读存量零投喂 P1）→ Kol 库真数据增强 + 深字段规则派生填充（interests/credibility；brandSafety 契约先立无源待接入）→ creators 页/抽屉七分区接真 + mock 退役 + ProvenanceTag 真溯源（dataSource 归一消解恒 ai_estimate bug）→ MatchCandidate 裁定写入口（行内双钮 U3 布局变更 + 原型/清单同步）→ 评分受众加权端到端升级验证 → 部署面（kol-shared 网络 + compose 人工步 ×2）。用户五裁决：U1 纯外采+复裁规则派生 / U2 基线+裁定写入口 / U3 行内双钮 / U4 v1.0.11 Accept / U5 BL-FE-16 搁置。",
   "total_features": 8,
-  "completed_features": 6,
+  "completed_features": 7,
   "fix_rounds": 0,
   "current_sprint": "M2-B-CREATORS",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-23T14:40",
+  "last_updated": "2026-07-23T15:10",
   "reference_docs": [
     "docs/specs/M2-B-CREATORS-spec.md",
     "docs/dev/architecture.md",

@@ -10,7 +10,7 @@ type: project
 ## 已上线
 - `https://newkol.guangai.ai` 现跑 **M3-A @ `a2751fd71b7572de276b0b7fc70ad8065c831810`**（2026-07-23 部署，run 30042655947）。上线验证 5/5 过：health 200 / 镜像 SHA 精确对齐 / M3-A 迁移 20260723115700 落地（7 态枚举+4 表）/ `/api/actions` 404 分码 / `/api/signals/inbound` 401 fail-closed；三 env 键实际注入容器（RESEND_API_KEY re_ 真格式 36 位 / WEBHOOK_SECRET 38 位 / OUTREACH_TEST_RECIPIENT=tripplezhou@gmail.com）。回滚=deploy-prod 填 `42bacb3dda7aebfdd71bc4a859987d7d2a9ee717`（M2-C）
 - ⚠️ 部署 SHA=a2751fd（运行时代码状态，之后 defb9da/2c396a6 纯文档 paths-ignore 未 build）≠HEAD 2c396a6；image_tag 必须完整 40 位 SHA
-- **待补验**：prod 真投递 REAL（`reach:e2e` REAL 分支仅发 tripplezhou@gmail.com，验 mocked=false+providerMessageId+webhook 回流）——真发邮件不可逆，待用户明确许可后执行
+- **真投递 REAL 已补验 ✅（2026-07-23）**：prod HTTP 全链（send→confirm→execute）真发一封至 tripplezhou@gmail.com，mocked=false + providerMessageId=b63b60a2 + 落库 5/5（sent 消息/thread→sent/irrev/executed/P1 零误发）；**webhook 回流 20s 内到达**（Resend delivered → Svix 验签 → Signal 落库）——真链路端到端闭环。合成夹具已清态，残留归零 + P1 终极核验全库无测试邮箱污染
 
 ## 需求池 / 待人类
 - backlog：仅 BL-FE-16（搁置）

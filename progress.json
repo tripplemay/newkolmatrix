@@ -1,12 +1,12 @@
 {
-  "status": "reverifying",
+  "status": "done",
   "user_goal": "触达域立真：CRM 四表+五态事件推断+Resend 真实投递（复用旧项目已验证配置）+闸门两步票据 7 态+V6 收件箱接真",
   "total_features": 10,
   "completed_features": 10,
   "fix_rounds": 2,
   "current_sprint": "M3-A-REACH-CRM",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-23T10:30",
+  "last_updated": "2026-07-23T10:40",
   "reference_docs": [
     "docs/specs/M2-C-AGENT-HONESTY-spec.md",
     "docs/test-reports/user_report/M2C-agent-honesty-2026-07-23.md",
@@ -18,14 +18,14 @@
   "docs": {
     "spec": "specs/M3-A-REACH-CRM-spec.md",
     "test_cases": null,
-    "signoff": null,
+    "signoff": "test-reports/M3A-reach-crm-signoff-2026-07-23.md",
     "framework_reviewed": false
   },
   "role_assignments": null,
   "evaluator_feedback": null,
-  "generator_handoff": "M3-A building 10/10 完成（commits 773799b..6b30d40+）。验收工具：npm run gate:smoke（G1-G8）/ npm run reach:e2e（默认 mock；REAL 模式需 RESEND_API_KEY+OUTREACH_TEST_RECIPIENT）/ test:unit 504 例 / test:visual 13 基线。注意：① 真投递 L2：密钥仅在 VPS（U2 不离服务器），本地 REAL 跑不了——真发验证路径 = 用户触发 deploy-prod 后在 prod 实测（OUTREACH_TEST_RECIPIENT=tripplezhou@gmail.com 已入 VPS .env，服务器侧已复制 RESEND_API_KEY，compose 已 scp）；② RESEND_WEBHOOK_SECRET 已写入 VPS .env（2026-07-23，用户建 endpoint 后提供新签发 secret）——部署面三键全齐，webhook 生效待 M3-A 版本部署上线；本地 webhook 验证用签名样例回放（tests/integration/signals-inbound.test.ts 已覆盖）；③ 本机跑 test:visual 必须伪造 AIGCGATEWAY_*（真凭据会致 match 空态用例超时）+ 先 kill :3000；④ F008 pre-impl 审计 5 决议全 A 见 docs/specs/M3-A-REACH-CRM-F008-v6-wiring-audit.md（ui-inventory V6 24→26 登记）；⑤ 集成测夹具租户全部独立（test-tenant-m3a-*），CI 无 dev tenant——验收脚本勿依赖 seed。",
+  "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M3-A-REACH-CRM building 10/10 完成 → verifying · 2026-07-23】\n■ 快车道 + 并行 subagent×2（F005 crmInfer / F007 contactEmail，worktree cherry-pick 汇合）；F008 pre-impl 审计 5 决议全 A（同 commit 裁决，§4.6 豁免）。\n■ 踩坑记录：① CI 会跑集成测且无 dev tenant——route 层测试必须下沉服务层+夹具租户（F004 红灯教训）；② 视觉新基线 CI 首推必红（linux 基线走 update-visual-baselines workflow + pull 回）；③ F005 合成语义 = 多 override 取最新（纯 override 场景可人工改标，非「不回退」——事件面才是地板）；④ fieldProvenance 必须条目对象形状 {source,fetchedAt}，flat 字符串会整表降级击穿既有徽标。\n■ 部署面：RESEND_API_KEY 服务器侧已复制 / OUTREACH_TEST_RECIPIENT=tripplezhou@gmail.com 已入 VPS .env / compose 已 scp；RESEND_WEBHOOK_SECRET 待用户控制台创建 endpoint 后写入；真发 L2 = 部署后 prod 实测（密钥不离服务器）。",
+    "Andy": "【M3-A-REACH-CRM done ✅ · 2026-07-23 · 快车道 · fix_rounds=2】\n■ 10/10 PASS（三轮：round1 fan-out×10+对抗×3 → 7P/2F/1PARTIAL；fix1 cf94c5d 修 payloadHash undefined-键中毒[critical]+工具注册去模块图副作用[high]+18 例回归；round2 F002/F008 PASS·F010 PARTIAL；fix2 defb9da 文档面 :1151 反向漂移段+枚举计数；round3 窄幅复验全 PASS）。\n■ 关键 bug（隔离验收抓出，building 自测漏）：/api/reach/send 恒带 language 键（多 undefined），stableStringify 计入建卡 hash 而 Prisma JSONB 丢 undefined 键 → V6 发送 confirm 恒 403。根治=stableStringify 对齐 JSON/JSONB 往返语义。教训：闸门类 feature 必须有「HTTP 创建→confirm」回归（服务层直调入参无 undefined 键会漏检）。\n■ 待用户：触发 deploy-prod 部署 M3-A（部署面三键已就位 VPS）→ prod 补验真投递 REAL（仅 tripplezhou@gmail.com）+ webhook 回流。\n■ soft-watch 5 项随批记账（F003×2/F004×1/F002-XFF/L2-REAL），均有明文兜底。下批 M3-B-DELIVERY。",
     "Reviewer": null,
     "Mark": "M3-A-REACH-CRM 立项完成（spec lock 2026-07-23）：U1 拆 M3-A/M3-B；U2 复用旧项目 Resend（铁律 8 已核证：/opt/apps/kolmatrix/.env 有 RESEND_API_KEY+WEBHOOK_SECRET，域 kolquest.com verified ap-northeast-1，密钥未离开服务器）；U3 闸门 7 态全量；U4 有限覆盖。P1 真发仅 OUTREACH_TEST_RECIPIENT 不碰真实 KOL；P4 port 旧项目 src/lib/email/resend.ts + webhooks/resend（gh repo tripplemay/kolmatrix，EmailLog/withTenant 不 port）；P5 SENT_MARKER 转正 MockEmailSender。下会话 /build 从 F001 起：F001→F002→F003 串行，F005/F007 可并行。坑提醒：真凭据跑 test:visual 必伪造 AIGCGATEWAY_*；基线重生前 kill :3000；gh API 本会话曾触 rate limit（复用 port 时注意）。"
   },

@@ -1,0 +1,456 @@
+{
+  "note": "M2-B F001 — apify-kol GET /kol 真样本 pin（2026-07-23 实测，联系方式与 raw 已脱敏保形状；v0.9.19 铁律）",
+  "envelope_example": {
+    "page": 1,
+    "pageSize": 2,
+    "total": 4302
+  },
+  "rows": [
+    {
+      "id": "282974",
+      "platform": "youtube",
+      "platformUserId": "UCMQOumrt3C7fFRT8oBc436Q",
+      "username": "UCMQOumrt3C7fFRT8oBc436Q",
+      "displayName": "Bobicraft",
+      "bio": "¡Bienvenidos nuevamente a Bobicraft!\n\nGanador de Minecraft 10 Aniversario, rompimos el Record Guinness de mayor cantidad de gente vestida como Steve, Autor de libros, Canal #1 más visto en noticias, novedades, snapshots, curiosidades, tops, diversión, información y documentales de #Minecraft.\n\n¡Disfruta los #videos! \n\n📧 Negocios: bobicraft@mcr-agency.com\n📧 Correo de fans: contactobobicraft@gmail.com\n\n🟣 TWITCH:  https://www.twitch.tv/bobicraftmc\n🔵 TWITTER: @BobicraftMC https://twitter.com/BobicraftMC\n🟢 DISCORD: https://discord.gg/Bobicraft\n⚫ TIKTOK: https://www.tiktok.com/@bobicraftmc?lang=es\n🟠 INSTAGRAM: https://www.instagram.com/bobicraftmc/\n🔴 FACEBOOK: https://www.facebook.com/gaming/BobicraftReal\n\n📚 Mis Libros:  https://linktr.ee/bobicraft\n",
+      "avatarUrl": "https://yt3.googleusercontent.com/vQosRxVIK2oO3skrnDtDcybXjjbX5JB1jqBTTUzxk81zZfuJ7sxC2j7QyrQ4qma-9qmuhDecOg=s72-c-k-c0x00ffffff-no-rj",
+      "profileUrl": "https://www.youtube.com/channel/UCMQOumrt3C7fFRT8oBc436Q",
+      "followers": 9240000,
+      "following": null,
+      "postsCount": 3500,
+      "totalLikes": 5687236310,
+      "totalViews": 5687236310,
+      "verified": true,
+      "isBusinessAccount": null,
+      "isPrivate": null,
+      "businessCategory": null,
+      "location": "Mexico",
+      "joinedDate": "Feb 20, 2013",
+      "hasBusinessEmail": true,
+      "liveBroadcastId": null,
+      "emails": [
+        "redacted@example.invalid"
+      ],
+      "phones": [],
+      "telegrams": [],
+      "discords": [
+        "redacted"
+      ],
+      "socialHandles": {
+        "tiktok": "bobicraftmc",
+        "twitch": "bobicraftmc",
+        "twitter": "BobicraftMC",
+        "instagram": "bobicraftmc"
+      },
+      "externalUrl": "linktr.ee/bobicraft",
+      "externalUrls": [
+        {
+          "url": "linktr.ee/bobicraft",
+          "text": "Mis Libros "
+        },
+        {
+          "url": "twitter.com/BobicraftMC",
+          "text": "Twitter"
+        },
+        {
+          "url": "instagram.com/bobicraftmc/?hl=es",
+          "text": "Instagram "
+        },
+        {
+          "url": "tiktok.com/@bobicraftmc?lang=es",
+          "text": "Tiktok "
+        }
+      ],
+      "aggregatorUrl": null,
+      "aggregatorResolvedAt": null,
+      "aggregatorEmails": [],
+      "aggregatorLinks": null,
+      "relevanceScore": 0.4,
+      "influenceScore": 0.9951941,
+      "qualityScore": null,
+      "reachabilityScore": 0.7,
+      "matchedTags": [],
+      "matchedKeywords": [
+        "minecraft"
+      ],
+      "isSeed": false,
+      "sourceKolIds": [],
+      "tier": "hot",
+      "nextRefreshAt": "2026-06-24T02:23:16.355Z",
+      "raw": {
+        "_sanitized": true
+      },
+      "firstScrapedAt": "2026-06-10T02:23:16.349Z",
+      "lastScrapedAt": "2026-06-10T02:23:16.349Z",
+      "scrapeCount": 1,
+      "createdAt": "2026-06-10T02:23:16.350Z",
+      "updatedAt": "2026-06-10T02:23:16.355Z"
+    },
+    {
+      "id": "282972",
+      "platform": "youtube",
+      "platformUserId": "UCEuN0IauvXNTn6KhP9AVJVw",
+      "username": "UCEuN0IauvXNTn6KhP9AVJVw",
+      "displayName": "xNestorio",
+      "bio": "Minecraft guy in a suit 👔 \n\nWELCOME!\n\n🏹 Join the army today by SUBSCRIBING (it's free)! \n\nOperated by Team xNestorio! - https://xnestor.io/\n\nshot em",
+      "avatarUrl": "https://yt3.googleusercontent.com/ytc/AIdro_lVfGD3FrG0TQ5iTHlFyJLGM-1m80e4iEFb91FDUcJb_Ow=s72-c-k-c0x00ffffff-no-rj",
+      "profileUrl": "https://www.youtube.com/channel/UCEuN0IauvXNTn6KhP9AVJVw",
+      "followers": 6810000,
+      "following": null,
+      "postsCount": 1600,
+      "totalLikes": 1718893269,
+      "totalViews": 1718893269,
+      "verified": false,
+      "isBusinessAccount": null,
+      "isPrivate": null,
+      "businessCategory": null,
+      "location": "United States",
+      "joinedDate": "Nov 13, 2012",
+      "hasBusinessEmail": true,
+      "liveBroadcastId": null,
+      "emails": [],
+      "phones": [],
+      "telegrams": [],
+      "discords": [],
+      "socialHandles": {},
+      "externalUrl": "xnestor.io",
+      "externalUrls": [
+        {
+          "url": "xnestor.io",
+          "text": "xnestor.io"
+        },
+        {
+          "url": "instagram.com/xnestorio",
+          "text": "Instagram"
+        },
+        {
+          "url": "twitch.tv/xnestorio",
+          "text": "Twitch"
+        },
+        {
+          "url": "twitter.com/xNestorio",
+          "text": "Twitter"
+        },
+        {
+          "url": "tiktok.com/@xnestoreo?lang=en",
+          "text": "TikTok"
+        },
+        {
+          "url": "facebook.com/xNestorioFB",
+          "text": "Facebook"
+        }
+      ],
+      "aggregatorUrl": null,
+      "aggregatorResolvedAt": null,
+      "aggregatorEmails": [],
+      "aggregatorLinks": null,
+      "relevanceScore": 0.4,
+      "influenceScore": 0.9766406,
+      "qualityScore": null,
+      "reachabilityScore": 0,
+      "matchedTags": [],
+      "matchedKeywords": [
+        "minecraft"
+      ],
+      "isSeed": false,
+      "sourceKolIds": [],
+      "tier": "hot",
+      "nextRefreshAt": "2026-06-24T02:23:16.335Z",
+      "raw": {
+        "_sanitized": true
+      },
+      "firstScrapedAt": "2026-06-10T02:23:16.329Z",
+      "lastScrapedAt": "2026-06-10T02:23:16.329Z",
+      "scrapeCount": 1,
+      "createdAt": "2026-06-10T02:23:16.329Z",
+      "updatedAt": "2026-06-10T02:23:16.335Z"
+    },
+    {
+      "id": "62",
+      "platform": "instagram",
+      "platformUserId": "80506142364",
+      "username": "follownooneent",
+      "displayName": "Follow No One Entertainment",
+      "bio": "Follow No One Entertainment (FNE) is a creator‑first broadcast network delivering music, film, boxing, gaming, and culture—24/7.",
+      "avatarUrl": "https://scontent-lga3-2.cdninstagram.com/v/t51.82787-19/627684895_17845127682686365_1557036773395439286_n.jpg?stp=dst-jpg_s150x150_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby44ODMuYzIifQ&_nc_ht=scontent-lga3-2.cdninstagram.com&_nc_cat=101&_nc_oc=Q6cZ2gHQrla3ApU4fB-CljNL3nJnGuO_MZp0pROK80Iv13F3paKHKvQytGVSckOQGJH7ehU&_nc_ohc=2Q8kOd-DBJgQ7kNvwFTyzJ_&_nc_gid=zFDpnzKXEt5YqEP74tPRmA&edm=ALGbJPMBAAAA&ccb=7-5&oh=00_Af6KfwUi69fqf3bXyYTufMFltYbAHLQfKgdDiTNvrS433Q&oe=6A09C0CD&_nc_sid=7d3ac5",
+      "profileUrl": "https://www.instagram.com/follownooneent/",
+      "followers": 0,
+      "following": 0,
+      "postsCount": 1676,
+      "totalLikes": 1381,
+      "totalViews": null,
+      "verified": false,
+      "isBusinessAccount": true,
+      "isPrivate": false,
+      "businessCategory": "",
+      "location": null,
+      "joinedDate": null,
+      "hasBusinessEmail": null,
+      "liveBroadcastId": null,
+      "emails": [],
+      "phones": [],
+      "telegrams": [],
+      "discords": [],
+      "socialHandles": {},
+      "externalUrl": "",
+      "externalUrls": [],
+      "aggregatorUrl": null,
+      "aggregatorResolvedAt": null,
+      "aggregatorEmails": [],
+      "aggregatorLinks": null,
+      "relevanceScore": 0.8,
+      "influenceScore": 0,
+      "qualityScore": null,
+      "reachabilityScore": 0.1,
+      "matchedTags": [
+        "Gossip",
+        "TVNews",
+        "Film",
+        "CelebrityGossip",
+        "Music",
+        "Gaming",
+        "Boxing"
+      ],
+      "matchedKeywords": [],
+      "isSeed": false,
+      "sourceKolIds": [],
+      "tier": "cold",
+      "nextRefreshAt": "2026-05-20T02:16:00.167Z",
+      "raw": {
+        "_sanitized": true
+      },
+      "firstScrapedAt": "2026-05-08T05:21:19.713Z",
+      "lastScrapedAt": "2026-05-13T02:16:00.151Z",
+      "scrapeCount": 2,
+      "createdAt": "2026-05-08T05:21:19.714Z",
+      "updatedAt": "2026-05-13T02:16:00.167Z"
+    },
+    {
+      "id": "71759",
+      "platform": "instagram",
+      "platformUserId": "49689666232",
+      "username": "bushcrafteee",
+      "displayName": "Bush Crafty Gaming",
+      "bio": "Bush Crafty a campfire with a crackling laugh, terrible aim in first person shooters, and an unhealthy obsession with late night gaming marathons.",
+      "avatarUrl": "https://scontent-ord5-2.cdninstagram.com/v/t51.82787-19/627059901_18013921589658233_1223221359907445071_n.jpg?stp=dst-jpg_s150x150_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xMDgwLmMyIn0&_nc_ht=scontent-ord5-2.cdninstagram.com&_nc_cat=105&_nc_oc=Q6cZ2gFfvVwdJedFrdv_gvaZ1LRn6VJDYKgetf6WXfYEYkDMm-raoWg00jF0UnNkS-eyYbI&_nc_ohc=iwC3LFblzyQQ7kNvwHJbo_E&_nc_gid=KxEcum9Lzng1tPNrD_yr3g&edm=ALGbJPMBAAAA&ccb=7-5&oh=00_Af4RCCMsnA1Hg5s86MhgfWypIxghtw4Z2ye63RPfwnR8GA&oe=6A09970E&_nc_sid=7d3ac5",
+      "profileUrl": "https://www.instagram.com/bushcrafteee/",
+      "followers": 19,
+      "following": 29,
+      "postsCount": 82,
+      "totalLikes": 34,
+      "totalViews": null,
+      "verified": false,
+      "isBusinessAccount": true,
+      "isPrivate": false,
+      "businessCategory": "游戏视频创作者",
+      "location": null,
+      "joinedDate": null,
+      "hasBusinessEmail": null,
+      "liveBroadcastId": null,
+      "emails": [],
+      "phones": [],
+      "telegrams": [],
+      "discords": [],
+      "socialHandles": {},
+      "externalUrl": "http://linktr.ee/bushcraftygaming",
+      "externalUrls": [
+        {
+          "url": "http://linktr.ee/bushcraftygaming",
+          "title": "Link tree"
+        }
+      ],
+      "aggregatorUrl": "http://linktr.ee/bushcraftygaming",
+      "aggregatorResolvedAt": "2026-05-13T02:15:26.355Z",
+      "aggregatorEmails": [],
+      "aggregatorLinks": [
+        {
+          "url": "http://bushy-bnv-shop.fourthwall.com",
+          "text": "Buy merch on the Bush Crafty official website"
+        },
+        {
+          "url": "https://x.com/bush_craftee",
+          "text": "X"
+        },
+        {
+          "url": "https://www.twitch.tv/bushcraftygaming",
+          "text": "Twitch"
+        },
+        {
+          "url": "https://kick.com/bushcraftygaming",
+          "text": "kick.com"
+        },
+        {
+          "url": "https://www.youtube.com/@BushCraftyGaming",
+          "text": "YouTube"
+        },
+        {
+          "url": "https://www.facebook.com/BushCrafty",
+          "text": "Facebook"
+        },
+        {
+          "url": "https://www.instagram.com/bushcrafteee",
+          "text": "Instagram"
+        },
+        {
+          "url": "https://ko-fi.com/bushcrafty",
+          "text": "Buy BushCrafty a Coffee"
+        },
+        {
+          "url": "https://throne.com/bushcraftygaming",
+          "text": "Bush Crafty - Wishlist | Throne"
+        }
+      ],
+      "relevanceScore": 0.8,
+      "influenceScore": 0,
+      "qualityScore": 1,
+      "reachabilityScore": 0.3,
+      "matchedTags": [
+        "OuterWilds",
+        "Gaming",
+        "LiveStreaming",
+        "TwitchStreamer",
+        "YouTubeGaming",
+        "KickStreaming",
+        "IndieGames",
+        "SpaceGame",
+        "BushCraftyGaming"
+      ],
+      "matchedKeywords": [],
+      "isSeed": false,
+      "sourceKolIds": [],
+      "tier": "cold",
+      "nextRefreshAt": "2026-05-20T02:15:23.128Z",
+      "raw": {
+        "_sanitized": true
+      },
+      "firstScrapedAt": "2026-05-13T02:15:23.119Z",
+      "lastScrapedAt": "2026-05-13T02:15:23.119Z",
+      "scrapeCount": 1,
+      "createdAt": "2026-05-13T02:15:23.120Z",
+      "updatedAt": "2026-05-13T02:15:26.361Z"
+    },
+    {
+      "id": "282683",
+      "platform": "tiktok",
+      "platformUserId": "7331653733183308807",
+      "username": "eisenbeier",
+      "displayName": "EisenBeißer",
+      "bio": "Follow if you LOVE Minecraft",
+      "avatarUrl": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-avt-0068/4145301c829f32b85bf5f4738267fa0b~tplv-tiktokx-cropcenter:720:720.jpeg?dr=9640&refresh_token=a0fec4dc&x-expires=1781229600&x-signature=Vx2CErbLsHpdqeaiEAH7Uek3ip8%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=useast8",
+      "profileUrl": "https://www.tiktok.com/@eisenbeier",
+      "followers": 26000,
+      "following": 92,
+      "postsCount": 88,
+      "totalLikes": 1700000,
+      "totalViews": null,
+      "verified": false,
+      "isBusinessAccount": null,
+      "isPrivate": false,
+      "businessCategory": null,
+      "location": null,
+      "joinedDate": null,
+      "hasBusinessEmail": null,
+      "liveBroadcastId": null,
+      "emails": [],
+      "phones": [],
+      "telegrams": [],
+      "discords": [],
+      "socialHandles": {},
+      "externalUrl": null,
+      "externalUrls": null,
+      "aggregatorUrl": null,
+      "aggregatorResolvedAt": null,
+      "aggregatorEmails": [],
+      "aggregatorLinks": null,
+      "relevanceScore": 0.8,
+      "influenceScore": 0.6380963,
+      "qualityScore": 1,
+      "reachabilityScore": 0,
+      "matchedTags": [
+        "minecraft",
+        "minecraftmods",
+        "minecraftmod",
+        "minecraftmeme",
+        "minecraftmemes"
+      ],
+      "matchedKeywords": [],
+      "isSeed": false,
+      "sourceKolIds": [],
+      "tier": "cold",
+      "nextRefreshAt": "2026-07-10T02:23:07.608Z",
+      "raw": {
+        "_sanitized": true
+      },
+      "firstScrapedAt": "2026-06-10T02:23:07.602Z",
+      "lastScrapedAt": "2026-06-10T02:23:07.602Z",
+      "scrapeCount": 1,
+      "createdAt": "2026-06-10T02:23:07.602Z",
+      "updatedAt": "2026-06-10T02:23:07.608Z"
+    },
+    {
+      "id": "282654",
+      "platform": "tiktok",
+      "platformUserId": "7631673630301471765",
+      "username": "stevetheking99",
+      "displayName": "Король стив",
+      "bio": "i love minecraft",
+      "avatarUrl": "https://p16-common-sign.tiktokcdn-us.com/tos-alisg-avt-0068/4eeac14e0fef7141803819da26c7fe56~tplv-tiktokx-cropcenter:720:720.jpeg?dr=9640&refresh_token=77c7310d&x-expires=1781229600&x-signature=ZXX1olJE530RF%2FP60oAKkF9Kz3Q%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=useast8",
+      "profileUrl": "https://www.tiktok.com/@stevetheking99",
+      "followers": 2434,
+      "following": 2,
+      "postsCount": 93,
+      "totalLikes": 256600,
+      "totalViews": null,
+      "verified": false,
+      "isBusinessAccount": null,
+      "isPrivate": false,
+      "businessCategory": null,
+      "location": null,
+      "joinedDate": null,
+      "hasBusinessEmail": null,
+      "liveBroadcastId": null,
+      "emails": [],
+      "phones": [],
+      "telegrams": [],
+      "discords": [],
+      "socialHandles": {},
+      "externalUrl": null,
+      "externalUrls": null,
+      "aggregatorUrl": null,
+      "aggregatorResolvedAt": null,
+      "aggregatorEmails": [],
+      "aggregatorLinks": null,
+      "relevanceScore": 0.8,
+      "influenceScore": 0.4940849,
+      "qualityScore": 1,
+      "reachabilityScore": 0,
+      "matchedTags": [
+        "minecraft",
+        "майнкрафт",
+        "minecraftfunny",
+        "minecraftmemesde",
+        "minecraftbedrock",
+        "gameplay",
+        "minecraftchallenge",
+        "minecraftmemes",
+        "mine",
+        "fyp",
+        "funpay",
+        "cliphub"
+      ],
+      "matchedKeywords": [],
+      "isSeed": false,
+      "sourceKolIds": [],
+      "tier": "cold",
+      "nextRefreshAt": "2026-07-10T02:23:07.382Z",
+      "raw": {
+        "_sanitized": true
+      },
+      "firstScrapedAt": "2026-06-10T02:23:07.376Z",
+      "lastScrapedAt": "2026-06-10T02:23:07.376Z",
+      "scrapeCount": 1,
+      "createdAt": "2026-06-10T02:23:07.376Z",
+      "updatedAt": "2026-06-10T02:23:07.382Z"
+    }
+  ]
+}

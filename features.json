@@ -6,7 +6,7 @@
       "title": "apify-kol client + zod 契约（真样本 pin）+ env",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "src/lib/apify/client.ts：x-api-key fetch 封装（APIFY_KOL_BASE_URL/APIFY_KOL_API_KEY requireEnv）+ listKols 分页（【P2】不带 platform 过滤绕 X 枚举缺口）+ health()；错误分类 401/403 终态、429 尊重 Retry-After、5xx/超时可重试；schemas.ts zod passthrough 宽容（v0.9.19 真样本 pin：YT qualityScore null/IG businessCategory 空串/following null/matchedTags 空数组/信封{data,page,pageSize,total}）；单测 pin 四平台脱敏 fixture（去联系方式明细保形状）；.env.example 补两条占位；【P7】client 注入可替换，真服务属 L2（ssh 隧道）；lint + tsc + test:unit 绿",
       "description": "spec §2 F001。真样本：YT Bobicraft id=282974 等 9 行（2026-07-23 实测，存量 8800+）。"
     },

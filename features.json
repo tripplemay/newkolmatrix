@@ -1,77 +1,50 @@
 {
-  "sprint": "M2-B-CREATORS",
+  "sprint": "M2-C-AGENT-HONESTY",
   "features": [
     {
       "id": "F001",
-      "title": "apify-kol client + zod 契约（真样本 pin）+ env",
+      "title": "createProject 服务 + create_project 工具（internal）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "src/lib/apify/client.ts：x-api-key fetch 封装（APIFY_KOL_BASE_URL/APIFY_KOL_API_KEY requireEnv）+ listKols 分页（【P2】不带 platform 过滤绕 X 枚举缺口）+ health()；错误分类 401/403 终态、429 尊重 Retry-After、5xx/超时可重试；schemas.ts zod passthrough 宽容（v0.9.19 真样本 pin：YT qualityScore null/IG businessCategory 空串/following null/matchedTags 空数组/信封{data,page,pageSize,total}）；单测 pin 四平台脱敏 fixture（去联系方式明细保形状）；.env.example 补两条占位；【P7】client 注入可替换，真服务属 L2（ssh 隧道）；lint + tsc + test:unit 绿",
-      "description": "spec §2 F001。真样本：YT Bobicraft id=282974 等 9 行（2026-07-23 实测，存量 8800+）。"
+      "status": "pending",
+      "acceptance": "lib/projects/create.ts：zod{name 必填,gameIdOrSlug?,market?}（【P3】goal 归 brief 环节不在创建时填）；game 三口径解析未命中 GAME_NOT_FOUND 明示；事务=Project.create(cur=brief 默认)+OperationLog(kind=auto,actor=调用人格,summary 人话,payloadJson{action:'project.created',...})——雷达可见真痕迹；tools/create-project.ts class:'internal'（D27 无确认框）输出含 next 指路语义；【P2】仅挂 orchestrator+strategy；单测 contract-surface（class/注册/挂载/zod 拒空名）+集成测夹具租户（落库+cur=brief+留痕原子+GAME_NOT_FOUND）；lint+tsc+test:unit 绿",
+      "description": "spec §2 F001 + P1/P2/P3。写路径从零补齐；OperationLog 先例 = advanceStage。"
     },
     {
       "id": "F002",
-      "title": "深字段派生纯函数 + kol-deep zod 契约（给分必给依据兑现）",
+      "title": "POST /api/projects + 列表页创建入口（布局变更）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "schemas/kol-deep.ts：audienceDemoSchema{ageDist?,genderDist?,geoDist?,interests 写侧非空}+credibilitySchema{score 0-100,method,signals.min(1),assessedAt}+brandSafetySchema{rating,flags.min(1),assessedAt}，**refine 空依据非法（:838 欠账兑现 FR-11.4）**，读侧宽松 parse*/写侧 assert* 双形态（先例）；kol-sync/derive.ts 纯函数（无 IO 无 LLM P9）：deriveAudienceDemo（matchedTags+matchedKeywords+businessCategory 归一去重，全空→null 不编造）+deriveCredibility（verified/qualityScore/tier/followers 规则合成，权重常量导出，signals 逐条人话依据，method='rule-derived-from-crawl'，assessedAt 调用方注入，弱信号全缺→null）+deriveFieldProvenance（六档内 source='crawl'+detail 明示派生）；单测边界全覆盖（tags 空/空串/YT null/全缺/refine 拒空依据/分域钳制）不打库不打网关；lint + tsc + test:unit 绿",
-      "description": "spec §2 F002。复裁：规则派生填充三契约位缺口（brandSafety 无源不落库，契约先立）。"
+      "status": "pending",
+      "acceptance": "POST /api/projects 薄封装 createProject（400 zod 明示/404 game/500 兜底）——UI 与工具共用单一真相源；campaigns 列表页头「新建项目」solid 按钮+轻量弹层（名称必填+游戏下拉可空+市场可空）→成功 toast+跳 /admin/campaigns/{id}；失败 toast 服务端信息；**布局变更（Planner 标注 P4）**：原型 interaction-prototype-v2.html 项目列表段加 affordance+ui-inventory V2 登记（10→+N）；campaigns.png 基线逐处对账重生（§4.5 重生序）+两视口实测+运行时改→验→复原；lint+tsc+test:unit+test:visual 绿",
+      "description": "spec §2 F002 + P4。V2 原型无创建 affordance 实证 → 三同步完整流程（M2-B F006 先例）。"
     },
     {
       "id": "F003",
-      "title": "kol-sync 同步服务 + dataSource 归一 + 例程注册",
+      "title": "诚实护栏（行动承诺条款 + 无工具分支强化）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "kol-sync/sync.ts syncKols（【P7】client/embed 双注入）：discover 全量分页→字段映射（categories←matchedTags/country←location/engagementRate 派生注明 YT/X view-proxy 语义）→F002 三派生→upsert by (tenantId,canonicalHandle)（【P3】归一函数抽共享模块 seed/sync 两消费零漂移；已存在行覆盖浅字段+写契约位+dataSource='crawl'；CSV 独有行不动）→新行 embedText 灌向量（用量预估 <1M token 一次性）；scripts/ops/normalize-datasource.ts 幂等（csv-seed:*→user_upload，dry-run 默认+stats 显式计数，staging 端到端实跑 §7）；scheduler ROUTINES 注册 kol-sync（cron 0 3 * * *；dev 内网不可达静默跳过 log warn 不炸）+scripts/jobs/run-kol-sync.ts+package script（同执行体非旁路）；【P1】零投喂零充值（/admin/seeds 与 TikHub 花费永留人工）；集成测试 mock client+mock embed 打真库：幂等二跑/CSV 行覆盖合并/新行插入+向量/归一/契约位落库 parse* 可读回；lint + tsc + test:unit 绿",
-      "description": "spec §2 F003 + P1/P2/P3/P4。存量 8800+ 行拉模型；apify-kol 服务 kol-shared 内网（prod）/ssh 隧道（L2）。"
+      "status": "pending",
+      "acceptance": "BASE_SYSTEM 扩行动承诺诚实条款三要素：(a)工具真实返回成功才可声称已创建/已编排/已执行 (b)超能力请求→明说不支持+能做什么+指路 (c)建议禁止包装成已执行；route.ts 无工具分支强化（明确告知未执行任何动作+指引找专家或页面入口）；单测 prompt 拼接断言（三要素全人格+无工具文案）——uiSyntax 断言先例；真对话行为 L2 留验收授权；lint+tsc+test:unit 绿",
+      "description": "spec §2 F003 + P5。护栏产品级进 BASE_SYSTEM——幻觉执行非编排 Agent 特有。"
     },
     {
       "id": "F004",
-      "title": "creators 页接真 + mock 退役 + CI 视觉夹具",
+      "title": "编队名册注入（同源防杜撰）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "page.tsx 拆 RSC 数据层（**force-dynamic 必声明** v1.0.9 §6）+client 交互层，布局零变更（V9 16 元素 🔒）；8 列真数据（可信度←credibility.score 分级 A/B/C 阈值常量导出；【P5】受众匹配列库级恒「待核」不编造；#ad←brandSafety null→待核）；KPI 4 卡真计数+筛选真值域；mock/creators.ts 退役 needle 全仓 grep 零代码残留+index.ts 翻牌；【P6】scripts/seed/visual-kols.ts 2 行确定性夹具（固定 publicId：深字段齐备/全 null 各一）接入 ci.yml visual job+本地重生流程（D-H 基线态扩展）；creators.png 基线逐处对账重生（重生序遵 §4.5 v1.0.11 先杀 :3000）+空态文案硬断言 §4.3；运行时改→验→复原实证（RSC 组装层）；两视口实测；lint + tsc + test:unit + test:visual 绿",
-      "description": "spec §2 F004。勘查实证页面纯 mock（page.tsx:31-38 唯一消费点之一）。"
+      "status": "pending",
+      "acceptance": "buildSystemPrompt 增「你的队友（唯一合法名册）」段：listPersonas() 同源生成（与 personaBoundary UI 卡同数据源）+「不得杜撰任何名册外角色」；单测：全人格 prompt 含 7 人格全名册+禁杜撰条款+名册与 listPersonas() 同源断言（【P6】不 pin 硬编码名单，改名册自动跟随）；lint+tsc+test:unit 绿",
+      "description": "spec §2 F004 + P6。用户实证：模型杜撰创意/投放/KOL/社群/风控/数据 6 个名册外专家。"
     },
     {
       "id": "F005",
-      "title": "CreatorDrawer 七分区接真",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "prop 换真 Kol 可序列化视图（展示串单点 lib/display/creator-format.ts，match-format 先例）；七分区逐区：①interests 真值+分布三键「待接入」子降级 ②「待接入」③空态真话「与我方暂无合作记录」④「待补充」⑤credibility 分级真值+brandSafety「待接入」⑥「待接入」⑦匹配「待核」P5；布局零变更（V10 34 元素 🔒 分区结构/顺序/ProvenanceTag ×5 逐处保持）；ProvenanceTag 接真 resolveProvenance 消费真 fieldProvenance（crawl 派生标注可见+断言 ai_estimate fallback 不再恒触发——P4 归一消解验证）；creator-drawer.spec 锚点重设计（点固定 publicId 夹具行替代首行假设+深字段齐备/待接入双状态断言）；基线对账重生；lint + tsc + test:unit + test:visual 绿",
-      "description": "spec §2 F005。原型 docs/product/interaction-prototype-v2.html L926-973；勘查七分区逐区字段清单在案。"
-    },
-    {
-      "id": "F006",
-      "title": "MatchCandidate 裁定写入口（U3 布局变更）",
+      "title": "端到端闭环 + 文档翻牌",
       "priority": "medium",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "POST /api/match/candidates/[id]/verdict {verdict:'kept'|'dropped'}：internal（无确认框 D27/:1352 双边铁律零 PendingAction）；幂等同值重放 200；pending→kept/dropped+kept↔dropped 改判合法+非法值 zod 拒+不存在 404；【D20】人工流转变异测试（改判/幂等/P4 刷新不回退回归）；match/index.tsx 待裁定表行内「保留/剔除」双钮（審閱旁 ghost；成功 toast+router.refresh 行离表——读侧 verdict:'pending' 已就绪）；**布局变更（Planner 标注）**：原型 interaction-prototype-v2.html FUZZY 行同步加 affordance+ARCH-M05-ui-inventory.md V5 登记（22→+2）；project-match.png 对账（CI 空态无按钮不变，本地对账）；K3 采纳率数据面注记；lint + tsc + test:unit + test:visual 绿",
-      "description": "spec §2 F006 + U3。M2-A P8 遗留消解；原型无 affordance 勘查实证 → 布局变更走完整同步。"
-    },
-    {
-      "id": "F007",
-      "title": "评分升级端到端验证",
-      "priority": "medium",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "集成测试打真库 mock 向量：外采派生 interests 入场→generateCandidates scorePending=false 真路径/「受众数据待接入」doubt 消失/preJudge 分档变化/matchScore=0.7 similarity+0.3 audienceFit 加权断言；evaluate_creator 消费真 audienceDemo 同断言；interests 全空行仍降级待核（D2 回归）；match 面候选列 scorePending=false 显真 %（真库集成断言）；M2-A D20 全量回归无损（match-services/match-approve/nightly-screen 套件绿）；lint + tsc + test:unit 绿",
-      "description": "spec §2 F007。勘查实证：extractInterests 只认 {interests:string[]}，落库即零代码自动升级（:73-81）。"
-    },
-    {
-      "id": "F008",
-      "title": "部署面 + 文档翻牌",
-      "priority": "low",
-      "executor": "generator",
-      "status": "completed",
-      "acceptance": "docker-compose.prod.yml：app 加 kol-shared external 网络+APIFY_KOL_BASE_URL=http://apify-kol:3003+APIFY_KOL_API_KEY env；**deploy 前置人工步 ×2 明记（v1.0.10 §8）：scp compose+VPS .env 追加 key（从 /opt/apps/apify-kol-service/.env 取 BUSINESS key，不入 git）**；docs/dev/deploy.md 同步；文档翻牌：architecture §7.2.2 契约位 as-built（zod 已建+派生填充+refine 兑现）+§7.5 归一注记+§10 集成架构（apify-kol 拉模型/异步两步/零投喂/X 枚举缺口）+§14 M2-B 行+§8.10 kol-sync 行+§5.3 verdict 写入口 as-built；批末新鲜度复核；lint + tsc + test:unit 绿",
-      "description": "spec §2 F008。compose 人工副本坑（v1.0.10）本批必中——前置步随 acceptance 硬化。"
+      "status": "pending",
+      "acceptance": "集成闭环测（打真库夹具租户）：executeTool('create_project') orchestrator ctx 直调→落库+留痕→列表数据层可见→详情三口径可达；agent:smoke 扩段可选；真对话 L2 留验收授权；user_report 处置状态翻牌注记；architecture.md 翻牌（§8 装配 as-built+工具表+§10.1.1 +/api/projects+§14 M2-C 行）+agent-architecture.md 同步；批末新鲜度复核；lint+tsc+test:unit 绿",
+      "description": "spec §2 F005。闭环即用户问题的正面消解证据（创建→项目页可见→雷达留痕）。"
     }
   ]
 }

@@ -6,7 +6,7 @@
       "title": "迁移：Deal/Deliverable/GameKey/Payout 四表 + 五枚举",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec §4 字段级 schema（architecture :471-474 授权本批定）。expand-only：纯新增表与枚举，既有表零改动（M3-A 两步票据直接复用）。",
       "acceptance": "migration 落 prisma/migrations 且 db:migrate 干净；四表字段与 spec §4 逐项一致（@@unique 在场：Deal(projectId,kolId)、Deliverable(dealId,kind)）；五枚举全量（DealStatus 7 态 negotiating/signed/escrowed/delivering/completed/blocked/defaulted · DeliverableKind 5 值 content/key/contract/escrow/ad_disclosure · DeliverableStatus 4 态 pending/met/missing/na · GameKeyStatus 2 态 · PayoutStatus 3 态）；Payout.amount Decimal(14,2)；gateLogId 软引用列在场（GameKey/Payout）；migration 含单向回滚说明；RLS 例外理由在 spec §4 记录（单租户 D4 口径，与既有 17 表一致）；tsc + 既有 522 测试不破"
     },

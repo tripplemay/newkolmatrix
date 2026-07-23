@@ -100,6 +100,7 @@ model Kol {
   planKols        PlanKol[] // M2-A F001：入选组合的反向关系
   matchCandidates MatchCandidate[] // M2-A F001：候选池反向关系
   outreachThreads OutreachThread[] // M3-A F001：触达线程反向关系
+  deals           Deal[] // M3-B F001：交易反向关系
 
   @@unique([tenantId, canonicalHandle]) // F004 幂等 upsert
   @@index([tenantId])
@@ -148,6 +149,7 @@ model Project {
   matchPlans      MatchPlan[] // M2-A F001：组合方案反向关系
   matchCandidates MatchCandidate[] // M2-A F001：候选池反向关系
   outreachThreads OutreachThread[] // M3-A F001：触达线程反向关系
+  deals           Deal[] // M3-B F001：交易反向关系
 
   @@index([tenantId])
   @@index([gameId])
@@ -468,6 +470,157 @@ model Signal {
 
   @@index([tenantId])
   @@index([threadId])
+}
+
+// ───────────────────────── 交付平面（M3-B-DELIVERY F001，spec §4 / architecture :471-474）─────────────────────────
+//
+// RLS：本项目单租户 dev 不建 RLS policy（AGENT-FOUNDATION D4，见文件头；既有 17 表同口径），
+// M5 真实认证时统一补。本批四表沿同一例外口径——理由记录在 spec §4（database-patterns §8 要求的显式登记）。
+
+/// Deal 资金生命周期状态机（architecture :507 六态 + blocked/defaulted 分支）。
+/// 流转由 `domain/deal-advance.ts` 的 dealAdvance 纯函数承载（F003）：
+/// negotiating → signed → escrowed → delivering → completed；blocked 可恢复；defaulted 终态。
+/// D20：状态机类必须配变异测试。
+enum DealStatus {
+  negotiating
+  signed
+  escrowed
+  delivering
+  completed
+  blocked
+  defaulted
+}
+
+/// 交付条件五类（P3）——与 V7 台账五列一一对应（architecture :472 明文）。
+enum DeliverableKind {
+  content
+  key
+  contract
+  escrow
+  ad_disclosure
+}
+
+/// 交付条件三态 + 未开始（P3）。`na` = 不适用（如无 key 交付的合作），
+/// **不得压成二态**（V7 §2.3 硬要求）；`na` 不计入 ready 判定（F002 deliveryCheck）。
+enum DeliverableStatus {
+  pending
+  met
+  missing
+  na
+}
+
+/// key 分发二态（P8）。distributed 必带 gateLogId（闸门留痕）。
+enum GameKeyStatus {
+  reserved
+  distributed
+}
+
+/// 放款三态（P1）。released 必带 gateLogId；**零真实资金动作**——release 走 mock EscrowPartner
+/// （F004），本表只记录状态与依据，不碰真钱（architecture §1 资金边界）。
+enum PayoutStatus {
+  prepared
+  released
+  blocked
+}
+
+/// 交易（M3-B F001）。由 committed Quote 在 commit_quote 执行事务内生成（P2，F003）——
+/// 「有 committed quote 必有 Deal」是 →delivery 守卫判据（architecture §5.3① :488）的数据前提。
+/// quoteId 软引用不强 FK（同 OperationLog.projectId D13 先例）。
+model Deal {
+  id       String @id @default(cuid())
+  tenantId String
+
+  projectId   String
+  kolId       String
+  quoteId     String? // → Quote.id（软引用；来源报价）
+  termsJson   Json // 金额/币种/交付物/范围快照（取自 Quote，冻结不随 Quote 变）
+  contractRef String? // 外部电子签单号（P4 人工登记）
+  escrowRef   String? // 外部托管单号（P4 人工登记）
+  status      DealStatus @default(negotiating)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kol     Kol     @relation(fields: [kolId], references: [id], onDelete: Cascade)
+
+  deliverables Deliverable[]
+  gameKeys     GameKey[]
+  payouts      Payout[]
+
+  @@unique([projectId, kolId]) // 一人一 Deal（沿 OutreachThread :467 先例）
+  @@index([tenantId])
+  @@index([kolId])
+}
+
+/// 交付条件行（M3-B F001）。Deal 创建时按 Quote.deliverables 与合作形态生成五条（P3）：
+/// content/contract/escrow/ad_disclosure 恒必需；key 视是否含 key 交付 → required 或 na。
+/// required=false 且 status=na 的行不计入 ready（F002 deliveryCheck 的诚实语义）。
+model Deliverable {
+  id       String @id @default(cuid())
+  tenantId String
+
+  dealId      String
+  kind        DeliverableKind
+  status      DeliverableStatus @default(pending)
+  required    Boolean           @default(true)
+  evidenceRef String? // 证据引用（稿件链接 / 披露截图 / 单号）
+  verifiedBy  String? // 人工核验者（单角色 dev：'operator'）
+  note        String? // V7 台账 🔒 附注条件渲染的数据源
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@unique([dealId, kind]) // 五条件每类一行
+  @@index([tenantId])
+  @@index([dealId])
+}
+
+/// 游戏 key（M3-B F001，P8）。keyRef 存**引用不存明文 key 值**——key 池由人工登记
+/// （POST /api/delivery/deals/[id]/keys，F008）；不做 key 生成 / 采购 / 平台对接。
+model GameKey {
+  id       String @id @default(cuid())
+  tenantId String
+
+  dealId        String
+  keyRef        String // 引用（如外部 key 池条目号）；明文 key 值不得入库
+  status        GameKeyStatus @default(reserved)
+  distributedAt DateTime?
+  gateLogId     String? // → PendingAction.id（软引用；distributed 必非空）
+
+  createdAt DateTime @default(now())
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([dealId])
+}
+
+/// 放款（M3-B F001，P1/P6）。payee = 收款方（创作者），**不是角色**（P7：三角色属作废层 D26-D29）。
+/// released 必带 gateLogId（软引用 → PendingAction.id）；执行前服务端重跑 deliveryCheck，
+/// ready=false 一律拒（FR-8.2.4.2 无绕过入口）。金额 Decimal(14,2)（沿 Quote.amount 先例）。
+model Payout {
+  id       String @id @default(cuid())
+  tenantId String
+
+  dealId     String
+  payee      String
+  amount     Decimal      @db.Decimal(14, 2)
+  currency   String // ISO 4217，如 USD
+  basis      String // 依据摘要（合同 + 托管 + 披露证据引用）
+  status     PayoutStatus @default(prepared)
+  gateLogId  String? // → PendingAction.id（软引用；released 必非空）
+  releasedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([dealId])
 }
 
 // ───────────────────────── 运行时表（闸门 / 留痕 / 交接）─────────────────────────

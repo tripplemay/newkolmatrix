@@ -1,12 +1,12 @@
 {
-  "status": "verifying",
+  "status": "fixing",
   "user_goal": "触达域立真：CRM 四表+五态事件推断+Resend 真实投递（复用旧项目已验证配置）+闸门两步票据 7 态+V6 收件箱接真",
   "total_features": 10,
   "completed_features": 10,
   "fix_rounds": 0,
   "current_sprint": "M3-A-REACH-CRM",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-23T06:35",
+  "last_updated": "2026-07-23T08:15",
   "reference_docs": [
     "docs/specs/M2-C-AGENT-HONESTY-spec.md",
     "docs/test-reports/user_report/M2C-agent-honesty-2026-07-23.md",
@@ -22,7 +22,166 @@
     "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": null,
+  "evaluator_feedback": {
+    "round": 1,
+    "report": "docs/test-reports/M3A-reach-crm-verify-round1-2026-07-23.md",
+    "overall": "7 PASS / 2 FAIL (F002, F008) / 1 PARTIAL (F010)；对抗复核 3/3 原判成立",
+    "features": [
+      {
+        "feature_id": "F001",
+        "result": "PASS",
+        "issues": [],
+        "adversarial": null
+      },
+      {
+        "feature_id": "F002",
+        "result": "FAIL",
+        "issues": [
+          {
+            "title": "payloadHash undefined-键中毒：/api/reach/send 创建的 pending 在 confirm 恒 403，V6 发送真链在生产工件上不可确认",
+            "severity": "critical",
+            "evidence": "根因双点：(1) src/app/api/reach/send/route.ts:59-62 恒以字面量 { projectId, kolId, subject, body, language } 调 executeTool，language 仅在「无 subject 且 draft 行带 language」时有值，其余路径为显式 undefined 键，zod parse 保留该键；(2) src/lib/agent/gate/gate.ts:63-75 stableStringify 将显式 undefined 键序列化为 \"language\":undefined 参与 payloadHash（建墙），而 Prisma 写 JSONB 丢弃 undefined 键，confirm/execute 复算（gate.ts:232-237/316-321）读回无该键→哈希必不匹配→GATE_TOKEN_INVALID 403。生产 standalone 工件复现（S3）；dev 两条用户路径均复现（T18 带 subject / T26 手写草稿无 subject）。纯函数复现：hash(含 undefined 键)=476173b9… vs hash(JSONB 读回)=ff240500…。既有测试（gate-smoke/reach-e2e）全为服务层直调且入参无 undefined 键故全绿漏检。建议修复方向：payloadHashOf/stableStringify 按 JSON 语义丢弃 undefined 值键（对齐 JSONB 往返），或 reach/send 路由构造入参时剔除 undefined 键；修复后补一条「HTTP 创建→confirm」的回归用例",
+            "steps_to_reproduce": "1. next build && node .next/standalone/server.js（或 next dev 并先 POST /api/agent 触发注册）2. POST /api/reach/send {projectId,kolId(带 contactEmail),subject,body} → 200 pending 3. POST /api/actions/{id}/confirm → 403 {code:GATE_TOKEN_INVALID, error:payloadHash 不匹配，拒绝确认}"
+          },
+          {
+            "title": "工具注册依赖 /api/agent 模块图副作用：dev 空进程直打 execute 端点 500「[gate] 工具已不存在」、reach/send 400「[tools] 未知工具」，且模块图重估后复发",
+            "severity": "high",
+            "evidence": "注册副作用仅在 src/lib/agent/tools/index.ts:42（模块加载时 ensureNativeToolsRegistered）；gate.ts 与 execute.ts 只 import 纯 Map registry（tools/registry.ts），四条 /api/actions 路由与 /api/reach/send|quote 的模块图均无任何注册触发点。dev server 实测：空进程 POST /api/reach/send → 400 [tools] 未知工具: send_outreach（T16）；execute → 500 [gate] 工具已不存在: send_outreach（gate.ts:323，dev log）；POST /api/agent 一次后恢复（T17），数分钟后模块图重估又复发（T25）。生产 standalone 因 boot 预载路由（/api/agent 模块 boot 即求值）幸免——S1 空进程 200 实证；但该保障依赖 Next preload 行为而非显式契约，且 GET 端点自述的「跨会话恢复」场景在 dev 不可复现。建议：gate.ts executePendingAction 与 reach 路由显式调用 ensureNativeToolsRegistered()（幂等，一行）",
+            "steps_to_reproduce": "1. 冷启 next dev（不触碰 /api/agent）2. POST /api/reach/send 合法 body → 400 [tools] 未知工具: send_outreach；或对已 confirmed 动作 POST /api/actions/{id}/execute → 500"
+          },
+          {
+            "title": "rate-limit fail-open 注释失真 + XFF 首段可伪造（辅助防线弱化，非闸门主防线）",
+            "severity": "low",
+            "evidence": "rate-limit.ts:84-92 注释称「本地 dev 直连无反代头→null→放行」，实测 Next 15 self-host 自注入 x-forwarded-for（本地直连 35 请求观测 6×429，T7）——null-IP fail-open 分支实际不可达，本地重度使用 /api/actions 可能误触 30/min 限流（有 DISABLE_GATE_RATELIMIT 逃生口）。另 clientIpOf 取 XFF 首段，nginx 默认 append 语义下客户端可伪造首段旋转绕过限流；限流为辅助防线（票据协议为主，http.ts:3-4 自述），影响低。建议下批次顺手：修正注释 + prod 反代场景取右起首个可信段",
+            "steps_to_reproduce": "next dev 后本地直连（无自定义头）连续 31 次 GET /api/actions/x → 第 31 次起 429"
+          }
+        ],
+        "adversarial": {
+          "verdict_stands": true,
+          "reason_excerpt": "证伪失败，原 FAIL 成立。Critical issue（payloadHash undefined-键中毒）四层独立复现：(1) 源码——route.ts:61 恒带 language 键（带 subject 主路径为显式 undefined），gate.ts:63-75 stableStringify 将其序列化为 \"language\":undefined 参与建墙 hash，违反 gate.ts:62 自述「抗 JSONB 往返」不变量；(2) 纯函数（真实 zod 4.4.3 + payloadHashOf）——zod parse 保留 undefined 键，建墙 hash 58a5ce56 ≠ JSONB 往返 hash c4b6eb2e，无 undefined 键对照组 MATCH=true；(3) 真实 DB 服务层（Prisma 6.19.3 + dev Postgres）——JSONB 写入丢弃 language 键（读回 keys 仅 body/kolId/subject/projectId），confirmPendingAction 抛 GateError G"
+        }
+      },
+      {
+        "feature_id": "F003",
+        "result": "PASS",
+        "issues": [
+          {
+            "title": "ResendEmailSender 30s 超时为 Promise.race，未用 AbortController 真中断底层请求",
+            "severity": "low",
+            "evidence": "src/lib/ops/email/resend-sender.ts:23-38 withTimeout 仅 race 拒绝，超时后底层 fetch 仍可能在后台完成；因 Idempotency-Key（:66）在场重试不会双发，功能无损，但与文件头注释「30s abort」（P4 port 自旧项目）表述有出入",
+            "steps_to_reproduce": "审读 resend-sender.ts withTimeout 实现——无 AbortController/signal 传入 this.client.emails.send"
+          },
+          {
+            "title": "幂等重入分支返回 mocked:false 硬编码，重放时输出语义轻微失真",
+            "severity": "low",
+            "evidence": "src/lib/agent/tools/send-outreach.ts:121 already=true 分支固定返回 mocked:false——重放时无法得知原发是否 mock；不影响任何 acceptance 断言面（测试只断言 already/计数），仅输出字段语义可再精确",
+            "steps_to_reproduce": "mock 环境下经闸门发送一次后，用同 gateActionId 重放 execute 体，返回 already:true 但 mocked:false"
+          }
+        ],
+        "adversarial": null
+      },
+      {
+        "feature_id": "F004",
+        "result": "PASS",
+        "issues": [
+          {
+            "title": "ingest 落库四步（Signal.create→thread.lastSignalAt→重算→留痕）非同一事务：中途失败后 Resend 重投走防重路径直接返 200，该事件的 lastSignalAt/重算/OperationLog 留痕可能永久缺失",
+            "severity": "low",
+            "evidence": "ingest.ts:47-105——signal.create 成功后若 thread.update/recompute/operationLog 任一失败，route.ts:115-123 返 500 触发 Resend 重投；重投命中 P2002 防重（ingest.ts:60-77）返 duplicate=true 且不补做后三步。影响有界：Signal 行已在库，下一次任何重算会把它计入推断（CRM 态最终收敛），仅该事件的 auto 留痕与 lastSignalAt 可能缺失。acceptance 未要求事务原子性，不阻断 PASS；建议后续批次将四步包入 prisma.$transaction 或在 duplicate 路径补幂等重算",
+            "steps_to_reproduce": "理论路径（需注入故障）：1. 构造 signal.create 成功但 recomputeThreadStatus 抛错（如瞬时 DB 断连）2. route 返 500，Resend 重投 3. 重投命中 externalId P2002 → 返 200 duplicate=true，观察该事件无「信号接入」OperationLog 且 lastSignalAt 未更新"
+          }
+        ],
+        "adversarial": null
+      },
+      {
+        "feature_id": "F005",
+        "result": "PASS",
+        "issues": [],
+        "adversarial": null
+      },
+      {
+        "feature_id": "F006",
+        "result": "PASS",
+        "issues": [],
+        "adversarial": null
+      },
+      {
+        "feature_id": "F007",
+        "result": "PASS",
+        "issues": [],
+        "adversarial": null
+      },
+      {
+        "feature_id": "F008",
+        "result": "FAIL",
+        "issues": [
+          {
+            "title": "V6「发送」真闸门链在 UI 可达的全部路径于 confirm 步 403（payloadHash 不匹配）——主流程功能性不可用",
+            "severity": "critical",
+            "evidence": "网络层实证：POST /api/reach/send → 200 pending 信封；GET /api/actions/[id] → 200；POST /api/actions/[id]/confirm → 403 {\"code\":\"GATE_TOKEN_INVALID\",\"error\":\"payloadHash 不匹配，拒绝确认\"}。根因（密码学复算锁定）：src/app/api/reach/send/route.ts 在 subject 由客户端提供（Agent 起草主流程，draft_email 恒写 subject——email-drafting.ts:182）或无 draft 行时，language 变量为 undefined 仍作为键传入 executeTool；gate.ts stableStringify（:63-75）对 undefined 值输出字面量 `undefined`（JSON.stringify(undefined) 非法值直接内插），建卡 payloadHash 含该键；Prisma JSONB 写入丢弃 undefined 键（库内 inputJson 实查无 language）；confirm（gate.ts:234）按库内 inputJson 复算 → 恒不匹配。三变体哈希比对：hash(含 language:undefined)=e92831…=库内 payloadHash；hash(无 language)=f2f972…=confirm 复算值。quote 链不受影响（zod parsed.data 无 undefined 键，UI 级全通）；Copilot 对话路径不受影响（LLM JSON 无 undefined）；gate:smoke/reach:e2e 未盖住此形状（测试恒显式传 language）。后果：PendingAction 卡死 pending，用户 toast 裸报内部错误。修复建议（Generator 定夺）：①根治——stableStringify 跳过 undefined 值键（与 JSON 序列化语义对齐，防所有未来调用方）；②卫生——/api/reach/send 构造入参不写 undefined 键；③补一条 route 层 send→confirm 集成测试盖住 UI 真实入参形状（subject 在场 + language 缺席）",
+            "steps_to_reproduce": "1. npm run build && node --env-file=.env scripts/serve-standalone.mjs（或任意运行实例）2. 造夹具：项目 + KOL（含 contactEmail）+ OutreachMessage(direction=draft, subject 非空) 3. 路径A（浏览器）：/admin/campaigns/{id}?env=reach → 选人 → 点「发送」→ 确认卡弹出（harm 正常）→ 点「确认发送」→ toast「payloadHash 不匹配，拒绝确认」；路径B（curl）：POST /api/reach/send {projectId,kolId,subject,body} → 取 pendingActionId → POST /api/actions/{id}/confirm → 403 GATE_TOKEN_INVALID。对无 draft 行的 KOL 不传 subject 同样复现（服务端派生分支 language 仍 undefined）。DB 佐证：SELECT payloadHash, inputJson FROM \"PendingAction\"——inputJson 无 language 键但 payloadHash 按含键对象计算"
+          }
+        ],
+        "adversarial": {
+          "verdict_stands": true,
+          "reason_excerpt": "对抗复核未能证伪，反而独立复现并加固了原发现。(1) 机制链逐环核验成立：route.ts:37,59-62 对象字面量恒携带 language 键且 UI 可达路径（ConversationInbox.tsx:186 恒发 draft subject + email-drafting.ts:183 起草恒写 truthy subject / 无 draft 时 draftRow=null）下恒为 undefined；项目 zod 4.4.3 实测 safeParse 保留 present-but-undefined 键（parsed.data keys 含 language）；gate.ts:63-75 stableStringify 将 undefined 内插为字面量参与建卡 hash；Prisma 6.19.3 JSONB 写入丢键（实测库内 inputJson keys=body,kolId,projectId,subject）；confirm（gate.ts:232-237）按库内复算恒不匹配。(2) 决定性复现：`node --env-file=.env --import"
+        }
+      },
+      {
+        "feature_id": "F009",
+        "result": "PASS",
+        "issues": [
+          {
+            "title": "F008 审计文档与 ui-inventory 的 V6-25/V6-26 编号互换（内容一致的文档内部不一致）",
+            "severity": "low",
+            "evidence": "M3-A-REACH-CRM-F008-v6-wiring-audit.md:56 写「#25 覆盖控件(F009)、#26 报价条款表单 modal(F008)」，而 ARCH-M05-ui-inventory.md:74 实登记为「V6-25 报价条款表单 modal（F008）· V6-26 CRM 人工覆盖控件（F009）」。两元素均已登记、语义完整，仅编号在两文档间互换；ui-inventory 为登记权威，建议下批顺手把审计文档编号对齐，不阻断签收",
+            "steps_to_reproduce": "对比 docs/specs/M3-A-REACH-CRM-F008-v6-wiring-audit.md:56 与 docs/specs/ARCH-M05-ui-inventory.md:74 的 #25/#26 归属"
+          },
+          {
+            "title": "Evaluator 新增探针文件为未追踪测试产物，需随验收一并 commit",
+            "severity": "low",
+            "evidence": "git status --short 显示 ?? tests/integration/reach-override.evaluator-probe.test.ts（本单元产物，4/4 passed，tsc exit 0，夹具按 pid 隔离 CI 安全）。按 harness-rules 推送前遗漏检查规则，编排者汇总时须将其加入 commit，不得留未推送测试产物",
+            "steps_to_reproduce": "git status --short tests/"
+          }
+        ],
+        "adversarial": null
+      },
+      {
+        "feature_id": "F010",
+        "result": "PARTIAL",
+        "issues": [
+          {
+            "title": "architecture.md §10.4 未翻牌（acceptance 点名章节）——F004 已实装仍标「演进目标（未实装，归 M3）」",
+            "severity": "medium",
+            "evidence": "docs/dev/architecture.md:1530 节头未动（F010 commit 6b30d40 diff 无该区 hunk）；实物 src/lib/signals/ + /api/signals/inbound（§10.1.1:1420 自己已登记）即该节描述的管道；节内 Signal.type 词表缺已实装的 email_delivery_status/manual_override",
+            "steps_to_reproduce": "sed -n '1530,1553p' docs/dev/architecture.md 对照 git show 6b30d40 -- docs/dev/architecture.md（无 §10.4 hunk）与 src/app/api/signals/inbound 实物"
+          },
+          {
+            "title": "architecture.md §9.4「闸门时序（as-built）」仍画已退役单步 /api/gate 流，与同文 §9.3/§9.3.2 直接矛盾",
+            "severity": "medium",
+            "evidence": "时序图 :1319 'POST /api/gate/confirm' + :1321-1323 确认内联执行；:1327 拒绝路径 'POST /api/gate/reject → expiresAt=epoch(0)' 与 :1299 '清 expiresAt=epoch 债、旧单步 /api/gate/* 端点退役' 矛盾；:1264 '无 /api/gate/execute 端点' 与 :1248 端点表列出 /api/actions/[id]/execute 矛盾。均为「批末新鲜度复核 grep /api/gate 残留」应捕获项",
+            "steps_to_reproduce": "grep -n '/api/gate' docs/dev/architecture.md，对照 :1241/:1248/:1299 的 as-built 表述"
+          },
+          {
+            "title": "architecture.md §7.2.1「schema 唯一权威（as-built 实物转录）」未同步 M3-A 迁移——反向漂移",
+            "severity": "medium",
+            "evidence": "§7.2.1 标注对照日期 2026-07-21（M3-A 前）：enum PendingActionStatus 仍 3 态（实物 7 态 schema.prisma:478-486）、迁移清单只列 2 条（实测 prisma migrate status = 7 migrations）、缺四张新表 model 转录（实物 :379/:405/:428/:454）、PendingAction 转录（架构文档 :770 起）缺 ticketHash/ticketExpiresAt/ticketUsedAt/decidedAt、Kol 转录缺 contactEmail（§7.2 全区 grep 0 命中）。该节自身规则：'本节与实物冲突时，以实物为准并即刻修订本文'",
+            "steps_to_reproduce": "对照 docs/dev/architecture.md:669-793 与 prisma/schema.prisma；npx prisma migrate status"
+          },
+          {
+            "title": "次要陈旧残留：§5.2 四实体行未标 ✅、§5.5 反向漂移、src mock 注释沿用退役端点名",
+            "severity": "low",
+            "evidence": "§5.2 表中 OutreachThread/OutreachMessage/Quote/Signal 行无 ✅ 已实装标注（M2-A 实体行均有，文档自身惯例）；§5.5(:541) 仍「未实装归 M3」但 Signal+crmInfer 事件推断已在 reach 域实装；src/components/envs/delivery/index.tsx:7,76 与 envs/insight/index.tsx:195、admin/insight/page.tsx:218 注释仍写 /api/gate（M3-B/M4 mock 区前瞻注释，端点名已退役）",
+            "steps_to_reproduce": "grep -rn '/api/gate' src/ docs/dev/architecture.md；sed -n '420,478p;541,547p' docs/dev/architecture.md"
+          }
+        ],
+        "adversarial": {
+          "verdict_stands": true,
+          "reason_excerpt": "证伪失败，原 PARTIAL 成立。①口径核实：features.json F010 acceptance 原文明文点名「architecture.md 翻牌（§5.2/§9.3.2/§10.4/工具表/§14 M3-A 行）+ 批末新鲜度复核（grep 陈旧计数/未实装残留）」——§10.4 是验收硬项非 evaluator 自加。②四 issue 全部复现：§10.4(docs/dev/architecture.md:1530) 仍「演进目标（未实装，归 M3）」而实物 src/lib/signals/{normalize,ingest}.ts + src/app/api/signals/inbound/route.ts 在场、词表缺实物已有 email_delivery_status(normalize.ts:29)/manual_override(src/lib/reach/manual-override.ts)，git show 6b30d40 diff hunk 从 +1513 直接跳 +1838 证实该区零改动；§9.4「as-built」时序图 :1319 POST /"
+        }
+      }
+    ]
+  },
   "generator_handoff": "M3-A building 10/10 完成（commits 773799b..6b30d40+）。验收工具：npm run gate:smoke（G1-G8）/ npm run reach:e2e（默认 mock；REAL 模式需 RESEND_API_KEY+OUTREACH_TEST_RECIPIENT）/ test:unit 504 例 / test:visual 13 基线。注意：① 真投递 L2：密钥仅在 VPS（U2 不离服务器），本地 REAL 跑不了——真发验证路径 = 用户触发 deploy-prod 后在 prod 实测（OUTREACH_TEST_RECIPIENT=tripplezhou@gmail.com 已入 VPS .env，服务器侧已复制 RESEND_API_KEY，compose 已 scp）；② RESEND_WEBHOOK_SECRET 已写入 VPS .env（2026-07-23，用户建 endpoint 后提供新签发 secret）——部署面三键全齐，webhook 生效待 M3-A 版本部署上线；本地 webhook 验证用签名样例回放（tests/integration/signals-inbound.test.ts 已覆盖）；③ 本机跑 test:visual 必须伪造 AIGCGATEWAY_*（真凭据会致 match 空态用例超时）+ 先 kill :3000；④ F008 pre-impl 审计 5 决议全 A 见 docs/specs/M3-A-REACH-CRM-F008-v6-wiring-audit.md（ui-inventory V6 24→26 登记）；⑤ 集成测夹具租户全部独立（test-tenant-m3a-*），CI 无 dev tenant——验收脚本勿依赖 seed。",
   "session_notes": {
     "Andy": "【M3-A-REACH-CRM building 10/10 完成 → verifying · 2026-07-23】\n■ 快车道 + 并行 subagent×2（F005 crmInfer / F007 contactEmail，worktree cherry-pick 汇合）；F008 pre-impl 审计 5 决议全 A（同 commit 裁决，§4.6 豁免）。\n■ 踩坑记录：① CI 会跑集成测且无 dev tenant——route 层测试必须下沉服务层+夹具租户（F004 红灯教训）；② 视觉新基线 CI 首推必红（linux 基线走 update-visual-baselines workflow + pull 回）；③ F005 合成语义 = 多 override 取最新（纯 override 场景可人工改标，非「不回退」——事件面才是地板）；④ fieldProvenance 必须条目对象形状 {source,fetchedAt}，flat 字符串会整表降级击穿既有徽标。\n■ 部署面：RESEND_API_KEY 服务器侧已复制 / OUTREACH_TEST_RECIPIENT=tripplezhou@gmail.com 已入 VPS .env / compose 已 scp；RESEND_WEBHOOK_SECRET 待用户控制台创建 endpoint 后写入；真发 L2 = 部署后 prod 实测（密钥不离服务器）。",

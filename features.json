@@ -15,7 +15,7 @@
       "title": "闸门两步票据升级（§9.3.2 全量）：confirm 签票 / execute 消费票 + 四端点 + 7 态",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "消 R15 并发双确认 + 清 confirmed 死枚举/reject-expiresAt 债。ADR-25 不变量：令牌/票据不出服务端进程（DB 只存 hash）。",
       "acceptance": "GET /api/actions/[id] + POST confirm/execute/reject 四端点在场且 nodejs runtime；票仅 confirm 响应出现一次，DB 只存 hash；两处原子条件 UPDATE（WHERE status='pending' / WHERE status='confirmed' AND ticketUsedAt IS NULL AND ticketExpiresAt>now()）败者 409；reject 写真实 rejected 态；HTTP 分码 403 GATE_TOKEN_INVALID/404/409 GATE_ALREADY_DECIDED/410 GATE_EXPIRED；P9 rate-limit（/api/actions 30/min/IP fail-open + escape hatch）；gate-smoke 升级：G1-G5 + 7 态断言 + D20 变异 + 并发双确认竞态用例全绿；执行=消费票→副作用→同一事务 executed+irrev+业务态变更，失败→failed 无 irrev 行"
     },
@@ -69,7 +69,7 @@
       "title": "V6 ConversationInbox 接真（env-reach mock 退役）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "数据源切真 thread/message/quote；两处 D6 stub（confirmSend/confirmQuote）替换为真 pending→GET 详情→confirm→execute 链路。spec §6 UI 四段约束。",
       "acceptance": "ui-inventory V6 24 元素逐处保持（三栏/五态 pill/draft textarea/重写 ghost/发送红 gate/ring84/宣示句）；「确认报价」仅 negotiating 条件渲染保持（裁决 #6）；五态 pill=crmInfer 真值；发送经真闸门链路（无 stub 残留：grep confirmSend 本地覆盖零命中）；空态语义保留；env-reach.ts 退役登记（mock/index.ts 表更新）；视觉基线逐处对账重生（§4.5 重生序+三连稳）；两视口实测"
     },
@@ -87,7 +87,7 @@
       "title": "E2E 闭环 + 部署面 + 文档翻牌 + 批末新鲜度复核",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "PRD 15.3 M3 E2E：起草→审阅→点确认才发送。真发仅 OUTREACH_TEST_RECIPIENT（P1）。部署面 env 迁移 + webhook 指向。",
       "acceptance": "E2E：draft_email 起草→send_outreach 无令牌 pending（副作用零发生断言）→confirm+execute→真实投递达 OUTREACH_TEST_RECIPIENT（L2 最小用量+报告注明）→OutreachMessage/Signal/留痕齐；真实 KOL 地址零发信（P1 断言）；部署面：三 env 键幂等 append VPS .env + Resend webhook 指向 newkol.guangai.ai/api/signals/inbound + compose 如变更先 scp；architecture.md 翻牌（§5.2/§9.3.2/§10.4/工具表/§14 M3-A 行）+ agent-architecture 同步 + 批末新鲜度复核（grep 陈旧计数/未实装残留）；lint+tsc+test:unit+test:visual 绿"
     }

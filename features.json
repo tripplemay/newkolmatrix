@@ -24,7 +24,7 @@
       "title": "ops/EmailSender 层 + ResendEmailSender/MockEmailSender + send_outreach 接真",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P4 port 旧项目 resend.ts 模式（30s abort + 一次冷重试 + dev 无 key mock 回落 + prod 无 key fail-fast）；P5 SENT_MARKER 转正为 MockEmailSender；P6 幂等键=pendingActionId。",
       "acceptance": "ops/email 接口 + 两实现；env 选择器行为三分支实测（有 key 真发/无 key dev mock/无 key prod 抛错拒发）；send_outreach.execute：发送→OutreachMessage(direction=sent, gateLogId 非空, providerMessageId)落库+thread 状态事件；无 contactEmail 明示拒绝不猜（P3）；重入不双发（幂等断言）；MockEmailSender 保留 SENT_MARKER，gate-smoke/D20 观测点零迁移；CI 与本地默认 mock 不外呼"
     },

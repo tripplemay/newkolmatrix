@@ -39,7 +39,9 @@ export async function executeTool(
         `[gate] outbound 工具 ${name} 未声明 buildHarm，无法披露利害`,
       );
     }
-    const harm = tool.buildHarm(parsed.data as never, ctx);
+    // buildHarm 可 async（F003：从 DB 读真实名单，不信任模型转述）；抛错 = 无法如实披露，
+    // 动作在落 PendingAction 之前被明示拒绝（P3）。
+    const harm = await tool.buildHarm(parsed.data as never, ctx);
     const envelope = await createPendingAction(name, parsed.data, harm, ctx);
     return { toolName: name, output: envelope };
   }

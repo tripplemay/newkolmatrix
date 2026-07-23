@@ -52,13 +52,29 @@ async function expectGateError(
   }
 }
 
-/** 新建一个 send_outreach pending 动作，返回其 PendingAction id。 */
+/** F003 夹具：合成 KOL（带 contactEmail 测试地址，非真实 KOL）+ 项目。 */
+const FIXTURE = {
+  kolHandle: `gate-smoke-kol-${process.pid}`,
+  email: 'gate-smoke@test.invalid', // 默认 mock 不外呼；即便误配真 key 也是不可达域
+  projectName: `gate-smoke-project-${process.pid}`,
+};
+
+/** 新建一个 send_outreach pending 动作（F003 单人语法），返回其 PendingAction id。 */
 async function newPending(
   ctx: ToolContext,
-  recipients: string[],
-  message: string,
+  ids: { projectId: string; kolId: string },
+  subject: string,
 ): Promise<string> {
-  const r = await executeTool('send_outreach', { recipients, message }, ctx);
+  const r = await executeTool(
+    'send_outreach',
+    {
+      projectId: ids.projectId,
+      kolId: ids.kolId,
+      subject,
+      body: `${subject}——正文`,
+    },
+    ctx,
+  );
   if (!isPendingEnvelope(r.output)) throw new Error('预期 pending 信封');
   return r.output.pendingActionId;
 }
@@ -90,8 +106,46 @@ async function main(): Promise<void> {
     },
   });
 
+  // G4 用：带 50 位对象 harm 的 outbound 工具（证无阈值分级——大批量与单人走同一确认流程）
+  registerTool({
+    name: 'gate_smoke_bulk_tool',
+    description: '[test-only] 大批量 harm 的 outbound 工具（D28 无阈值断言用）',
+    class: 'outbound',
+    source: 'native',
+    inputSchema: z.object({ note: z.string() }),
+    buildHarm: (input: { note: string }) => ({
+      action: 'gate_smoke_bulk_tool',
+      summary: '测试专用：50 位对象批量动作',
+      targets: Array.from({ length: 50 }, (_, i) => `@kol${i}`),
+      quantity: 50,
+      irreversible: true,
+      evidence: input.note,
+      expiresAt: new Date().toISOString(),
+      label: HARM_LABEL,
+    }),
+    execute: async () => ({ ok: true }),
+  });
+
   const ctx = await buildToolContext({ agentId: 'reach' });
   const createdPA: string[] = [];
+
+  // ── F003 夹具：合成 KOL（contactEmail=测试地址）+ 项目（结束后清理；不触碰真实 KOL 行，P1）──
+  const fxKol = await prisma.kol.create({
+    data: {
+      tenantId: ctx.tenantId,
+      canonicalHandle: FIXTURE.kolHandle,
+      displayName: 'Gate Smoke 测试创作者',
+      handle: FIXTURE.kolHandle,
+      contactEmail: FIXTURE.email,
+      fieldProvenance: { contactEmail: 'user_input' },
+    },
+    select: { id: true },
+  });
+  const fxProject = await prisma.project.create({
+    data: { tenantId: ctx.tenantId, name: FIXTURE.projectName },
+    select: { id: true },
+  });
+  const fx = { projectId: fxProject.id, kolId: fxKol.id };
 
   try {
     // ── G1：outbound 服务端强制（无令牌 → pending，副作用未执行）──
@@ -99,8 +153,10 @@ async function main(): Promise<void> {
     const r1 = await executeTool(
       'send_outreach',
       {
-        recipients: ['@viper', '@skif', '@pwng'],
-        message: '诚邀参与《星轨协议》上线创作',
+        projectId: fx.projectId,
+        kolId: fx.kolId,
+        subject: '诚邀参与《星轨协议》上线创作',
+        body: '你好，我们正在为《星轨协议》上线寻找创作者合作……',
       },
       ctx,
     );
@@ -125,7 +181,7 @@ async function main(): Promise<void> {
       'G1: pending 信封不含任何令牌/执行票（模型无法自我放行）',
     );
 
-    // ── G2：harm 如实披露（单一 zod schema）──
+    // ── G2：harm 如实披露（单一 zod schema；F003 起收件地址从 DB 读真值，不信任模型转述）──
     const harm = env.harm as {
       action: string;
       targets: string[];
@@ -134,12 +190,10 @@ async function main(): Promise<void> {
     };
     assert(harm.action === 'send_outreach', 'G2: harm.action=send_outreach');
     assert(
-      Array.isArray(harm.targets) && harm.targets.length === 3,
-      'G2: harm.targets 列全部 3 位收件人（不折叠）',
-    );
-    assert(
-      harm.targets.includes('@viper') && harm.targets.includes('@pwng'),
-      'G2: 收件人全名单如实',
+      Array.isArray(harm.targets) &&
+        harm.targets.length === 1 &&
+        harm.targets[0].includes(FIXTURE.email),
+      'G2: harm.targets 如实披露库内真实收件地址（DB 读值，非模型转述）',
     );
     assert(harm.irreversible === true, 'G2: harm.irreversible=true');
     assert(harm.label === '对外·不可撤销', 'G2: 统一红标「对外·不可撤销」');
@@ -155,16 +209,21 @@ async function main(): Promise<void> {
       'G3: internal search_kols 不弹确认框（直接执行，非 pending）',
     );
 
-    // ── G4：无阈值分级（大批量走完全相同的确认流程）──
-    const many = Array.from({ length: 50 }, (_, i) => `@kol${i}`);
+    // ── G4：无阈值分级（50 位对象的 harm 与单人走完全相同确认流程；send_outreach 本批
+    //    为单人语法（P7），批量维度由测试工具承载断言）──
     const rBig = await executeTool(
-      'send_outreach',
-      { recipients: many, message: '大批量邀约' },
+      'gate_smoke_bulk_tool',
+      { note: '大批量动作无阈值断言' },
       ctx,
     );
     assert(
       isPendingEnvelope(rBig.output),
-      'G4: 50 位批量与 3 位走完全相同确认流程（无阈值豁免，D28）',
+      'G4: 50 位对象批量与单人走完全相同确认流程（无阈值豁免，D28）',
+    );
+    const bigHarm = (rBig.output as { harm: { targets: string[] } }).harm;
+    assert(
+      bigHarm.targets.length === 50,
+      'G4: 大批量 harm 列全部 50 位对象（不折叠）',
     );
     createdPA.push(
       (rBig.output as { pendingActionId: string }).pendingActionId,
@@ -248,8 +307,43 @@ async function main(): Promise<void> {
       'G5: 票重放 → 409 GATE_ALREADY_DECIDED',
     );
 
+    // ── G5.5（F003）：触达落库与状态推进（与 executed+irrev 同一事务的业务态变更）──
+    const sentMsg = await prisma.outreachMessage.findFirst({
+      where: {
+        tenantId: ctx.tenantId,
+        gateLogId: env.pendingActionId,
+        direction: 'sent',
+      },
+    });
+    assert(
+      !!sentMsg,
+      'G5.5: OutreachMessage(direction=sent, gateLogId=PA.id) 落库（:468 sent 必非空）',
+    );
+    assert(!!sentMsg?.sentAt, 'G5.5: sentAt 记录发送时刻');
+    const fxThread = await prisma.outreachThread.findUnique({
+      where: {
+        projectId_kolId: { projectId: fx.projectId, kolId: fx.kolId },
+      },
+    });
+    assert(
+      fxThread?.status === 'sent',
+      'G5.5: OutreachThread.status 经 crmInfer 推进 pending_send → sent（三处复用铁律）',
+    );
+    const advanceLog = await prisma.operationLog.count({
+      where: {
+        tenantId: ctx.tenantId,
+        kind: 'auto',
+        projectId: fx.projectId,
+        summary: { contains: '触达状态推进' },
+      },
+    });
+    assert(
+      advanceLog === 1,
+      'G5.5: 状态推进事件留痕（OperationLog kind:auto + payloadJson）',
+    );
+
     // ── G6：分码负例（403 / 410）+ reject 真实 rejected 态 ──
-    const paA = await newPending(ctx, ['@a'], 'G6-a 未确认先执行/伪票/票过期');
+    const paA = await newPending(ctx, fx, 'G6-a 未确认先执行/伪票/票过期');
     createdPA.push(paA);
     assert(
       await expectGateError(
@@ -283,7 +377,7 @@ async function main(): Promise<void> {
       'G6: 票过期惰性翻转 confirmed → expired',
     );
 
-    const paB = await newPending(ctx, ['@b'], 'G6-b pending 过期');
+    const paB = await newPending(ctx, fx, 'G6-b pending 过期');
     createdPA.push(paB);
     await prisma.pendingAction.update({
       where: { id: paB },
@@ -309,7 +403,7 @@ async function main(): Promise<void> {
       'G6: 不存在的 actionId → 404 GATE_NOT_FOUND',
     );
 
-    const paC = await newPending(ctx, ['@c'], 'G6-c 拒绝');
+    const paC = await newPending(ctx, fx, 'G6-c 拒绝');
     createdPA.push(paC);
     await rejectPendingAction(paC, ctx);
     const paCRow = await prisma.pendingAction.findUnique({
@@ -385,7 +479,7 @@ async function main(): Promise<void> {
       'G7: failed 无 irrev 行（业务写入随事务回滚）',
     );
 
-    const paF = await newPending(ctx, ['@f'], 'G7 executing 认账');
+    const paF = await newPending(ctx, fx, 'G7 executing 认账');
     createdPA.push(paF);
     await prisma.pendingAction.update({
       where: { id: paF },
@@ -411,7 +505,7 @@ async function main(): Promise<void> {
     );
 
     // ── G8：并发竞态（消 R15，原子条件 UPDATE 败者 409）──
-    const paE = await newPending(ctx, ['@e'], 'G8 并发双确认');
+    const paE = await newPending(ctx, fx, 'G8 并发双确认');
     createdPA.push(paE);
     const confRace = await Promise.allSettled([
       confirmPendingAction(paE, ctx),
@@ -455,7 +549,12 @@ async function main(): Promise<void> {
     const beforeMut = await countSent(ctx.tenantId);
     const tool = getTool('send_outreach')!;
     await tool.execute(
-      { recipients: ['@mutation'], message: '变异：直调绕过闸门' } as never,
+      {
+        projectId: fx.projectId,
+        kolId: fx.kolId,
+        subject: '变异：直调绕过闸门',
+        body: '变异测试正文',
+      } as never,
       ctx,
     ); // = 拦截退回原状
     const afterMut = await countSent(ctx.tenantId);
@@ -469,9 +568,13 @@ async function main(): Promise<void> {
       '[gate-smoke] ✅ 全部断言通过（两步票据 + 7 态 + 并发竞态 + D20 变异）',
     );
   } finally {
-    // 清理本测试产生的 PendingAction + OperationLog（SENT/gate/irrev/block/auto/变异）。
+    // 清理本测试产生的 PendingAction + OperationLog（SENT/gate/irrev/block/auto/变异）
+    // + F003 夹具（project 级联 thread/message；再删合成 KOL）。
     await prisma.operationLog.deleteMany({
       where: { tenantId: ctx.tenantId, summary: { contains: SENT_MARKER } },
+    });
+    await prisma.operationLog.deleteMany({
+      where: { tenantId: ctx.tenantId, projectId: fx.projectId },
     });
     if (createdPA.length) {
       await prisma.operationLog.deleteMany({
@@ -481,7 +584,9 @@ async function main(): Promise<void> {
         where: { id: { in: createdPA } },
       });
     }
-    console.log('[gate-smoke] 测试数据已清理');
+    await prisma.project.deleteMany({ where: { id: fx.projectId } });
+    await prisma.kol.deleteMany({ where: { id: fx.kolId } });
+    console.log('[gate-smoke] 测试数据已清理（含 F003 夹具）');
   }
 }
 

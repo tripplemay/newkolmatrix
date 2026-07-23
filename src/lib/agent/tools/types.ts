@@ -55,10 +55,12 @@ export interface ToolDefinition<TInput = unknown, TOutput = unknown> {
   /** 入参 zod schema（executeTool 与 AI SDK 均用它校验）。 */
   inputSchema: z.ZodType<TInput>;
   /**
-   * outbound 工具必须提供：由入参构造 harm 利害结构（F009 闸门如实披露）。
-   * internal 工具无需（不过闸门）。
+   * outbound 工具必须提供：构造 harm 利害结构（F009 闸门如实披露）。
+   * M3-A F003 起支持 async——**从 DB 读真实名单/金额，不信任模型转述**（§9.5）；
+   * 无法如实披露时（如收件人未录联系方式）应抛出明示错误 → 动作在落 PendingAction
+   * **之前**被拒（P3 明示拒绝不猜）。internal 工具无需（不过闸门）。
    */
-  buildHarm?: (input: TInput, ctx: ToolContext) => Harm;
+  buildHarm?: (input: TInput, ctx: ToolContext) => Harm | Promise<Harm>;
   /** 唯一执行体。只应经 executeTool 调用，不得被其它路径直接触发（架构稿 §5.2）。 */
   execute: (input: TInput, ctx: ToolContext) => Promise<TOutput>;
 }

@@ -161,6 +161,26 @@ tests/visual/fonts/          # woff2 + 改写 src: 指向本地的 CSS
 
 **来源：** KOLMatrix FE-REFACTOR F005 / F003+F007（BL-FE-11、BL-FE-13）+ ARCH-M05 F017 + P2-CLEANUP F005（§4.4）。
 
+### 4.5 重生前必查 :3000 无残活 dev server——`reuseExistingServer` 静默复用任何占端口进程（v1.0.11 — KOLMatrix M2-A F008 沉淀）
+
+**背景：** Playwright `webServer.reuseExistingServer: !CI` 的语义是「端口被占就直接用」——它**不核对占端口的是谁**。M2-A F008 基线重生时，F005 期的 `next dev` 残活在 :3000（`next dev` 自动加载 .env → 持真网关凭据），手起的 standalone `EADDRINUSE` 崩溃且输出被 `/dev/null` 吞掉，于是 12 张基线**对着 dev server 拍摄**（dev 渲染 + 真网关 lazy 生成把真数据写进库），直到一条空态用例 30s 超时才暴露，返工整轮重拍。
+
+**这是「dev vs standalone」已知坑的新触发形态：不是配置错，是端口被上一个会话的进程占着。** 三重静默叠加：占端口静默复用 + 启动失败静默吞掉 + 容忍带内差异静默借绿。
+
+**重生序（每次重生基线前照此执行）：**
+
+```bash
+lsof -ti :3000 | xargs kill 2>/dev/null   # 1. 清残活（dev / 旧 standalone 一律杀）
+lsof -ti :3000 || echo port-free           # 2. 确认真的空了
+# 3. 让 playwright 自起 webServer——env 在当前 shell 显式控制（如伪造网关凭据造空态）
+npm run test:visual:update
+# 4. 事后核 DB 无副作用写入（真网关残活会经 lazy 生成落库）
+```
+
+**自检：** 重生跑完问一句「这批截图是谁渲染的？」——答不上（没确认过端口归属）就等于没重生。
+
+**来源：** KOLMatrix M2-A F008（12 张基线污染返工 + proposed-learnings 2026-07-22 用户 Accept）。
+
 ---
 
 ## 5. Tailwind JIT 静态扫描：`className` 可达的值必须定义在 config（双域 token 分工）（v1.0.6 — KOLMatrix ARCH-M05 沉淀）

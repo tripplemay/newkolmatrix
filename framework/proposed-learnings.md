@@ -138,12 +138,5 @@
 
 ---
 
-## [2026-07-22] Generator Andy — 来源：M2-A-MATCH F008 视觉基线重生
-
-**类型：** 新坑
-
-**内容：** 视觉基线重生前必须确认 :3000 无残活 dev server。Playwright `reuseExistingServer: !CI` 会静默复用**任何**占着端口的进程：本批 F005 期的 `next dev`（自动加载 .env → 真网关凭据）残活，后续手起的 standalone EADDRINUSE 静默失败（输出被 /dev/null 吞掉），12 张基线实际对着 dev server 拍摄（dev 渲染 + 真网关 lazy 生成真数据落库），且 match 空态用例 30s 超时才暴露。已知坑「dev vs standalone」的新触发形态：不是配置错，是**端口被上一个会话的进程占着**。重生序：`lsof -ti :3000 | xargs kill` → 确认 port free → 让 playwright 自起 webServer（env 显式控制）→ 重生 → 事后核 DB 无副作用写入（真网关残活会经 lazy 落库）。
-
-**建议写入：** `framework/patterns/web-runtime-patterns.md` §4（视觉基线静默坑追加一条）
-
-**状态：** 待确认
+<!-- 2026-07-22: v1.0.11 沉淀完成（1 条 learning 来源 M2-A F008 dev server 残活基线污染），用户 Accept。
+     已写入 patterns/web-runtime-patterns.md §4.5 + CHANGELOG v1.0.11。 -->

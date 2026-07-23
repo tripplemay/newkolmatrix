@@ -976,3 +976,10 @@ M1-B/M1-C 两批沉淀 4 条（用户逐条 Accept）：
 M1-D 沉淀 1 条（用户 Accept）：
 
 1. **Compose 人工副本漂移**（deploy-prod 只 pull+up 不同步 compose，改 compose 的批次上线前必须先 scp 同步，否则静默跑旧配置——新卷缺失时数据落容器层容器重建即丢）→ `patterns/deploy-patterns.md` 新增 §8（含 M1-D 实操模板 + Planner/Evaluator checklist；长期解法「workflow 加 compose 同步步」登记为候选）
+
+
+## v1.0.11（2026-07-22）
+
+M2-A 沉淀 1 条（用户 Accept）：
+
+1. **视觉基线重生前必查 :3000 无残活 dev server**（playwright `reuseExistingServer` 静默复用任何占端口进程；M2-A F008 实撞：dev server 残活 + standalone EADDRINUSE 被吞 + 容忍带借绿三重静默，12 张基线对着 dev server 拍摄后返工）→ `patterns/web-runtime-patterns.md` 新增 §4.5（含重生序 4 步 + 自检句）

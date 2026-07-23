@@ -27,9 +27,7 @@ import {
 } from 'react-icons/md';
 import CircularProgress from 'components/charts/CircularProgress';
 import Button from 'components/common/Button';
-import GateConfirm, {
-  type GateHarmRow,
-} from 'components/common/GateConfirm';
+import GateConfirm, { type GateHarmRow } from 'components/common/GateConfirm';
 import SurfaceCard from 'components/common/SurfaceCard';
 import { useToast } from 'components/common/Toast';
 // F007 既有件复用（只读，不改动）：原型 avatar() 色轮同规格
@@ -124,6 +122,13 @@ const EMPTY_TERMS: QuoteTermsDraft = {
   scope: '',
 };
 
+/** V6-26 人工标记三态文案（U4 白名单；「已确认」刻意不存在）。 */
+const OVERRIDE_LABEL: Record<'sent' | 'replied' | 'negotiating', string> = {
+  sent: '已发送',
+  replied: '已回复',
+  negotiating: '谈判中',
+};
+
 async function readJson(res: Response): Promise<Record<string, unknown>> {
   return (await res.json().catch(() => ({}))) as Record<string, unknown>;
 }
@@ -145,7 +150,7 @@ export default function ConversationInbox({
   const [drafts, setDrafts] = React.useState<Record<string, string>>({});
   const [gate, setGate] = React.useState<GateFlow | null>(null);
   const [busy, setBusy] = React.useState<
-    'send-start' | 'quote-start' | 'refine' | 'confirm' | null
+    'send-start' | 'quote-start' | 'refine' | 'confirm' | 'override' | null
   >(null);
   const [termsOpen, setTermsOpen] = React.useState(false);
   const [terms, setTerms] = React.useState<QuoteTermsDraft>(EMPTY_TERMS);
@@ -158,7 +163,7 @@ export default function ConversationInbox({
   /** 档案 平台/粉丝量 两行由 plat 拆分（原型 plat.split(' · ')） */
   const [platName, platFollowers] = (selected?.plat ?? '—').split(' · ');
   const draftValue = selected
-    ? (drafts[selected.kolId] ?? selected.draft?.body ?? '')
+    ? drafts[selected.kolId] ?? selected.draft?.body ?? ''
     : '';
 
   const closeGate = () => setGate(null);
@@ -321,6 +326,32 @@ export default function ConversationInbox({
     }
   };
 
+  /** V6-26 人工标记（F009）：Signal(manual_override) → 同一推断管道（服务端），非直改列 */
+  const override = async (status: 'sent' | 'replied' | 'negotiating') => {
+    if (!selected) return;
+    setBusy('override');
+    try {
+      const res = await fetch('/api/reach/override', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ projectId, kolId: selected.kolId, status }),
+      });
+      const out = await readJson(res);
+      if (!res.ok) {
+        toast(String(out.error ?? '标记失败'));
+        return;
+      }
+      toast(
+        out.effective
+          ? `已标记「${OVERRIDE_LABEL[status]}」`
+          : `已记录标记——当前进展（${String(out.to)}）已在此之后，状态不回退`,
+      );
+      router.refresh();
+    } finally {
+      setBusy(null);
+    }
+  };
+
   /** 确认卡行（渲染真 harm 字段，不改写不筛选——§9.5；行结构沿原型 2/3 行） */
   const gateRows: GateHarmRow[] =
     gate?.kind === 'send'
@@ -329,15 +360,15 @@ export default function ConversationInbox({
           { label: '动作', value: gate.harm.summary ?? '发送邀约邮件' },
         ]
       : gate
-        ? [
-            {
-              label: '金额',
-              value: `${gate.harm.amount ?? '—'} ${gate.harm.currency ?? ''}`,
-            },
-            { label: '交付内容', value: gate.harm.evidence ?? '—' },
-            { label: '授权范围', value: gate.harm.scope ?? '—' },
-          ]
-        : [];
+      ? [
+          {
+            label: '金额',
+            value: `${gate.harm.amount ?? '—'} ${gate.harm.currency ?? ''}`,
+          },
+          { label: '交付内容', value: gate.harm.evidence ?? '—' },
+          { label: '授权范围', value: gate.harm.scope ?? '—' },
+        ]
+      : [];
 
   return (
     <div data-project={projectId}>
@@ -352,12 +383,12 @@ export default function ConversationInbox({
               <input
                 placeholder="搜索创作者…"
                 aria-label="搜索"
-                className="w-full bg-transparent text-compact text-navy-700 outline-none placeholder:text-gray-400 dark:text-white"
+                className="bg-transparent w-full text-compact text-navy-700 outline-none placeholder:text-gray-400 dark:text-white"
               />
             </div>
           </div>
           {/* V6-3..7 ibrow ×N：avatar / 名 / 🔒 五态阶段 pill（crmInfer 真值）/ last 预览 / on 淡紫 */}
-          <div className="flex-1 overflow-y-auto max-md:max-h-[220px]">
+          <div className="max-md:max-h-[220px] flex-1 overflow-y-auto">
             {people.length === 0 ? (
               <div className="px-4 py-8 text-center text-compact text-gray-600 dark:text-gray-400">
                 还没有触达对象——先在「创作者匹配」批准一个组合，成员会出现在这里。
@@ -372,7 +403,7 @@ export default function ConversationInbox({
                     onClick={() => setSelectedId(c.kolId)}
                     className={`flex w-full items-center gap-[11px] border-t border-gray-100 px-4 py-3.5 text-left dark:border-white/10 ${
                       on
-                        ? 'bg-brand-50 dark:bg-brand-400/10'
+                        ? 'dark:bg-brand-400/10 bg-brand-50'
                         : 'hover:bg-lightPrimary dark:hover:bg-navy-800'
                     }`}
                   >
@@ -544,6 +575,33 @@ export default function ConversationInbox({
                 : '与触达 Agent 对话可获得针对此人的邀约与谈判建议。'}
             </p>
           </div>
+          {/* V6-26 人工标记（F009，U4 有限覆盖）：仅三态可选——「已确认」无入口（唯一路径 =
+              报价闸门）；落 Signal(manual_override) 走同一推断管道，非直改列 */}
+          {selected && (
+            <div>
+              <CtxHeading>人工标记</CtxHeading>
+              <div className="flex flex-wrap gap-1.5">
+                {(['sent', 'replied', 'negotiating'] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    disabled={busy === 'override'}
+                    onClick={() => override(s)}
+                    className={`rounded-full px-2.5 py-1 text-mini font-bold transition disabled:opacity-50 ${
+                      selected.status === s
+                        ? 'bg-brand-500 text-white'
+                        : 'bg-lightPrimary text-gray-600 hover:bg-brand-50 hover:text-brand-500 dark:bg-navy-700 dark:text-gray-400'
+                    }`}
+                  >
+                    {OVERRIDE_LABEL[s]}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-micro leading-normal text-gray-400">
+                回复/谈判进展可人工补记；「已确认」只能经报价确认产生。
+              </p>
+            </div>
+          )}
         </div>
       </SurfaceCard>
 
@@ -614,7 +672,11 @@ export default function ConversationInbox({
               </label>
             </div>
             <div className="mt-5 flex justify-end gap-2.5">
-              <Button variant="ghost" size="sm" onClick={() => setTermsOpen(false)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setTermsOpen(false)}
+              >
                 取消
               </Button>
               <Button

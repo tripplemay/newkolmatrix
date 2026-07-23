@@ -78,7 +78,7 @@
       "title": "CRM 人工覆盖入口（U4 有限覆盖）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "V6 覆盖控件（仅 sent/replied/negotiating 三态）→ Signal(manual_override) → 同一推断管道 → 留痕。",
       "acceptance": "覆盖控件仅三态可选（「已确认」选项不存在——验收断言其不可达）；覆盖落 Signal(manual_override) 走 crmInfer 管道非直改列；OperationLog 留痕含操作者与前后态；ui-inventory V6 24→25 登记；视觉基线对账（意图性变更）"
     },

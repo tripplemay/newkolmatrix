@@ -31,6 +31,10 @@ import { canEnter } from 'lib/domain/env-guards';
 import { ENV_GUARD_MESSAGE } from 'lib/display/env-guard-messages';
 import type { ProjectGoal } from 'lib/data/schemas/project';
 import type { MatchSurfaceData } from 'lib/display/match-format';
+import {
+  EMPTY_REACH_SURFACE,
+  type ReachSurfaceData,
+} from 'lib/display/reach-format';
 import { PENDING_TEXT } from 'lib/data/provenance';
 import { useToast } from 'components/common/Toast';
 import BriefEnv from 'components/envs/brief';
@@ -70,6 +74,8 @@ export interface ProjectDetailData {
   hasApprovedMatchPlan: boolean;
   /** match 语法面真数据（M2-A F005，RSC 组装可序列化视图） */
   match: MatchSurfaceData;
+  /** reach 语法面真数据（M3-A F008，RSC 组装可序列化视图） */
+  reach: ReachSurfaceData;
 }
 
 export default function ProjectDetail({
@@ -277,6 +283,12 @@ export default function ProjectDetail({
             router.replace(stageHref(projectId, 'reach'), { scroll: false });
             router.refresh(); // RSC 重组装（cur/守卫判据/match 面随批准后状态刷新）
           }}
+        />
+      ) : env === 'reach' ? (
+        // M3-A F008：reach 面接真 prop（mock/env-reach.ts 已退役）；project null（D2 降级）→ 空表
+        <ReachEnv
+          projectId={projectId}
+          data={project?.reach ?? EMPTY_REACH_SURFACE}
         />
       ) : (
         <Surface projectId={projectId} />

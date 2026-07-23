@@ -4,7 +4,11 @@
 // 路径见 tests/integration/reach-tools.test.ts（mock 网关）；真网关起草属 L2 留验收授权。
 
 import { describe, expect, it } from 'vitest';
-import { draftEmailTool, refineEmailTool, parseEmailDraftOutput } from 'lib/agent/tools/email-drafting';
+import {
+  draftEmailTool,
+  refineEmailTool,
+  parseEmailDraftOutput,
+} from 'lib/agent/tools/email-drafting';
 import { commitQuoteTool } from 'lib/agent/tools/commit-quote';
 import { getNativeToolNames } from 'lib/agent/tools';
 import { getTool } from 'lib/agent/tools/registry';
@@ -29,7 +33,9 @@ describe('三工具注册 + reach 人格同源断言（acceptance 1）', () => {
     // 同源：人格声明的每个工具名必须真实存在于注册表（防字符串漂移）
     const native = new Set(getNativeToolNames());
     for (const name of reach!.tools) {
-      expect(native.has(name), `reach 人格声明的 ${name} 必须已注册`).toBe(true);
+      expect(native.has(name), `reach 人格声明的 ${name} 必须已注册`).toBe(
+        true,
+      );
     }
   });
 });
@@ -58,24 +64,48 @@ describe('工具契约（D8）', () => {
       deliverables: ['1 条长视频'],
     };
     expect(commitQuoteTool.inputSchema.safeParse(base).success).toBe(true);
-    expect(commitQuoteTool.inputSchema.safeParse({ ...base, amount: 0 }).success).toBe(false);
-    expect(commitQuoteTool.inputSchema.safeParse({ ...base, amount: -5 }).success).toBe(false);
-    expect(commitQuoteTool.inputSchema.safeParse({ ...base, currency: 'US' }).success).toBe(false);
-    expect(commitQuoteTool.inputSchema.safeParse({ ...base, deliverables: [] }).success).toBe(false);
+    expect(
+      commitQuoteTool.inputSchema.safeParse({ ...base, amount: 0 }).success,
+    ).toBe(false);
+    expect(
+      commitQuoteTool.inputSchema.safeParse({ ...base, amount: -5 }).success,
+    ).toBe(false);
+    expect(
+      commitQuoteTool.inputSchema.safeParse({ ...base, currency: 'US' })
+        .success,
+    ).toBe(false);
+    expect(
+      commitQuoteTool.inputSchema.safeParse({ ...base, deliverables: [] })
+        .success,
+    ).toBe(false);
   });
 
   it('draft_email 输入契约：projectId/kolId 必填，brief 可省略', () => {
     expect(
-      draftEmailTool.inputSchema.safeParse({ projectId: 'p', kolId: 'k' }).success,
+      draftEmailTool.inputSchema.safeParse({ projectId: 'p', kolId: 'k' })
+        .success,
     ).toBe(true);
-    expect(draftEmailTool.inputSchema.safeParse({ projectId: 'p' }).success).toBe(false);
+    expect(
+      draftEmailTool.inputSchema.safeParse({ projectId: 'p' }).success,
+    ).toBe(false);
   });
 
-  it('refine_email 输入契约：body/instruction 必填非空', () => {
-    const base = { kolId: 'k', subject: 's', body: 'b', instruction: '更简短' };
+  it('refine_email 输入契约：projectId/body/instruction 必填非空（F008 起草稿落库需线程归属）', () => {
+    const base = {
+      projectId: 'p',
+      kolId: 'k',
+      subject: 's',
+      body: 'b',
+      instruction: '更简短',
+    };
     expect(refineEmailTool.inputSchema.safeParse(base).success).toBe(true);
     expect(
-      refineEmailTool.inputSchema.safeParse({ ...base, instruction: '' }).success,
+      refineEmailTool.inputSchema.safeParse({ ...base, instruction: '' })
+        .success,
+    ).toBe(false);
+    expect(
+      refineEmailTool.inputSchema.safeParse({ ...base, projectId: undefined })
+        .success,
     ).toBe(false);
   });
 });

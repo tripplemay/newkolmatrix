@@ -78,7 +78,9 @@ beforeAll(async () => {
       rationale: '夹具',
       status: 'approved',
       kols: {
-        create: [{ tenantId, kolId: kolRu, matchScore: 0.9, reasons: ['夹具'] }],
+        create: [
+          { tenantId, kolId: kolRu, matchScore: 0.9, reasons: ['夹具'] },
+        ],
       },
     },
   });
@@ -110,9 +112,26 @@ describe('draft_email / refine_email（mock 网关）', () => {
     expect(out.subject).toBe('Приглашение к сотрудничеству');
     expect(out.body).toContain('Здравствуйте');
     expect(out.language).toBe('ru'); // 语言随 KOL.language
+    // F008 裁决 #3：草稿已落库（upsert thread + OutreachMessage direction=draft）
+    expect(out.threadId).toBeTruthy();
+    const draftRow = await prisma.outreachMessage.findFirst({
+      where: { tenantId, threadId: out.threadId, direction: 'draft' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(draftRow?.subject).toBe('Приглашение к сотрудничеству');
+    expect(draftRow?.language).toBe('ru');
+    // draft 行不推进 CRM 状态（crmInfer 只认 sent/inbound）
+    const thread = await prisma.outreachThread.findUnique({
+      where: { id: out.threadId },
+    });
+    expect(thread?.status).toBe('pending_send');
     expect(captured.prompt).toContain('「ru」'); // 语言指令进 prompt
-    expect(captured.prompt).toContain('<USER_KOL_NAME>Руслан Стример</USER_KOL_NAME>');
-    expect(captured.prompt).toContain('<USER_BRIEF>强调独家皮肤合作</USER_BRIEF>');
+    expect(captured.prompt).toContain(
+      '<USER_KOL_NAME>Руслан Стример</USER_KOL_NAME>',
+    );
+    expect(captured.prompt).toContain(
+      '<USER_BRIEF>强调独家皮肤合作</USER_BRIEF>',
+    );
     expect(captured.system).toContain('不可信数据'); // untrusted-data 声明（§4.3）
   });
 
@@ -136,14 +155,24 @@ describe('draft_email / refine_email（mock 网关）', () => {
       return '{"subject":"Кратко","body":"Коротко..."}';
     };
     const out = await refineEmail(
-      { kolId: kolRu, subject: '旧主题', body: '旧正文', instruction: '更简短' },
+      {
+        projectId,
+        kolId: kolRu,
+        subject: '旧主题',
+        body: '旧正文',
+        instruction: '更简短',
+      },
       ctx,
       llm,
     );
     expect(out.subject).toBe('Кратко');
     expect(out.language).toBe('ru');
-    expect(captured.prompt).toContain('<USER_INSTRUCTION>更简短</USER_INSTRUCTION>');
-    expect(captured.prompt).toContain('<USER_DRAFT_BODY>旧正文</USER_DRAFT_BODY>');
+    expect(captured.prompt).toContain(
+      '<USER_INSTRUCTION>更简短</USER_INSTRUCTION>',
+    );
+    expect(captured.prompt).toContain(
+      '<USER_DRAFT_BODY>旧正文</USER_DRAFT_BODY>',
+    );
   });
 });
 

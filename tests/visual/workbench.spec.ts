@@ -55,7 +55,13 @@ test('project env=reach visual baseline', async ({ page }) => {
   await page.goto('/admin/campaigns/xg?env=reach', {
     waitUntil: 'domcontentloaded',
   });
-  await page.getByText('可编辑后发送').first().waitFor({ timeout: 30_000 });
+  // M3-A F008 接真后的基线态 = 夹具项目无 approved 组合/thread 的空态（match 基线同口径，
+  // v1.0.9 §4.3）：空态文案硬断言使「数据源整个消失 / 组装层回归」都超时硬红。
+  await page
+    .getByText('还没有触达对象——先在「创作者匹配」批准一个组合')
+    .first()
+    .waitFor({ timeout: 30_000 }); // 左栏人列空态（裁决 #5 数据源语义）
+  await page.getByText('整个环节聚焦').first().waitFor({ timeout: 30_000 }); // V6-24 宣示句（🔒静态锚）
   await shot(page, 'project-reach.png');
 });
 

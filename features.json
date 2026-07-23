@@ -69,7 +69,7 @@
       "title": "V6 ConversationInbox 接真（env-reach mock 退役）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "数据源切真 thread/message/quote；两处 D6 stub（confirmSend/confirmQuote）替换为真 pending→GET 详情→confirm→execute 链路。spec §6 UI 四段约束。",
       "acceptance": "ui-inventory V6 24 元素逐处保持（三栏/五态 pill/draft textarea/重写 ghost/发送红 gate/ring84/宣示句）；「确认报价」仅 negotiating 条件渲染保持（裁决 #6）；五态 pill=crmInfer 真值；发送经真闸门链路（无 stub 残留：grep confirmSend 本地覆盖零命中）；空态语义保留；env-reach.ts 退役登记（mock/index.ts 表更新）；视觉基线逐处对账重生（§4.5 重生序+三连稳）；两视口实测"
     },

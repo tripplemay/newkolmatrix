@@ -69,9 +69,10 @@ eyebrow｜**HalfGauge 64%**（230×130 stroke18 圆头）+ 中央 32px 读数 + 
 `.cmatrix` 矩阵（130px 行标+3 组合列，min-w 700 横滚，**独立组件非 DataTable**）｜col-h ×3｜🔒 「★ Agent 推荐」（仅 best，其余 &nbsp; 占位保高）｜🔒 best 渐变高亮｜🔒 minibars 6 根迷你柱（hi 满/其余 .35）｜行：触达/预算/风险/规模｜🔒 行「依据」推荐理由段｜🔒 pick 列淡紫底贯穿｜foot「批准这组」×3（best 实心/ghost；**internal 不弹框**）｜sec-head「Agent 拿不准 · 待你裁定」+ meta｜FUZZY 表 5 列（DataTable）｜行 who/受众匹配（**「待核」或裸分二形态**：字段缺失→待核——裁决 #2）/存疑原因/初判 pill 三态/「审阅」ghost｜**「保留」ghost（M2-B F006，U3 布局变更：人工裁定 verdict=kept，internal 无确认框）**｜**「剔除」ghost（同上，verdict=dropped；裁定后行离表——读侧 verdict:'pending'）**｜🔒 底部 shield「批准组合只是让方案生效…所以没有确认弹窗」（D27 解释必须）
 交互：批准→toast+cur='reach'+自动跳环节；裁定→toast+refresh 行离表（P4 刷新不回退）；**无闸门（刻意）**。
 
-### V6. Reach 对话收件箱（L784-796）— 24 元素 🆕ConversationInbox
-三栏 280/1fr/240 min-h 540｜左栏搜索框｜ibrow ×7（avatar/名/**阶段 pill 五态**/last 预览/on 淡紫）｜th-head avatar+名+sub｜🔒🚪 「确认报价」钮（**仅 stage==='谈判中' 条件渲染**——裁决 #6 写死）｜th-msgs 对话区｜msg in 白左/out 渐变紫右（尖角）｜时间戳｜🔒 空态「还没有往来——Agent 已为你起草首封邀约」｜draft dlbl「Agent 起草 · 可编辑后发送」+spark｜textarea 可编辑（focus brand 边框）｜🔒 hint「发送是对外动作，会先让你确认」+shield｜「重写」ghost｜🚪 「发送」红 gate｜右栏受众匹配 ring 84（CircularProgress）｜档案 4 行 kv｜「Agent 建议」段｜🔒 底部语法差异宣示「整个环节聚焦一个人…正好相反」
-闸门：send_outreach（harm 2 行）· commit_quote（harm 3 行）。
+### V6. Reach 对话收件箱（L784-796）— 24+2 元素 🆕ConversationInbox（M3-A F008 接真）
+三栏 280/1fr/240 min-h 540｜左栏搜索框｜ibrow ×N（avatar/名/**阶段 pill 五态 = crmInfer 真值**/last 预览/on 淡紫；数据源 = 真 thread ∪ approved 组合成员——F008 裁决 #5）｜th-head avatar+名+sub｜🔒🚪 「确认报价」钮（**仅 stage==='谈判中' 条件渲染**——裁决 #6 写死）｜th-msgs 对话区｜msg in 白左/out 渐变紫右（尖角）｜时间戳｜🔒 空态「还没有往来——Agent 已为你起草首封邀约」（无草稿时变体「…在下方书写，或到 Copilot 让触达 Agent 起草」——D2 诚实，元素在场语义不变）｜draft dlbl「Agent 起草 · 可编辑后发送」+spark｜textarea 可编辑（focus brand 边框；初值 = 最新 OutreachMessage(direction=draft) 行——F008 裁决 #3）｜🔒 hint「发送是对外动作，会先让你确认」+shield｜「重写」ghost（M3-A F008 接真：refine_email 真链——裁决 #4）｜🚪 「发送」红 gate（真两步票据链：pending→GET 详情→confirm→execute）｜右栏受众匹配 ring 84（CircularProgress）｜档案 4 行 kv｜「Agent 建议」段｜🔒 底部语法差异宣示「整个环节聚焦一个人…正好相反」
+**M3-A 新增例外登记（24→26）：** V6-25 报价条款表单 modal（F008 裁决 #1：闸门前置最小输入——金额/币种/交付物/授权范围；人是谈判条款唯一权威输入源，非画布区块）· V6-26 CRM 人工覆盖控件（F009，U4 有限覆盖仅三态，「已确认」不可达）。
+闸门：send_outreach（harm 2 行，**渲染服务端真 harm 不改写**）· commit_quote（harm 3 行同上）。
 
 ### V7. Delivery 条件台账（L798-804）— 11 元素
 台账 7 列（DataTable）｜行 who（**纯色方块 av** 非色轮）+名｜sub 交付物｜🔒 note 附注条件渲染｜条件单元 **ok 绿/miss 琥珀/🔒 na 灰三态**（不得压成二态）｜放款金额右对齐 800｜🚪 「放款」红 gate（仅 ready，5 行中 2）｜🔒 「条件未齐」灰字（**替代按钮位，不得改 disabled 按钮**）｜🔒 底部 shield「没有 AI 推荐卡…不提供绕过入口」

@@ -58,6 +58,44 @@ export interface EmailDraft {
   body: string;
   /** 实际采用的目标语言（= KOL.language，未录回落 'en'——NFR-I2）。 */
   language: string;
+  /** 草稿已落库的线程（F008 裁决 #3：draft 持久化，V6 textarea 数据源）。 */
+  threadId: string;
+}
+
+/**
+ * 草稿持久化（F008 裁决 #3）：upsert thread + 落 OutreachMessage(direction=draft)。
+ * draft 行不推进 CRM 状态（crmInfer 只认 sent/inbound）；V6 textarea 初值 = 最新 draft 行。
+ */
+async function persistDraft(
+  input: { projectId: string; kolId: string },
+  draft: { subject: string; body: string; language: string },
+  ctx: ToolContext,
+): Promise<string> {
+  const db = ctx.db ?? prisma;
+  const thread = await db.outreachThread.upsert({
+    where: {
+      projectId_kolId: { projectId: input.projectId, kolId: input.kolId },
+    },
+    create: {
+      tenantId: ctx.tenantId,
+      projectId: input.projectId,
+      kolId: input.kolId,
+      status: 'pending_send',
+    },
+    update: {},
+    select: { id: true },
+  });
+  await db.outreachMessage.create({
+    data: {
+      tenantId: ctx.tenantId,
+      threadId: thread.id,
+      direction: 'draft',
+      subject: draft.subject,
+      body: draft.body,
+      language: draft.language,
+    },
+  });
+  return thread.id;
 }
 
 /** 双 shape 兼容 parser（ai-action-contract §1.3）：栅栏/裸 JSON 对象均可。 */
@@ -122,12 +160,17 @@ export async function draftEmail(
     where: { id: input.projectId, tenantId: ctx.tenantId },
     select: { name: true },
   });
-  if (!project) throw new Error(`[email-drafting] 项目不存在: ${input.projectId}`);
+  if (!project)
+    throw new Error(`[email-drafting] 项目不存在: ${input.projectId}`);
 
   const prompt = [
     `请为以下合作起草一封触达邮件，正文语言必须是「${kol.language}」（BCP-47/ISO 语言码或语言名，按其自然书写习惯）。`,
-    `收件创作者：<USER_KOL_NAME>${escapeForXml(kol.name)}</USER_KOL_NAME>${kol.platform ? `（平台：${kol.platform}）` : ''}`,
-    `项目：<USER_PROJECT_NAME>${escapeForXml(project.name)}</USER_PROJECT_NAME>`,
+    `收件创作者：<USER_KOL_NAME>${escapeForXml(kol.name)}</USER_KOL_NAME>${
+      kol.platform ? `（平台：${kol.platform}）` : ''
+    }`,
+    `项目：<USER_PROJECT_NAME>${escapeForXml(
+      project.name,
+    )}</USER_PROJECT_NAME>`,
     input.brief
       ? `起草要点：<USER_BRIEF>${escapeForXml(input.brief)}</USER_BRIEF>`
       : '起草要点：未提供——写一封克制的首次合作意向邮件，不杜撰细节。',
@@ -135,11 +178,13 @@ export async function draftEmail(
 
   const raw = await llm({ system: SYSTEM_PROMPT, prompt });
   const out = parseEmailDraftOutput(raw);
-  return {
+  const draft = {
     subject: out.subject || `合作邀约：${project.name}`,
     body: out.body,
     language: kol.language,
   };
+  const threadId = await persistDraft(input, draft, ctx); // F008 裁决 #3
+  return { ...draft, threadId };
 }
 
 export const draftEmailTool: ToolDefinition<DraftEmailInput, EmailDraft> = {
@@ -155,6 +200,10 @@ export const draftEmailTool: ToolDefinition<DraftEmailInput, EmailDraft> = {
 // ── refine_email ──
 
 const refineInputSchema = z.object({
+  projectId: z
+    .string()
+    .min(1)
+    .describe('项目 id（草稿归属线程，F008 持久化需要）'),
   kolId: z.string().min(1).describe('目标创作者 Kol.id（语言随其 language）'),
   subject: z.string().describe('现有草稿主题'),
   body: z.string().min(1).describe('现有草稿正文'),
@@ -175,18 +224,24 @@ export async function refineEmail(
   const prompt = [
     `请按改写指令改写以下邮件草稿，输出语言保持「${kol.language}」。`,
     `收件创作者：<USER_KOL_NAME>${escapeForXml(kol.name)}</USER_KOL_NAME>`,
-    `现有主题：<USER_DRAFT_SUBJECT>${escapeForXml(input.subject)}</USER_DRAFT_SUBJECT>`,
+    `现有主题：<USER_DRAFT_SUBJECT>${escapeForXml(
+      input.subject,
+    )}</USER_DRAFT_SUBJECT>`,
     `现有正文：<USER_DRAFT_BODY>${escapeForXml(input.body)}</USER_DRAFT_BODY>`,
-    `改写指令：<USER_INSTRUCTION>${escapeForXml(input.instruction)}</USER_INSTRUCTION>`,
+    `改写指令：<USER_INSTRUCTION>${escapeForXml(
+      input.instruction,
+    )}</USER_INSTRUCTION>`,
   ].join('\n');
 
   const raw = await llm({ system: SYSTEM_PROMPT, prompt });
   const out = parseEmailDraftOutput(raw);
-  return {
+  const draft = {
     subject: out.subject || input.subject,
     body: out.body,
     language: kol.language,
   };
+  const threadId = await persistDraft(input, draft, ctx); // F008 裁决 #3
+  return { ...draft, threadId };
 }
 
 export const refineEmailTool: ToolDefinition<RefineEmailInput, EmailDraft> = {

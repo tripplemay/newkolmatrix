@@ -1,12 +1,12 @@
 {
-  "status": "fixing",
+  "status": "reverifying",
   "user_goal": "触达域立真：CRM 四表+五态事件推断+Resend 真实投递（复用旧项目已验证配置）+闸门两步票据 7 态+V6 收件箱接真",
   "total_features": 10,
   "completed_features": 10,
-  "fix_rounds": 1,
+  "fix_rounds": 2,
   "current_sprint": "M3-A-REACH-CRM",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-23T10:20",
+  "last_updated": "2026-07-23T10:30",
   "reference_docs": [
     "docs/specs/M2-C-AGENT-HONESTY-spec.md",
     "docs/test-reports/user_report/M2C-agent-honesty-2026-07-23.md",
@@ -22,29 +22,7 @@
     "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": {
-    "round": 2,
-    "report": "docs/test-reports/M3A-reach-crm-reverify-round2-2026-07-23.md",
-    "overall": "F002 PASS · F008 PASS · F010 PARTIAL → signoff 扣留，流转 fixing（fix_rounds→2）",
-    "issues": [
-      {
-        "feature_id": "F010",
-        "result": "PARTIAL",
-        "severity": "medium",
-        "title": "首轮 issue 2 点名段落未修：architecture.md:1151「无 /api/gate/execute 端点」仍留在 as-built §9.3 权威节内，与同节端点表/§9.3.2 直接矛盾（反向漂移）",
-        "description": "该段三句断言全部与实物相反：execute 端点在场（:1135 端点表）、confirmed 中间态存在（两步票据核心）、失败落 failed 终态非停 pending。首轮 evaluator_feedback 的 issue 2 evidence 与对抗复核结论两处点名（原 :1264），修复 commit 未触及（diff grep 零命中）。修复量：删除或改写该段为两步票据事实 + 复扫 grep '/api/gate' 逐命中定性（现余 5 命中中 :1128/:1186/:1256/:1835 为退役声明/历史记述属合法，仅 :1151 违规）",
-        "steps_to_reproduce": "1. sed -n '1151p' docs/dev/architecture.md 2. 对照 :1135 端点表与 §9.3.2（:1169）3. git show cf94c5d -- docs/dev/architecture.md | grep 'gate/execute' → 零命中证明未修"
-      },
-      {
-        "feature_id": "F010",
-        "result": "PARTIAL",
-        "severity": "low",
-        "title": "§7.2.1 枚举计数标签笔误：标题写「枚举（10 个）」，块内清单与 schema.prisma 实物均为 11 个",
-        "description": "cf94c5d 重写 §7.2.1 时引入。清单本体逐枚举逐值与实物全对（终态判据成立），仅标题计数差一。一词修正",
-        "steps_to_reproduce": "grep -n '枚举（10 个' docs/dev/architecture.md 对照 grep -c '^enum ' prisma/schema.prisma → 11"
-      }
-    ]
-  },
+  "evaluator_feedback": null,
   "generator_handoff": "M3-A building 10/10 完成（commits 773799b..6b30d40+）。验收工具：npm run gate:smoke（G1-G8）/ npm run reach:e2e（默认 mock；REAL 模式需 RESEND_API_KEY+OUTREACH_TEST_RECIPIENT）/ test:unit 504 例 / test:visual 13 基线。注意：① 真投递 L2：密钥仅在 VPS（U2 不离服务器），本地 REAL 跑不了——真发验证路径 = 用户触发 deploy-prod 后在 prod 实测（OUTREACH_TEST_RECIPIENT=tripplezhou@gmail.com 已入 VPS .env，服务器侧已复制 RESEND_API_KEY，compose 已 scp）；② RESEND_WEBHOOK_SECRET 已写入 VPS .env（2026-07-23，用户建 endpoint 后提供新签发 secret）——部署面三键全齐，webhook 生效待 M3-A 版本部署上线；本地 webhook 验证用签名样例回放（tests/integration/signals-inbound.test.ts 已覆盖）；③ 本机跑 test:visual 必须伪造 AIGCGATEWAY_*（真凭据会致 match 空态用例超时）+ 先 kill :3000；④ F008 pre-impl 审计 5 决议全 A 见 docs/specs/M3-A-REACH-CRM-F008-v6-wiring-audit.md（ui-inventory V6 24→26 登记）；⑤ 集成测夹具租户全部独立（test-tenant-m3a-*），CI 无 dev tenant——验收脚本勿依赖 seed。",
   "session_notes": {
     "Andy": "【M3-A-REACH-CRM building 10/10 完成 → verifying · 2026-07-23】\n■ 快车道 + 并行 subagent×2（F005 crmInfer / F007 contactEmail，worktree cherry-pick 汇合）；F008 pre-impl 审计 5 决议全 A（同 commit 裁决，§4.6 豁免）。\n■ 踩坑记录：① CI 会跑集成测且无 dev tenant——route 层测试必须下沉服务层+夹具租户（F004 红灯教训）；② 视觉新基线 CI 首推必红（linux 基线走 update-visual-baselines workflow + pull 回）；③ F005 合成语义 = 多 override 取最新（纯 override 场景可人工改标，非「不回退」——事件面才是地板）；④ fieldProvenance 必须条目对象形状 {source,fetchedAt}，flat 字符串会整表降级击穿既有徽标。\n■ 部署面：RESEND_API_KEY 服务器侧已复制 / OUTREACH_TEST_RECIPIENT=tripplezhou@gmail.com 已入 VPS .env / compose 已 scp；RESEND_WEBHOOK_SECRET 待用户控制台创建 endpoint 后写入；真发 L2 = 部署后 prod 实测（密钥不离服务器）。",

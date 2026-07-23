@@ -678,7 +678,7 @@ PostgreSQL **16** + pgvector（dev：`docker-compose.dev.yml`，宿主端口 543
 > `20260722082147_pending_action_project_agent` · `20260722120709_m1d_material_gameknowledge` ·
 > `20260722161835_m2a_match_three_tables` · `20260723115700_m3a_reach_four_tables_gate7_contact_email`。
 
-**枚举（10 个，与实物逐字一致）**
+**枚举（11 个，与实物逐字一致）**
 
 ```prisma
 enum Stage               { brief  match  reach  delivery  insight }          // M1-A（D5 环节游标）
@@ -1146,9 +1146,13 @@ return { toolName: name, output: await tool.execute(parsed.data, ctx) };
 | 单次性 | 两处**原子条件 UPDATE**（confirm：WHERE pending；execute：WHERE confirmed AND ticketUsedAt IS NULL）——并发败者 409，双花结构性不可能（R15 已消，gate-smoke G8 竞态实证） | ✅ M3-A F002 |
 | payload 绑定 | `payloadHashOf(toolName, stableStringify(input), tenantId)`，确认时**二次复核**；执行入参**只从库内 `inputJson` 回放**，不接受客户端供给 | ✅ 一致（「确认 A 执行 B」结构性不可能） |
 
-`stableStringify` 递归排序 object key——因 JSONB 存储会重排 key，`payloadHash` 必须 order-independent。
+`stableStringify` 递归排序 object key——因 JSONB 存储会重排 key，`payloadHash` 必须 order-independent；
+且严格对齐 **JSON/JSONB 往返语义**（fix_round1：object 中 undefined 值键丢弃、数组 undefined 元素→null——
+否则建卡 hash 与库内读回复算必不匹配，见 tests/unit/payload-hash.test.ts 回归）。
 
-**无 `/api/gate/execute` 端点**：确认与执行在服务端同一函数内完成。这消除了「已确认但未执行」的中间态，代价是**失去了 pending 恢复流之外的重试粒度**（副作用失败时整个 confirm 请求失败，PA 停在 `pending` 可重新确认）。
+**确认与执行分立**（M3-A F002 起，取代 M0.5「confirm 即执行」单步形态）：`confirmed` 是真实中间态
+（签票后待消费，票 TTL 5 分钟），「已确认但未执行」由 GET 详情可见、超时惰性翻转 `expired`；
+副作用失败落 `failed` 终态（无 irrev 行）——**不可逆动作严禁静默重试**，重试须产出新的 PendingAction（新一轮披露）。
 
 #### 9.3.1 攻击面与防御矩阵（as-built）
 

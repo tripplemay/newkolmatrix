@@ -10,7 +10,10 @@ import type { ToolContext, ToolDefinition } from './types';
 import { HARM_LABEL, type Harm } from '../gate/harm';
 
 const inputSchema = z.object({
-  recipients: z.array(z.string().min(1)).min(1).describe('收件人全名单（如 KOL handle/邮箱）'),
+  recipients: z
+    .array(z.string().min(1))
+    .min(1)
+    .describe('收件人全名单（如 KOL handle/邮箱）'),
   message: z.string().min(1).describe('邀约正文'),
   projectId: z.string().optional(),
 });
@@ -27,7 +30,9 @@ function buildHarm(input: SendOutreachInput, _ctx: ToolContext): Harm {
     targets: input.recipients, // 全名单，不折叠
     quantity: input.recipients.length,
     irreversible: true,
-    evidence: `邀约正文：${input.message.slice(0, 60)}${input.message.length > 60 ? '…' : ''}`,
+    evidence: `邀约正文：${input.message.slice(0, 60)}${
+      input.message.length > 60 ? '…' : ''
+    }`,
     expiresAt: new Date().toISOString(), // gate 会以其 TTL 覆盖为准
     label: HARM_LABEL,
   };
@@ -37,8 +42,9 @@ async function run(
   input: SendOutreachInput,
   ctx: ToolContext,
 ): Promise<{ sent: true; count: number; recipients: string[] }> {
-  // mock「发送」副作用：真实发信 → M3。此处写一条 SENT 标记的 OperationLog 代表已对外发生。
-  await prisma.operationLog.create({
+  // mock「发送」副作用：真实发信 → F003。此处写一条 SENT 标记的 OperationLog 代表已对外发生。
+  // F002：经闸门 execute 进入时 ctx.db = 执行事务——业务写入与 executed+irrev 同一事务。
+  await (ctx.db ?? prisma).operationLog.create({
     data: {
       tenantId: ctx.tenantId,
       kind: 'auto',
@@ -47,7 +53,11 @@ async function run(
       ref: input.projectId ?? null,
     },
   });
-  return { sent: true, count: input.recipients.length, recipients: input.recipients };
+  return {
+    sent: true,
+    count: input.recipients.length,
+    recipients: input.recipients,
+  };
 }
 
 export const sendOutreachTool: ToolDefinition<

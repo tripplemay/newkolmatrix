@@ -37,7 +37,7 @@ export type Harm = z.infer<typeof harmSchema>;
 /** 待确认动作信封（executeTool 对 outbound 未过闸门时返回给模型/前端的结构）。 */
 export interface PendingActionEnvelope {
   status: 'pending';
-  /** 服务端 PendingAction 记录 id，供 /api/gate/confirm 引用。 */
+  /** 服务端 PendingAction 记录 id，供 /api/actions/[id]/{confirm,execute,reject} 引用（F002）。 */
   pendingActionId: string;
   toolName: string;
   harm: Harm;

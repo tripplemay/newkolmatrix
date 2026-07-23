@@ -6,6 +6,7 @@
 //   source: native（本批实装）| mcp（已规划扩展点：注册表结构支持 MCP 桥接，本批不实装 MCP client）
 
 import type { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import type { AgentId } from '../registry';
 import type { Harm } from '../gate/harm';
 
@@ -27,10 +28,21 @@ export interface ToolContext {
   /** 运行环境（架构稿 §4.3）。 */
   env?: 'default' | 'sandbox' | 'production';
   /**
-   * 服务端签发的确认令牌（F009）。**只由 gate.confirmPendingAction 在人确认后注入**——
-   * 模型自主 loop 的 ctx 永远没有此字段，故 outbound 只能停在 pending，无法自我放行。
+   * 服务端签发的确认令牌（F009 → M3-A F002 两步票据）。**只由 gate.executePendingAction
+   * 在消费执行票后于服务端进程内注入**（不出进程，ADR-25）——模型自主 loop 的 ctx 永远
+   * 没有此字段，故 outbound 只能停在 pending，无法自我放行。
    */
   confirmationToken?: string;
+  /**
+   * 执行事务客户端（M3-A F002，§9.3.2 事务语义）：execute 消费票后，工具的业务态变更
+   * 与 executed + irrev 留痕在**同一事务**提交。工具内 DB 写入应使用 `ctx.db ?? prisma`。
+   */
+  db?: Prisma.TransactionClient;
+  /**
+   * 闸门动作 id（= PendingAction.id，M3-A F002）。外部副作用（真实发信等，无法进 DB 事务）
+   * 以此为幂等键（P6 / §9.8）：crash 后重放不重复发信——日志至少一次、副作用恰好一次。
+   */
+  gateActionId?: string;
 }
 
 export interface ToolDefinition<TInput = unknown, TOutput = unknown> {

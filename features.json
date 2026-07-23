@@ -15,7 +15,7 @@
       "title": "闸门两步票据升级（§9.3.2 全量）：confirm 签票 / execute 消费票 + 四端点 + 7 态",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "消 R15 并发双确认 + 清 confirmed 死枚举/reject-expiresAt 债。ADR-25 不变量：令牌/票据不出服务端进程（DB 只存 hash）。",
       "acceptance": "GET /api/actions/[id] + POST confirm/execute/reject 四端点在场且 nodejs runtime；票仅 confirm 响应出现一次，DB 只存 hash；两处原子条件 UPDATE（WHERE status='pending' / WHERE status='confirmed' AND ticketUsedAt IS NULL AND ticketExpiresAt>now()）败者 409；reject 写真实 rejected 态；HTTP 分码 403 GATE_TOKEN_INVALID/404/409 GATE_ALREADY_DECIDED/410 GATE_EXPIRED；P9 rate-limit（/api/actions 30/min/IP fail-open + escape hatch）；gate-smoke 升级：G1-G5 + 7 态断言 + D20 变异 + 并发双确认竞态用例全绿；执行=消费票→副作用→同一事务 executed+irrev+业务态变更，失败→failed 无 irrev 行"
     },

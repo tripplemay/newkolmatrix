@@ -51,7 +51,7 @@
       "title": "reach 工具扩容：draft_email/refine_email（internal）+ commit_quote（outbound）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "起草/改写走 gateway chat（NFR-I2 按 KOL 语言）；commit_quote buildHarm 3 行（金额/交付物/对象）；P8 committed 时 budgetUsd 回填。",
       "acceptance": "三工具注册且挂 reach 人格（registry tools 数组 + 单测同源断言）；draft_email 输出含 subject/body 且语言随 KOL.language；commit_quote 无令牌→pending 信封 403 语义、经两步票据后 Quote proposed→committed + gateLogId 非空 + budgetUsd 回填断言；buildHarm 三要素在场（gate-smoke 或单测断言）"
     },

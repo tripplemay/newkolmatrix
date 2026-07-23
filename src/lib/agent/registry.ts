@@ -120,7 +120,15 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     duty: '邀约起草·逐人谈判·回复跟进·报价建议',
     isolation: '不批预算、不放款；报价与发送需你确认',
     uiSyntax: '对话收件箱',
-    tools: ['get_kol_detail', 'send_outreach'], // send_outreach 是 outbound（F009 闸门，发送需人确认）
+    // M3-A F006 扩容：draft_email / refine_email（internal 起草改写）+ commit_quote（outbound，
+    // 报价承诺过闸门）；send_outreach 是 outbound（F009→F002 两步票据，发送需人确认）
+    tools: [
+      'get_kol_detail',
+      'send_outreach',
+      'draft_email',
+      'refine_email',
+      'commit_quote',
+    ],
     knowledgeKinds: ['selling_point'], // ⑤层：卖点→触达（FR-8.4.8）
   },
   {

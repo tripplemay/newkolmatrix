@@ -11,6 +11,8 @@ import { computeHealthTool } from './compute-health';
 import { matchPlanTool } from './match-plan';
 import { evaluateCreatorTool } from './evaluate-creator';
 import { createProjectTool } from './create-project';
+import { draftEmailTool, refineEmailTool } from './email-drafting';
+import { commitQuoteTool } from './commit-quote';
 import type { ToolDefinition } from './types';
 
 const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
@@ -21,6 +23,9 @@ const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
   matchPlanTool as unknown as ToolDefinition<never, unknown>, // M2-A F007（internal，现行组合查询）
   evaluateCreatorTool as unknown as ToolDefinition<never, unknown>, // M2-A F007（internal，单人可解释评估）
   createProjectTool as unknown as ToolDefinition<never, unknown>, // M2-C F001（internal，项目创建+留痕）
+  draftEmailTool as unknown as ToolDefinition<never, unknown>, // M3-A F006（internal，起草——只生成不发送）
+  refineEmailTool as unknown as ToolDefinition<never, unknown>, // M3-A F006（internal，改写）
+  commitQuoteTool as unknown as ToolDefinition<never, unknown>, // M3-A F006（outbound，报价承诺过闸门）
 ];
 
 let registered = false;

@@ -1,12 +1,12 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "M2-B-CREATORS（创作者域纵切）：apify-kol 外采接入（纯外部采集 U1，拉模型只读存量零投喂 P1）→ Kol 库真数据增强 + 深字段规则派生填充（interests/credibility；brandSafety 契约先立无源待接入）→ creators 页/抽屉七分区接真 + mock 退役 + ProvenanceTag 真溯源（dataSource 归一消解恒 ai_estimate bug）→ MatchCandidate 裁定写入口（行内双钮 U3 布局变更 + 原型/清单同步）→ 评分受众加权端到端升级验证 → 部署面（kol-shared 网络 + compose 人工步 ×2）。用户五裁决：U1 纯外采+复裁规则派生 / U2 基线+裁定写入口 / U3 行内双钮 / U4 v1.0.11 Accept / U5 BL-FE-16 搁置。",
   "total_features": 8,
-  "completed_features": 7,
+  "completed_features": 8,
   "fix_rounds": 0,
   "current_sprint": "M2-B-CREATORS",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-23T15:10",
+  "last_updated": "2026-07-23T15:50",
   "reference_docs": [
     "docs/specs/M2-B-CREATORS-spec.md",
     "docs/dev/architecture.md",
@@ -26,7 +26,7 @@
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M2-B-CREATORS planning 完成 → building · 2026-07-23】\n■ 立项五裁决（AskUserQuestion 实答）：U1 纯外部采集 + 复裁规则派生填充（实物披露：apify-kol 无受众/真实性/内容安全能力）；U2 基线+裁定写入口；U3 行内双钮（布局变更标注）；U4 v1.0.11 Accept 已沉淀；U5 BL-FE-16 搁置。\n■ 勘查底座 = 双路侦察（apify-kol 服务实物 + creators/drawer UI 实物，文件:行 全核）+ API 真样本四平台 9 行 pin（v0.9.19 铁律；YT Bobicraft id=282974）。存量 8800+ 行（YT 4064/TT 4302/IG 469/X 枚举缺口）。\n■ 本批注意：F003 sync dev 环境不可达内网（探活静默跳过属预期，L2 走 ssh 隧道）；F004/F005 基线重生必按 §4.5 重生序（先杀 :3000）；F006 布局变更 = 原型+ui-inventory 同批同步；F008 compose 人工步 ×2（scp + VPS .env 加 key）；embedding 一次性用量 <1M token；TikHub 零调用零充值。\n■ M2-A done + 已上线 @ 3d93f72（四项验证过）；proposed-learnings 清零（harness-fit 长期挂起除外）。\n■ 用户已指令开工（spec lock 实答「锁定，开工」）。",
+    "Andy": "【M2-B-CREATORS building 8/8 完成 → verifying · 2026-07-23】\n■ 八 feature 全交付（544e625→F008），CI 逐 push 全绿（F005 推预期红→基线重生→F006 推复验绿闭环）。\n■ 关键实证：F003 ops 脚本真机 dry-run+apply（2524 行归一+幂等）；F004 改→验→复原+两视口+KPI 真计数实拍（2526/待接入/待核/1）；F005 抽屉双面实拍（93% ring+interests pills+逐区占位）；F006 真机动线（lazy→双钮→API 幂等→zod 拒）+project-match 零漂移；F007 修一次测试自身 lazy 误触（真网关重刷 mock 分——建组防触发，产品语义正确）。\n■ 验收提示（evaluator）：D-H 基线态新增 2 行视觉夹具（VK-FULL/VK-NULL 固定 publicId，seed:visual-kols）；apify-kol 真拉取 L2 走 ssh 隧道（存量 8800+，零投喂 P1）；linux 基线已重生两轮（F005 后+当前态）；F008 compose 变更 → 部署前置人工步 ×2（scp+VPS .env 加 APIFY_KOL_API_KEY，deploy.md 已明记）。\n■ 部署未做（人类闸门）；testfixture bug 修复 1 次（apifyRow 漏 ...over）。",
     "Reviewer": null
   },
   "lane": "fast"

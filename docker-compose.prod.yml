@@ -55,9 +55,17 @@ services:
       - MATERIALS_DIR=${MATERIALS_DIR:-/app/materials}
       # M1-D F006：图片解析 vision 模型路由（P4，默认 qwen3.5-flash 立项实测可用）。
       - AIGCGATEWAY_VISION_MODEL=${AIGCGATEWAY_VISION_MODEL:-qwen3.5-flash}
+      # M2-B F008：apify-kol 外采服务（同宿主 kol-shared 网络别名，拉模型只读 P1）。
+      # APIFY_KOL_API_KEY = 该服务 BUSINESS key（只读 /kol*），人工放 .env 不入 git。
+      - APIFY_KOL_BASE_URL=${APIFY_KOL_BASE_URL:-http://apify-kol:3003}
+      - APIFY_KOL_API_KEY=${APIFY_KOL_API_KEY:?APIFY_KOL_API_KEY 必填（放 /opt/apps/newkolmatrix/.env，取自 /opt/apps/apify-kol-service/.env 的 BUSINESS_API_KEY）}
     volumes:
       # M1-D F006：素材文件本体落卷（DB 只存元数据 + storageRef）。跨机迁移随卷搬（U2）。
       - newkolmatrix-materials:/app/materials
+    networks:
+      # M2-B F008：默认网络（db/migrate 互通）+ kol-shared external（达 apify-kol:3003）
+      - default
+      - kol-shared
     depends_on:
       db:
         condition: service_healthy
@@ -79,3 +87,8 @@ volumes:
   # M1-D F006：素材文件卷（备份纳入 R7 演练范围，docs/dev/deploy.md）
   newkolmatrix-materials:
     name: newkolmatrix-materials
+
+networks:
+  # M2-B F008：跨 app 共享网络（apify-kol 服务已挂载；external = 不由本 compose 创建）
+  kol-shared:
+    external: true

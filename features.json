@@ -69,7 +69,7 @@
       "title": "部署面 + 文档翻牌",
       "priority": "low",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "docker-compose.prod.yml：app 加 kol-shared external 网络+APIFY_KOL_BASE_URL=http://apify-kol:3003+APIFY_KOL_API_KEY env；**deploy 前置人工步 ×2 明记（v1.0.10 §8）：scp compose+VPS .env 追加 key（从 /opt/apps/apify-kol-service/.env 取 BUSINESS key，不入 git）**；docs/dev/deploy.md 同步；文档翻牌：architecture §7.2.2 契约位 as-built（zod 已建+派生填充+refine 兑现）+§7.5 归一注记+§10 集成架构（apify-kol 拉模型/异步两步/零投喂/X 枚举缺口）+§14 M2-B 行+§8.10 kol-sync 行+§5.3 verdict 写入口 as-built；批末新鲜度复核；lint + tsc + test:unit 绿",
       "description": "spec §2 F008。compose 人工副本坑（v1.0.10）本批必中——前置步随 acceptance 硬化。"
     }

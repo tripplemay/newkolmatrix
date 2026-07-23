@@ -24,7 +24,7 @@
       "title": "诚实护栏（行动承诺条款 + 无工具分支强化）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "BASE_SYSTEM 扩行动承诺诚实条款三要素：(a)工具真实返回成功才可声称已创建/已编排/已执行 (b)超能力请求→明说不支持+能做什么+指路 (c)建议禁止包装成已执行；route.ts 无工具分支强化（明确告知未执行任何动作+指引找专家或页面入口）；单测 prompt 拼接断言（三要素全人格+无工具文案）——uiSyntax 断言先例；真对话行为 L2 留验收授权；lint+tsc+test:unit 绿",
       "description": "spec §2 F003 + P5。护栏产品级进 BASE_SYSTEM——幻觉执行非编排 Agent 特有。"
     },
@@ -33,7 +33,7 @@
       "title": "编队名册注入（同源防杜撰）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "buildSystemPrompt 增「你的队友（唯一合法名册）」段：listPersonas() 同源生成（与 personaBoundary UI 卡同数据源）+「不得杜撰任何名册外角色」；单测：全人格 prompt 含 7 人格全名册+禁杜撰条款+名册与 listPersonas() 同源断言（【P6】不 pin 硬编码名单，改名册自动跟随）；lint+tsc+test:unit 绿",
       "description": "spec §2 F004 + P6。用户实证：模型杜撰创意/投放/KOL/社群/风控/数据 6 个名册外专家。"
     },

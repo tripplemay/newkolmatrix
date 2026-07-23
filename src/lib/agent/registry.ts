@@ -43,8 +43,14 @@ export interface AgentPersona {
   systemPrompt: string;
 }
 
-const BASE_SYSTEM =
-  '你是 KOLMatrix 专家 Agent 编队的一员，服务单角色营销操盘手。基于工具返回的真实数据作答，不编造。';
+const BASE_SYSTEM = [
+  '你是 KOLMatrix 专家 Agent 编队的一员，服务单角色营销操盘手。基于工具返回的真实数据作答，不编造。',
+  // M2-C F003 —— 行动承诺诚实条款（产品级，全人格生效；触发源 = 用户实证的幻觉编排事故）：
+  '行动承诺铁律：',
+  '1. 只有当你调用了工具且工具真实返回成功，才可以说「已创建 / 已编排 / 已执行 / 已完成」——系统里没发生的事，一个字也不能说成发生了。',
+  '2. 用户的请求超出你当前工具能力时，必须开门见山地说「当前版本还不支持 X」，说明你实际能做什么，并指路（对应的页面入口或名册内的队友）。',
+  '3. 建议就是建议：可以给方案与分析，但禁止把它包装成「已为你编排的任务 / 已启动的计划」——不得虚构任务表、项目代号或执行状态。',
+].join('\n');
 
 /** 由职责 + 否定式护栏 + 界面语法组合 system prompt（人格 = 我做什么 + 我不做什么 + 我怎么呈现）。 */
 function buildSystemPrompt(
@@ -52,6 +58,7 @@ function buildSystemPrompt(
   duty: string,
   isolation: string,
   uiSyntax: string,
+  rosterSection: string,
 ): string {
   return [
     `${BASE_SYSTEM}`,
@@ -61,6 +68,10 @@ function buildSystemPrompt(
     // M2-A F007：uiSyntax 注入（architecture :1032 欠账消解）——约束产出形态
     //（match 出对比矩阵、reach 出对话流……），与 personaBoundary UI 卡同源不漂移。
     `你的产出形态：${uiSyntax}。`,
+    // M2-C F004：编队名册注入（【P6】与 personaBoundary UI 卡同一数据源 PERSONA_SEED，
+    // 防漂移）——触发源 = 用户实证：模型杜撰「创意/投放/KOL/社群/风控/数据 Agent」等
+    // 名册外专家。协作与指路只能提及名册内成员。
+    rosterSection,
   ].join('\n');
 }
 
@@ -142,12 +153,28 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
   },
 ];
 
+/**
+ * 编队名册段（M2-C F004）：由 PERSONA_SEED 同源生成——与 personaBoundary UI 卡
+ * 同一数据源，名册变更此段自动跟随（单测断言同源而非 pin 硬名单，P6）。
+ */
+const ROSTER_SECTION = [
+  '你的队友（唯一合法名册，全队只有这 7 位）：',
+  ...PERSONA_SEED.map((p) => `- ${p.name}（${p.stage}）：${p.duty}`),
+  '协作或指路只能提及以上名册内的专家，不得杜撰任何名册外角色（如「创意 Agent」「投放 Agent」「社群 Agent」等都不存在）。',
+].join('\n');
+
 const PERSONAS: Record<AgentId, AgentPersona> = Object.fromEntries(
   PERSONA_SEED.map((p) => [
     p.id,
     {
       ...p,
-      systemPrompt: buildSystemPrompt(p.name, p.duty, p.isolation, p.uiSyntax),
+      systemPrompt: buildSystemPrompt(
+        p.name,
+        p.duty,
+        p.isolation,
+        p.uiSyntax,
+        ROSTER_SECTION,
+      ),
     },
   ]),
 ) as Record<AgentId, AgentPersona>;

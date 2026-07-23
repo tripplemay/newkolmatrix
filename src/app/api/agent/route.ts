@@ -112,7 +112,8 @@ export async function POST(req: Request): Promise<Response> {
         ? `\n\n你可调用的工具（需要时主动调用，基于返回的真实数据作答）：\n${toolLines.join(
             '\n',
           )}`
-        : '\n\n（你当前没有可调用的工具，只做本职分析与建议。）');
+        : // M2-C F003：无工具分支强化——明示「未执行任何动作」+ 指路（防幻觉执行）
+          '\n\n（你当前没有可调用的工具——你只能给分析与建议，且必须明确告知用户你没有执行任何动作；用户需要执行时，指引 TA 找名册内对应专家或页面入口。）');
 
     const result = streamText({
       model: chatModel(),

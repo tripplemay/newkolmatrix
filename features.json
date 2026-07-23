@@ -1,95 +1,113 @@
 {
-  "batch": "M3-A-REACH-CRM",
+  "batch": "M3-B-DELIVERY",
   "features": [
     {
       "id": "F001",
-      "title": "迁移：OutreachThread/OutreachMessage/Quote/Signal 四表 + PendingAction 7 态 + Kol.contactEmail",
+      "title": "迁移：Deal/Deliverable/GameKey/Payout 四表 + 五枚举",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "spec §4 字段级 schema（PRD:600 授权本批定）。expand-contract：PendingAction 枚举加值不删值 + ticketHash/ticketExpiresAt/ticketUsedAt/decidedAt 新列。",
-      "acceptance": "migration 落 prisma/migrations 且 db:migrate 干净；四表字段与 spec §4 逐项一致（@@unique 约束在场：Thread(projectId,kolId)、Signal.externalId）；PendingAction 7 态枚举 + 4 新列；Kol.contactEmail String? 可空；tsc + 既有全量测试不破；schema 注释更新（:355 M3 预告注释翻牌）"
+      "status": "pending",
+      "description": "spec §4 字段级 schema（architecture :471-474 授权本批定）。expand-only：纯新增表与枚举，既有表零改动（M3-A 两步票据直接复用）。",
+      "acceptance": "migration 落 prisma/migrations 且 db:migrate 干净；四表字段与 spec §4 逐项一致（@@unique 在场：Deal(projectId,kolId)、Deliverable(dealId,kind)）；五枚举全量（DealStatus 7 态 negotiating/signed/escrowed/delivering/completed/blocked/defaulted · DeliverableKind 5 值 content/key/contract/escrow/ad_disclosure · DeliverableStatus 4 态 pending/met/missing/na · GameKeyStatus 2 态 · PayoutStatus 3 态）；Payout.amount Decimal(14,2)；gateLogId 软引用列在场（GameKey/Payout）；migration 含单向回滚说明；RLS 例外理由在 spec §4 记录（单租户 D4 口径，与既有 17 表一致）；tsc + 既有 522 测试不破"
     },
     {
       "id": "F002",
-      "title": "闸门两步票据升级（§9.3.2 全量）：confirm 签票 / execute 消费票 + 四端点 + 7 态",
+      "title": "deliveryCheck.row 纯函数（domain 层）+ D20 变异测试",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "消 R15 并发双确认 + 清 confirmed 死枚举/reject-expiresAt 债。ADR-25 不变量：令牌/票据不出服务端进程（DB 只存 hash）。",
-      "acceptance": "GET /api/actions/[id] + POST confirm/execute/reject 四端点在场且 nodejs runtime；票仅 confirm 响应出现一次，DB 只存 hash；两处原子条件 UPDATE（WHERE status='pending' / WHERE status='confirmed' AND ticketUsedAt IS NULL AND ticketExpiresAt>now()）败者 409；reject 写真实 rejected 态；HTTP 分码 403 GATE_TOKEN_INVALID/404/409 GATE_ALREADY_DECIDED/410 GATE_EXPIRED；P9 rate-limit（/api/actions 30/min/IP fail-open + escape hatch）；gate-smoke 升级：G1-G5 + 7 态断言 + D20 变异 + 并发双确认竞态用例全绿；执行=消费票→副作用→同一事务 executed+irrev+业务态变更，失败→failed 无 irrev 行"
+      "status": "pending",
+      "description": "P5：输入 Deal + Deliverables（+相关 Signal），输出每条件齐/缺/不适用 + ready（全部必需条件 met）+ 缺口清单。三处复用铁律：V7 台账 / check_deliverables 工具 / payout 服务端校验。",
+      "acceptance": "纯函数无 DB 读（ctx 传入）；全矩阵单测（五条件 × 四态 + required/na 组合，含 na 不计入 ready 判定的正例与 missing 阻断 ready 的负例）；缺口清单逐条可分支（调用方据此渲染「缺什么显什么」）；D20 变异测试（破坏 ready 判定如 na 压成 met / missing 放行 → 测试翻红）；三处复用铁律注释就位（页面/工具/服务端校验同一函数）"
     },
     {
       "id": "F003",
-      "title": "ops/EmailSender 层 + ResendEmailSender/MockEmailSender + send_outreach 接真",
+      "title": "Deal 生成接线（commit_quote → Deal）+ Deal 资金状态机",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "P4 port 旧项目 resend.ts 模式（30s abort + 一次冷重试 + dev 无 key mock 回落 + prod 无 key fail-fast）；P5 SENT_MARKER 转正为 MockEmailSender；P6 幂等键=pendingActionId。",
-      "acceptance": "ops/email 接口 + 两实现；env 选择器行为三分支实测（有 key 真发/无 key dev mock/无 key prod 抛错拒发）；send_outreach.execute：发送→OutreachMessage(direction=sent, gateLogId 非空, providerMessageId)落库+thread 状态事件；无 contactEmail 明示拒绝不猜（P3）；重入不双发（幂等断言）；MockEmailSender 保留 SENT_MARKER，gate-smoke/D20 观测点零迁移；CI 与本地默认 mock 不外呼"
+      "status": "pending",
+      "description": "P2：commit_quote 执行事务内 upsert Deal（terms 取 Quote 快照，初态 negotiating）+ 按 P3 生成五条 Deliverable；dealAdvance 纯函数承载状态机流转。这是对 M3-A commit-quote.ts 的唯一新增接线点。",
+      "acceptance": "commit_quote 执行后同事务落 Deal（projectId+kolId upsert 幂等）+ 五条 Deliverable（content/contract/escrow/ad_disclosure required=true；key 视 Quote.deliverables 含 key 交付决定 required 或 na）；termsJson 含金额/币种/交付物/范围快照；dealAdvance 纯函数流转合法态（negotiating→signed→escrowed→delivering→completed；blocked 可恢复；defaulted 终态）+ 非法流转拒绝；D20 变异（破坏流转约束如允许跳态 → 测试翻红）；集成测：commit_quote 全链后 Deal + 5 Deliverable 在场且幂等重入不重复建"
     },
     {
       "id": "F004",
-      "title": "signals 接入层 + POST /api/signals/inbound（Resend webhook）",
+      "title": "ops/partner 适配器层：EscrowPartner + KeyDistributor（mock 实现）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "normalize 管道 + Svix 验签 + delivered/bounced/complained/opened → Signal(email_delivery_status) → crmInfer 重算 → OperationLog(auto)。",
-      "acceptance": "验签失败 401/403 拒绝（fail-closed）+ 20/min/IP 限流 429；zod 校验坏 payload 400 不落库；externalId 防重（同事件重放只落一行）；四类事件正确映射 Signal 并触发重算+留痕；单测/集成测覆盖验签+防重+映射；旧项目 handler 测试样例回放通过"
+      "status": "pending",
+      "description": "U2/P1 接口先行：定义适配器接口 + mock 实现（写日志标记，零外呼）；沿 M3-A ops/email 范式（接口 + 实现 + env 选择器 + 可观测标记）。",
+      "acceptance": "ops/partner（或 ops/escrow + ops/keys）接口定义 + mock 实现两件；mock 副作用有可观测标记（沿 SENT_MARKER 先例，供闸门/变异测试观测副作用是否发生）；env 选择器行为注释明示「本批无真实现，prod 无 key 不 fail-fast；M5 接真时才启 fail-fast」（与 ops/email 的差异有明文理由）；单测覆盖 mock 实现契约；CI 与本地零外呼断言"
     },
     {
       "id": "F005",
-      "title": "crmInfer.status 纯函数（domain 层）+ D20 变异测试",
+      "title": "payout 工具（outbound）+ 服务端二次校验（无绕过入口）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "五态推断（pending_send/sent/replied/negotiating/confirmed）；U4 有限覆盖：manual_override 仅可断言 sent/replied/negotiating；confirmed 仅由 quote.committed 推出。",
-      "acceptance": "纯函数无 DB 读（ctx 传入）；全转换矩阵单测；manual_override 越权断言 confirmed 被忽略且留痕说明（负例测试）；D20 变异测试（破坏推断规则→测试翻红）；三处复用铁律注释就位（页面/工具/例程同一函数）"
+      "status": "pending",
+      "description": "P6：buildHarm 与 execute 各重跑一次 deliveryCheck，ready=false 一律拒绝（FR-8.2.4.2 服务端实现）；执行 = 消费票 → mock escrow release → Payout prepared→released + Deal 推进，同一事务。",
+      "acceptance": "payout 注册且挂 delivery 人格；class=outbound + async buildHarm 三行（收款方/金额+币种/依据含合同+托管+披露证据引用）；无令牌 → pending 信封；服务端二次校验实证：构造 ready=false 的 Deal 直调 payout → buildHarm 阶段即拒（PendingAction 不产生），以及绕过前端直打 execute 亦拒；执行后 Payout released + gateLogId 非空 + Deal 状态推进 + irrev 留痕同事务；失败 → failed 无 irrev 行；幂等重入不双放（幂等键=PendingAction.id）；P1 断言：全程零真实付款外呼（mock 适配器观测标记）"
     },
     {
       "id": "F006",
-      "title": "reach 工具扩容：draft_email/refine_email（internal）+ commit_quote（outbound）",
-      "priority": "high",
+      "title": "distribute_keys 工具（outbound）+ GameKey 分发",
+      "priority": "medium",
       "executor": "generator",
-      "status": "completed",
-      "description": "起草/改写走 gateway chat（NFR-I2 按 KOL 语言）；commit_quote buildHarm 3 行（金额/交付物/对象）；P8 committed 时 budgetUsd 回填。",
-      "acceptance": "三工具注册且挂 reach 人格（registry tools 数组 + 单测同源断言）；draft_email 输出含 subject/body 且语言随 KOL.language；commit_quote 无令牌→pending 信封 403 语义、经两步票据后 Quote proposed→committed + gateLogId 非空 + budgetUsd 回填断言；buildHarm 三要素在场（gate-smoke 或单测断言）"
+      "status": "pending",
+      "description": "P8：harm 列领取方/key 数量/「一经发放不可回收」；执行 = mock KeyDistributor → GameKey reserved→distributed + gateLogId；key 池人工登记（keyRef 存引用不存明文 key 值）。",
+      "acceptance": "distribute_keys 注册且挂 delivery 人格；class=outbound + buildHarm 三要素（领取方全名单不折叠/key 数量/不可回收红标）；无令牌 → pending；执行后 GameKey distributed + distributedAt + gateLogId 非空，同事务；keyRef 不含明文 key 值（schema 注释 + 断言）；库存不足时明示拒绝不猜（P3 同源纪律）；幂等重入不双发；P1 零真实外呼"
     },
     {
       "id": "F007",
-      "title": "Kol.contactEmail 抽屉录入口 + PATCH API",
+      "title": "delivery 内部工具：track_delivery / check_deliverables（internal）",
       "priority": "medium",
       "executor": "generator",
-      "status": "completed",
-      "description": "CreatorDrawer 行内录入（M2-B 裁定入口同款交互）+ fieldProvenance=user_input。",
-      "acceptance": "抽屉可录入/清除 contactEmail；PATCH API zod email 校验（坏格式 400 明示）；fieldProvenance 标 user_input；ProvenanceTag 正确显示；录入后 send_outreach 可用该地址（与 F003 联动断言）；涉及布局变更则视觉基线对账（§4.5）"
+      "status": "pending",
+      "description": "delivery 人格 tools 当前为空数组，本条填充；check_deliverables 复用 deliveryCheck（三处复用铁律 ②）。",
+      "acceptance": "两工具注册且挂 delivery 人格（registry tools 数组 + 单测同源断言：人格声明的每个工具名真实存在于注册表）；class=internal 且无 buildHarm（只读，不过闸门）；check_deliverables 输出 = deliveryCheck 产物（不内联重算，grep 证复用）；track_delivery 返回 Deal + 条件快照（可序列化，供画布渲染）；输入契约单测"
     },
     {
       "id": "F008",
-      "title": "V6 ConversationInbox 接真（env-reach mock 退役）",
+      "title": "交付登记 API：contract/escrow refs + Deliverable 人工核验 + key 池",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "数据源切真 thread/message/quote；两处 D6 stub（confirmSend/confirmQuote）替换为真 pending→GET 详情→confirm→execute 链路。spec §6 UI 四段约束。",
-      "acceptance": "ui-inventory V6 24 元素逐处保持（三栏/五态 pill/draft textarea/重写 ghost/发送红 gate/ring84/宣示句）；「确认报价」仅 negotiating 条件渲染保持（裁决 #6）；五态 pill=crmInfer 真值；发送经真闸门链路（无 stub 残留：grep confirmSend 本地覆盖零命中）；空态语义保留；env-reach.ts 退役登记（mock/index.ts 表更新）；视觉基线逐处对账重生（§4.5 重生序+三连稳）；两视口实测"
+      "status": "pending",
+      "description": "P4/P9：三端点 internal（可撤销、不对外、不花钱，D27）；登记 refs 即置对应 Deliverable met + 推进 Deal 状态。",
+      "acceptance": "POST /api/delivery/deals/[id]/refs（登记 contractRef/escrowRef → 对应 Deliverable met + Deal signed/escrowed 推进）· PATCH /api/delivery/deliverables/[id]（人工核验 met/missing/na + evidenceRef + verifiedBy）· POST /api/delivery/deals/[id]/keys（key 池登记）三端点在场且 nodejs runtime；zod 校验坏入参 400 明示；P9 限流 30/min/IP fail-open + escape hatch DISABLE_GATE_RATELIMIT；三端点均写 OperationLog 留痕；集成测覆盖登记→状态推进→deliveryCheck 重算联动"
     },
     {
       "id": "F009",
-      "title": "CRM 人工覆盖入口（U4 有限覆盖）",
-      "priority": "medium",
+      "title": "V7 条件台账接真（mock 退役）+ payout 闸门真链",
+      "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "V6 覆盖控件（仅 sent/replied/negotiating 三态）→ Signal(manual_override) → 同一推断管道 → 留痕。",
-      "acceptance": "覆盖控件仅三态可选（「已确认」选项不存在——验收断言其不可达）；覆盖落 Signal(manual_override) 走 crmInfer 管道非直改列；OperationLog 留痕含操作者与前后态；ui-inventory V6 24→25 登记；视觉基线对账（意图性变更）"
+      "status": "pending",
+      "description": "数据源切真（loadDeliverySurfaceData RSC 组装，沿 M3-A F008 范式）；envs/delivery/index.tsx:76-78 D6 stub 替换为真链。spec §6 UI 四段约束。",
+      "acceptance": "ui-inventory V7 11 元素逐处保持（7 列/纯色方块 av 非色轮/sub/note 条件渲染/条件单元 ok绿·miss琥珀·na灰三态不得压二态/金额右对齐800/放款红 gate 仅 ready/「条件未齐」灰字替代按钮位不得改 disabled 按钮/底部 shield 宣示句）；反向 guardrail 保持（无 KPI/图表/推荐卡/批量放款——一律未补）；ready 值 = deliveryCheck 真值；放款经真闸门链路（无 stub 残留：grep confirmPayout/mockDeliveryLedger 本地覆盖零命中）；空态语义保留；env-delivery.ts 退役登记（mock/index.ts 表更新）；视觉基线逐处对账重生（§4.5 重生序+三连稳）；两视口实测"
     },
     {
       "id": "F010",
-      "title": "E2E 闭环 + 部署面 + 文档翻牌 + 批末新鲜度复核",
+      "title": "env-guards →delivery / →insight 真判",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "PRD 15.3 M3 E2E：起草→审阅→点确认才发送。真发仅 OUTREACH_TEST_RECIPIENT（P1）。部署面 env 迁移 + webhook 指向。",
-      "acceptance": "E2E：draft_email 起草→send_outreach 无令牌 pending（副作用零发生断言）→confirm+execute→真实投递达 OUTREACH_TEST_RECIPIENT（L2 最小用量+报告注明）→OutreachMessage/Signal/留痕齐；真实 KOL 地址零发信（P1 断言）；部署面：三 env 键幂等 append VPS .env + Resend webhook 指向 newkol.guangai.ai/api/signals/inbound + compose 如变更先 scp；architecture.md 翻牌（§5.2/§9.3.2/§10.4/工具表/§14 M3-A 行）+ agent-architecture 同步 + 批末新鲜度复核（grep 陈旧计数/未实装残留）；lint+tsc+test:unit+test:visual 绿"
+      "status": "pending",
+      "description": "P12：消 env-guards.ts:128-133 两处 DEPENDENCY_NOT_IMPLEMENTED；→delivery 判据 ≥1 Deal；→insight 判据「全部 Deal completed/defaulted 或零 Deal」。",
+      "acceptance": "两条流转真判（不再返 DEPENDENCY_NOT_IMPLEMENTED）；新 reason 码 + 用户可读文案（env-guard-messages.ts 映射齐备）；EnvGuardContext 扩字段（hasDeal / allDealsSettled 等）+ 两调用点（campaigns/[id]/page.tsx + ProjectDetail.tsx）组装齐全；零 Deal 项目不被 →insight 阻断（P12 空态诚实）；D20 变异（守卫恒放行 / 判据取反 → 测试翻红）；集成测：无 Deal 拒 → 建 Deal 后放行 → 全部 completed 后 →insight 放行"
+    },
+    {
+      "id": "F011",
+      "title": "BL-BRIEF-GOAL：goal 确认写入口（工具 + API + 服务三件套）",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "description": "P10：lib/projects/set-goal.ts 单一服务 + confirm_brief_goal internal 工具 + PATCH /api/projects/[id]/goal（create_project 同款三件套模式）；V4 brief 面零结构变更（裁决 #1 处置入口走 Copilot）。",
+      "acceptance": "服务层单一真相源（工具与 API 共用，不各写一份）；zod 校验 targetExposure 非负整数 / periodStart<periodEnd / ISO date 格式，坏入参 400 明示；confirm_brief_goal 注册且挂 strategy+orchestrator 人格（class=internal 无确认框，D27）；写入 OperationLog 留痕；V4 brief 面 19 元素零结构变更（grep 证 components/envs/brief 无新增区块）；端到端断言：新建项目（goal=null）→ →match 守卫拒 BRIEF_GOAL_NOT_CONFIRMED → 确认 goal → →match 守卫放行 → advanceStage 成功；backlog.json 移除 BL-BRIEF-GOAL"
+    },
+    {
+      "id": "F012",
+      "title": "BL-FE-16 hook 修复 + E2E 闭环 + 文档翻牌 + 批末新鲜度复核",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "description": "P11 useColorMode 跨实例同步（useSyncExternalStore + 模块级 store + MutationObserver + storage 事件）；delivery:e2e 全链；architecture/ui-inventory 翻牌 + 新鲜度复核。",
+      "acceptance": "useColorMode 跨实例同步（多消费者同步单测：一处 toggle 另一处收到通知）+ 多标签页 storage 事件监听；既有 2 调用点行为不变断言；backlog.json 移除 BL-FE-16；delivery:e2e 脚本：committed quote → Deal 生成 → 登记 refs → 条件齐 → payout 无令牌 pending（副作用零发生断言）→ confirm+execute → Payout released + Deal 推进 + irrev 留痕齐；零真实资金动作断言（mock 适配器观测标记，无 REAL 分支）；architecture.md 翻牌（§5.2 delivery 行/§5.3①③/§5.4 deliveryCheck 行/§9.8/§10.3/§14 M3-B 行/工具表/delivery 人格 tools）+ ui-inventory V7 登记 + agent-architecture 同步 + 批末新鲜度复核（grep 陈旧计数/未实装残留/演进 M3 标记）；lint+tsc+test:unit+test:visual 绿"
     }
   ]
 }

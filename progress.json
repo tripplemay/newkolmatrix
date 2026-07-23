@@ -1,33 +1,33 @@
 {
-  "status": "done",
-  "user_goal": "触达域立真：CRM 四表+五态事件推断+Resend 真实投递（复用旧项目已验证配置）+闸门两步票据 7 态+V6 收件箱接真",
-  "total_features": 10,
-  "completed_features": 10,
-  "fix_rounds": 2,
-  "current_sprint": "M3-A-REACH-CRM",
+  "status": "building",
+  "user_goal": "交付域立真：Deal/Deliverable/GameKey/Payout 四表 + deliveryCheck 条件核对 + payout/key 两个 outbound 闸门（零真实资金动作）+ V7 台账接真 + →delivery/→insight 守卫真判 + backlog 两条消解",
+  "total_features": 12,
+  "completed_features": 0,
+  "fix_rounds": 0,
+  "current_sprint": "M3-B-DELIVERY",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-23T10:40",
+  "last_updated": "2026-07-23T11:05",
   "reference_docs": [
-    "docs/specs/M2-C-AGENT-HONESTY-spec.md",
-    "docs/test-reports/user_report/M2C-agent-honesty-2026-07-23.md",
-    "docs/dev/agent-architecture.md",
+    "docs/specs/M3-B-DELIVERY-spec.md",
+    "docs/test-reports/M3A-reach-crm-signoff-2026-07-23.md",
     "docs/dev/architecture.md",
+    "docs/dev/agent-architecture.md",
     "framework/patterns/ui-fidelity-guardrail.md",
     "docs/specs/ARCH-M05-ui-inventory.md"
   ],
   "docs": {
-    "spec": "specs/M3-A-REACH-CRM-spec.md",
+    "spec": "specs/M3-B-DELIVERY-spec.md",
     "test_cases": null,
-    "signoff": "test-reports/M3A-reach-crm-signoff-2026-07-23.md",
+    "signoff": null,
     "framework_reviewed": false
   },
   "role_assignments": null,
   "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M3-A-REACH-CRM done ✅ · 2026-07-23 · 快车道 · fix_rounds=2】\n■ 10/10 PASS（三轮：round1 fan-out×10+对抗×3 → 7P/2F/1PARTIAL；fix1 cf94c5d 修 payloadHash undefined-键中毒[critical]+工具注册去模块图副作用[high]+18 例回归；round2 F002/F008 PASS·F010 PARTIAL；fix2 defb9da 文档面 :1151 反向漂移段+枚举计数；round3 窄幅复验全 PASS）。\n■ 关键 bug（隔离验收抓出，building 自测漏）：/api/reach/send 恒带 language 键（多 undefined），stableStringify 计入建卡 hash 而 Prisma JSONB 丢 undefined 键 → V6 发送 confirm 恒 403。根治=stableStringify 对齐 JSON/JSONB 往返语义。教训：闸门类 feature 必须有「HTTP 创建→confirm」回归（服务层直调入参无 undefined 键会漏检）。\n■ 待用户：触发 deploy-prod 部署 M3-A（部署面三键已就位 VPS）→ prod 补验真投递 REAL（仅 tripplezhou@gmail.com）+ webhook 回流。\n■ soft-watch 5 项随批记账（F003×2/F004×1/F002-XFF/L2-REAL），均有明文兜底。下批 M3-B-DELIVERY。",
+    "Andy": "【M3-B-DELIVERY planning 完成 → building · 2026-07-23 · 快车道】\n■ 用户裁决：U1 backlog 两条全纳入（BL-BRIEF-GOAL P1 + BL-FE-16 P2）· U2 partner 接口先行+mock 适配器（ADR-17，不碰真钱）· U3 全量一批 12 features。\n■ 12 条 Planner 决策见 spec §3，要害四条：P1 零真实资金动作（连测试目标都不设，比 M3-A 真发信更保守）· P2 Deal 由 committed Quote 生成（对 M3-A commit-quote.ts 的唯一新增接线点）· P6 payout 服务端二次校验（buildHarm 与 execute 各重跑 deliveryCheck，前端渲染了按钮也拒——FR-8.2.4.2 无绕过入口的服务端实现）· P10 goal 写入口零 UI 结构变更（走 Copilot 工具+API，V4 19 元素不动）。\n■ 开工顺序：F001→F002→F003 强依赖串行；F011（brief goal）/F012 前半（useColorMode hook）文件集不重叠可并行 subagent+worktree；F004-F008 依赖 F001-F003；F009 依赖 F002+F005+F008；F010 依赖 F003。\n■ M3-A 结转 soft-watch 4 条列为顺手项（spec §9），不构成 acceptance 阻断。\n■ M3-A 教训带入：闸门类 feature 必须有「HTTP 创建→confirm」全链回归（服务层直调会漏检 undefined-键毒化）；CI 无 dev tenant seed（route 测须下沉服务层+夹具租户）；新视觉基线 CI 首推必红（走 update-visual-baselines workflow + pull 回）。",
     "Reviewer": null,
-    "Mark": "M3-A-REACH-CRM 立项完成（spec lock 2026-07-23）：U1 拆 M3-A/M3-B；U2 复用旧项目 Resend（铁律 8 已核证：/opt/apps/kolmatrix/.env 有 RESEND_API_KEY+WEBHOOK_SECRET，域 kolquest.com verified ap-northeast-1，密钥未离开服务器）；U3 闸门 7 态全量；U4 有限覆盖。P1 真发仅 OUTREACH_TEST_RECIPIENT 不碰真实 KOL；P4 port 旧项目 src/lib/email/resend.ts + webhooks/resend（gh repo tripplemay/kolmatrix，EmailLog/withTenant 不 port）；P5 SENT_MARKER 转正 MockEmailSender。下会话 /build 从 F001 起：F001→F002→F003 串行，F005/F007 可并行。坑提醒：真凭据跑 test:visual 必伪造 AIGCGATEWAY_*；基线重生前 kill :3000；gh API 本会话曾触 rate limit（复用 port 时注意）。"
+    "Mark": null
   },
   "lane": "fast"
 }

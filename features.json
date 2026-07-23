@@ -24,7 +24,7 @@
       "title": "诚实护栏（行动承诺条款 + 无工具分支强化）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "acceptance": "BASE_SYSTEM 扩行动承诺诚实条款三要素：(a)工具真实返回成功才可声称已创建/已编排/已执行 (b)超能力请求→明说不支持+能做什么+指路 (c)建议禁止包装成已执行；route.ts 无工具分支强化（明确告知未执行任何动作+指引找专家或页面入口）；单测 prompt 拼接断言（三要素全人格+无工具文案）——uiSyntax 断言先例；真对话行为 L2 留验收授权；lint+tsc+test:unit 绿",
       "description": "spec §2 F003 + P5。护栏产品级进 BASE_SYSTEM——幻觉执行非编排 Agent 特有。"
     },
@@ -42,7 +42,7 @@
       "title": "端到端闭环 + 文档翻牌",
       "priority": "medium",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "acceptance": "集成闭环测（打真库夹具租户）：executeTool('create_project') orchestrator ctx 直调→落库+留痕→列表数据层可见→详情三口径可达；agent:smoke 扩段可选；真对话 L2 留验收授权；user_report 处置状态翻牌注记；architecture.md 翻牌（§8 装配 as-built+工具表+§10.1.1 +/api/projects+§14 M2-C 行）+agent-architecture.md 同步；批末新鲜度复核；lint+tsc+test:unit 绿",
       "description": "spec §2 F005。闭环即用户问题的正面消解证据（创建→项目页可见→雷达留痕）。"
     }

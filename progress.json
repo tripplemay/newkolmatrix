@@ -1,12 +1,12 @@
 {
-  "status": "verifying",
+  "status": "fixing",
   "user_goal": "M2-C-AGENT-HONESTY（用户反馈驱动小批次）：修复「对话创建项目零落库+幻觉编排」三层根因——create_project 工具+服务+UI 入口（写路径从零补齐，internal 留痕雷达可见）/ 诚实护栏（行动承诺条款：做不到必须明说，禁止把建议包装成已执行）/ 编队名册注入（listPersonas 同源，禁杜撰名册外专家）+ 端到端闭环验证。U1=用户裁决立即修（2026-07-23 实答）。",
   "total_features": 5,
   "completed_features": 5,
   "fix_rounds": 0,
   "current_sprint": "M2-C-AGENT-HONESTY",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-23T17:30",
+  "last_updated": "2026-07-23T18:05",
   "reference_docs": [
     "docs/specs/M2-C-AGENT-HONESTY-spec.md",
     "docs/test-reports/user_report/M2C-agent-honesty-2026-07-23.md",
@@ -22,7 +22,40 @@
     "framework_reviewed": true
   },
   "role_assignments": null,
-  "evaluator_feedback": [],
+  "evaluator_feedback": {
+    "round": 1,
+    "date": "2026-07-23",
+    "by": "Mark/evaluator-subagent (fan-out x5 + refute x2)",
+    "verdicts": {
+      "F001": "PASS",
+      "F002": "PASS",
+      "F003": "PARTIAL",
+      "F004": "PASS",
+      "F005": "PARTIAL"
+    },
+    "problems": [
+      {
+        "feature": "F003",
+        "severity": "minor",
+        "refute": "UPHELD",
+        "desc": "acceptance 要求「单测 prompt 拼接断言（三要素全人格+无工具文案）」，无工具分支文案断言缺失：文案仅内联于 src/app/api/agent/route.ts:116，全仓 tests/ 零命中（含换词穷尽证伪）——后续改动可静默漂移而测试不报。三要素断言只覆盖 registry 层，不覆盖 route 层无工具分支拼接。建议：提为导出常量后在 agent-honesty.test.ts 补断言",
+        "steps_to_reproduce": "grep -rn '没有可调用\\|没有执行任何动作\\|页面入口' tests/ → exit 1 零命中"
+      },
+      {
+        "feature": "F005",
+        "severity": "minor",
+        "refute": "UPHELD",
+        "desc": "acceptance/spec 要求 architecture.md §8 装配层翻牌，F005 commit 只加 §10.1.1+§14 两行，§8 三处未翻：(1):989 工具表仍「已实装工具（3 个）」无 create_project（实物 7）；(2):1035 §8.3.1 基座 as-built 未注记行动承诺条款+名册段；(3):1092-1093 §8.6 名册表 orchestrator 仍 tools=[]、strategy 仍 [get_kol_detail]，与 registry.ts:90/:101 批内反向漂移。commit 声明的「批末新鲜度复核」被 :989/:1092 直接反证。修复面=纯文档 3 处定点",
+        "steps_to_reproduce": "grep -n '已实装工具' docs/dev/architecture.md → :989「3 个」；grep -n 'create_project|行动承诺' §8 范围零命中；sed -n 1090,1098p 对比 registry.ts tools"
+      }
+    ],
+    "l2_usage": "chat x2（F003 行为探针：无工具人格创建请求→明说不支持+指路；超能力请求→逐项「还不支持」零虚构）+ embedding x1（F002 视觉误触 lazy，副作用已全量删除复原）；零投喂零充值",
+    "notable_observations": [
+      "F001: name 无 .trim()，纯空白名可建项目（acceptance 外，建议后续兜底）",
+      "F003 L2 正向：两次真对话提及协作者全为名册内 7 人格，零杜撰",
+      "F002: 建议 workbench.spec.ts 注明本地跑法（伪造网关凭据）防下个 evaluator 踩 match lazy 超时"
+    ]
+  },
   "generator_handoff": null,
   "session_notes": {
     "Andy": "【M2-C-AGENT-HONESTY planning 完成 → building · 2026-07-23】\n■ 触发源 = 用户反馈（Copilot 创建项目零落库+幻觉编排），user_report 落档 + 三层根因实物核证（写路径不存在/诚实护栏缺/名册未注入）。U1 = 立即小批次修。\n■ 5 features：服务+工具→API+UI 入口（V2 布局变更三同步）→诚实条款→名册注入→端到端闭环。\n■ 注意：F002 campaigns.png 基线重生遵 §4.5；创建动线 goal 不越 brief 环节（P3）；真对话验证 L2 留验收授权。",

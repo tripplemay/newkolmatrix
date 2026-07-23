@@ -9,7 +9,7 @@ type: project
 
 ## 已上线
 - `https://newkol.guangai.ai` 现跑 **M2-C 版 @ 42bacb3**；M3-A 验收通过后由用户触发 deploy-prod（完整 40 位 SHA）
-- **M3-A 部署面已备**：VPS .env 已有 RESEND_API_KEY（服务器侧复制自旧项目，未离开 VPS）+ OUTREACH_TEST_RECIPIENT=tripplezhou@gmail.com；compose 已 scp（三键可选插值）。**待用户**：Resend 控制台建 endpoint（newkol.guangai.ai/api/signals/inbound，四事件）→ 新 signing secret 写入 .env RESEND_WEBHOOK_SECRET（不可复制旧值）
+- **M3-A 部署面全齐（2026-07-23）**：VPS .env 三键就位——RESEND_API_KEY（服务器侧复制，未离开 VPS）+ OUTREACH_TEST_RECIPIENT=tripplezhou@gmail.com + RESEND_WEBHOOK_SECRET（用户已在 Resend 控制台建 endpoint → newkol.guangai.ai/api/signals/inbound 四事件，新 secret 已写入）；compose 已 scp。部署即生效
 - ⚠️ image_tag 必须完整 40 位 SHA；compose 是 VPS 人工副本；prod kol-sync 03:00 首跑观察项仍在
 
 ## 演进路线（architecture.md §14）

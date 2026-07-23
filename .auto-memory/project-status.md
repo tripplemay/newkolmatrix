@@ -4,6 +4,7 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
+- **M3-A-REACH-CRM building 0/10（spec lock 2026-07-23，快车道）** — 触达域立真：四表迁移+闸门两步票据 7 态+Resend 真投递（复用旧项目配置，kolquest.com verified 已核证）+crmInfer 五态推断+V6 接真+有限人工覆盖。真发仅测试邮箱（P1）；下批 M3-B-DELIVERY。spec `docs/specs/M3-A-REACH-CRM-spec.md`
 - **M2-C-AGENT-HONESTY done ✅（2026-07-23）· 快车道 · 5/5 PASS（fix_rounds=1）** — 用户实证幻觉编排事故（对话「创建项目」零落库 + 杜撰 6 专家）三层根因逐条消解：createProject 服务 + create_project 工具（orchestrator/strategy）+ POST /api/projects + 列表页「新建项目」入口；BASE_SYSTEM 行动承诺诚实条款三条 + NO_TOOL_CLAUSE 常量化；编队名册注入（PERSONA_SEED 同源禁杜撰）；端到端闭环集成测。L2 实证：真对话已明说「还不支持」+ 指路名册内专家，杜撰角色未再现。signoff `docs/test-reports/M2C-agent-honesty-signoff-2026-07-23.md`
 - **M0→M2-B 均 done ✅**
 

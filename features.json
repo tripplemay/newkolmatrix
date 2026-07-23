@@ -1,50 +1,95 @@
 {
-  "sprint": "M2-C-AGENT-HONESTY",
+  "batch": "M3-A-REACH-CRM",
   "features": [
     {
       "id": "F001",
-      "title": "createProject 服务 + create_project 工具（internal）",
+      "title": "迁移：OutreachThread/OutreachMessage/Quote/Signal 四表 + PendingAction 7 态 + Kol.contactEmail",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "lib/projects/create.ts：zod{name 必填,gameIdOrSlug?,market?}（【P3】goal 归 brief 环节不在创建时填）；game 三口径解析未命中 GAME_NOT_FOUND 明示；事务=Project.create(cur=brief 默认)+OperationLog(kind=auto,actor=调用人格,summary 人话,payloadJson{action:'project.created',...})——雷达可见真痕迹；tools/create-project.ts class:'internal'（D27 无确认框）输出含 next 指路语义；【P2】仅挂 orchestrator+strategy；单测 contract-surface（class/注册/挂载/zod 拒空名）+集成测夹具租户（落库+cur=brief+留痕原子+GAME_NOT_FOUND）；lint+tsc+test:unit 绿",
-      "description": "spec §2 F001 + P1/P2/P3。写路径从零补齐；OperationLog 先例 = advanceStage。"
+      "status": "pending",
+      "description": "spec §4 字段级 schema（PRD:600 授权本批定）。expand-contract：PendingAction 枚举加值不删值 + ticketHash/ticketExpiresAt/ticketUsedAt/decidedAt 新列。",
+      "acceptance": "migration 落 prisma/migrations 且 db:migrate 干净；四表字段与 spec §4 逐项一致（@@unique 约束在场：Thread(projectId,kolId)、Signal.externalId）；PendingAction 7 态枚举 + 4 新列；Kol.contactEmail String? 可空；tsc + 既有全量测试不破；schema 注释更新（:355 M3 预告注释翻牌）"
     },
     {
       "id": "F002",
-      "title": "POST /api/projects + 列表页创建入口（布局变更）",
+      "title": "闸门两步票据升级（§9.3.2 全量）：confirm 签票 / execute 消费票 + 四端点 + 7 态",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "POST /api/projects 薄封装 createProject（400 zod 明示/404 game/500 兜底）——UI 与工具共用单一真相源；campaigns 列表页头「新建项目」solid 按钮+轻量弹层（名称必填+游戏下拉可空+市场可空）→成功 toast+跳 /admin/campaigns/{id}；失败 toast 服务端信息；**布局变更（Planner 标注 P4）**：原型 interaction-prototype-v2.html 项目列表段加 affordance+ui-inventory V2 登记（10→+N）；campaigns.png 基线逐处对账重生（§4.5 重生序）+两视口实测+运行时改→验→复原；lint+tsc+test:unit+test:visual 绿",
-      "description": "spec §2 F002 + P4。V2 原型无创建 affordance 实证 → 三同步完整流程（M2-B F006 先例）。"
+      "status": "pending",
+      "description": "消 R15 并发双确认 + 清 confirmed 死枚举/reject-expiresAt 债。ADR-25 不变量：令牌/票据不出服务端进程（DB 只存 hash）。",
+      "acceptance": "GET /api/actions/[id] + POST confirm/execute/reject 四端点在场且 nodejs runtime；票仅 confirm 响应出现一次，DB 只存 hash；两处原子条件 UPDATE（WHERE status='pending' / WHERE status='confirmed' AND ticketUsedAt IS NULL AND ticketExpiresAt>now()）败者 409；reject 写真实 rejected 态；HTTP 分码 403 GATE_TOKEN_INVALID/404/409 GATE_ALREADY_DECIDED/410 GATE_EXPIRED；P9 rate-limit（/api/actions 30/min/IP fail-open + escape hatch）；gate-smoke 升级：G1-G5 + 7 态断言 + D20 变异 + 并发双确认竞态用例全绿；执行=消费票→副作用→同一事务 executed+irrev+业务态变更，失败→failed 无 irrev 行"
     },
     {
       "id": "F003",
-      "title": "诚实护栏（行动承诺条款 + 无工具分支强化）",
+      "title": "ops/EmailSender 层 + ResendEmailSender/MockEmailSender + send_outreach 接真",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "BASE_SYSTEM 扩行动承诺诚实条款三要素：(a)工具真实返回成功才可声称已创建/已编排/已执行 (b)超能力请求→明说不支持+能做什么+指路 (c)建议禁止包装成已执行；route.ts 无工具分支强化（明确告知未执行任何动作+指引找专家或页面入口）；单测 prompt 拼接断言（三要素全人格+无工具文案）——uiSyntax 断言先例；真对话行为 L2 留验收授权；lint+tsc+test:unit 绿",
-      "description": "spec §2 F003 + P5。护栏产品级进 BASE_SYSTEM——幻觉执行非编排 Agent 特有。"
+      "status": "pending",
+      "description": "P4 port 旧项目 resend.ts 模式（30s abort + 一次冷重试 + dev 无 key mock 回落 + prod 无 key fail-fast）；P5 SENT_MARKER 转正为 MockEmailSender；P6 幂等键=pendingActionId。",
+      "acceptance": "ops/email 接口 + 两实现；env 选择器行为三分支实测（有 key 真发/无 key dev mock/无 key prod 抛错拒发）；send_outreach.execute：发送→OutreachMessage(direction=sent, gateLogId 非空, providerMessageId)落库+thread 状态事件；无 contactEmail 明示拒绝不猜（P3）；重入不双发（幂等断言）；MockEmailSender 保留 SENT_MARKER，gate-smoke/D20 观测点零迁移；CI 与本地默认 mock 不外呼"
     },
     {
       "id": "F004",
-      "title": "编队名册注入（同源防杜撰）",
+      "title": "signals 接入层 + POST /api/signals/inbound（Resend webhook）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "buildSystemPrompt 增「你的队友（唯一合法名册）」段：listPersonas() 同源生成（与 personaBoundary UI 卡同数据源）+「不得杜撰任何名册外角色」；单测：全人格 prompt 含 7 人格全名册+禁杜撰条款+名册与 listPersonas() 同源断言（【P6】不 pin 硬编码名单，改名册自动跟随）；lint+tsc+test:unit 绿",
-      "description": "spec §2 F004 + P6。用户实证：模型杜撰创意/投放/KOL/社群/风控/数据 6 个名册外专家。"
+      "status": "pending",
+      "description": "normalize 管道 + Svix 验签 + delivered/bounced/complained/opened → Signal(email_delivery_status) → crmInfer 重算 → OperationLog(auto)。",
+      "acceptance": "验签失败 401/403 拒绝（fail-closed）+ 20/min/IP 限流 429；zod 校验坏 payload 400 不落库；externalId 防重（同事件重放只落一行）；四类事件正确映射 Signal 并触发重算+留痕；单测/集成测覆盖验签+防重+映射；旧项目 handler 测试样例回放通过"
     },
     {
       "id": "F005",
-      "title": "端到端闭环 + 文档翻牌",
+      "title": "crmInfer.status 纯函数（domain 层）+ D20 变异测试",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "description": "五态推断（pending_send/sent/replied/negotiating/confirmed）；U4 有限覆盖：manual_override 仅可断言 sent/replied/negotiating；confirmed 仅由 quote.committed 推出。",
+      "acceptance": "纯函数无 DB 读（ctx 传入）；全转换矩阵单测；manual_override 越权断言 confirmed 被忽略且留痕说明（负例测试）；D20 变异测试（破坏推断规则→测试翻红）；三处复用铁律注释就位（页面/工具/例程同一函数）"
+    },
+    {
+      "id": "F006",
+      "title": "reach 工具扩容：draft_email/refine_email（internal）+ commit_quote（outbound）",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "description": "起草/改写走 gateway chat（NFR-I2 按 KOL 语言）；commit_quote buildHarm 3 行（金额/交付物/对象）；P8 committed 时 budgetUsd 回填。",
+      "acceptance": "三工具注册且挂 reach 人格（registry tools 数组 + 单测同源断言）；draft_email 输出含 subject/body 且语言随 KOL.language；commit_quote 无令牌→pending 信封 403 语义、经两步票据后 Quote proposed→committed + gateLogId 非空 + budgetUsd 回填断言；buildHarm 三要素在场（gate-smoke 或单测断言）"
+    },
+    {
+      "id": "F007",
+      "title": "Kol.contactEmail 抽屉录入口 + PATCH API",
       "priority": "medium",
       "executor": "generator",
-      "status": "completed",
-      "acceptance": "集成闭环测（打真库夹具租户）：executeTool('create_project') orchestrator ctx 直调→落库+留痕→列表数据层可见→详情三口径可达；agent:smoke 扩段可选；真对话 L2 留验收授权；user_report 处置状态翻牌注记；architecture.md 翻牌（§8 装配 as-built+工具表+§10.1.1 +/api/projects+§14 M2-C 行）+agent-architecture.md 同步；批末新鲜度复核；lint+tsc+test:unit 绿",
-      "description": "spec §2 F005。闭环即用户问题的正面消解证据（创建→项目页可见→雷达留痕）。"
+      "status": "pending",
+      "description": "CreatorDrawer 行内录入（M2-B 裁定入口同款交互）+ fieldProvenance=user_input。",
+      "acceptance": "抽屉可录入/清除 contactEmail；PATCH API zod email 校验（坏格式 400 明示）；fieldProvenance 标 user_input；ProvenanceTag 正确显示；录入后 send_outreach 可用该地址（与 F003 联动断言）；涉及布局变更则视觉基线对账（§4.5）"
+    },
+    {
+      "id": "F008",
+      "title": "V6 ConversationInbox 接真（env-reach mock 退役）",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "description": "数据源切真 thread/message/quote；两处 D6 stub（confirmSend/confirmQuote）替换为真 pending→GET 详情→confirm→execute 链路。spec §6 UI 四段约束。",
+      "acceptance": "ui-inventory V6 24 元素逐处保持（三栏/五态 pill/draft textarea/重写 ghost/发送红 gate/ring84/宣示句）；「确认报价」仅 negotiating 条件渲染保持（裁决 #6）；五态 pill=crmInfer 真值；发送经真闸门链路（无 stub 残留：grep confirmSend 本地覆盖零命中）；空态语义保留；env-reach.ts 退役登记（mock/index.ts 表更新）；视觉基线逐处对账重生（§4.5 重生序+三连稳）；两视口实测"
+    },
+    {
+      "id": "F009",
+      "title": "CRM 人工覆盖入口（U4 有限覆盖）",
+      "priority": "medium",
+      "executor": "generator",
+      "status": "pending",
+      "description": "V6 覆盖控件（仅 sent/replied/negotiating 三态）→ Signal(manual_override) → 同一推断管道 → 留痕。",
+      "acceptance": "覆盖控件仅三态可选（「已确认」选项不存在——验收断言其不可达）；覆盖落 Signal(manual_override) 走 crmInfer 管道非直改列；OperationLog 留痕含操作者与前后态；ui-inventory V6 24→25 登记；视觉基线对账（意图性变更）"
+    },
+    {
+      "id": "F010",
+      "title": "E2E 闭环 + 部署面 + 文档翻牌 + 批末新鲜度复核",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "description": "PRD 15.3 M3 E2E：起草→审阅→点确认才发送。真发仅 OUTREACH_TEST_RECIPIENT（P1）。部署面 env 迁移 + webhook 指向。",
+      "acceptance": "E2E：draft_email 起草→send_outreach 无令牌 pending（副作用零发生断言）→confirm+execute→真实投递达 OUTREACH_TEST_RECIPIENT（L2 最小用量+报告注明）→OutreachMessage/Signal/留痕齐；真实 KOL 地址零发信（P1 断言）；部署面：三 env 键幂等 append VPS .env + Resend webhook 指向 newkol.guangai.ai/api/signals/inbound + compose 如变更先 scp；architecture.md 翻牌（§5.2/§9.3.2/§10.4/工具表/§14 M3-A 行）+ agent-architecture 同步 + 批末新鲜度复核（grep 陈旧计数/未实装残留）；lint+tsc+test:unit+test:visual 绿"
     }
   ]
 }

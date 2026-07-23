@@ -1,12 +1,12 @@
 {
-  "status": "done",
-  "user_goal": "M2-C-AGENT-HONESTY（用户反馈驱动小批次）：修复「对话创建项目零落库+幻觉编排」三层根因——create_project 工具+服务+UI 入口（写路径从零补齐，internal 留痕雷达可见）/ 诚实护栏（行动承诺条款：做不到必须明说，禁止把建议包装成已执行）/ 编队名册注入（listPersonas 同源，禁杜撰名册外专家）+ 端到端闭环验证。U1=用户裁决立即修（2026-07-23 实答）。",
-  "total_features": 5,
-  "completed_features": 5,
-  "fix_rounds": 1,
-  "current_sprint": "M2-C-AGENT-HONESTY",
+  "status": "building",
+  "user_goal": "触达域立真：CRM 四表+五态事件推断+Resend 真实投递（复用旧项目已验证配置）+闸门两步票据 7 态+V6 收件箱接真",
+  "total_features": 10,
+  "completed_features": 0,
+  "fix_rounds": 0,
+  "current_sprint": "M3-A-REACH-CRM",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-23T19:10",
+  "last_updated": "2026-07-23T21:00",
   "reference_docs": [
     "docs/specs/M2-C-AGENT-HONESTY-spec.md",
     "docs/test-reports/user_report/M2C-agent-honesty-2026-07-23.md",
@@ -16,41 +16,18 @@
     "docs/specs/ARCH-M05-ui-inventory.md"
   ],
   "docs": {
-    "spec": "specs/M2-C-AGENT-HONESTY-spec.md",
+    "spec": "specs/M3-A-REACH-CRM-spec.md",
     "test_cases": null,
-    "signoff": "test-reports/M2C-agent-honesty-signoff-2026-07-23.md",
-    "framework_reviewed": true
+    "signoff": null,
+    "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": {
-    "round": 2,
-    "date": "2026-07-23",
-    "by": "Mark/evaluator-subagent (reverify, fresh context)",
-    "verdicts": {
-      "F001": "PASS",
-      "F002": "PASS",
-      "F003": "PASS",
-      "F004": "PASS",
-      "F005": "PASS"
-    },
-    "problems": [],
-    "resolution": [
-      "问题1(F003) RESOLVED：steps_to_reproduce 原样重跑翻转（grep tests/ → exit 0，agent-honesty.test.ts:23-27 四处命中）；NO_TOOL_CLAUSE 常量与修复前内联串 74 字符字节级相同（行为零变更实证）；新 2 例断言活性经 scratchpad 变异模拟证明（丢接线/改词均翻红）；6/6 verbose 全绿",
-      "问题2(F005) RESOLVED：三处站点全翻转（:989「7 个」/ §8.3.1 ①行动承诺三条+名册段注记 / §8.6 orchestrator=[create_project]、strategy=三件套）且逐项与实物对齐（tools/ 7 文件 + registry.ts PERSONA_SEED 七人格 tools 数组 + knowledge-context.ts 实装）；顺手校准两处核实无误；§8 剩余「未实装」声明逐条核物零新漂移"
-    ],
-    "regression": "PASS：lint 0/0 · prisma generate + tsc exit 0 · test:unit 378/378（+2 例）· route.ts 行为零变更（字节级）· registry.ts 纯增量（挂载面/名册面零触碰）· F002 验收面零变更免复验 · test:visual 免跑（零 UI 面文件变更）· 本轮零 DB 操作零 L2 用量",
-    "l2_usage": "round1: chat x2 + embedding x1（见 signoff 申报汇总）；round2: 0（断言/文档面修复无需真网关）",
-    "notable_observations": [
-      "F001: name 无 .trim()，纯空白名可建项目（acceptance 外，建议后续兜底）→ signoff Soft-watch S1",
-      "F003 L2 正向：两次真对话提及协作者全为名册内 7 人格，零杜撰 → signoff S3 留档",
-      "F002: 建议 workbench.spec.ts 注明本地跑法（伪造网关凭据）防下个 evaluator 踩 match lazy 超时 → signoff S2"
-    ]
-  },
+  "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
     "Andy": "【M2-C-AGENT-HONESTY planning 完成 → building · 2026-07-23】\n■ 触发源 = 用户反馈（Copilot 创建项目零落库+幻觉编排），user_report 落档 + 三层根因实物核证（写路径不存在/诚实护栏缺/名册未注入）。U1 = 立即小批次修。\n■ 5 features：服务+工具→API+UI 入口（V2 布局变更三同步）→诚实条款→名册注入→端到端闭环。\n■ 注意：F002 campaigns.png 基线重生遵 §4.5；创建动线 goal 不越 brief 环节（P3）；真对话验证 L2 留验收授权。",
     "Reviewer": null,
-    "Mark": "M2-C-AGENT-HONESTY 全程快车道单会话交付（触发源=用户实证幻觉编排）：building 5/5 → 首轮 fan-out 3P/2PARTIAL（对抗复核双 UPHELD）→ fix R1（NO_TOOL_CLAUSE 常量化+断言；architecture.md §8 翻牌）→ 复验 5/5 PASS → done。坑：本机真凭据跑 test:visual 必伪造网关 env（match lazy 超时）；批末新鲜度复核 grep 口径要覆盖「N 个」计数与表格字面 tools=[]（本批漏网被 evaluator 抓）。M2-C 部署 42bacb3 完整 SHA，compose 零变更免 scp。下批 M3 前顺手清 soft-watch（M2-B x2 + M2-C S1-S3）。"
+    "Mark": "M3-A-REACH-CRM 立项完成（spec lock 2026-07-23）：U1 拆 M3-A/M3-B；U2 复用旧项目 Resend（铁律 8 已核证：/opt/apps/kolmatrix/.env 有 RESEND_API_KEY+WEBHOOK_SECRET，域 kolquest.com verified ap-northeast-1，密钥未离开服务器）；U3 闸门 7 态全量；U4 有限覆盖。P1 真发仅 OUTREACH_TEST_RECIPIENT 不碰真实 KOL；P4 port 旧项目 src/lib/email/resend.ts + webhooks/resend（gh repo tripplemay/kolmatrix，EmailLog/withTenant 不 port）；P5 SENT_MARKER 转正 MockEmailSender。下会话 /build 从 F001 起：F001→F002→F003 串行，F005/F007 可并行。坑提醒：真凭据跑 test:visual 必伪造 AIGCGATEWAY_*；基线重生前 kill :3000；gh API 本会话曾触 rate limit（复用 port 时注意）。"
   },
   "lane": "fast"
 }

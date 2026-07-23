@@ -15,7 +15,7 @@
       "title": "深字段派生纯函数 + kol-deep zod 契约（给分必给依据兑现）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "schemas/kol-deep.ts：audienceDemoSchema{ageDist?,genderDist?,geoDist?,interests 写侧非空}+credibilitySchema{score 0-100,method,signals.min(1),assessedAt}+brandSafetySchema{rating,flags.min(1),assessedAt}，**refine 空依据非法（:838 欠账兑现 FR-11.4）**，读侧宽松 parse*/写侧 assert* 双形态（先例）；kol-sync/derive.ts 纯函数（无 IO 无 LLM P9）：deriveAudienceDemo（matchedTags+matchedKeywords+businessCategory 归一去重，全空→null 不编造）+deriveCredibility（verified/qualityScore/tier/followers 规则合成，权重常量导出，signals 逐条人话依据，method='rule-derived-from-crawl'，assessedAt 调用方注入，弱信号全缺→null）+deriveFieldProvenance（六档内 source='crawl'+detail 明示派生）；单测边界全覆盖（tags 空/空串/YT null/全缺/refine 拒空依据/分域钳制）不打库不打网关；lint + tsc + test:unit 绿",
       "description": "spec §2 F002。复裁：规则派生填充三契约位缺口（brandSafety 无源不落库，契约先立）。"
     },

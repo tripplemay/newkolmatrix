@@ -22,6 +22,7 @@ export const dynamic = 'force-dynamic';
 import Card from 'components/card';
 import Button from 'components/common/Button';
 import PageHeader from 'components/common/PageHeader';
+import CreateProjectButton from 'components/project/CreateProjectButton';
 import ProjectAvatar from 'components/project/ProjectAvatar';
 import { ENV_META } from 'components/project/env-meta';
 import { stageHref } from 'lib/agent/stage-routing';
@@ -59,6 +60,12 @@ export default async function CampaignsPage() {
     include: { game: true },
     orderBy: { createdAt: 'asc' },
   });
+  // M2-C F002：新建弹层的游戏下拉值域（现有 Game，轻查询）
+  const games = await prisma.game.findMany({
+    where: { tenantId },
+    select: { id: true, name: true },
+    orderBy: { createdAt: 'asc' },
+  });
   const now = new Date();
 
   // 与 [id]/page.tsx:42-51 逐字段一致的 HealthInput 组装（D2/D15：分子无存处填
@@ -93,11 +100,13 @@ export default async function CampaignsPage() {
 
   return (
     <div className="mt-3">
-      {/* V2-1 标题 + V2-2 🔒 lede IA 契约句（文案逐字原型 L739） */}
+      {/* V2-1 标题 + V2-2 🔒 lede IA 契约句（文案逐字原型 L739）
+          + V2-11「新建项目」入口（M2-C F002，P4 布局变更——原型/清单已同批登记） */}
       <PageHeader
         className="mb-5"
         title="项目"
         subtitle="选择一个项目进入完整上下文。真正的触达、谈判、审核与放款都在项目内部——这一层只做进入。"
+        actions={<CreateProjectButton games={games} />}
       />
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         {projects.map((p, pi) => {

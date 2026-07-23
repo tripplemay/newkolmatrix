@@ -53,8 +53,8 @@
 ### V1. 今天 today（L714-735）— 37 元素
 KPI ×4（MiniStatistics：待你确认 3(+1)/Agent 今日完成 24(+6)/进行中项目 4(无 delta)/本月有效触达 8.4M(+12%)，**delta 有无两态不得统一**）｜sec-head「需要你确认」+ 🔒 meta IA 契约句｜雷达卡：avatar 42(游戏名首二字+6 色轮)/项目全名/market pill/budget pill/health pill **三态**/环节 lbl/待办标题/amt 副文/🔒🚪 irrev「对外不可撤销」红标（**条件渲染** ask.outbound）/rc-foot clock/「进入项目」按钮携 data-goenv 直落｜sec-head「Agent 编队」+ 🔒 meta｜sqcard ×6（AgentSquad **grid variant**：sq-ic 主题色/名/duty/now）｜「Agent 活动」card-head + 🔒 sub「昨夜与今晨自动完成，无需你介入」｜feed ×6（图标块/主文/副文/time）｜chartcard（sub/big 312/绿 badge +18%/LineAreaChart 12 点末点圆标）｜🔒 loads eyebrow「团队负荷 · **单一角色，仅用于分工**」（免责句必须，裁决 #8 保留）｜load ×3（avatar/Progress track/右对齐 %）
 
-### V2. 项目列表（L738-744）— 10 元素
-标题｜🔒 lede「…这一层只做进入」（IA 契约句）｜卡 ×4：avatar/全名/market pill/budget pill/health pill｜goal 句｜rc-foot「停在「{环节}」」｜「进入」钮
+### V2. 项目列表（L738-744）— 11 元素（M2-C F002 布局变更 +1）
+标题｜🔒 lede「…这一层只做进入」（IA 契约句）｜**「新建项目」钮（M2-C F002，P4 布局变更：标题右侧 solid 钮 → 弹层表单（名称必填/游戏下拉可空/市场可空）→ POST /api/projects（与 create_project 工具同服务）→ 创建即入 brief 环节 + OperationLog 留痕雷达可见）**｜卡 ×N：avatar/全名/market pill/budget pill/health pill｜goal 句｜rc-foot「停在「{环节}」」｜「进入」钮
 
 ## 三、项目详情
 

@@ -736,7 +736,8 @@ function viewToday(){
 
 /* ---------- Campaigns ---------- */
 function viewCampaigns(){
-  return `<h2 class="title">项目</h2><p class="lede">选择一个项目进入完整上下文。真正的触达、谈判、审核与放款都在项目内部——这一层只做进入。</p>
+  /* M2-C F002（P4 布局变更）：标题右侧「新建项目」入口（V2-11）——创建即入 brief 环节起点 */
+  return `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px"><div><h2 class="title">项目</h2><p class="lede">选择一个项目进入完整上下文。真正的触达、谈判、审核与放款都在项目内部——这一层只做进入。</p></div><button class="btn sm" data-newproject>${ic('plus','ic sm')}新建项目</button></div>
   <div class="sec"><div class="radar">${PROJECTS.map((p,pi)=>{const e=envMeta(p.cur);return `<div class="card rcard">
     <div class="rc-top">${avatar(p.game,pi,42)}<div style="min-width:0"><b>${esc(p.name)}</b><div class="chips" style="margin-top:5px"><span class="pill nu">${esc(p.market)}</span><span class="pill nu">${esc(p.budget)}</span><span class="pill ${p.health}">${p.health==='gd'?'正常':p.health==='wn'?'注意':'风险'}</span></div></div></div>
     <p class="lede" style="margin:0;font-size:13px">${esc(p.goal)}</p>
@@ -982,6 +983,8 @@ function viewStub(){
 function bindView(){
   const v=$('#view');
   v.querySelectorAll('[data-enter]').forEach(b=>b.onclick=()=>go('project',b.dataset.enter,b.dataset.goenv));
+  /* M2-C F002：新建项目——原型以 toast 表意（实装 = 弹层表单 → POST /api/projects → 跳 brief） */
+  const np=v.querySelector('[data-newproject]');if(np)np.onclick=()=>toast('新建项目：填写名称/游戏/市场后创建，直接进入「目标 Brief」环节');
   const bk=v.querySelector('[data-back]');if(bk)bk.onclick=()=>{state.route='campaigns';render();};
   v.querySelectorAll('[data-env]').forEach(b=>b.onclick=()=>{state.env=b.dataset.env;render();});
   const nt=v.querySelector('[data-nav-today]');if(nt)nt.onclick=()=>{state.route='today';render();};

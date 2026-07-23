@@ -15,7 +15,7 @@
       "title": "POST /api/projects + 列表页创建入口（布局变更）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "POST /api/projects 薄封装 createProject（400 zod 明示/404 game/500 兜底）——UI 与工具共用单一真相源；campaigns 列表页头「新建项目」solid 按钮+轻量弹层（名称必填+游戏下拉可空+市场可空）→成功 toast+跳 /admin/campaigns/{id}；失败 toast 服务端信息；**布局变更（Planner 标注 P4）**：原型 interaction-prototype-v2.html 项目列表段加 affordance+ui-inventory V2 登记（10→+N）；campaigns.png 基线逐处对账重生（§4.5 重生序）+两视口实测+运行时改→验→复原；lint+tsc+test:unit+test:visual 绿",
       "description": "spec §2 F002 + P4。V2 原型无创建 affordance 实证 → 三同步完整流程（M2-B F006 先例）。"
     },

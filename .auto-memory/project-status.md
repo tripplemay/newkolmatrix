@@ -7,11 +7,10 @@ type: project
 - **M3-A-REACH-CRM done ✅（2026-07-23 · 快车道 · fix_rounds=2 · 10/10 PASS）** — 触达域立真：四表迁移 + 闸门两步票据 7 态（消 R15，`/api/gate/*` 退役 → `/api/actions/[id]/*`）+ ops/email（Resend port + mock 转正）+ signals webhook（Svix 验签+防重）+ crmInfer 五态纯函数（U4 有限覆盖）+ reach 工具扩容（draft/refine/commit_quote + P8 回填）+ contactEmail 录入口 + V6 收件箱接真 + reach:e2e 闭环。三轮验收（fan-out×10+对抗×3 → fix1 → reverify → fix2 → reverify）。signoff `docs/test-reports/M3A-reach-crm-signoff-2026-07-23.md`
 - **M0→M2-C 全 done ✅**；下批 **M3-B-DELIVERY**（Deal/Deliverable/GameKey/Payout + partner 适配器 + payout 闸门 + V7 台账接真）
 
-## 已上线 / 待部署
-- `https://newkol.guangai.ai` 现跑 **M2-C @42bacb3**；**M3-A 已验收待部署**——用户触发 deploy-prod（完整 40 位 SHA）即上线
-- **M3-A 部署面全就位**：VPS .env 三键齐（RESEND_API_KEY 服务器侧复制未离 VPS / OUTREACH_TEST_RECIPIENT=tripplezhou@gmail.com / RESEND_WEBHOOK_SECRET 用户建 endpoint 后写入）+ compose 已 scp；部署即生效
-- **部署后必做**：prod 补验真投递 REAL（仅 tripplezhou@gmail.com，验 mocked=false + providerMessageId + webhook 四事件回流）——本地不可跑（U2 密钥不离服务器）
-- ⚠️ image_tag 必须完整 40 位 SHA；compose 是 VPS 人工副本；prod kol-sync 03:00 观察项仍在
+## 已上线
+- `https://newkol.guangai.ai` 现跑 **M3-A @ `a2751fd71b7572de276b0b7fc70ad8065c831810`**（2026-07-23 部署，run 30042655947）。上线验证 5/5 过：health 200 / 镜像 SHA 精确对齐 / M3-A 迁移 20260723115700 落地（7 态枚举+4 表）/ `/api/actions` 404 分码 / `/api/signals/inbound` 401 fail-closed；三 env 键实际注入容器（RESEND_API_KEY re_ 真格式 36 位 / WEBHOOK_SECRET 38 位 / OUTREACH_TEST_RECIPIENT=tripplezhou@gmail.com）。回滚=deploy-prod 填 `42bacb3dda7aebfdd71bc4a859987d7d2a9ee717`（M2-C）
+- ⚠️ 部署 SHA=a2751fd（运行时代码状态，之后 defb9da/2c396a6 纯文档 paths-ignore 未 build）≠HEAD 2c396a6；image_tag 必须完整 40 位 SHA
+- **待补验**：prod 真投递 REAL（`reach:e2e` REAL 分支仅发 tripplezhou@gmail.com，验 mocked=false+providerMessageId+webhook 回流）——真发邮件不可逆，待用户明确许可后执行
 
 ## 需求池 / 待人类
 - backlog：仅 BL-FE-16（搁置）

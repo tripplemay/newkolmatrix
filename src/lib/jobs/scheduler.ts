@@ -15,6 +15,8 @@
 
 import cron from 'node-cron';
 import { getDevTenantId } from 'lib/agent/context';
+import { health as apifyKolHealth } from 'lib/apify/client';
+import { syncKols } from 'lib/kol-sync/sync';
 import { runHealthScan } from './routines/health-scan';
 import { runNightlyScreen } from './routines/nightly-screen';
 
@@ -23,6 +25,9 @@ export const HEALTH_SCAN_CRON = '0 2 * * *';
 
 /** 夜间筛查 cron（M2-A F006；与 health-scan 02:00 错峰）。 */
 export const NIGHTLY_SCREEN_CRON = '30 2 * * *';
+
+/** 外采同步 cron（M2-B F003；与前两例程错峰）。 */
+export const KOL_SYNC_CRON = '0 3 * * *';
 
 /** 例程注册表条目（F006）。 */
 export interface RoutineDef {
@@ -57,6 +62,28 @@ export const ROUTINES: ReadonlyArray<RoutineDef> = [
       const r = await runNightlyScreen(tenantId);
       console.log(
         `[jobs] nightly-screen 完成：${r.projects} 项目（成功 ${r.succeeded} / 失败 ${r.failed}）`,
+      );
+      return r;
+    },
+  },
+  {
+    name: 'kol-sync',
+    cron: KOL_SYNC_CRON,
+    run: async () => {
+      // M2-B F003：dev 内网不可达属预期（apify-kol 在 deploysvr kol-shared 网络）——
+      // 探活失败静默跳过 log warn 不炸（spec §2 F003 硬要求）；env 未配同走此分支。
+      if (!(await apifyKolHealth())) {
+        console.warn(
+          '[jobs] kol-sync：apify-kol 探活失败，本轮跳过（dev 内网不可达属预期）',
+        );
+        return { skipped: true };
+      }
+      const tenantId = await getDevTenantId();
+      const r = await syncKols(tenantId);
+      console.log(
+        `[jobs] kol-sync 完成：拉取 ${r.fetched}（新建 ${r.created}/更新 ${
+          r.updated
+        }），embedding 补灌 ${r.embedded}${r.truncated ? '，已截断' : ''}`,
       );
       return r;
     },

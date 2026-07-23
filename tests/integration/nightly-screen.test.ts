@@ -55,7 +55,12 @@ beforeAll(async () => {
   projectMatch = pm.id;
 
   const pb = await prisma.project.create({
-    data: { tenantId, name: 'M2A F006 夹具项目（brief）', cur: 'brief', maxReached: 'brief' },
+    data: {
+      tenantId,
+      name: 'M2A F006 夹具项目（brief）',
+      cur: 'brief',
+      maxReached: 'brief',
+    },
   });
   projectBrief = pb.id;
 
@@ -88,8 +93,10 @@ afterAll(async () => {
 });
 
 describe('scheduler 注册表化（:1815 口径消解）', () => {
-  it('ROUTINES 恰含两例程：health-scan @ 0 2 与 nightly-screen @ 30 2（错峰）', () => {
-    expect(ROUTINES.map((r) => r.name)).toEqual([
+  // M2-B F003 翻牌：注册表随批次增长（kol-sync 登记）——「登记即调度」正是注册表化的口径。
+  // health-scan / nightly-screen 两条 M2-A 断言语义零变更（名称/顺序/cron 逐字保持）。
+  it('ROUTINES 含 health-scan @ 0 2 与 nightly-screen @ 30 2（错峰；M2-B 起第三例程 kol-sync 由其套件覆盖）', () => {
+    expect(ROUTINES.map((r) => r.name).slice(0, 2)).toEqual([
       'health-scan',
       'nightly-screen',
     ]);
@@ -120,7 +127,12 @@ describe('runNightlyScreen 闭环', () => {
     ).toBe(0);
 
     const log = await prisma.operationLog.findFirst({
-      where: { tenantId, projectId: projectMatch, actor: 'match', kind: 'auto' },
+      where: {
+        tenantId,
+        projectId: projectMatch,
+        actor: 'match',
+        kind: 'auto',
+      },
     });
     expect(log).not.toBeNull();
     expect(log?.payloadJson).toMatchObject({
@@ -155,7 +167,11 @@ describe('runNightlyScreen 闭环', () => {
     });
     await prisma.matchPlan.update({
       where: { id: target.id },
-      data: { status: 'approved', approvedBy: 'operator', approvedAt: new Date() },
+      data: {
+        status: 'approved',
+        approvedBy: 'operator',
+        approvedAt: new Date(),
+      },
     });
 
     const r = await runNightlyScreen(tenantId, { embed: mockEmbed });

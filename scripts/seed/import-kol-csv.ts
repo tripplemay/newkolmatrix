@@ -17,10 +17,15 @@ import { parse } from 'csv-parse/sync';
 import { embedMany } from 'ai';
 import { prisma } from '../../src/lib/db/prisma';
 import { embeddingModel, EMBEDDING_DIMENSIONS } from '../../src/lib/ai/gateway';
+// M2-B F003【P3】：canonicalHandle 归一抽出共享单点（seed 与 kol-sync 两消费零漂移）
+import { deriveCanonicalHandle } from '../../src/lib/kol-sync/canonical-handle';
 
 const DEV_TENANT_SLUG = 'dev';
 const DEV_USER_EMAIL = 'dev@newkolmatrix.local';
-const DATA_SOURCE = 'csv-seed:kol-seed-enriched-final.csv';
+// M2-B F003【P4】源头归一：原值 'csv-seed:kol-seed-enriched-final.csv' 不在 provenance
+// 六档枚举内 → resolveProvenance 行级恒降级 ai_estimate（as-built bug）。'user_upload'
+//（你上传）是六档内与 CSV 种子语义相符的档位；re-seed 不再回退归一结果。
+const DATA_SOURCE = 'user_upload';
 const EMBED_BATCH = 100; // 网关 embed 单次上限 100
 const UPSERT_CONCURRENCY = 100;
 
@@ -60,13 +65,17 @@ function resolveColumns(header: string[]): Record<string, string> {
   const norm = header.map((h) => stripBom(h).trim());
   const map: Record<string, string> = {};
   for (const [field, aliases] of Object.entries(COLUMN_ALIASES)) {
-    const hit = norm.find((h) => aliases.some((a) => a.toLowerCase() === h.toLowerCase()));
+    const hit = norm.find((h) =>
+      aliases.some((a) => a.toLowerCase() === h.toLowerCase()),
+    );
     if (hit) map[field] = hit;
   }
   const missing = REQUIRED_FIELDS.filter((f) => !map[f]);
   if (missing.length > 0) {
     throw new Error(
-      `脏 CSV：表头缺必需列 [${missing.join(', ')}]。实际表头: ${norm.join(' | ')}`,
+      `脏 CSV：表头缺必需列 [${missing.join(', ')}]。实际表头: ${norm.join(
+        ' | ',
+      )}`,
     );
   }
   return map;
@@ -84,30 +93,19 @@ function parseFollowers(raw: string | undefined): number | null {
   }
   const base = Number(m[1]);
   const mult =
-    { '万': 1e4, w: 1e4, W: 1e4, k: 1e3, K: 1e3, m: 1e6, M: 1e6, '亿': 1e8 }[m[2]] ?? 1;
+    { 万: 1e4, w: 1e4, W: 1e4, k: 1e3, K: 1e3, m: 1e6, M: 1e6, 亿: 1e8 }[
+      m[2]
+    ] ?? 1;
   return Math.round(base * mult);
 }
 
-/** 从频道 URL 派生稳定唯一 canonicalHandle：youtube.com/@handle（小写，去协议/www/尾斜杠）。 */
-function deriveCanonicalHandle(
-  url: string | undefined,
-  platform: string,
-  name: string,
-): string {
-  const u = (url ?? '').trim();
-  if (u) {
-    const cleaned = u
-      .replace(/^https?:\/\//i, '')
-      .replace(/^www\./i, '')
-      .replace(/\/+$/, '')
-      .toLowerCase();
-    if (cleaned) return cleaned;
-  }
-  const slug = name.trim().toLowerCase().replace(/\s+/g, '-') || 'unknown';
-  return `${platform.toLowerCase()}:${slug}`;
-}
+// deriveCanonicalHandle → src/lib/kol-sync/canonical-handle.ts（M2-B F003 抽出共享，逻辑逐字保持）
 
-function get(row: Record<string, string>, cols: Record<string, string>, field: string): string {
+function get(
+  row: Record<string, string>,
+  cols: Record<string, string>,
+  field: string,
+): string {
   const col = cols[field];
   return col ? (row[col] ?? '').trim() : '';
 }
@@ -120,7 +118,9 @@ function normalizeRow(
   const name = get(row, cols, 'name');
   const url = get(row, cols, 'url');
   if (!platform || (!name && !url)) {
-    return { error: `缺必需字段（platform=${platform || '空'} name/url 均空）` };
+    return {
+      error: `缺必需字段（platform=${platform || '空'} name/url 均空）`,
+    };
   }
   const region = get(row, cols, 'region') || null;
   const reason = get(row, cols, 'reason') || null;
@@ -128,10 +128,16 @@ function normalizeRow(
   const isGame = get(row, cols, 'isGame');
   const categories: string[] = [];
   if (category) categories.push(category);
-  if (isGame === '是' || isGame.toLowerCase() === 'true' || isGame.toLowerCase() === 'yes') {
+  if (
+    isGame === '是' ||
+    isGame.toLowerCase() === 'true' ||
+    isGame.toLowerCase() === 'yes'
+  ) {
     categories.push('gaming');
   }
-  const handle = url ? url.replace(/\/+$/, '').split('/').pop() ?? null : name || null;
+  const handle = url
+    ? url.replace(/\/+$/, '').split('/').pop() ?? null
+    : name || null;
   const displayName = name || handle;
   const embeddingText = [displayName, platform, region, ...categories, reason]
     .filter(Boolean)
@@ -175,13 +181,21 @@ async function chunkedForEach<T>(
   }
 }
 
-async function upsertKols(tenantId: string, kols: NormalizedKol[]): Promise<void> {
+async function upsertKols(
+  tenantId: string,
+  kols: NormalizedKol[],
+): Promise<void> {
   let done = 0;
   await chunkedForEach(kols, UPSERT_CONCURRENCY, async (chunk) => {
     await Promise.all(
       chunk.map((k) =>
         prisma.kol.upsert({
-          where: { tenantId_canonicalHandle: { tenantId, canonicalHandle: k.canonicalHandle } },
+          where: {
+            tenantId_canonicalHandle: {
+              tenantId,
+              canonicalHandle: k.canonicalHandle,
+            },
+          },
           update: {
             displayName: k.displayName,
             platform: k.platform,
@@ -219,7 +233,9 @@ async function embedMissing(
   tenantId: string,
   textByHandle: Map<string, string>,
 ): Promise<number> {
-  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; canonicalHandle: string }>>(
+  const rows = await prisma.$queryRawUnsafe<
+    Array<{ id: string; canonicalHandle: string }>
+  >(
     `SELECT id, "canonicalHandle" FROM "Kol" WHERE "tenantId" = $1 AND embedding IS NULL`,
     tenantId,
   );
@@ -227,10 +243,14 @@ async function embedMissing(
     console.log('[seed] 所有 KOL 已有 embedding，跳过（幂等）');
     return 0;
   }
-  console.log(`[seed] 需 embedding 的 KOL: ${rows.length}，分 ${EMBED_BATCH}/批`);
+  console.log(
+    `[seed] 需 embedding 的 KOL: ${rows.length}，分 ${EMBED_BATCH}/批`,
+  );
   let embedded = 0;
   await chunkedForEach(rows, EMBED_BATCH, async (chunk, batchIndex) => {
-    const values = chunk.map((r) => textByHandle.get(r.canonicalHandle) ?? r.canonicalHandle);
+    const values = chunk.map(
+      (r) => textByHandle.get(r.canonicalHandle) ?? r.canonicalHandle,
+    );
     const { embeddings } = await embedMany({ model: embeddingModel(), values });
     await Promise.all(
       chunk.map((r, i) => {
@@ -243,7 +263,11 @@ async function embedMissing(
       }),
     );
     embedded += chunk.length;
-    console.log(`[seed] embedding batch ${batchIndex + 1}：+${chunk.length}（累计 ${embedded}/${rows.length}）`);
+    console.log(
+      `[seed] embedding batch ${batchIndex + 1}：+${
+        chunk.length
+      }（累计 ${embedded}/${rows.length}）`,
+    );
   });
   return embedded;
 }
@@ -251,7 +275,10 @@ async function embedMissing(
 /** cosine sanity：NL query → bge-m3 → top-K，验证返回相关结果。 */
 async function cosineSanity(tenantId: string): Promise<void> {
   const query = 'World of Tanks 坦克世界 游戏解说 replay';
-  const { embeddings } = await embedMany({ model: embeddingModel(), values: [query] });
+  const { embeddings } = await embedMany({
+    model: embeddingModel(),
+    values: [query],
+  });
   const vec = `[${embeddings[0].join(',')}]`;
   const top = await prisma.$queryRawUnsafe<
     Array<{ displayName: string | null; distance: number }>
@@ -264,18 +291,27 @@ async function cosineSanity(tenantId: string): Promise<void> {
   );
   console.log(`[seed] cosine sanity  query="${query}"  top-5:`);
   top.forEach((r, i) =>
-    console.log(`   ${i + 1}. ${r.displayName ?? '(无名)'}  distance=${Number(r.distance).toFixed(4)}`),
+    console.log(
+      `   ${i + 1}. ${r.displayName ?? '(无名)'}  distance=${Number(
+        r.distance,
+      ).toFixed(4)}`,
+    ),
   );
-  if (top.length === 0) throw new Error('cosine 查询返回 0 结果——embedding 可能未入库');
+  if (top.length === 0)
+    throw new Error('cosine 查询返回 0 结果——embedding 可能未入库');
 }
 
 async function main(): Promise<void> {
   const csvPath =
-    process.argv[2] ?? resolve(process.cwd(), 'scripts/seed/data/kol-seed-enriched-final.csv');
+    process.argv[2] ??
+    resolve(process.cwd(), 'scripts/seed/data/kol-seed-enriched-final.csv');
   console.log(`[seed] 读取 CSV: ${csvPath}`);
   const raw = stripBom(readFileSync(csvPath, 'utf8'));
 
-  const records: string[][] = parse(raw, { skip_empty_lines: true, relax_column_count: true });
+  const records: string[][] = parse(raw, {
+    skip_empty_lines: true,
+    relax_column_count: true,
+  });
   if (records.length < 2) throw new Error('脏 CSV：无数据行');
   const cols = resolveColumns(records[0]); // 结构性校验，缺列即抛
   const headerNorm = records[0].map((h) => stripBom(h).trim());
@@ -298,9 +334,15 @@ async function main(): Promise<void> {
 
   // canonicalHandle 去重（同 CSV 内重复取首条，避免 upsert 相互覆盖）
   const seen = new Set<string>();
-  const deduped = kols.filter((k) => (seen.has(k.canonicalHandle) ? false : seen.add(k.canonicalHandle)));
-  const textByHandle = new Map(deduped.map((k) => [k.canonicalHandle, k.embeddingText]));
-  console.log(`[seed] 解析 ${kols.length} 行，去重后 ${deduped.length} 条唯一 KOL`);
+  const deduped = kols.filter((k) =>
+    seen.has(k.canonicalHandle) ? false : seen.add(k.canonicalHandle),
+  );
+  const textByHandle = new Map(
+    deduped.map((k) => [k.canonicalHandle, k.embeddingText]),
+  );
+  console.log(
+    `[seed] 解析 ${kols.length} 行，去重后 ${deduped.length} 条唯一 KOL`,
+  );
 
   const tenantId = await seedDevTenantUser();
   console.log(`[seed] dev tenant=${tenantId} + dev user 已 upsert`);
@@ -314,13 +356,18 @@ async function main(): Promise<void> {
     tenantId,
   );
   const withEmbCount = Number(withEmb[0].c);
-  console.log(`[seed] DB: KOL 总数=${total}，含非空 embedding=${withEmbCount}（本次新 embed ${embedded}）`);
+  console.log(
+    `[seed] DB: KOL 总数=${total}，含非空 embedding=${withEmbCount}（本次新 embed ${embedded}）`,
+  );
 
   await cosineSanity(tenantId);
 
-  if (total < 2000) throw new Error(`KOL 总数 ${total} < 2000，未达 acceptance`);
+  if (total < 2000)
+    throw new Error(`KOL 总数 ${total} < 2000，未达 acceptance`);
   if (withEmbCount < 2000)
-    throw new Error(`含 embedding 的 KOL ${withEmbCount} < 2000，未达 acceptance`);
+    throw new Error(
+      `含 embedding 的 KOL ${withEmbCount} < 2000，未达 acceptance`,
+    );
   console.log(
     `[seed] ✅ 完成：${total} KOL（${withEmbCount} 含 ${EMBEDDING_DIMENSIONS} 维 embedding）+ 1 dev 用户`,
   );

@@ -24,8 +24,11 @@ import {
 /** interests 上限（去噪：上游 tags 可达数十条，取前 N 保留信息密度）。 */
 export const INTERESTS_MAX = 12;
 
-/** 标签归一：trim + lowercase 去重（保留首次出现的原始大小写形态展示）。 */
-function normalizeTags(sources: Array<string | null | undefined>): string[] {
+/** 标签归一：trim + lowercase 去重（保留首次出现的原始大小写形态展示）。
+ *  导出供 F003 sync 复用（categories←matchedTags 同一归一口径）。 */
+export function normalizeTags(
+  sources: Array<string | null | undefined>,
+): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const raw of sources) {

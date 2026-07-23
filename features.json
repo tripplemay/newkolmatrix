@@ -24,7 +24,7 @@
       "title": "kol-sync 同步服务 + dataSource 归一 + 例程注册",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "kol-sync/sync.ts syncKols（【P7】client/embed 双注入）：discover 全量分页→字段映射（categories←matchedTags/country←location/engagementRate 派生注明 YT/X view-proxy 语义）→F002 三派生→upsert by (tenantId,canonicalHandle)（【P3】归一函数抽共享模块 seed/sync 两消费零漂移；已存在行覆盖浅字段+写契约位+dataSource='crawl'；CSV 独有行不动）→新行 embedText 灌向量（用量预估 <1M token 一次性）；scripts/ops/normalize-datasource.ts 幂等（csv-seed:*→user_upload，dry-run 默认+stats 显式计数，staging 端到端实跑 §7）；scheduler ROUTINES 注册 kol-sync（cron 0 3 * * *；dev 内网不可达静默跳过 log warn 不炸）+scripts/jobs/run-kol-sync.ts+package script（同执行体非旁路）；【P1】零投喂零充值（/admin/seeds 与 TikHub 花费永留人工）；集成测试 mock client+mock embed 打真库：幂等二跑/CSV 行覆盖合并/新行插入+向量/归一/契约位落库 parse* 可读回；lint + tsc + test:unit 绿",
       "description": "spec §2 F003 + P1/P2/P3/P4。存量 8800+ 行拉模型；apify-kol 服务 kol-shared 内网（prod）/ssh 隧道（L2）。"
     },

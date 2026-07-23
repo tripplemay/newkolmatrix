@@ -42,7 +42,7 @@
       "title": "端到端闭环 + 文档翻牌",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "集成闭环测（打真库夹具租户）：executeTool('create_project') orchestrator ctx 直调→落库+留痕→列表数据层可见→详情三口径可达；agent:smoke 扩段可选；真对话 L2 留验收授权；user_report 处置状态翻牌注记；architecture.md 翻牌（§8 装配 as-built+工具表+§10.1.1 +/api/projects+§14 M2-C 行）+agent-architecture.md 同步；批末新鲜度复核；lint+tsc+test:unit 绿",
       "description": "spec §2 F005。闭环即用户问题的正面消解证据（创建→项目页可见→雷达留痕）。"
     }

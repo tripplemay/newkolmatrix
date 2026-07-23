@@ -78,6 +78,16 @@ test('project env=insight visual baseline', async ({ page }) => {
 test('creators visual baseline', async ({ page }) => {
   await page.goto('/admin/creators', { waitUntil: 'domcontentloaded' });
   await page.getByText('只做发现和分流').first().waitFor({ timeout: 30_000 });
+  // M2-B F004 接真后的基线态 = 2 行确定性夹具（visual-kols seed，§4.3 硬断言：
+  // 数据源整个消失 / RSC 组装回归时超时硬红，杜绝静默空白入基线）
+  await page
+    .getByText('基线夹具·深字段齐备')
+    .first()
+    .waitFor({ timeout: 30_000 });
+  await page
+    .getByText('基线夹具·待接入态')
+    .first()
+    .waitFor({ timeout: 30_000 });
   await shot(page, 'creators.png');
 });
 

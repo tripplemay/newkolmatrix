@@ -141,6 +141,9 @@ jobs:
         run: npx prisma migrate deploy
       - name: Seed canonical projects
         run: npx tsx scripts/seed/canonical-projects.ts
+      # M2-B F004【P6】：创作者库/抽屉基线确定性夹具（2 行固定 publicId Kol，双状态）
+      - name: Seed visual kol fixtures
+        run: npx tsx scripts/seed/visual-kols.ts
       - run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"

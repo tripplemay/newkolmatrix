@@ -37,12 +37,13 @@ import {
   resolveProvenance,
   type ResolvedProvenance,
 } from 'lib/data/provenance';
+// M2-B F004/F005 接真：视图契约迁 lib/display/creator-format（mock/creators.ts 已退役）
 import {
   CREATOR_PROV_FIELDS,
-  type CreatorJudge,
+  type CreatorJudgeView,
   type CreatorShare,
-  type MockCreator,
-} from 'lib/data/mock/creators';
+  type CreatorView,
+} from 'lib/display/creator-format';
 import {
   AVATAR_WHEEL,
   BRAND_500,
@@ -269,12 +270,20 @@ function ShareBars({
 const JUDGES: Array<{
   id: keyof typeof AGENT_THEME;
   name: string;
-  pick: (judge: CreatorJudge) => string;
+  /** null → 依赖数据源未接（占位文案渲染，D2） */
+  pick: (judge: CreatorJudgeView) => string | null;
 }> = [
   { id: 'match', name: '匹配 Agent', pick: (judge) => judge.match },
   { id: 'reach', name: '触达 Agent', pick: (judge) => judge.reach },
   { id: 'compliance', name: '合规 Agent', pick: (judge) => judge.comp },
 ];
+
+/** 判断占位（依赖源未接时的诚实文案，按 Agent 域区分） */
+const JUDGE_PENDING: Record<string, string> = {
+  match: '受众匹配待核——库级无项目上下文。',
+  reach: `${PENDING_TEXT.connect} · 触达判断依赖 CRM 历史与报价数据（M3 接入后评估）`,
+  compliance: `${PENDING_TEXT.connect} · 合规判断依赖品牌安全数据源接入后评估`,
+};
 
 /* ------------------------------------------------------------------ *
  * 抽屉主体
@@ -282,7 +291,7 @@ const JUDGES: Array<{
 
 export interface CreatorDrawerProps {
   /** null 时不渲染内容（保持 Drawer 关闭动画由 isOpen 控制） */
-  creator: MockCreator | null;
+  creator: CreatorView | null;
   /** 全量列表行序（avatar 色轮 / 样本渐变 / 年龄段条色） */
   index: number;
   isOpen: boolean;
@@ -347,8 +356,16 @@ export default function CreatorDrawer({
                 ? PENDING_TEXT.verify
                 : `${creator.match}%`}
             </Pill>
-            <Pill tone={credTone(creator.cred)}>可信度 {creator.cred} 级</Pill>
-            <Pill tone="nu">复用 {creator.reuse} 个项目</Pill>
+            {/* cred/reuse null → 待核/—（FR-11.17 缺值不用 0 冒充） */}
+            <Pill tone={creator.cred === null ? 'nu' : credTone(creator.cred)}>
+              可信度{' '}
+              {creator.cred === null
+                ? PENDING_TEXT.verify
+                : `${creator.cred} 级`}
+            </Pill>
+            <Pill tone="nu">
+              复用 {creator.reuse === null ? '—' : `${creator.reuse} 个项目`}
+            </Pill>
           </div>
           {/* 🔒 dw-summary 淡紫块 */}
           <div className="mt-[13px] flex items-start gap-2 rounded-xl bg-brand-50 px-[13px] py-[11px] text-compact leading-relaxed text-navy-700 dark:bg-navy-700 dark:text-white">
@@ -371,52 +388,57 @@ export default function CreatorDrawer({
             icon={MdOutlinePeopleAlt}
             title="受众画像"
             prov={deep.aud ? provOf(CREATOR_PROV_FIELDS.audience) : null}
-            provLabel="Apify 采集 · 3 天前 · 可信度 高"
           >
             {deep.aud ? (
               <>
-                {/* 地域 donut 118 + 中心叠加 + legend ×3 */}
-                <div className="mb-4 flex items-center gap-[18px]">
-                  <div className="relative h-[118px] w-[118px] flex-none">
-                    <PieChart
-                      type="donut"
-                      chartData={deep.aud.region.map((r) => r.pct)}
-                      chartOptions={donutOptions(
-                        deep.aud.region.map((r) => r.label),
-                      )}
-                    />
-                    <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
-                      <div>
-                        <div className="text-mini text-gray-700 dark:text-gray-400">
-                          主区
-                        </div>
-                        <div className="text-compact font-extrabold text-navy-700 dark:text-white">
-                          {deep.aud.region[0].label}
+                {/* 地域 donut 118 + 中心叠加 + legend ×3；分布无源 → 子块待接入（F005 ①） */}
+                {deep.aud.region ? (
+                  <div className="mb-4 flex items-center gap-[18px]">
+                    <div className="relative h-[118px] w-[118px] flex-none">
+                      <PieChart
+                        type="donut"
+                        chartData={deep.aud.region.map((r) => r.pct)}
+                        chartOptions={donutOptions(
+                          deep.aud.region.map((r) => r.label),
+                        )}
+                      />
+                      <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
+                        <div>
+                          <div className="text-mini text-gray-700 dark:text-gray-400">
+                            主区
+                          </div>
+                          <div className="text-compact font-extrabold text-navy-700 dark:text-white">
+                            {deep.aud.region[0].label}
+                          </div>
                         </div>
                       </div>
                     </div>
+                    <div className="flex flex-1 flex-col gap-[11px]">
+                      {deep.aud.region.map((r, k) => (
+                        <div
+                          key={r.label}
+                          className="flex items-center gap-2.5 text-compact text-gray-700 dark:text-gray-400"
+                        >
+                          <span
+                            aria-hidden
+                            className="h-3 w-3 flex-none rounded"
+                            style={{
+                              background: DONUT_COLORS[k % DONUT_COLORS.length],
+                            }}
+                          />
+                          {r.label}
+                          <b className="ml-auto font-bold tabular-nums text-navy-700 dark:text-white">
+                            {r.pct}%
+                          </b>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex flex-1 flex-col gap-[11px]">
-                    {deep.aud.region.map((r, k) => (
-                      <div
-                        key={r.label}
-                        className="flex items-center gap-2.5 text-compact text-gray-700 dark:text-gray-400"
-                      >
-                        <span
-                          aria-hidden
-                          className="h-3 w-3 flex-none rounded"
-                          style={{
-                            background: DONUT_COLORS[k % DONUT_COLORS.length],
-                          }}
-                        />
-                        {r.label}
-                        <b className="ml-auto font-bold tabular-nums text-navy-700 dark:text-white">
-                          {r.pct}%
-                        </b>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                ) : (
+                  <PendingNote className="mb-3">
+                    {PENDING_TEXT.connect} · 地域分布待受众分析源接入
+                  </PendingNote>
+                )}
                 {/* 🔒 粉丝真实性 + 🔒 活跃度 双 ring 64 */}
                 <div className="mb-3.5 mt-1.5 flex justify-center gap-[26px]">
                   <RingStat pct={deep.real} label="粉丝真实性" />
@@ -424,15 +446,43 @@ export default function CreatorDrawer({
                 </div>
                 <KbHead>年龄段</KbHead>
                 <div className="mb-3">
-                  <ShareBars items={deep.aud.age} color={barColor} />
+                  {deep.aud.age ? (
+                    <ShareBars items={deep.aud.age} color={barColor} />
+                  ) : (
+                    <PendingNote>
+                      {PENDING_TEXT.connect} · 年龄分布待受众分析源接入
+                    </PendingNote>
+                  )}
                 </div>
                 <KbHead>游戏品类偏好</KbHead>
-                <ShareBars items={deep.aud.games} />
+                {deep.aud.games ? (
+                  <ShareBars items={deep.aud.games} />
+                ) : deep.aud.interests ? (
+                  // interests 真值（crawl 标签规则派生）：无占比 → 标签 Pill 流呈现
+                  <div className="flex flex-wrap gap-1.5">
+                    {deep.aud.interests.map((tag) => (
+                      <Pill key={tag} tone="nu">
+                        {tag}
+                      </Pill>
+                    ))}
+                  </div>
+                ) : (
+                  <PendingNote>
+                    {PENDING_TEXT.connect} · 品类偏好待受众分析源接入
+                  </PendingNote>
+                )}
                 <div className="mt-2.5">
-                  <KvRow
-                    label="性别（男 / 女）"
-                    value={`${deep.aud.gender[0]}% / ${deep.aud.gender[1]}%`}
-                  />
+                  {deep.aud.gender ? (
+                    <KvRow
+                      label="性别（男 / 女）"
+                      value={`${deep.aud.gender[0]}% / ${deep.aud.gender[1]}%`}
+                    />
+                  ) : (
+                    <KvRow
+                      label="性别（男 / 女）"
+                      value={PENDING_TEXT.connect}
+                    />
+                  )}
                 </div>
               </>
             ) : (
@@ -448,7 +498,6 @@ export default function CreatorDrawer({
             icon={MdTrendingUp}
             title="内容表现"
             prov={deep.perf ? provOf(CREATOR_PROV_FIELDS.performance) : null}
-            provLabel="平台 API · 实测"
           >
             {deep.perf ? (
               <>
@@ -541,16 +590,23 @@ export default function CreatorDrawer({
               <PendingNote>与我方暂无合作记录。</PendingNote>
             )}
             <KbHead className="mt-3.5">竞品公开合作</KbHead>
-            <div className="flex flex-wrap gap-1.5">
-              {deep.rival.map((r) => (
-                <Pill key={r} tone="nu">
-                  {r}
-                </Pill>
-              ))}
-            </div>
+            {deep.rival.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {deep.rival.map((r) => (
+                  <Pill key={r} tone="nu">
+                    {r}
+                  </Pill>
+                ))}
+              </div>
+            ) : (
+              <PendingNote>
+                {PENDING_TEXT.connect} · 公开合作情报未采集
+              </PendingNote>
+            )}
             <div className="mt-3">
-              <KvRow label="平均响应" value={deep.resp} />
-              <KvRow label="上次合作" value={deep.last} />
+              {/* null → —（无 CRM 源，FR-11.17） */}
+              <KvRow label="平均响应" value={deep.resp ?? '—'} />
+              <KvRow label="上次合作" value={deep.last ?? '—'} />
             </div>
           </Section>
 
@@ -559,7 +615,6 @@ export default function CreatorDrawer({
             icon={MdAttachMoney}
             title="商务与档期"
             prov={deep.price ? provOf(CREATOR_PROV_FIELDS.commerce) : null}
-            provLabel="CRM · 历史成交"
           >
             {deep.price ? (
               <>
@@ -586,20 +641,36 @@ export default function CreatorDrawer({
           <Section
             icon={MdOutlineShield}
             title="合规与风险"
-            prov={provOf(CREATOR_PROV_FIELDS.compliance)}
-            provLabel="合规 Agent 核验"
+            // 接真校准：溯源对象 = brandSafety 契约位；无数据不渲染徽标（读写不对称 §7.5.2）
+            prov={
+              deep.risk.ad != null
+                ? provOf(CREATOR_PROV_FIELDS.compliance)
+                : null
+            }
           >
             <KvRow
               label="#ad 披露历史"
-              value={deep.risk.ad}
+              value={deep.risk.ad ?? PENDING_TEXT.connect}
               valueClass={
-                deep.risk.adWarn
+                deep.risk.ad == null
+                  ? 'text-gray-600 dark:text-gray-500'
+                  : deep.risk.adWarn
                   ? 'text-horizonOrange-500'
                   : 'text-horizonGreen-500'
               }
             />
-            <KvRow label="延迟交付" value={`${deep.risk.late} 次`} />
-            <KvRow label="品牌安全评分" value={`${deep.risk.safety} 级`} />
+            <KvRow
+              label="延迟交付"
+              value={deep.risk.late === null ? '—' : `${deep.risk.late} 次`}
+            />
+            <KvRow
+              label="品牌安全评分"
+              value={
+                deep.risk.safety === null
+                  ? PENDING_TEXT.verify
+                  : `${deep.risk.safety} 级`
+              }
+            />
           </Section>
 
           {/* § 内容样本 + 🔒 ProvenanceTag「平台 · 近 30 天」+ 🔒 样本 ×3（渐变 thumb） */}
@@ -607,7 +678,6 @@ export default function CreatorDrawer({
             icon={MdPlayCircleOutline}
             title="内容样本"
             prov={deep.samples ? provOf(CREATOR_PROV_FIELDS.samples) : null}
-            provLabel="平台 · 近 30 天"
           >
             {deep.samples ? (
               <div className="grid grid-cols-3 gap-[11px]">
@@ -657,7 +727,7 @@ export default function CreatorDrawer({
                       {j.name}
                     </b>
                     <span className="text-micro leading-relaxed text-gray-700 dark:text-gray-400">
-                      {j.pick(deep.judge)}
+                      {j.pick(deep.judge) ?? JUDGE_PENDING[j.id]}
                     </span>
                   </div>
                 );

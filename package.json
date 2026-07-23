@@ -30,6 +30,7 @@
     "p2:f002": "node scripts/test/p2-cleanup-f002-colormode-persist.mjs",
     "p2:f004": "node scripts/test/p2-cleanup-f004-handoff-panel.mjs",
     "seed:projects": "node --env-file=.env --import tsx scripts/seed/canonical-projects.ts",
+    "seed:visual-kols": "node --env-file=.env --import tsx scripts/seed/visual-kols.ts",
     "routine:health-scan": "node --env-file=.env --import tsx scripts/jobs/run-health-scan.ts",
     "routine:nightly-screen": "node --env-file=.env --import tsx scripts/jobs/run-nightly-screen.ts",
     "routine:kol-sync": "node --env-file=.env --import tsx scripts/jobs/run-kol-sync.ts",

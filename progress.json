@@ -1,12 +1,12 @@
 {
-  "status": "reverifying",
+  "status": "done",
   "user_goal": "M2-B-CREATORS（创作者域纵切）：apify-kol 外采接入（纯外部采集 U1，拉模型只读存量零投喂 P1）→ Kol 库真数据增强 + 深字段规则派生填充（interests/credibility；brandSafety 契约先立无源待接入）→ creators 页/抽屉七分区接真 + mock 退役 + ProvenanceTag 真溯源（dataSource 归一消解恒 ai_estimate bug）→ MatchCandidate 裁定写入口（行内双钮 U3 布局变更 + 原型/清单同步）→ 评分受众加权端到端升级验证 → 部署面（kol-shared 网络 + compose 人工步 ×2）。用户五裁决：U1 纯外采+复裁规则派生 / U2 基线+裁定写入口 / U3 行内双钮 / U4 v1.0.11 Accept / U5 BL-FE-16 搁置。",
   "total_features": 8,
   "completed_features": 8,
   "fix_rounds": 1,
   "current_sprint": "M2-B-CREATORS",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-23T19:30",
+  "last_updated": "2026-07-23T21:10",
   "reference_docs": [
     "docs/specs/M2-B-CREATORS-spec.md",
     "docs/dev/architecture.md",
@@ -19,14 +19,14 @@
   "docs": {
     "spec": "specs/M2-B-CREATORS-spec.md",
     "test_cases": null,
-    "signoff": null,
+    "signoff": "test-reports/M2-B-CREATORS-signoff-2026-07-23.md",
     "framework_reviewed": true
   },
   "role_assignments": null,
   "evaluator_feedback": [],
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M2-B-CREATORS fixing 完成 → reverifying（fix_rounds=1）· 2026-07-23】\n■ 四条 PARTIAL 逐条修复：F001 X 平台真样本 ×2 补入 fixture（apify-kol 只读分页扫描取得，同规脱敏）+ 四平台在场硬断言 + x-api-key header 真断言 + note 对齐；F002 deriveCredibility 五因子补齐（followers log10 归一 FOLLOWERS_LOG_CAP=7 + hasBusinessEmail，权重重归一和=1）+ 回归 pin 单测（followers-only 行案例）+ kol-sync 集成断言随规格更新；F004 mock/index.ts creators 行翻牌 + ui-inventory V9 17 元素（P10 截断提示行登记）；F006/READINESS match-verdict beforeAll 建组守卫（P7 修复，真凭据 3 连绿——原 2/3 概率红根治）。\n■ 358 tests 全绿；复验范围 = 四条 PARTIAL 指向面 + 就绪回归红门复核。",
+    "Andy": "【M2-B-CREATORS 复验 4/4 PASS → done（fix_rounds=1）· 2026-07-23】\n■ 终判 9/9 PASS；signoff = test-reports/M2-B-CREATORS-signoff-2026-07-23.md（首轮+复验机械汇总）。\n■ soft-watch ×2（注释级，下批顺手清）：OBS-A derive.ts:195 provenance detail 三因子枚举未随五因子更新；OBS-B kol-deep.test.ts 两处旧权重注释。\n■ 下一步 = 上线：前置人工步 ×2（scp compose + VPS .env 加 APIFY_KOL_API_KEY）→ deploy-prod image_tag=7cebb52 全 SHA → 生产验证（health/creators 真数据/夹具行/kol-sync 例程注册/apify-kol 内网连通）。",
     "Reviewer": null
   },
   "lane": "fast"

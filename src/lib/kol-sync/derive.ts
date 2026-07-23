@@ -7,7 +7,7 @@
 // - interests ← 创作者标签（matchedTags/matchedKeywords/businessCategory）——这是
 //   **创作者侧标签的规则派生**，不是受众实测分布；fieldProvenance.detail 明示派生语义，
 //   ProvenanceTag 如实标 crawl 派生。全空 → null 不编造。
-// - credibility ← 弱信号规则合成（verified/qualityScore/tier/followers）；
+// - credibility ← 弱信号规则合成（verified/qualityScore/tier/followers/hasBusinessEmail 五因子）；
 //   signals 逐条人话依据（给分必给依据 FR-11.4）；弱信号全缺 → null 不编造。
 // - brandSafety：本批无任何源，不派生不落库（spec §6）。
 
@@ -63,15 +63,24 @@ export function deriveAudienceDemo(row: ApifyKolRow): AudienceDemo | null {
 /**
  * 弱信号权重（合计 = 1，配单测断言）。示意值，上线以真实数据校准——
  * 故必须是可单独引用的导出常量（HEALTH_WEIGHTS 先例）。
+ * fix_round 1（首轮验收 F002 PARTIAL）：补齐 acceptance 四因子之 followers +
+ * P8 的 hasBusinessEmail 信号——五因子重归一（缺席因子仍按占比重新归一化）。
  */
 export const CREDIBILITY_WEIGHTS = {
   /** 平台认证（verified === true → 满分） */
-  verified: 0.35,
+  verified: 0.3,
   /** 上游互动质量分（0-1 直通；YT 恒 null → 该因子缺席） */
-  quality: 0.35,
+  quality: 0.3,
   /** 上游热度分层（hot=1 / warm=0.6 / cold=0.2） */
-  tier: 0.3,
+  tier: 0.25,
+  /** 粉丝规模（log10 归一，FOLLOWERS_LOG_CAP 处满分——规模是弱可信信号非主导） */
+  followers: 0.1,
+  /** 商务邮箱信号（hasBusinessEmail，P8：仅作派生输入不落列） */
+  businessEmail: 0.05,
 } as const;
+
+/** followers log10 归一封顶（10^7 = 1000 万粉 → 该因子满分）。 */
+export const FOLLOWERS_LOG_CAP = 7;
 
 /** tier → 0-1 档位（上游枚举外取值按 cold 保守计）。 */
 export const TIER_SCORE: Record<string, number> = {
@@ -83,7 +92,8 @@ export const TIER_SCORE: Record<string, number> = {
 export const CREDIBILITY_METHOD = 'rule-derived-from-crawl';
 
 /**
- * credibility 派生：verified / qualityScore / tier 加权合成 0-100 分 + 逐条人话依据。
+ * credibility 派生：verified / qualityScore / tier / followers / hasBusinessEmail
+ * 五因子加权合成 0-100 分 + 逐条人话依据。
  *
  * 缺席因子**重新归一化**（与 health D15「缺席记 0」刻意不同——那边缺席=业务事实上的
  * 未达标，这边缺席=信号不可得，把不可得当 0 分会系统性冤枉 YT（qualityScore 恒 null））。
@@ -117,6 +127,22 @@ export function deriveCredibility(
       weight: CREDIBILITY_WEIGHTS.tier,
       value: t,
       signal: `热度分层 ${row.tier}`,
+    });
+  }
+  if (typeof row.followers === 'number' && row.followers >= 0) {
+    // log10 归一（FOLLOWERS_LOG_CAP 封顶）：规模跨 5 个数量级，线性会让头部吃满一切
+    const f = Math.min(1, Math.log10(row.followers + 1) / FOLLOWERS_LOG_CAP);
+    parts.push({
+      weight: CREDIBILITY_WEIGHTS.followers,
+      value: f,
+      signal: `粉丝规模 ${row.followers.toLocaleString('en-US')}`,
+    });
+  }
+  if (typeof row.hasBusinessEmail === 'boolean') {
+    parts.push({
+      weight: CREDIBILITY_WEIGHTS.businessEmail,
+      value: row.hasBusinessEmail ? 1 : 0,
+      signal: row.hasBusinessEmail ? '商务邮箱信号 ✓' : '商务邮箱信号 ✗',
     });
   }
 

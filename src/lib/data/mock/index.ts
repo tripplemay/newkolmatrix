@@ -14,7 +14,7 @@
 // | env-reach.ts        | F010        | 触达环节语法面 |
 // | env-delivery.ts     | F011        | 交付环节语法面（反向 guardrail：无 KPI/图表） |
 // | env-insight.ts      | F012        | 洞察环节语法面 |
-// | creators.ts         | F013        | 创作者库 + 抽屉（V10，ProvenanceTag badge ×5） |
+// | ~~creators.ts~~     | F013        | 已退役（M2-B F004/F005：创作者库+抽屉 RSC 接真，视图契约迁 lib/display/creator-format.ts） |
 // | ~~knowledge.ts~~    | F014        | 已退役（M1-D F004：知识页 RSC 直读 + 上传/解析接真） |
 // | insight.ts          | F015        | 洞察页 |
 // | runs.ts             | F016        | Agent 记录页 |

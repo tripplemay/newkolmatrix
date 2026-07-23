@@ -172,7 +172,8 @@ describe('syncKols 首跑闭环', () => {
     expect(r.updated).toBe(1); // r3 命中 CSV 行
     expect(r.truncated).toBe(false);
     expect(r.derivedAudience).toBe(2); // r1(tags)/r3(fps)；r2 全空 → null
-    expect(r.derivedCredibility).toBe(2); // r1(verified+tier)；r2 弱信号全缺；r3 verified+tier
+    // fix_round 1（五因子）：r2 有 followers → 也派生 credibility（followers-only 路径）
+    expect(r.derivedCredibility).toBe(3); // r1(verified+quality+tier+followers)/r2(followers)/r3
     expect(r.embedded).toBeGreaterThanOrEqual(3); // 3 行同步行 + csv-only 行（IS NULL 全补）
 
     const r1 = await prisma.kol.findUniqueOrThrow({
@@ -199,7 +200,8 @@ describe('syncKols 首跑闭环', () => {
       credibility: { source: 'crawl' },
     });
 
-    // r2：派生全缺 → 契约位 null（不编造）
+    // r2：标签全空 → audienceDemo null（不编造）；followers 在场 → credibility
+    // followers-only 派生（fix_round 1 五因子；signals 必带依据）
     const r2 = await prisma.kol.findUniqueOrThrow({
       where: {
         tenantId_canonicalHandle: {
@@ -209,8 +211,15 @@ describe('syncKols 首跑闭环', () => {
       },
     });
     expect(r2.audienceDemo).toBeNull();
-    expect(r2.credibility).toBeNull();
-    expect(r2.fieldProvenance).toBeNull();
+    const r2Cred = parseCredibility(r2.credibility);
+    expect(r2Cred).not.toBeNull();
+    expect(r2Cred!.signals).toEqual(['粉丝规模 5,000']);
+    expect(r2.fieldProvenance).toMatchObject({
+      credibility: { source: 'crawl' },
+    });
+    expect(
+      (r2.fieldProvenance as Record<string, unknown>).audienceDemo,
+    ).toBeUndefined(); // 未派生字段不标注（读写不对称）
 
     // embedding 补灌实证（含 csv-only 行）
     const nullCount = await prisma.$queryRawUnsafe<Array<{ n: bigint }>>(

@@ -36,7 +36,12 @@ beforeAll(async () => {
   tenantId = t.id;
 
   const p = await prisma.project.create({
-    data: { tenantId, name: 'M2B F006 夹具项目', cur: 'match', maxReached: 'match' },
+    data: {
+      tenantId,
+      name: 'M2B F006 夹具项目',
+      cur: 'match',
+      maxReached: 'match',
+    },
   });
   projectId = p.id;
 
@@ -58,6 +63,11 @@ beforeAll(async () => {
 
   // 经真实生成路径产生候选（scorePending → doubts 非空 → 上待裁定表）
   await generateCandidates(projectId, { embed: mockEmbed });
+  // 建组使 plans>0：loadMatchSurfaceData 的 P2 lazy 不触发（否则零 plans 时 lazy 以
+  // 真网关 embedText 重刷 mock 分——P7「集成测不打网关」违反 + 真凭据本地超时 flaky。
+  // F007 score-upgrade 同款守卫先例；READINESS 首轮验收红门根因，fix_round 1 修复。
+  const { buildMatchPlans } = await import('../../src/lib/match/build-plans');
+  await buildMatchPlans(projectId);
   const c = await prisma.matchCandidate.findUniqueOrThrow({
     where: { projectId_kolId: { projectId, kolId } },
   });
@@ -77,7 +87,12 @@ describe('setCandidateVerdict 流转（D20）', () => {
     expect(before.candidates.some((c) => c.id === candidateId)).toBe(true);
 
     const r = await setCandidateVerdict(tenantId, candidateId, 'kept');
-    expect(r).toEqual({ ok: true, id: candidateId, verdict: 'kept', changed: true });
+    expect(r).toEqual({
+      ok: true,
+      id: candidateId,
+      verdict: 'kept',
+      changed: true,
+    });
 
     const after = await loadMatchSurfaceData(projectId, 'match');
     expect(after.candidates.some((c) => c.id === candidateId)).toBe(false);

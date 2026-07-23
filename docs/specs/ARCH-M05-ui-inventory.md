@@ -82,8 +82,8 @@ eyebrow｜**HalfGauge 64%**（230×130 stroke18 圆头）+ 中央 32px 读数 + 
 
 ## 四、其余跨项目页
 
-### V9. 创作者库（L821-836）— 16 元素
-标题｜🔒 lede「只做发现和分流…」（IA 契约句）｜KPI ×4｜筛选「平台」5 chips + 「品类」5 chips（**两行不得合并**；**筛选态 URL 化**——裁决 #4）｜表 8 列（DataTable）｜行：who/粉丝/品类 pill/受众匹配 %（字段缺失→待核，同裁决 #2 规则）/历史合作/可信度 pill 三态/#ad 二态/「加入匹配」ghost（stopPropagation）｜🔒 整行可点开抽屉｜🔒 底部 shield「不能直接发信或报价…触达 Agent 接手」（裁决 #5 补入）
+### V9. 创作者库（L821-836）— 17 元素（M2-B F004 布局变更小注 +1）
+标题｜🔒 lede「只做发现和分流…」（IA 契约句）｜KPI ×4｜筛选「平台」chips + 「品类」chips（**两行不得合并**；**筛选态 URL 化**——裁决 #4；M2-B 接真后值域 = 库内实际平台 + top4 品类频次）｜表 8 列（DataTable）｜行：who/粉丝/品类 pill/受众匹配 %（字段缺失→待核，同裁决 #2 规则；**M2-B P5：库级无项目上下文恒待核**）/历史合作（**M2-B：无 CRM 源 null→—，FR-11.17**）/可信度 pill 三态（**M2-B：credibility.score 分级，null→待核**）/#ad 二态/「加入匹配」ghost（stopPropagation）｜**截断提示行（M2-B F004，spec §3 P10 布局变更小注：LIST_LIMIT=100 followers 降序，截断时表下一行次要文本「按粉丝量显示前 N 位（库内共 M 位）…」——不让前 100 冒充全量，D2 数据诚实；仅截断时条件渲染）**｜🔒 整行可点开抽屉｜🔒 底部 shield「不能直接发信或报价…触达 Agent 接手」（裁决 #5 补入）
 
 ### V10. 创作者详情抽屉（L926-973）— 34 元素
 Chakra Drawer 右滑｜dw-head avatar 52+名+small+关闭钮｜dw-badges ×3｜🔒 dw-summary「匹配 Agent：{判断}」淡紫块｜§受众画像 + 🔒 **ProvenanceTag badge「Apify 采集 · 3 天前 · 可信度 高」**｜地域 donut 118+中心叠加+legend 3｜🔒 粉丝真实性 ring 64 + 🔒 活跃度 ring 64｜年龄段 Progress ×3｜品类偏好 ×3｜性别 kv｜§内容表现 + 🔒 ProvenanceTag「平台 API · 实测」｜dw-mini 3 格｜8 周趋势 LineAreaChart h88｜dw-deliver 3 格｜§合作历史 + 条目（绿标「准时·优/良」）+ 🔒 空态「与我方暂无合作记录。」｜竞品合作 tags｜响应/上次合作 kv｜§商务档期 + 🔒 ProvenanceTag「CRM · 历史成交」+ kv ×5｜§合规风险 + 🔒 ProvenanceTag「合规 Agent 核验」+ kv ×3（#ad 彩色值）｜§内容样本 + 🔒 ProvenanceTag「平台 · 近 30 天」+ 🔒 样本 ×3（渐变 thumb+play+2 行截断）｜§专家 Agent 判断 + 🔒 dw-jc ×3（**匹配/触达/合规三 Agent 各带主题色彩条，不得合并成一段**）｜dw-foot「标记关注」ghost+「加入某项目匹配」实心

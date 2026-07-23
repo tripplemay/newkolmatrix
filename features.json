@@ -6,7 +6,7 @@
       "title": "apify-kol client + zod 契约（真样本 pin）+ env",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "acceptance": "src/lib/apify/client.ts：x-api-key fetch 封装（APIFY_KOL_BASE_URL/APIFY_KOL_API_KEY requireEnv）+ listKols 分页（【P2】不带 platform 过滤绕 X 枚举缺口）+ health()；错误分类 401/403 终态、429 尊重 Retry-After、5xx/超时可重试；schemas.ts zod passthrough 宽容（v0.9.19 真样本 pin：YT qualityScore null/IG businessCategory 空串/following null/matchedTags 空数组/信封{data,page,pageSize,total}）；单测 pin 四平台脱敏 fixture（去联系方式明细保形状）；.env.example 补两条占位；【P7】client 注入可替换，真服务属 L2（ssh 隧道）；lint + tsc + test:unit 绿",
       "description": "spec §2 F001。真样本：YT Bobicraft id=282974 等 9 行（2026-07-23 实测，存量 8800+）。"
     },
@@ -15,7 +15,7 @@
       "title": "深字段派生纯函数 + kol-deep zod 契约（给分必给依据兑现）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "acceptance": "schemas/kol-deep.ts：audienceDemoSchema{ageDist?,genderDist?,geoDist?,interests 写侧非空}+credibilitySchema{score 0-100,method,signals.min(1),assessedAt}+brandSafetySchema{rating,flags.min(1),assessedAt}，**refine 空依据非法（:838 欠账兑现 FR-11.4）**，读侧宽松 parse*/写侧 assert* 双形态（先例）；kol-sync/derive.ts 纯函数（无 IO 无 LLM P9）：deriveAudienceDemo（matchedTags+matchedKeywords+businessCategory 归一去重，全空→null 不编造）+deriveCredibility（verified/qualityScore/tier/followers 规则合成，权重常量导出，signals 逐条人话依据，method='rule-derived-from-crawl'，assessedAt 调用方注入，弱信号全缺→null）+deriveFieldProvenance（六档内 source='crawl'+detail 明示派生）；单测边界全覆盖（tags 空/空串/YT null/全缺/refine 拒空依据/分域钳制）不打库不打网关；lint + tsc + test:unit 绿",
       "description": "spec §2 F002。复裁：规则派生填充三契约位缺口（brandSafety 无源不落库，契约先立）。"
     },
@@ -33,7 +33,7 @@
       "title": "creators 页接真 + mock 退役 + CI 视觉夹具",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "acceptance": "page.tsx 拆 RSC 数据层（**force-dynamic 必声明** v1.0.9 §6）+client 交互层，布局零变更（V9 16 元素 🔒）；8 列真数据（可信度←credibility.score 分级 A/B/C 阈值常量导出；【P5】受众匹配列库级恒「待核」不编造；#ad←brandSafety null→待核）；KPI 4 卡真计数+筛选真值域；mock/creators.ts 退役 needle 全仓 grep 零代码残留+index.ts 翻牌；【P6】scripts/seed/visual-kols.ts 2 行确定性夹具（固定 publicId：深字段齐备/全 null 各一）接入 ci.yml visual job+本地重生流程（D-H 基线态扩展）；creators.png 基线逐处对账重生（重生序遵 §4.5 v1.0.11 先杀 :3000）+空态文案硬断言 §4.3；运行时改→验→复原实证（RSC 组装层）；两视口实测；lint + tsc + test:unit + test:visual 绿",
       "description": "spec §2 F004。勘查实证页面纯 mock（page.tsx:31-38 唯一消费点之一）。"
     },
@@ -51,7 +51,7 @@
       "title": "MatchCandidate 裁定写入口（U3 布局变更）",
       "priority": "medium",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "acceptance": "POST /api/match/candidates/[id]/verdict {verdict:'kept'|'dropped'}：internal（无确认框 D27/:1352 双边铁律零 PendingAction）；幂等同值重放 200；pending→kept/dropped+kept↔dropped 改判合法+非法值 zod 拒+不存在 404；【D20】人工流转变异测试（改判/幂等/P4 刷新不回退回归）；match/index.tsx 待裁定表行内「保留/剔除」双钮（審閱旁 ghost；成功 toast+router.refresh 行离表——读侧 verdict:'pending' 已就绪）；**布局变更（Planner 标注）**：原型 interaction-prototype-v2.html FUZZY 行同步加 affordance+ARCH-M05-ui-inventory.md V5 登记（22→+2）；project-match.png 对账（CI 空态无按钮不变，本地对账）；K3 采纳率数据面注记；lint + tsc + test:unit + test:visual 绿",
       "description": "spec §2 F006 + U3。M2-A P8 遗留消解；原型无 affordance 勘查实证 → 布局变更走完整同步。"
     },

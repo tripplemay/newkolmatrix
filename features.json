@@ -87,7 +87,7 @@
       "title": "E2E 闭环 + 部署面 + 文档翻牌 + 批末新鲜度复核",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "PRD 15.3 M3 E2E：起草→审阅→点确认才发送。真发仅 OUTREACH_TEST_RECIPIENT（P1）。部署面 env 迁移 + webhook 指向。",
       "acceptance": "E2E：draft_email 起草→send_outreach 无令牌 pending（副作用零发生断言）→confirm+execute→真实投递达 OUTREACH_TEST_RECIPIENT（L2 最小用量+报告注明）→OutreachMessage/Signal/留痕齐；真实 KOL 地址零发信（P1 断言）；部署面：三 env 键幂等 append VPS .env + Resend webhook 指向 newkol.guangai.ai/api/signals/inbound + compose 如变更先 scp；architecture.md 翻牌（§5.2/§9.3.2/§10.4/工具表/§14 M3-A 行）+ agent-architecture 同步 + 批末新鲜度复核（grep 陈旧计数/未实装残留）；lint+tsc+test:unit+test:visual 绿"
     }

@@ -53,7 +53,7 @@ Planner 裁决段落盘（同 commit）即开工。
 
 | # | 决定 | 理由 |
 |---|---|---|
-| 1 | A | 谈判条款唯一权威输入源是人；B 的永久禁用与裁决 #6「negotiating 条件渲染」的产品意图矛盾。表单是**闸门前置输入**而非新画布区块——modal 形态，与 F009 覆盖控件一并在 ui-inventory 登记为本批新增例外（V6 24→26：#25 覆盖控件(F009)、#26 报价条款表单 modal(F008)） |
+| 1 | A | 谈判条款唯一权威输入源是人；B 的永久禁用与裁决 #6「negotiating 条件渲染」的产品意图矛盾。表单是**闸门前置输入**而非新画布区块——modal 形态，与 F009 覆盖控件一并在 ui-inventory 登记为本批新增例外（V6 24→26；编号按落地序：#25 报价条款表单 modal(F008)、#26 覆盖控件(F009)——fix_round1 与 ui-inventory 对齐，验收 F009 low issue 消解） |
 | 2 | A | 保持原型结构铁律优先；subject 经 harm 全披露，人有拒绝权，无失控面 |
 | 3 | A | draft 枚举值即为此设计；E2E（F010）闭环必需。范围归属：F008 acceptance「数据源切真 thread/message/quote」涵盖 draft 行数据源；对 email-drafting.ts 的增量在 F008 commit 内完成，spec 本段即为明示（§4.7 前置依赖边界条款） |
 | 4 | A | 工具已在场，B 是无理由降级；错误态经 describeGatewayError 诚实呈现 |

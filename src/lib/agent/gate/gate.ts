@@ -18,6 +18,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { PendingAction, Prisma } from '@prisma/client';
 import { prisma } from 'lib/db/prisma';
 import { getTool } from '../tools/registry';
+import { ensureNativeToolsRegistered } from '../tools';
 import { executeTool } from '../execute';
 import type { ToolContext } from '../tools/types';
 import {
@@ -59,18 +60,24 @@ export class GateError extends Error {
 
 // ── 哈希工具 ──
 
-/** 稳定序列化（递归排序 object key）——JSONB 存储会重排 key，故 payloadHash 必须 order-independent。 */
+/**
+ * 稳定序列化（递归排序 object key）——JSONB 存储会重排 key，故 payloadHash 必须 order-independent。
+ * fix_round1（验收 critical：undefined-键中毒）：严格对齐 **JSON/JSONB 往返语义**——
+ * object 中值为 undefined 的键**丢弃**（JSON.stringify 同款；Prisma 写 JSONB 亦丢弃），
+ * 数组中的 undefined 元素序列化为 null（JSON.stringify 同款）。否则建卡 hash 含
+ * `"key":undefined` 而库内读回无此键 → confirm/execute 复算必不匹配 → 恒 403。
+ * 回归测试：tests/unit/payload-hash.test.ts + tests/integration/gate-http-regression.test.ts。
+ */
 function stableStringify(v: unknown): string {
+  if (v === undefined) return 'null'; // 仅数组元素路径可达（JSON.stringify 语义）
   if (v === null || typeof v !== 'object') return JSON.stringify(v);
   if (Array.isArray(v)) return `[${v.map(stableStringify).join(',')}]`;
-  const keys = Object.keys(v as Record<string, unknown>).sort();
+  const obj = v as Record<string, unknown>;
+  const keys = Object.keys(obj)
+    .filter((k) => obj[k] !== undefined) // JSON/JSONB 往返语义：undefined 值键不存在
+    .sort();
   return `{${keys
-    .map(
-      (k) =>
-        `${JSON.stringify(k)}:${stableStringify(
-          (v as Record<string, unknown>)[k],
-        )}`,
-    )
+    .map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`)
     .join(',')}}`;
 }
 
@@ -251,7 +258,10 @@ export async function confirmPendingAction(
       },
     });
     if (r.count === 0) {
-      throw new GateError('GATE_ALREADY_DECIDED', '该动作已被并发处理（单次确认）');
+      throw new GateError(
+        'GATE_ALREADY_DECIDED',
+        '该动作已被并发处理（单次确认）',
+      );
     }
     // 确认 = 签票（写 gate 日志，§9.3.2）；与状态流转同事务。
     await tx.operationLog.create({
@@ -303,7 +313,10 @@ export async function executePendingAction(
       break;
     default:
       // executing / executed / failed / rejected
-      throw new GateError('GATE_ALREADY_DECIDED', '该动作已处理（票已消费或已终态）');
+      throw new GateError(
+        'GATE_ALREADY_DECIDED',
+        '该动作已处理（票已消费或已终态）',
+      );
   }
 
   if (!ticket || !pa.ticketHash || hashToken(ticket) !== pa.ticketHash) {
@@ -311,7 +324,10 @@ export async function executePendingAction(
   }
   if (pa.ticketExpiresAt && pa.ticketExpiresAt.getTime() < Date.now()) {
     await lazyExpire(pa);
-    throw new GateError('GATE_EXPIRED', '执行票已过期（TTL），请重新发起该动作');
+    throw new GateError(
+      'GATE_EXPIRED',
+      '执行票已过期（TTL），请重新发起该动作',
+    );
   }
   // payloadHash 复核（防 inputJson 被篡改）
   if (
@@ -319,6 +335,9 @@ export async function executePendingAction(
   ) {
     throw new GateError('GATE_TOKEN_INVALID', 'payloadHash 不匹配，拒绝执行');
   }
+  // fix_round1（验收 high）：显式幂等注册——execute 端点冷进程直达（跨会话恢复场景）
+  // 不再依赖 /api/agent 模块图副作用。
+  ensureNativeToolsRegistered();
   const tool = getTool(pa.toolName);
   if (!tool) throw new Error(`[gate] 工具已不存在: ${pa.toolName}`);
 

@@ -78,8 +78,11 @@ export function isRateLimitDisabled(): boolean {
 }
 
 /**
- * 从请求头解析客户端 IP。生产在 nginx 反代后（deploy.md）：x-forwarded-for 首段为真实
- * 客户端 IP；本地 dev 直连无该头 → 返回 null，由调用方按 fail-open/closed 策略处置。
+ * 从请求头解析客户端 IP。生产在 nginx 反代后（deploy.md）：x-forwarded-for 首段为客户端 IP。
+ * fix_round1 注释校准（验收 low）：Next 15 self-host 会自注入 x-forwarded-for——本地 dev
+ * 直连**也有**该头（null 分支实际仅防御性存在）；本地重度调试可用 DISABLE_GATE_RATELIMIT
+ * 逃生口。已知边界：XFF 首段在 nginx append 语义下可被客户端伪造旋转——限流是辅助防线
+ *（票据协议为主），可信段取法（右起首个非代理段）记 M3-B 顺手项。
  */
 export function clientIpOf(req: Request): string | null {
   const xff = req.headers.get('x-forwarded-for');

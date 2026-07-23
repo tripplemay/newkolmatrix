@@ -22,7 +22,9 @@ const bodySchema = z.object({
 
 export async function POST(req: Request): Promise<Response> {
   try {
-    const parsed = bodySchema.safeParse(await req.json().catch((): null => null));
+    const parsed = bodySchema.safeParse(
+      await req.json().catch((): null => null),
+    );
     if (!parsed.success) {
       return Response.json(
         { error: parsed.error.issues[0]?.message ?? '入参不合法' },
@@ -56,9 +58,12 @@ export async function POST(req: Request): Promise<Response> {
       }
     }
 
+    // fix_round1（验收 critical）：不携带 undefined 值键——显式 undefined 键会被 zod 保留、
+    // 进入建卡 payloadHash，而 Prisma 写 JSONB 丢弃之 → confirm 复算必不匹配（403）。
+    // stableStringify 已按 JSON 语义修复为主防线，此处为路由侧双保险。
     const r = await executeTool(
       'send_outreach',
-      { projectId, kolId, subject, body, language },
+      { projectId, kolId, subject, body, ...(language ? { language } : {}) },
       ctx,
     );
     if (!isPendingEnvelope(r.output)) {

@@ -4,7 +4,7 @@
 //
 // 🔒 反向 guardrail（D8）：这里刻意没有 KPI 行 / 图表 / AI 推荐卡 / 批量放款——一律不得补。
 // 🚪 payout 闸门（D6 stub）：M0.5 只做触发与确认卡 UI——GateConfirm + mock 确认流
-//（确认 → Toast + 行转本地「已放款」态）；真实 payout 工具与 /api/gate pending
+//（确认 → Toast + 行转本地「已放款」态）；真实 payout 工具与 /api/actions 两步票据 pending
 // 链路实装归 M3，接线时替换 confirmPayout 内的本地状态更新。
 //
 // 条件单元三态 ok（齐·绿）/ miss（缺·琥珀）/ 🔒 na（—·灰，不适用），不得压成二态；
@@ -73,7 +73,7 @@ export default function DeliveryEnv({ projectId }: { projectId: string }) {
 
   const confirmPayout = React.useCallback(() => {
     if (!gateTarget) return;
-    // D6 stub：真实资金动作归 M3（/api/gate + payout 工具）；此处仅本地转已放款态
+    // D6 stub：真实资金动作归 M3-B（/api/actions 两步票据 + payout 工具）；此处仅本地转已放款态
     setPaidIds((prev) => new Set([...prev, gateTarget.id]));
     toast(`已放款 ${gateTarget.pay} 给 ${gateTarget.who}（mock）`);
     setGateTarget(null);

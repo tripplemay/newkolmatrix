@@ -215,7 +215,7 @@ export default function InsightPage() {
 
   // 🚪 D6 stub：M0.5 只做触发与确认卡 UI——真实 create_share_link 工具
   // （scope='quarterly'，服务端 pending→confirm 闸门链路）实装归 M4；
-  // 此处 mock 流：确认即 Toast，不打 /api/gate。scope 区分见 mock/insight.ts 裁决 #3 注。
+  // 此处 mock 流：确认即 Toast，不打真闸门链（/api/actions/[id]/*，M4 接真）。scope 区分见 mock/insight.ts 裁决 #3 注。
   const handleShareConfirm = () => {
     setShareOpen(false);
     if (SHARE_GATE) toast(SHARE_GATE.successToast);

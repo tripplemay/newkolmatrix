@@ -5,6 +5,7 @@
 // 以保证 (1) zod 入参校验 (2) class 分流（outbound 门控挂载点，F009 落地）统一生效。
 
 import { getTool } from './tools/registry';
+import { ensureNativeToolsRegistered } from './tools';
 import { createPendingAction } from './gate/gate';
 import type { ToolContext, ToolResult } from './tools/types';
 
@@ -18,6 +19,9 @@ export async function executeTool(
   rawInput: unknown,
   ctx: ToolContext,
 ): Promise<ToolResult> {
+  // fix_round1（验收 high）：注册不再依赖 /api/agent 模块图副作用——唯一执行入口自带
+  // 幂等注册，任何路由（/api/reach/* 等）冷进程直达也不缺工具。
+  ensureNativeToolsRegistered();
   const tool = getTool(name);
   if (!tool) {
     throw new Error(`[tools] 未知工具: ${name}`);

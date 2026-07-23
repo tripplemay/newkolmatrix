@@ -192,7 +192,7 @@ export default function InsightEnv({ projectId }: { projectId: string }) {
 
   // 🚪 D6 stub：M0.5 只做触发与确认卡 UI——真实 create_share_link 工具
   // （scope='project'，服务端 pending→confirm 闸门链路）实装归 M4；
-  // 此处 mock 流：确认即 Toast（逐字原型 onok L1003），不打 /api/gate。
+  // 此处 mock 流：确认即 Toast（逐字原型 onok L1003），不打真闸门链（/api/actions/[id]/*，M4 接真）。
   // scope=project 与跨项目洞察页（/admin/insight，scope=quarterly）区分——裁决 #3。
   const handleShareConfirm = () => {
     setShareOpen(false);

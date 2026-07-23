@@ -1,12 +1,12 @@
 {
-  "status": "fixing",
+  "status": "reverifying",
   "user_goal": "M2-C-AGENT-HONESTY（用户反馈驱动小批次）：修复「对话创建项目零落库+幻觉编排」三层根因——create_project 工具+服务+UI 入口（写路径从零补齐，internal 留痕雷达可见）/ 诚实护栏（行动承诺条款：做不到必须明说，禁止把建议包装成已执行）/ 编队名册注入（listPersonas 同源，禁杜撰名册外专家）+ 端到端闭环验证。U1=用户裁决立即修（2026-07-23 实答）。",
   "total_features": 5,
   "completed_features": 5,
-  "fix_rounds": 0,
+  "fix_rounds": 1,
   "current_sprint": "M2-C-AGENT-HONESTY",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-23T18:05",
+  "last_updated": "2026-07-23T18:40",
   "reference_docs": [
     "docs/specs/M2-C-AGENT-HONESTY-spec.md",
     "docs/test-reports/user_report/M2C-agent-honesty-2026-07-23.md",

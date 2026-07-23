@@ -163,6 +163,14 @@ const ROSTER_SECTION = [
   '协作或指路只能提及以上名册内的专家，不得杜撰任何名册外角色（如「创意 Agent」「投放 Agent」「社群 Agent」等都不存在）。',
 ].join('\n');
 
+/**
+ * 无工具分支提示语（M2-C F003，fix R1 提为导出常量）：route.ts 对 tools=[] 人格
+ * 拼入 system——明示「未执行任何动作」+ 指路名册内专家/页面入口（防幻觉执行）。
+ * 提出来是为了让回归断言能钉死文案（内联在 route.ts 时无法被单测覆盖，可静默漂移）。
+ */
+export const NO_TOOL_CLAUSE =
+  '\n\n（你当前没有可调用的工具——你只能给分析与建议，且必须明确告知用户你没有执行任何动作；用户需要执行时，指引 TA 找名册内对应专家或页面入口。）';
+
 const PERSONAS: Record<AgentId, AgentPersona> = Object.fromEntries(
   PERSONA_SEED.map((p) => [
     p.id,

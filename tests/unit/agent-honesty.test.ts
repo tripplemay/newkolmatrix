@@ -4,8 +4,9 @@
 // 触发源：用户实证幻觉编排事故（user_report M2C-agent-honesty-2026-07-23）——
 // 模型声称「已编排任务雷达」但零落库，并杜撰 6 个名册外专家。
 
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { listPersonas } from 'lib/agent/registry';
+import { listPersonas, NO_TOOL_CLAUSE } from 'lib/agent/registry';
 
 describe('F003 行动承诺诚实条款（产品级，全人格生效）', () => {
   it('三要素在每个人格的 systemPrompt：真实返回才可声称已执行 / 超能力明说+指路 / 建议禁包装', () => {
@@ -17,6 +18,20 @@ describe('F003 行动承诺诚实条款（产品级，全人格生效）', () =>
       expect(s, `persona=${p.id} 禁虚构执行态`).toContain('不得虚构任务表');
     }
   });
+
+  // fix R1（evaluator_feedback：无工具分支文案内联于 route.ts 无回归断言可静默漂移）
+  it('无工具分支文案钉死：明示未执行任何动作 + 指路名册内专家/页面入口', () => {
+    expect(NO_TOOL_CLAUSE).toContain('没有可调用的工具');
+    expect(NO_TOOL_CLAUSE).toContain('明确告知用户你没有执行任何动作');
+    expect(NO_TOOL_CLAUSE).toContain('名册内对应专家');
+    expect(NO_TOOL_CLAUSE).toContain('页面入口');
+  });
+
+  it('route.ts 无工具分支实际拼接该常量（contract-surface：读源码防丢接线）', () => {
+    const src = readFileSync('src/app/api/agent/route.ts', 'utf8');
+    expect(src).toContain('NO_TOOL_CLAUSE'); // import + 拼接点至少各一处
+    expect(src.split('NO_TOOL_CLAUSE').length - 1).toBeGreaterThanOrEqual(2);
+  });
 });
 
 describe('F004 编队名册注入（listPersonas 同源，禁杜撰）', () => {
@@ -25,9 +40,10 @@ describe('F004 编队名册注入（listPersonas 同源，禁杜撰）', () => {
     expect(personas).toHaveLength(7);
     for (const p of personas) {
       for (const teammate of personas) {
-        expect(p.systemPrompt, `persona=${p.id} 应含队友 ${teammate.name}`).toContain(
-          teammate.name,
-        );
+        expect(
+          p.systemPrompt,
+          `persona=${p.id} 应含队友 ${teammate.name}`,
+        ).toContain(teammate.name);
       }
     }
   });

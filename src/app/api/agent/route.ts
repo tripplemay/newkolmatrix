@@ -31,7 +31,11 @@ import {
   type CopilotContext,
   type CopilotEnv,
 } from 'lib/agent/persona-router';
-import { DEFAULT_AGENT_ID, isAgentId } from 'lib/agent/registry';
+import {
+  DEFAULT_AGENT_ID,
+  isAgentId,
+  NO_TOOL_CLAUSE,
+} from 'lib/agent/registry';
 import { gameKnowledgeSection } from 'lib/agent/knowledge-context';
 
 export const runtime = 'nodejs';
@@ -113,7 +117,7 @@ export async function POST(req: Request): Promise<Response> {
             '\n',
           )}`
         : // M2-C F003：无工具分支强化——明示「未执行任何动作」+ 指路（防幻觉执行）
-          '\n\n（你当前没有可调用的工具——你只能给分析与建议，且必须明确告知用户你没有执行任何动作；用户需要执行时，指引 TA 找名册内对应专家或页面入口。）');
+          NO_TOOL_CLAUSE);
 
     const result = streamText({
       model: chatModel(),

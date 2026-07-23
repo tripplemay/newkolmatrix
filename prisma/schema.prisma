@@ -74,16 +74,20 @@ model Kol {
   categories     String[] @default([])
   bio            String?
 
+  /// M3-A F001（P3）：联系邮箱——人工录入（CreatorDrawer 抽屉入口，F007），不做自动采集；
+  /// 来源在 fieldProvenance 标 user_input。真实 KOL 行不得写入测试地址（P1）。
+  contactEmail String?
+
   /// pgvector 向量列（bge-m3 1024 维，D3）。Unsupported → 读写走 raw SQL（F004 灌向量 / F005 cosine 检索）。
   embedding Unsupported("vector(1024)")?
 
   // ── D15 数据层字段契约位（本批 nullable 不填充；让数据层与应用层解耦）──
   // 兼作 D-INTEROP provenance 对外可信层（GEO 时代 AI 引擎最看重「有出处、可信」）。
-  audienceDemo    Json?   // 受众画像
-  credibility     Json?   // 可信度评估（结构留扩展点，第三方评估 API → M5）
-  brandSafety     Json?   // 品牌安全评估
+  audienceDemo    Json? // 受众画像
+  credibility     Json? // 可信度评估（结构留扩展点，第三方评估 API → M5）
+  brandSafety     Json? // 品牌安全评估
   dataSource      String? // 数据来源（架构稿 §7.5：按真实证据填写）
-  fieldProvenance Json?   // 逐字段出处（provenance）
+  fieldProvenance Json? // 逐字段出处（provenance）
 
   /// D29 分工标记（Leo/Ada/Kai）——是分工不是权限，非枚举非权限。
   owner String?
@@ -95,6 +99,7 @@ model Kol {
 
   planKols        PlanKol[] // M2-A F001：入选组合的反向关系
   matchCandidates MatchCandidate[] // M2-A F001：候选池反向关系
+  outreachThreads OutreachThread[] // M3-A F001：触达线程反向关系
 
   @@unique([tenantId, canonicalHandle]) // F004 幂等 upsert
   @@index([tenantId])
@@ -142,6 +147,7 @@ model Project {
 
   matchPlans      MatchPlan[] // M2-A F001：组合方案反向关系
   matchCandidates MatchCandidate[] // M2-A F001：候选池反向关系
+  outreachThreads OutreachThread[] // M3-A F001：触达线程反向关系
 
   @@index([tenantId])
   @@index([gameId])
@@ -237,7 +243,7 @@ model GameKnowledge {
   structured        Json? // 按 kind 定型的结构化载荷（zod 见 schemas/knowledge.ts，脏数据读时降级）
   sourceMaterialIds String[] // 溯源 Material.id 列表（软引用；FR-11.9 非空由应用层保证）
   confidence        Float? // 0-1（LLM 自报，保守下限原则展示为 ai_estimate 档）
-  generatedBy       String  @default("strategy") // 解析人格（PRD §9.2：策略 Agent）
+  generatedBy       String        @default("strategy") // 解析人格（PRD §9.2：策略 Agent）
   supersededById    String? // → GameKnowledge.id（软引用；null = 链头）
 
   createdAt DateTime @default(now())
@@ -342,16 +348,147 @@ model MatchCandidate {
   @@index([kolId])
 }
 
+// ───────────────────────── 触达平面（M3-A-REACH-CRM F001，spec §4 / architecture :467-470）─────────────────────────
+
+/// CRM 五态（architecture :491）。真相由 crmInfer.status 纯函数从 messages+signals+quotes 推断（F005），
+/// 本列是推断结果的物化缓存；confirmed 仅由 quote.committed 推出，manual_override 不可断言（U4）。
+enum ReachStatus {
+  pending_send
+  sent
+  replied
+  negotiating
+  confirmed
+}
+
+/// 触达消息方向。sent 必带 gateLogId（闸门留痕，:468）；inbound 本批仅 webhook 投递状态事件承载（P2），
+/// 真入站收信 → M3-B+。
+enum MessageDirection {
+  draft
+  sent
+  inbound
+}
+
+/// 报价状态。committed 必经 commit_quote 闸门（gateLogId 必非空）；不可人工覆盖（U4）。
+enum QuoteStatus {
+  proposed
+  committed
+  rejected
+}
+
+/// 触达线程（M3-A F001）。一个创作者 = 一段关系 = 一个 thread（architecture :467）。
+model OutreachThread {
+  id       String @id @default(cuid())
+  tenantId String
+
+  projectId    String
+  kolId        String
+  status       ReachStatus @default(pending_send)
+  owner        String      @default("reach") // D29 分工标记
+  lastSignalAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kol     Kol     @relation(fields: [kolId], references: [id], onDelete: Cascade)
+
+  messages OutreachMessage[]
+  quotes   Quote[]
+
+  @@unique([projectId, kolId]) // 一人一线程（:467）
+  @@index([tenantId])
+  @@index([kolId])
+}
+
+/// 触达消息（M3-A F001）。gateLogId = PendingAction.id 软引用（D13 先例，语义单一）；
+/// direction=sent 时必非空（应用层保证，:468）。providerMessageId = Resend 消息 id（幂等查重，P6）。
+model OutreachMessage {
+  id       String @id @default(cuid())
+  tenantId String
+
+  threadId          String
+  direction         MessageDirection
+  subject           String?
+  body              String
+  language          String?
+  gateLogId         String? // → PendingAction.id（软引用；sent 必非空）
+  providerMessageId String?
+  sentAt            DateTime?
+
+  createdAt DateTime @default(now())
+
+  thread OutreachThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([threadId])
+}
+
+/// 报价（M3-A F001）。金额用 Decimal(14,2)（沿 Project.budgetTotal 先例）；
+/// committed 时 budgetUsd 回填至 PlanKol/展示层（P8，F006）。
+model Quote {
+  id       String @id @default(cuid())
+  tenantId String
+
+  threadId         String
+  amount           Decimal     @db.Decimal(14, 2)
+  currency         String // ISO 4217，如 USD
+  deliverablesJson Json
+  scope            String?
+  status           QuoteStatus @default(proposed)
+  gateLogId        String? // → PendingAction.id（软引用；committed 必非空）
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  thread OutreachThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([threadId])
+}
+
+/// 信号（M3-A F001）。领域事件承载（ADR-21 不建 EventStore：Signal + OperationLog + 状态列）。
+/// append-only 事件表：kolId/projectId/threadId 均软引用不强 FK（同 OperationLog D13 先例）；
+/// externalId @unique 防重（webhook 同事件重放只落一行，:470）。
+/// type 取值：email_delivery_status（F004 webhook）/ manual_override（F009 有限覆盖，仅可断言
+/// sent/replied/negotiating——U4）；source 取值：resend / user 等。
+model Signal {
+  id       String @id @default(cuid())
+  tenantId String
+
+  type        String
+  source      String
+  externalId  String   @unique // 防重键
+  kolId       String? // 软引用
+  projectId   String? // 软引用
+  threadId    String? // 软引用 → OutreachThread.id
+  payloadJson Json
+  detectedAt  DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([threadId])
+}
+
 // ───────────────────────── 运行时表（闸门 / 留痕 / 交接）─────────────────────────
 
+/// 闸门 7 态（M3-A F001 expand：加值不删值）。流转（§9.3.2 两步票据，F002）：
+/// pending → confirmed（confirm 签票）→ executing → executed / failed（execute 消费票）；
+/// pending → rejected（人拒绝）/ expired（超时）。原子条件 UPDATE 消并发双确认（R15）。
 enum PendingActionStatus {
   pending
   confirmed
+  executing
   executed
+  failed
+  rejected
+  expired
 }
 
-/// AI→人闸门落点（F009）。最小三态；outbound 动作停在确认前的待办。
-/// 完整 7 态 + OutboundAttempt / reconciliation → M3。
+/// AI→人闸门落点（F009 三态 → M3-A F001/F002 升级两步票据 7 态）。outbound 动作停在确认前的待办。
+/// 两步票据（§9.3.2）：confirm 校验 confirmationToken → 签发一次性执行票（票明文仅 confirm 响应
+/// 出现一次，DB 只存 ticketHash，ADR-25 不变量）→ execute 消费票（原子条件 UPDATE，过期/重放拒）。
+/// OutboundAttempt / reconciliation → M3-B+。
 model PendingAction {
   id                    String              @id @default(cuid())
   tenantId              String
@@ -364,6 +501,12 @@ model PendingAction {
   confirmationTokenHash String? // 只存 hash（F009）
   expiresAt             DateTime?
   createdAt             DateTime            @default(now())
+
+  // ── M3-A F001（§9.3.2 两步票据新列，nullable expand 迁移，回滚安全）──
+  ticketHash      String? // 执行票 hash（confirm 签发；明文不落库）
+  ticketExpiresAt DateTime? // 执行票过期时刻（短 TTL）
+  ticketUsedAt    DateTime? // 消费时刻（原子条件 UPDATE 的重放挡板）
+  decidedAt       DateTime? // 人裁决时刻（confirm / reject 共用）
 
   // ── M1-C F002（D-A）。今天页雷达接真的前置：待办要能指回「哪个项目、哪个人格」。
   //    nullable expand 迁移（回滚安全）；创建点只填不判，历史行 null 合法。

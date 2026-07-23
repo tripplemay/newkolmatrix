@@ -6,7 +6,7 @@
       "title": "迁移：OutreachThread/OutreachMessage/Quote/Signal 四表 + PendingAction 7 态 + Kol.contactEmail",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec §4 字段级 schema（PRD:600 授权本批定）。expand-contract：PendingAction 枚举加值不删值 + ticketHash/ticketExpiresAt/ticketUsedAt/decidedAt 新列。",
       "acceptance": "migration 落 prisma/migrations 且 db:migrate 干净；四表字段与 spec §4 逐项一致（@@unique 约束在场：Thread(projectId,kolId)、Signal.externalId）；PendingAction 7 态枚举 + 4 新列；Kol.contactEmail String? 可空；tsc + 既有全量测试不破；schema 注释更新（:355 M3 预告注释翻牌）"
     },

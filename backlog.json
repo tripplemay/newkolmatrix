@@ -12,5 +12,16 @@
     "confirmed_at": "2026-07-22",
     "priority": "P2",
     "source": "P2-CLEANUP F003 验收（docs/test-reports/P2-CLEANUP-F003-verify.md + 对抗复核）"
+  },
+  {
+    "id": "BL-BRIEF-GOAL",
+    "title": "Brief 环节 goal 确认写入口缺失——新建项目卡在 brief→match（BRIEF_GOAL_NOT_CONFIRMED）",
+    "description": "Project.goal 全仓无写入口（仅 seed 脚本），env-guards brief→match 判据 goal!=null 永不满足，M2-C 新建的项目无法推进出 brief。候选面：goal 确认对话工具 + UI 双路径（create_project 同款单一真相源模式）+ brief glance 最小接真。设计上非 bug（P3 goal 归 brief 环节 + D9 保守拒绝 + D2 mock 契约），但推进链路断点客观存在。",
+    "decisions": [
+      "用户 2026-07-23 裁决：不改变原计划，按原计划推进（M3）——本条仅入池待下批 planning 展示"
+    ],
+    "confirmed_at": "2026-07-23",
+    "priority": "P1",
+    "source": "M2-C done 后用户问询核证（brief 页实装现状分析）"
   }
 ]

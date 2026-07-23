@@ -8,7 +8,7 @@ type: project
 - **M0→M2-B 均 done ✅**
 
 ## 已上线
-- `https://newkol.guangai.ai` 现跑 M2-B 版 @ `7cebb52…`；**M2-C 部署待办**（image_tag = 42bacb3 完整 SHA；compose 本批零变更无需 scp）
+- `https://newkol.guangai.ai` 现跑 **M2-C 版 @ `42bacb3dda7aebfdd71bc4a859987d7d2a9ee717`**（2026-07-23 部署，四项验证过：health / campaigns「新建项目」入口在场 / POST /api/projects 活性 400 明示 / 镜像 SHA 精确对齐）。回滚=deploy-prod 填 `7cebb524281de2613b43aaaad626610ae4f447f1`
 - ⚠️ image_tag 必须完整 40 位 SHA；部署 SHA≠HEAD；compose 是 VPS 人工副本
 - **观察项：prod kol-sync 首跑 03:00**（预期拉入 apify-kol 存量 8800+ 行）——首跑后核 `docker logs newkolmatrix-app | grep kol-sync`
 

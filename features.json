@@ -42,7 +42,7 @@
       "title": "crmInfer.status 纯函数（domain 层）+ D20 变异测试",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "五态推断（pending_send/sent/replied/negotiating/confirmed）；U4 有限覆盖：manual_override 仅可断言 sent/replied/negotiating；confirmed 仅由 quote.committed 推出。",
       "acceptance": "纯函数无 DB 读（ctx 传入）；全转换矩阵单测；manual_override 越权断言 confirmed 被忽略且留痕说明（负例测试）；D20 变异测试（破坏推断规则→测试翻红）；三处复用铁律注释就位（页面/工具/例程同一函数）"
     },

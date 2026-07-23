@@ -14,6 +14,7 @@ type: reference
 | 部署目录 | `/opt/apps/newkolmatrix`（放 `docker-compose.prod.yml` + `.env`：`POSTGRES_PASSWORD`+`AIGCGATEWAY_API_KEY`，不入 git） |
 | 镜像 | app `ghcr.io/tripplemay/newkolmatrix:{sha\|latest}`（runner 最小）+ tools `...-tools:{sha\|latest}`（migrate/seed） |
 | 部署方式 | 手动 `deploy-prod` workflow_dispatch（人类闸门）；`up -d --wait` 先 migrate 后 app；详见 `docs/dev/deploy.md` |
+| apify-kol 外采（M2-B 起） | 同宿主容器 `apify-kol-service-service-1`（`kol-shared` docker 网络别名 `apify-kol:3003`，不暴露公网）；app 经 `APIFY_KOL_BASE_URL`+`APIFY_KOL_API_KEY`（BUSINESS 只读 key，VPS `.env`）拉取；kol-sync 例程每夜 03:00；**零投喂零充值**（TikHub spend 人工闸门）；本地 dev 不可达内网（L2 走 ssh 隧道 `-L 3004:localhost:3004`） |
 | ⚠️ image_tag 格式 | **必须填完整 40 位 SHA**（镜像 tag 取 `github.sha`）。填 7 位短 SHA 会在 pull 阶段直接失败：`failed to resolve reference ...: not found`。回滚同理。2026-07-22 实测踩中 |
 | ⚠️ compose 同步 | `docker-compose.prod.yml` 在 VPS 是**人工副本**（deploy-prod 不同步）。改 compose 的批次上线前必须先 `scp docker-compose.prod.yml deploysvr:/opt/apps/newkolmatrix/`（M1-D 实操；旧版备份 `.bak-m1c`） |
 

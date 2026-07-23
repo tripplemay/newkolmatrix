@@ -34,7 +34,7 @@ KOLMatrix — AI 驱动的 KOL 营销管理平台：跨平台（YouTube / Twitch
 
 **Tech Stack:** Next.js 15（App Router）· React 19 · TypeScript · **Tailwind CSS**（主设计系统：`tailwind.config.js` 色板 + `AppWrappers.tsx` 运行时 CSS 变量色阶）· Chakra UI（仅零散原语 Drawer / Modal / Tooltip / Popover / Accordion）· ApexCharts · DM Sans + Poppins（基于 Horizon UI Pro 模板 scaffold）
 
-> **全栈层（AGENT-FOUNDATION 批次立起）：** **Prisma 6 + Postgres 16 + pgvector**（`vector(1024)`，D3 自定义扩展迁移；单租户 dev tenant，D4）· **Vercel AI SDK v7**（`streamText` agent loop + `useChat`）⇄ **aigcgateway**（OpenAI 兼容网关，默认 chat=deepseek-v3 / embedding=bge-m3）· **单角色（营销操盘手）+ 多 Agent 编排框架**（registry / persona router / handoff / orchestrator，7 人格共享单一 `/api/agent`）· **AI→人闸门**（outbound 动作服务端强制拦在人确认前，F009）。架构详情 → `docs/dev/agent-architecture.md`（四柱 + 编排框架 + 闸门 + 数据流 + how-to）。
+> **全栈层（AGENT-FOUNDATION 批次立起）：** **Prisma 6 + Postgres 16 + pgvector**（`vector(1024)`，D3 自定义扩展迁移；单租户 dev tenant，D4）· **Vercel AI SDK v7**（`streamText` agent loop + `useChat`）⇄ **aigcgateway**（OpenAI 兼容网关，默认 chat=deepseek-v3 / embedding=bge-m3）· **单角色（营销操盘手）+ 多 Agent 编排框架**（registry / persona router / handoff / orchestrator，7 人格共享单一 `/api/agent`）· **AI→人闸门**（outbound 动作服务端强制拦在人确认前；M3-A 起为两步票据 7 态：confirm 签票 / execute 消费票，`/api/actions/[id]/*`）· **触达域真链（M3-A）**：Resend 真投递（`ops/email`，无 key 回落 mock）+ signals webhook + crmInfer 五态推断（`domain/crm-infer.ts` 三处复用）。架构详情 → `docs/dev/agent-architecture.md`（四柱 + 编排框架 + 闸门 + 数据流 + how-to）。
 
 > 注意：模板**无** `src/theme/` / `ChakraProvider` / `extendTheme` —— 设计系统由 Tailwind + CSS 变量驱动，不是 Chakra theme。品牌主色 `--color-500 #422AFB`（Horizon 紫）。默认浅色（已去除模板的 `<body className="dark">`）。
 
@@ -61,7 +61,8 @@ tsc --noEmit
 # Test（smoke / e2e / 视觉回归）
 npm run agent:smoke       # 柱一 executeTool 直调
 npm run orch:smoke        # 多 Agent 编排框架
-npm run gate:smoke        # AI→人闸门（G1-G5 + D20 变异测试）
+npm run gate:smoke        # AI→人闸门（G1-G8：两步票据 7 态 + 并发竞态 + D20 变异）
+npm run reach:e2e         # 触达 E2E 闭环（起草→审阅→点确认才发送；默认 mock 不外呼）
 npm run f010:e2e          # hello-agent 端到端浏览器实测（需 dev server + 网关）
 npm run test:visual       # Playwright 视觉回归（dashboard/today + agent-canvas）
 ```

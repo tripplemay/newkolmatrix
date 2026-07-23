@@ -33,7 +33,7 @@
       "title": "signals 接入层 + POST /api/signals/inbound（Resend webhook）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "normalize 管道 + Svix 验签 + delivered/bounced/complained/opened → Signal(email_delivery_status) → crmInfer 重算 → OperationLog(auto)。",
       "acceptance": "验签失败 401/403 拒绝（fail-closed）+ 20/min/IP 限流 429；zod 校验坏 payload 400 不落库；externalId 防重（同事件重放只落一行）；四类事件正确映射 Signal 并触发重算+留痕；单测/集成测覆盖验签+防重+映射；旧项目 handler 测试样例回放通过"
     },

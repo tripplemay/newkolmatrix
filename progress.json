@@ -2,7 +2,7 @@
   "status": "building",
   "user_goal": "触达域立真：CRM 四表+五态事件推断+Resend 真实投递（复用旧项目已验证配置）+闸门两步票据 7 态+V6 收件箱接真",
   "total_features": 10,
-  "completed_features": 4,
+  "completed_features": 5,
   "fix_rounds": 0,
   "current_sprint": "M3-A-REACH-CRM",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",

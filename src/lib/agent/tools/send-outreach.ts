@@ -13,7 +13,7 @@
 import { z } from 'zod';
 import { prisma } from 'lib/db/prisma';
 import { getEmailSender } from 'lib/ops/email';
-import { inferCrmStatus } from 'lib/domain/crm-infer';
+import { recomputeThreadStatus } from 'lib/reach/recompute-status';
 import type { ToolContext, ToolDefinition } from './types';
 import { HARM_LABEL, type Harm } from '../gate/harm';
 
@@ -193,54 +193,12 @@ async function run(
     },
   });
 
-  // ── crmInfer 复用重算（三处复用铁律 ②：不得内联实现推断）──
-  const [messages, signals, quotes] = await Promise.all([
-    db.outreachMessage.findMany({
-      where: { threadId: thread.id },
-      select: { direction: true },
-    }),
-    db.signal.findMany({
-      where: { threadId: thread.id },
-      select: { id: true, type: true, payloadJson: true, detectedAt: true },
-    }),
-    db.quote.findMany({
-      where: { threadId: thread.id },
-      select: { status: true },
-    }),
-  ]);
-  const inferred = inferCrmStatus({
-    messages,
-    signals: signals.map((s) => ({
-      id: s.id,
-      type: s.type,
-      payload: s.payloadJson,
-      detectedAt: s.detectedAt,
-    })),
-    quotes,
+  // ── crmInfer 复用重算（三处复用铁律 ②：经共享重算服务，不得内联实现推断）──
+  await recomputeThreadStatus(thread.id, {
+    tenantId: ctx.tenantId,
+    db: ctx.db,
+    actor: ctx.agentId,
   });
-
-  if (inferred.status !== thread.status) {
-    await db.outreachThread.update({
-      where: { id: thread.id },
-      data: { status: inferred.status },
-    });
-    // 状态推进事件留痕（ADR-21：Signal + OperationLog 承载领域事件；ref 语义单一留给 PA，
-    // 线程上下文入 payloadJson）。
-    await db.operationLog.create({
-      data: {
-        tenantId: ctx.tenantId,
-        kind: 'auto',
-        actor: ctx.agentId,
-        summary: `触达状态推进：${thread.status} → ${inferred.status}`,
-        projectId: input.projectId,
-        payloadJson: {
-          threadId: thread.id,
-          from: thread.status,
-          to: inferred.status,
-        },
-      },
-    });
-  }
 
   return {
     sent: true,

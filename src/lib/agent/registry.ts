@@ -75,7 +75,8 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     duty: '环节调度·专家编排·待办汇总',
     isolation: '不亲自执行环节工作，只分派与汇总',
     uiSyntax: '今天/雷达',
-    tools: [],
+    // M2-C F001：create_project（项目创建是编排入口动作——「开新项目」找编排）
+    tools: ['create_project'],
   },
   {
     id: 'strategy',
@@ -85,7 +86,8 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     isolation: '不联系创作者、不放款——交给触达/交付',
     uiSyntax: '仪表',
     // compute_health：M1-B F003（D8）——duty 含健康度监测，挂本人格
-    tools: ['get_kol_detail', 'compute_health'],
+    // create_project：M2-C F001（P2）——brief 域起点动作，策略人格同可创建
+    tools: ['get_kol_detail', 'compute_health', 'create_project'],
     // ⑤层（M1-D F005）：知识生产者，三类全量感知
     knowledgeKinds: ['selling_point', 'audience', 'compliance_redline'],
   },

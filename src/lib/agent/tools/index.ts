@@ -10,6 +10,7 @@ import { sendOutreachTool } from './send-outreach';
 import { computeHealthTool } from './compute-health';
 import { matchPlanTool } from './match-plan';
 import { evaluateCreatorTool } from './evaluate-creator';
+import { createProjectTool } from './create-project';
 import type { ToolDefinition } from './types';
 
 const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
@@ -19,6 +20,7 @@ const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
   computeHealthTool as unknown as ToolDefinition<never, unknown>, // M1-B F003（internal，health.compute 薄封装）
   matchPlanTool as unknown as ToolDefinition<never, unknown>, // M2-A F007（internal，现行组合查询）
   evaluateCreatorTool as unknown as ToolDefinition<never, unknown>, // M2-A F007（internal，单人可解释评估）
+  createProjectTool as unknown as ToolDefinition<never, unknown>, // M2-C F001（internal，项目创建+留痕）
 ];
 
 let registered = false;

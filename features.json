@@ -6,7 +6,7 @@
       "title": "createProject 服务 + create_project 工具（internal）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "lib/projects/create.ts：zod{name 必填,gameIdOrSlug?,market?}（【P3】goal 归 brief 环节不在创建时填）；game 三口径解析未命中 GAME_NOT_FOUND 明示；事务=Project.create(cur=brief 默认)+OperationLog(kind=auto,actor=调用人格,summary 人话,payloadJson{action:'project.created',...})——雷达可见真痕迹；tools/create-project.ts class:'internal'（D27 无确认框）输出含 next 指路语义；【P2】仅挂 orchestrator+strategy；单测 contract-surface（class/注册/挂载/zod 拒空名）+集成测夹具租户（落库+cur=brief+留痕原子+GAME_NOT_FOUND）；lint+tsc+test:unit 绿",
       "description": "spec §2 F001 + P1/P2/P3。写路径从零补齐；OperationLog 先例 = advanceStage。"
     },

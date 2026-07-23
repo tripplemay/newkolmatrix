@@ -33,7 +33,7 @@
       "title": "creators 页接真 + mock 退役 + CI 视觉夹具",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "page.tsx 拆 RSC 数据层（**force-dynamic 必声明** v1.0.9 §6）+client 交互层，布局零变更（V9 16 元素 🔒）；8 列真数据（可信度←credibility.score 分级 A/B/C 阈值常量导出；【P5】受众匹配列库级恒「待核」不编造；#ad←brandSafety null→待核）；KPI 4 卡真计数+筛选真值域；mock/creators.ts 退役 needle 全仓 grep 零代码残留+index.ts 翻牌；【P6】scripts/seed/visual-kols.ts 2 行确定性夹具（固定 publicId：深字段齐备/全 null 各一）接入 ci.yml visual job+本地重生流程（D-H 基线态扩展）；creators.png 基线逐处对账重生（重生序遵 §4.5 v1.0.11 先杀 :3000）+空态文案硬断言 §4.3；运行时改→验→复原实证（RSC 组装层）；两视口实测；lint + tsc + test:unit + test:visual 绿",
       "description": "spec §2 F004。勘查实证页面纯 mock（page.tsx:31-38 唯一消费点之一）。"
     },
@@ -42,7 +42,7 @@
       "title": "CreatorDrawer 七分区接真",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "prop 换真 Kol 可序列化视图（展示串单点 lib/display/creator-format.ts，match-format 先例）；七分区逐区：①interests 真值+分布三键「待接入」子降级 ②「待接入」③空态真话「与我方暂无合作记录」④「待补充」⑤credibility 分级真值+brandSafety「待接入」⑥「待接入」⑦匹配「待核」P5；布局零变更（V10 34 元素 🔒 分区结构/顺序/ProvenanceTag ×5 逐处保持）；ProvenanceTag 接真 resolveProvenance 消费真 fieldProvenance（crawl 派生标注可见+断言 ai_estimate fallback 不再恒触发——P4 归一消解验证）；creator-drawer.spec 锚点重设计（点固定 publicId 夹具行替代首行假设+深字段齐备/待接入双状态断言）；基线对账重生；lint + tsc + test:unit + test:visual 绿",
       "description": "spec §2 F005。原型 docs/product/interaction-prototype-v2.html L926-973；勘查七分区逐区字段清单在案。"
     },

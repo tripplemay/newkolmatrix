@@ -18,6 +18,11 @@ import { mockFonts, mockHandoffs, SNAPSHOT_OPTS } from './handoffs-mock';
 
 const CHART_SETTLE_MS = 1_500;
 
+// M2-B F005 接真后的锚点重设计：行选择从「首行 = mock 确定」改为**固定夹具行**
+//（scripts/seed/visual-kols.ts：VK-FULL/VK-NULL 固定 publicId + followers 恒居前二）。
+// 双状态硬断言（§4.3 扩展）：深字段齐备态（真值 + crawl 派生溯源）与待接入态
+//（逐子块降级占位）都必须活着——任一状态渲染缺失即超时硬红。基线截图 = VK-FULL 态。
+
 test('creator drawer open-state visual baseline', async ({ page }) => {
   await mockFonts(page);
   await mockHandoffs(page);
@@ -25,14 +30,32 @@ test('creator drawer open-state visual baseline', async ({ page }) => {
   await page.goto('/admin/creators', { waitUntil: 'domcontentloaded' });
   await page.getByText('只做发现和分流').first().waitFor({ timeout: 30_000 });
 
-  // 整行可点开抽屉（creators/page.tsx onRowClick）。静态 mock 数据 → 首行确定。
-  await page.locator('tbody tr').first().click();
+  const drawer = page.locator(
+    '.chakra-modal__content[aria-label="创作者详情"]',
+  );
 
-  // 硬断言：以下三处均只在抽屉内部渲染，缺一即说明抽屉没起来。
-  const drawer = page.locator('.chakra-modal__content[aria-label="创作者详情"]');
+  // ── 状态 2 先验：VK-NULL（待接入态）——断言后关闭，不入基线截图 ──
+  await page.getByText('基线夹具·待接入态').first().click();
+  await drawer.waitFor({ state: 'visible', timeout: 30_000 });
+  await drawer
+    .getByText('受众数据采集未完成', { exact: false })
+    .first()
+    .waitFor({ timeout: 30_000 }); // ① 整区待核占位
+  await drawer
+    .getByText('平台 API 未接通', { exact: false })
+    .first()
+    .waitFor({ timeout: 30_000 }); // ② 待接入
+  await page.keyboard.press('Escape');
+  await drawer.waitFor({ state: 'hidden', timeout: 10_000 });
+
+  // ── 状态 1（基线态）：VK-FULL（深字段齐备）──
+  await page.getByText('基线夹具·深字段齐备').first().click();
   await drawer.waitFor({ state: 'visible', timeout: 30_000 });
   await drawer.getByText('受众匹配').first().waitFor({ timeout: 30_000 });
   await drawer.getByText('加入某项目匹配').first().waitFor({ timeout: 30_000 });
+  // 真值面硬断言：interests 标签（crawl 派生）+ 可信度 ring 值 + A 级
+  await drawer.getByText('sandbox').first().waitFor({ timeout: 30_000 });
+  await drawer.getByText('可信度 A 级').first().waitFor({ timeout: 30_000 });
 
   // 抽屉内含 donut / 环形进度 / 面积图，须等绘制稳定；同时等 webfont 全就绪
   // （1500px 紧阈值下字体换绘会抖，F017 三连跑实测校准）。

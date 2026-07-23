@@ -18,7 +18,13 @@
 
 import React from 'react';
 import { createColumnHelper } from '@tanstack/react-table';
-import { MdOutlineRemoveRedEye, MdShield } from 'react-icons/md';
+import {
+  MdCheck,
+  MdClose,
+  MdOutlineRemoveRedEye,
+  MdShield,
+} from 'react-icons/md';
+import { useRouter } from 'next/navigation';
 import Button from 'components/common/Button';
 import DataTable from 'components/common/DataTable';
 import SurfaceCard from 'components/common/SurfaceCard';
@@ -179,6 +185,67 @@ function ReviewButton({ name }: { name: string }) {
   );
 }
 
+/**
+ * M2-B F006（U3 布局变更，原型/ui-inventory 已同批登记）：行内「保留/剔除」双钮。
+ * internal 动作（D27/:1352 双边铁律）：无确认弹窗、零 PendingAction；裁定成功
+ * toast + router.refresh → 行自动离表（读侧 verdict:'pending'，surface-data 已就绪）；
+ * P4：后续刷新/例程不会把人工裁定回退（M2-A upsert 保护）。
+ */
+function VerdictButtons({
+  candidate,
+  onDone,
+}: {
+  candidate: MatchCandidateView;
+  onDone: () => void;
+}) {
+  const toast = useToast();
+  const submit = async (verdict: 'kept' | 'dropped') => {
+    try {
+      const res = await fetch(
+        `/api/match/candidates/${encodeURIComponent(candidate.id)}/verdict`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ verdict }),
+        },
+      );
+      const body = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        toast(body.error ?? '裁定失败，请重试');
+        return;
+      }
+      toast(
+        verdict === 'kept'
+          ? `已保留 ${candidate.name}——后续组合生成继续纳入`
+          : `已剔除 ${candidate.name}——不再进入组合生成`,
+      );
+      onDone();
+    } catch {
+      toast('裁定失败，请重试');
+    }
+  };
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        leftIcon={<MdCheck className="h-4 w-4" aria-hidden />}
+        onClick={() => void submit('kept')}
+      >
+        保留
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        leftIcon={<MdClose className="h-4 w-4" aria-hidden />}
+        onClick={() => void submit('dropped')}
+      >
+        剔除
+      </Button>
+    </>
+  );
+}
+
 /** V5-19 初判 pill 三态（原型 .pill 高 gd / 中 wn / ? nu，不得合并；runs KIND_PILL 同族用色） */
 const FIT_PILL_TONE: Record<MatchCandidateView['fit'], string> = {
   高: 'bg-horizonGreen-50 text-horizonGreen-500 dark:bg-horizonGreen-500/10',
@@ -188,8 +255,10 @@ const FIT_PILL_TONE: Record<MatchCandidateView['fit'], string> = {
 
 const columnHelper = createColumnHelper<MatchCandidateView>();
 
-/* V5-15 FUZZY 表 5 列（创作者 / 受众匹配 / 存疑原因 / 初判 / 审阅位） */
-const FUZZY_COLUMNS = [
+/* V5-15 FUZZY 表 5 列（创作者 / 受众匹配 / 存疑原因 / 初判 / 审阅+裁定位）。
+   M2-B F006：动作列扩「保留/剔除」双钮（U3 布局变更）——列结构不变，动作位内扩展；
+   onVerdictDone 由挂载组件注入（router.refresh 行离表），故转工厂函数。 */
+const buildFuzzyColumns = (onVerdictDone: () => void) => [
   columnHelper.accessor('name', {
     header: '创作者',
     // V5-16 who：avatar 36（色轮序 i+2，原型 avatar(f.name,i+2,36)）+ 名 + 平台粉丝
@@ -250,7 +319,13 @@ const FUZZY_COLUMNS = [
   columnHelper.display({
     id: 'review',
     header: '',
-    cell: (info) => <ReviewButton name={info.row.original.name} />,
+    cell: (info) => (
+      <span className="flex items-center justify-end gap-1">
+        <ReviewButton name={info.row.original.name} />
+        {/* M2-B F006（U3）：行内裁定双钮（internal 无确认框） */}
+        <VerdictButtons candidate={info.row.original} onDone={onVerdictDone} />
+      </span>
+    ),
   }),
 ];
 
@@ -272,6 +347,13 @@ export default function MatchEnv({
   onApproved?: () => void;
 }) {
   const toast = useToast();
+  const router = useRouter();
+
+  // F006：裁定成功 → RSC 重组装（verdict:'pending' 读侧使已裁定行自动离表）
+  const fuzzyColumns = React.useMemo(
+    () => buildFuzzyColumns(() => router.refresh()),
+    [router],
+  );
 
   // 契约层读取（D2）：序列化边界再校验一次，失败 → null 降级走占位 / 空态，绝不抛错。
   // plans schema 锁 3 组（.length(3)）：未生成 / lazy 降级（0 条）→ null → 空态占位。
@@ -332,7 +414,7 @@ export default function MatchEnv({
         </div>
         <DataTable
           data={candidates}
-          columns={FUZZY_COLUMNS}
+          columns={fuzzyColumns}
           emptyText="暂无待裁定候选——匹配 Agent 拿不准的判断会放到这里等你拍板。"
         />
       </section>

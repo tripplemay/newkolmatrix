@@ -38,6 +38,8 @@ export type MatchPlanView = z.infer<typeof matchPlanViewSchema>;
 export const matchPlanViewListSchema = z.array(matchPlanViewSchema).length(3);
 
 export const matchCandidateViewSchema = z.object({
+  /** MatchCandidate.id（F006 裁定写入口 verdict API 的入参） */
+  id: z.string(),
   name: z.string(),
   /** who 副行：平台 · 粉丝（展示串） */
   plat: z.string(),
@@ -139,8 +141,7 @@ export function toPlanView(row: PlanRowLike): MatchPlanView {
     reach: formatWan(metrics?.reachTotal ?? null),
     cost: formatBudgetUsd(metrics?.budgetUsd ?? null),
     risk: formatRisk(metrics?.risk ?? null),
-    people:
-      metrics != null ? `${metrics.people} 人` : PENDING_TEXT.verify,
+    people: metrics != null ? `${metrics.people} 人` : PENDING_TEXT.verify,
     bars: deriveBars(row.topScores),
     basis: row.rationale,
   };
@@ -148,6 +149,8 @@ export function toPlanView(row: PlanRowLike): MatchPlanView {
 
 /** toCandidateView 入参（MatchCandidate + Kol 展示子集）。 */
 export interface CandidateRowLike {
+  /** MatchCandidate.id（F006 裁定入参） */
+  id: string;
   displayName: string | null;
   platform: string | null;
   followers: number | null;
@@ -160,6 +163,7 @@ export interface CandidateRowLike {
 
 export function toCandidateView(row: CandidateRowLike): MatchCandidateView {
   return {
+    id: row.id,
     name: row.displayName ?? PENDING_TEXT.fill,
     plat: formatPlat(row.platform, row.followers),
     // 裁决 #2：scorePending / 分缺失 → null → 显示层「待核」，不显裸分
@@ -168,7 +172,6 @@ export function toCandidateView(row: CandidateRowLike): MatchCandidateView {
         ? null
         : `${Math.round(row.matchScore * 100)}%`,
     why: row.doubts.join('；'),
-    fit:
-      row.preJudge === '高' || row.preJudge === '中' ? row.preJudge : '?',
+    fit: row.preJudge === '高' || row.preJudge === '中' ? row.preJudge : '?',
   };
 }

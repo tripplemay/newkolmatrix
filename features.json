@@ -51,7 +51,7 @@
       "title": "MatchCandidate 裁定写入口（U3 布局变更）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "acceptance": "POST /api/match/candidates/[id]/verdict {verdict:'kept'|'dropped'}：internal（无确认框 D27/:1352 双边铁律零 PendingAction）；幂等同值重放 200；pending→kept/dropped+kept↔dropped 改判合法+非法值 zod 拒+不存在 404；【D20】人工流转变异测试（改判/幂等/P4 刷新不回退回归）；match/index.tsx 待裁定表行内「保留/剔除」双钮（審閱旁 ghost；成功 toast+router.refresh 行离表——读侧 verdict:'pending' 已就绪）；**布局变更（Planner 标注）**：原型 interaction-prototype-v2.html FUZZY 行同步加 affordance+ARCH-M05-ui-inventory.md V5 登记（22→+2）；project-match.png 对账（CI 空态无按钮不变，本地对账）；K3 采纳率数据面注记；lint + tsc + test:unit + test:visual 绿",
       "description": "spec §2 F006 + U3。M2-A P8 遗留消解；原型无 affordance 勘查实证 → 布局变更走完整同步。"
     },

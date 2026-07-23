@@ -95,6 +95,7 @@ export async function loadMatchSurfaceData(
     .filter((r) => r.doubts.length > 0) // 「拿不准」= 有存疑原因才上待裁定表
     .map((r) =>
       toCandidateView({
+        id: r.id, // F006 裁定写入口入参
         displayName: r.kol.displayName,
         platform: r.kol.platform,
         followers: r.kol.followers,

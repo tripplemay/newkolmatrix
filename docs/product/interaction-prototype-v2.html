@@ -777,7 +777,7 @@ const SURF={
     </div></div>
     <div class="sec"><div class="sec-head"><h3>Agent 拿不准 · 待你裁定</h3><span class="meta">${FUZZY.length} 位候选</span></div>
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th>创作者</th><th>受众匹配</th><th>存疑原因</th><th>初判</th><th></th></tr></thead><tbody>
-      ${FUZZY.map((f,i)=>`<tr><td><div class="who">${avatar(f.name,i+2,36)}<div><b>${esc(f.name)}</b><small>${esc(f.plat)}</small></div></div></td><td class="num">${esc(f.match)}</td><td style="color:var(--sub)">${esc(f.why)}</td><td><span class="pill ${f.fit==='高'?'gd':f.fit==='中'?'wn':'nu'}">${esc(f.fit)}</span></td><td><button class="btn ghost sm" data-review="${esc(f.name)}">${ic('eye','ic sm')}审阅</button></td></tr>`).join('')}
+      ${FUZZY.map((f,i)=>`<tr><td><div class="who">${avatar(f.name,i+2,36)}<div><b>${esc(f.name)}</b><small>${esc(f.plat)}</small></div></div></td><td class="num">${esc(f.match)}</td><td style="color:var(--sub)">${esc(f.why)}</td><td><span class="pill ${f.fit==='高'?'gd':f.fit==='中'?'wn':'nu'}">${esc(f.fit)}</span></td><td><button class="btn ghost sm" data-review="${esc(f.name)}">${ic('eye','ic sm')}审阅</button><button class="btn ghost sm" data-keep="${esc(f.name)}">${ic('check','ic sm')}保留</button><button class="btn ghost sm" data-drop="${esc(f.name)}">${ic('x','ic sm')}剔除</button></td></tr>`).join('')}
     </tbody></table></div></div>
     <p class="lede" style="margin-top:14px;font-size:13px">${ic('shield','ic sm')} 批准组合只是让方案<b>生效并交给触达谈判</b>——内部动作，不发任何邮件，所以没有确认弹窗。</p>`;
   },
@@ -994,6 +994,9 @@ function bindView(){
   const ra=v.querySelector('[data-reanalyze]');if(ra)ra.onclick=()=>{toast('策略 Agent 正在重新分析全部素材…');setTimeout(()=>toast('游戏特点已刷新'),1000);};
   v.querySelectorAll('[data-approve]').forEach(b=>b.onclick=()=>{toast('方案「'+b.dataset.approve+'」已生效，交给触达谈判');const p=project();p.cur='reach';state.env='reach';render();});
   v.querySelectorAll('[data-review]').forEach(b=>b.onclick=()=>toast('已打开 '+b.dataset.review+' 的可信度证据'));
+  /* M2-B F006（U3 布局变更）：行内裁定双钮——internal 无确认框，裁定后行离表 */
+  v.querySelectorAll('[data-keep]').forEach(b=>b.onclick=()=>toast('已保留 '+b.dataset.keep+'——后续组合生成继续纳入'));
+  v.querySelectorAll('[data-drop]').forEach(b=>b.onclick=()=>toast('已剔除 '+b.dataset.drop+'——不再进入组合生成'));
   v.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{state.pick=b.dataset.pick;render();});
   const rg=v.querySelector('[data-regen]');if(rg)rg.onclick=()=>toast('Agent 已重写草稿');
   v.querySelectorAll('[data-send]').forEach(b=>b.onclick=()=>{const c=CREATORS.find(x=>x.id===b.dataset.send);gate({title:'确认发送对外邮件',body:`你即将向 <b>${esc(c.name)}</b> 发送一封邀约。<div class="harm"><div class="hrow"><span>收件人</span><b>${esc(c.name)} · ${esc(c.plat.split(' · ')[0])}</b></div><div class="hrow"><span>动作</span><b>发送邀约邮件</b></div></div><span class="irrev">${ic('alert','ic sm')}对外 · 发出后不可撤销</span>`,confirm:'确认发送',onok:()=>toast('已发送给 '+c.name)});});

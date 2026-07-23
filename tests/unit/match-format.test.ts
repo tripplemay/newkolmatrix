@@ -123,6 +123,7 @@ describe('toPlanView（DB 行 → 视图）', () => {
 
 describe('toCandidateView（裁决 #2「待核」口径）', () => {
   const ROW = {
+    id: 'cand-1', // F006：视图携带 id 供裁定写入口
     displayName: 'ChefRen',
     platform: 'tiktok',
     followers: 670_000,

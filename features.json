@@ -51,7 +51,7 @@
       "title": "distribute_keys 工具（outbound）+ GameKey 分发",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P8：harm 列领取方/key 数量/「一经发放不可回收」；执行 = mock KeyDistributor → GameKey reserved→distributed + gateLogId；key 池人工登记（keyRef 存引用不存明文 key 值）。",
       "acceptance": "distribute_keys 注册且挂 delivery 人格；class=outbound + buildHarm 三要素（领取方全名单不折叠/key 数量/不可回收红标）；无令牌 → pending；执行后 GameKey distributed + distributedAt + gateLogId 非空，同事务；keyRef 不含明文 key 值（schema 注释 + 断言）；库存不足时明示拒绝不猜（P3 同源纪律）；幂等重入不双发；P1 零真实外呼"
     },

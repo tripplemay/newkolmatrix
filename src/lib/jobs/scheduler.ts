@@ -19,6 +19,7 @@ import { health as apifyKolHealth } from 'lib/apify/client';
 import { syncKols } from 'lib/kol-sync/sync';
 import { runHealthScan } from './routines/health-scan';
 import { runNightlyScreen } from './routines/nightly-screen';
+import { runWeeklyDraft } from './routines/weekly-draft';
 
 /** 夜间巡检 cron 表达式（服务器本地时区）。常量导出供测试/文档引用，不散落魔数。 */
 export const HEALTH_SCAN_CRON = '0 2 * * *';
@@ -28,6 +29,9 @@ export const NIGHTLY_SCREEN_CRON = '30 2 * * *';
 
 /** 外采同步 cron（M2-B F003；与前两例程错峰）。 */
 export const KOL_SYNC_CRON = '0 3 * * *';
+
+/** 周报起草 cron（M4 F011；每周一 04:00，与夜间例程错峰）。 */
+export const WEEKLY_DRAFT_CRON = '0 4 * * 1';
 
 /** 例程注册表条目（F006）。 */
 export interface RoutineDef {
@@ -84,6 +88,22 @@ export const ROUTINES: ReadonlyArray<RoutineDef> = [
         `[jobs] kol-sync 完成：拉取 ${r.fetched}（新建 ${r.created}/更新 ${
           r.updated
         }），embedding 补灌 ${r.embedded}${r.truncated ? '，已截断' : ''}`,
+      );
+      return r;
+    },
+  },
+  {
+    name: 'weekly-draft',
+    cron: WEEKLY_DRAFT_CRON,
+    run: async () => {
+      // M4 F011：跨项目周报起草（internal only——只落草案；对外分享须人过 create_share_link 闸门）。
+      // 无网关凭据由服务层降级固定草案（明示不静默），例程不因此失败。
+      const tenantId = await getDevTenantId();
+      const r = await runWeeklyDraft(tenantId);
+      console.log(
+        `[jobs] weekly-draft 完成：周期 ${r.period} 草案 ${r.reportId}${
+          r.degraded ? '（降级固定草案）' : ''
+        }${r.skippedAdopted ? '（已采纳，冻结跳过）' : ''}`,
       );
       return r;
     },

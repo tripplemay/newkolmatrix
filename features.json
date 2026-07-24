@@ -96,7 +96,7 @@
       "title": "weekly-draft 例程（scheduler 注册表化）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P6：每周汇总跨项目数据 → 调 draft_report 服务起草周报草案落库；沿 M2-A nightly-screen / M1-C health-scan 例程注册范式。",
       "acceptance": "weekly-draft 例程注册进 scheduler 注册表（沿 run-nightly-screen/run-health-scan 先例）；npm run routine:weekly-draft 可跑；执行 = 汇总跨项目度量 → draft_report 服务起草 → WeeklyReport(projectId=null, adopted=false) 落库；幂等/可重入（同周期重跑不重复建或明示覆盖策略）；无网关凭据降级固定草案明示；staging 端到端 dry-run（database-patterns §7）或 generator_handoff 明示 staging 无 fixture"
     },

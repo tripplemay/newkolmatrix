@@ -42,20 +42,60 @@ export async function ingestDeliverySignal(
     return { matched: 0, duplicate: false, threadId: null, status: null };
   }
 
-  // 防重：externalId @unique——create 撞 P2002 即同事件重放，只落一行不报错。
+  // M3-B F008 顺手项（M3-A F004-low soft-watch）：落库 → lastSignalAt → 重算 → 留痕
+  // 四步收进**同一事务**（与交付登记同款范式）——中途失败不留「信号落了但状态没算」的半成品。
+  // 防重：externalId @unique——create 撞 P2002 即同事件重放，事务回滚后走去重分支，不报错。
   try {
-    await prisma.signal.create({
-      data: {
+    return await prisma.$transaction(async (tx) => {
+      await tx.signal.create({
+        data: {
+          tenantId: ctx.tenantId,
+          type: normalized.type,
+          source: normalized.source,
+          externalId: normalized.externalId,
+          kolId: message.thread.kolId,
+          projectId: message.thread.projectId,
+          threadId: message.threadId,
+          payloadJson: normalized.payload as Prisma.InputJsonValue,
+          detectedAt: normalized.detectedAt,
+        },
+      });
+
+      await tx.outreachThread.update({
+        where: { id: message.threadId },
+        data: { lastSignalAt: normalized.detectedAt },
+      });
+
+      // crmInfer 重算（共享服务；投递状态本身不推进 CRM 态——P2，但管道统一走推断）
+      const recompute = await recomputeThreadStatus(message.threadId, {
         tenantId: ctx.tenantId,
-        type: normalized.type,
-        source: normalized.source,
-        externalId: normalized.externalId,
-        kolId: message.thread.kolId,
-        projectId: message.thread.projectId,
+        db: tx,
+        actor: 'system',
+      });
+
+      // 信号接入留痕（OperationLog kind:auto；ref 语义单一留给 PA，上下文入 payloadJson）
+      await tx.operationLog.create({
+        data: {
+          tenantId: ctx.tenantId,
+          kind: 'auto',
+          actor: 'system',
+          summary: `信号接入：email_delivery_status(${normalized.payload.event})`,
+          projectId: message.thread.projectId,
+          payloadJson: {
+            threadId: message.threadId,
+            externalId: normalized.externalId,
+            event: normalized.payload.event,
+            providerMessageId: normalized.providerMessageId,
+          },
+        },
+      });
+
+      return {
+        matched: 1 as const,
+        duplicate: false,
         threadId: message.threadId,
-        payloadJson: normalized.payload as Prisma.InputJsonValue,
-        detectedAt: normalized.detectedAt,
-      },
+        status: recompute.status,
+      };
     });
   } catch (err) {
     if (
@@ -75,39 +115,4 @@ export async function ingestDeliverySignal(
     }
     throw err;
   }
-
-  await prisma.outreachThread.update({
-    where: { id: message.threadId },
-    data: { lastSignalAt: normalized.detectedAt },
-  });
-
-  // crmInfer 重算（共享服务；投递状态本身不推进 CRM 态——P2，但管道统一走推断）
-  const recompute = await recomputeThreadStatus(message.threadId, {
-    tenantId: ctx.tenantId,
-    actor: 'system',
-  });
-
-  // 信号接入留痕（OperationLog kind:auto；ref 语义单一留给 PA，上下文入 payloadJson）
-  await prisma.operationLog.create({
-    data: {
-      tenantId: ctx.tenantId,
-      kind: 'auto',
-      actor: 'system',
-      summary: `信号接入：email_delivery_status(${normalized.payload.event})`,
-      projectId: message.thread.projectId,
-      payloadJson: {
-        threadId: message.threadId,
-        externalId: normalized.externalId,
-        event: normalized.payload.event,
-        providerMessageId: normalized.providerMessageId,
-      },
-    },
-  });
-
-  return {
-    matched: 1,
-    duplicate: false,
-    threadId: message.threadId,
-    status: recompute.status,
-  };
 }

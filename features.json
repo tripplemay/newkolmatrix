@@ -69,7 +69,7 @@
       "title": "交付登记 API：contract/escrow refs + Deliverable 人工核验 + key 池",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P4/P9：三端点 internal（可撤销、不对外、不花钱，D27）；登记 refs 即置对应 Deliverable met + 推进 Deal 状态。",
       "acceptance": "POST /api/delivery/deals/[id]/refs（登记 contractRef/escrowRef → 对应 Deliverable met + Deal signed/escrowed 推进）· PATCH /api/delivery/deliverables/[id]（人工核验 met/missing/na + evidenceRef + verifiedBy）· POST /api/delivery/deals/[id]/keys（key 池登记）三端点在场且 nodejs runtime；zod 校验坏入参 400 明示；P9 限流 30/min/IP fail-open + escape hatch DISABLE_GATE_RATELIMIT；三端点均写 OperationLog 留痕；集成测覆盖登记→状态推进→deliveryCheck 重算联动"
     },

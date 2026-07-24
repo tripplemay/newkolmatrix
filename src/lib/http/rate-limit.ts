@@ -77,18 +77,35 @@ export function isRateLimitDisabled(): boolean {
   return process.env.DISABLE_GATE_RATELIMIT === 'true';
 }
 
+/** 内网 / 回环段（我方反代自身在 XFF 里留下的段，取可信段时跳过）。 */
+const PRIVATE_IP =
+  /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1$|fc|fd|localhost$)/i;
+
 /**
- * 从请求头解析客户端 IP。生产在 nginx 反代后（deploy.md）：x-forwarded-for 首段为客户端 IP。
- * fix_round1 注释校准（验收 low）：Next 15 self-host 会自注入 x-forwarded-for——本地 dev
- * 直连**也有**该头（null 分支实际仅防御性存在）；本地重度调试可用 DISABLE_GATE_RATELIMIT
- * 逃生口。已知边界：XFF 首段在 nginx append 语义下可被客户端伪造旋转——限流是辅助防线
- *（票据协议为主），可信段取法（右起首个非代理段）记 M3-B 顺手项。
+ * 从请求头解析客户端 IP。
+ *
+ * M3-B F008 转正（M3-A F002-low soft-watch）：**取右起首个非代理段**，不再取首段。
+ * 理由：nginx 的 `$proxy_add_x_forwarded_for` 是 append 语义——**左侧各段全部由客户端提供、
+ * 可任意伪造并逐次旋转**（伪造者据此绕开按 IP 的限流）；右侧才是各级反代实测的对端地址。
+ * 做法：从右往左跳过内网/回环段（我方 nginx / docker 网络自身），取第一个公网段；
+ * 全是内网段（本地 dev / 容器内直连）则取最右段——此时限流退化为单桶，可接受。
+ *
+ * Next 15 self-host 会自注入 x-forwarded-for，本地 dev 直连**也有**该头（null 分支仅防御性
+ * 存在）；本地重度调试可用 DISABLE_GATE_RATELIMIT 逃生口。
+ * 限流始终是辅助防线（闸门主防线是票据协议），此改动只是把「可被 O(1) 绕过」收紧到
+ * 「需伪造反代链」。
  */
 export function clientIpOf(req: Request): string | null {
   const xff = req.headers.get('x-forwarded-for');
   if (xff) {
-    const first = xff.split(',')[0]?.trim();
-    if (first) return first;
+    const parts = xff
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    for (let i = parts.length - 1; i >= 0; i -= 1) {
+      if (!PRIVATE_IP.test(parts[i])) return parts[i];
+    }
+    if (parts.length > 0) return parts[parts.length - 1]; // 全内网（dev / 容器内）
   }
   const real = req.headers.get('x-real-ip')?.trim();
   return real || null;

@@ -96,7 +96,7 @@
       "title": "BL-BRIEF-GOAL：goal 确认写入口（工具 + API + 服务三件套）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P10：lib/projects/set-goal.ts 单一服务 + confirm_brief_goal internal 工具 + PATCH /api/projects/[id]/goal（create_project 同款三件套模式）；V4 brief 面零结构变更（裁决 #1 处置入口走 Copilot）。",
       "acceptance": "服务层单一真相源（工具与 API 共用，不各写一份）；zod 校验 targetExposure 非负整数 / periodStart<periodEnd / ISO date 格式，坏入参 400 明示；confirm_brief_goal 注册且挂 strategy+orchestrator 人格（class=internal 无确认框，D27）；写入 OperationLog 留痕；V4 brief 面 19 元素零结构变更（grep 证 components/envs/brief 无新增区块）；端到端断言：新建项目（goal=null）→ →match 守卫拒 BRIEF_GOAL_NOT_CONFIRMED → 确认 goal → →match 守卫放行 → advanceStage 成功；backlog.json 移除 BL-BRIEF-GOAL"
     },

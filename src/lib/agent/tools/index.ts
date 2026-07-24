@@ -16,6 +16,7 @@ import { commitQuoteTool } from './commit-quote';
 import { payoutTool } from './payout';
 import { distributeKeysTool } from './distribute-keys';
 import { checkDeliverablesTool, trackDeliveryTool } from './delivery-tracking';
+import { confirmBriefGoalTool } from './confirm-brief-goal';
 import type { ToolDefinition } from './types';
 
 const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
@@ -33,6 +34,7 @@ const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
   distributeKeysTool as unknown as ToolDefinition<never, unknown>, // M3-B F006（outbound，key 分发过闸门）
   trackDeliveryTool as unknown as ToolDefinition<never, unknown>, // M3-B F007（internal，台账只读）
   checkDeliverablesTool as unknown as ToolDefinition<never, unknown>, // M3-B F007（internal，条件核对 = deliveryCheck 产物）
+  confirmBriefGoalTool as unknown as ToolDefinition<never, unknown>, // M3-B F011（internal，brief 目标确认写入口）
 ];
 
 let registered = false;

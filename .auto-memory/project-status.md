@@ -4,20 +4,20 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **M3-B-DELIVERY done ✅（2026-07-24，快车道，fix_rounds=1）** — 交付域立真闭环全验收：**12/12 PASS**（首轮 11 PASS + F012 PARTIAL 文档漂移→对抗复核 UPHELD→fixing 翻牌 architecture.md L254/L372→reverify PASS）。四表 + `deliveryCheck` 纯函数（三处复用）+ `dealAdvance` 资金状态机 + `ops/partner` mock 适配器（**零真实资金动作**）+ payout/distribute_keys 两 outbound 闸门（**服务端二次校验无绕过**）+ delivery 两 internal 工具 + 交付登记三端点 + V7 台账接真 + →delivery/→insight 真判（五流转自此全真判）+ backlog 两条消解。signoff `docs/test-reports/M3B-DELIVERY-signoff-2026-07-24.md`；验收入口 `npm run delivery:e2e`
-- **M3-B-DELIVERY 已上线 ✅（2026-07-24，deploy run 30067908179 success + health 200 + delivery 页 200 + /api/delivery/payout 405 路由实证）**
-- **M3-A-REACH-CRM done ✅**；M0→M2-C 全 done ✅；**下批 M4-INSIGHT**（ROI/周报/对外分享 + →insight 消费）
+- **M4-INSIGHT building 完成 12/12 → verifying（2026-07-24，快车道）** — 洞察域立真：三表（MetricSnapshot/WeeklyReport/ShareLink）+ `roi.compute`/`attribution.gaps` 纯函数（三处复用，ROI 诚实降级分子缺显证据不足）+ spend 真源装配（released Payout＞committed Quote，仅 USD）+ `compute_roi`/`draft_report` internal + `create_share_link` outbound（**白名单第 6，mock 零真实公开暴露**）+ `ops/share` 接口先行 + V8/V12 接真（env-insight/insight 两 mock 退役）+ weekly-draft 例程 + `npm run insight:e2e`（23 断言）。HEAD CI 绿 @ f6a631b
+- **待验收**：evaluator 隔离验收（/verify）。Generator 自行裁决点与已知漂移见 progress.json session_notes.Andy（① ROI 口径 conversions/spend 单点 ② ShareLink.projectId 软引用 ③ V8 对照表指标轴重立 ④ 图卡 M5 占位）
+- M3-B-DELIVERY done ✅ 已上线 prod @ 49308c1；M0→M3 全 done ✅
 
 ## 已上线
-- `https://newkol.guangai.ai` 跑 **M3-B @ `49308c1a5e71e14b3ecaf55032dc971a304c7b93`**；回滚=deploy-prod 填 `a2751fd71b7572de276b0b7fc70ad8065c831810`（M3-A 上一 good）
-- M3-B 部署面：compose 未改（无需 scp）· 无新增 env（partner 恒 mock，零真实资金动作）· migrate one-shot 建 4 表+5 枚举（expand-only，纯 CREATE 安全）
-- ⚠️ 部署 SHA ≠ HEAD（文档/状态 commit 走 paths-ignore 不 build，M3-B 部署 SHA=49308c1 而非 HEAD 14c9825）；image_tag 必须完整 40 位 SHA；compose 是 VPS 人工副本
+- `https://newkol.guangai.ai` 跑 **M3-B @ `49308c1a5e71e14b3ecaf55032dc971a304c7b93`**；M4 未部署（验收后由用户手动触发 deploy-prod）
+- M4 部署面预告：compose 未改 · 无新增必需 env（share 恒 mock；`AIGCGATEWAY_REPORT_MODEL` 可选路由插座）· migrate one-shot 建 3 表+1 枚举（expand-only 纯 CREATE 安全）
+- ⚠️ image_tag 必须完整 40 位 SHA；compose 是 VPS 人工副本；部署 SHA 取最后一个非 paths-ignore commit
 
 ## 需求池 / 待人类
-- backlog：**已清空**（BL-BRIEF-GOAL / BL-FE-16 均已实装并移除）
-- soft-watch：M3-A 结转四条已处置三条（F003-low-2 / F002-XFF / F004-low-1）；**F003-low-1 未修**（resend SDK 不暴露 signal，race 超时保留 + 明文标注，续记）
-- proposed-learnings：**M3-A 4 条 + M3-B 1 条待确认**（新增：视觉基线含相对时间标签在本地长寿命 DB 下会自然翻红）
-- 遗留归位：真入站收信/批量发信→M3-C+ · 洞察 ROI/周报→M4 · 真实 partner（Stripe/电子签/key 平台）+ 受众三键/brandSafety/真实认证+RLS→M5
+- backlog：空
+- L2 授权未消耗：draft_report/weekly-draft 本批全程降级草案（零外呼）；验收真网关最小用量 = `INSIGHT_E2E_REAL_LLM=1 npm run insight:e2e`（需用户授权）
+- soft-watch 续记：F003-low-1（resend SDK 不暴露 signal）未修；洞察侧栏徽标恢复（M4 接真后数据源已可用，恢复与否留下批裁决）
+- proposed-learnings：M3-A 4 条 + M3-B 1 条待确认
 
-## 关键技术坑（v1.0.11 + M3-B 新证）
-- 闸门类 feature 必有「HTTP 创建→confirm」全链回归 · CI 无 dev tenant seed（route 测下沉服务层+夹具租户）· 新视觉基线 CI 首推必红（走 workflow+pull 回）· 基线重生前 kill :3000 + 伪造 AIGCGATEWAY_* · `--update-snapshots=all` 会顺带重写无关基线（须 checkout 还原）· Deal 有 `@@unique[projectId,kolId]`（多笔 Deal 夹具需多 KOL）· 格式化 hook 会重排 import（脚本改文件前先核对实物）
+## 关键技术坑（M4 新证）
+- 注入缝 LLM caller 必须无条件调用（凭据降级只对默认 caller 生效——CI 无凭据曾把 mock 测试静默改道降级分支，c09ef41）· 测试钉注册表全量清单会连坐后续扩展（改「在场+前缀序」断言）· 新基线 CI 首推必红走 update-visual-baselines workflow · 本地长寿命 DB：today（相对时间）/match（真数据 vs CI 空态夹具）两基线本地自然翻红属预期

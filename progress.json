@@ -1,12 +1,12 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "洞察域立真：MetricSnapshot/WeeklyReport/ShareLink 三表 + roi.compute/attribution.gaps 两纯函数（三处复用）+ compute_roi/draft_report/create_share_link 三工具（分享 outbound 白名单第 6）+ V8 项目级对照账本 & V12 跨项目洞察接真（两 mock 退役）+ weekly-draft 例程。ROI 分子诚实降级（spend 真源 + reach/conversions 缺口如实标注，真值留 M5）；对外分享接口先行+mock 零公开暴露。",
   "total_features": 12,
   "completed_features": 12,
   "fix_rounds": 0,
   "current_sprint": "M4-INSIGHT",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-24T11:43",
+  "last_updated": "2026-07-24T13:05",
   "reference_docs": [
     "docs/specs/M4-INSIGHT-spec.md",
     "docs/test-reports/M3B-DELIVERY-signoff-2026-07-24.md",
@@ -25,7 +25,7 @@
   "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M4-INSIGHT planning 完成 → building · 2026-07-24 · 快车道】\n■ 用户裁决：U1 spend 真源+缺口诚实标注（reach/conversions 无源→attribution.gaps 如实列，ROI 显证据不足，绝不填 0；真值留 M5）· U2 分享接口先行+mock（ShareLink 表 + create_share_link outbound + mock ShareLinkService，零公开暴露）· U3 全量一批 12 features。\n■ 要害 P 决策见 spec §3：P1 ROI 诚实降级铁律（spend 取 Payout(released) 优先无则 Quote(committed)，仅 USD）· P2 roi.compute/attribution.gaps 三处复用（页面/工具/例程）· P4 create_share_link 是 outbound 白名单第 6 工具，harm 三要素含「一经生成即暴露」红标，token 明文仅响应现一次 · P5 采纳=internal / 分享=outbound · P7 V8 19/V12 14 元素零结构变更 · P9 →insight 守卫本批不碰（M3-B F010 已真判，本批消费方）。\n■ 开工顺序：F001→F002/F003/F004；F002/F003（纯函数）+ F007（ops/share 适配器）文件集不重叠可并行；F005 依赖 F002+F003+F004；F008 依赖 F001+F007；F009 依赖最广最后做；F010 依赖 F004+F006+F008。\n■ M3-B 教训带入：闸门类必有 HTTP 创建→confirm 全链回归；CI 无 dev tenant seed（集成测下沉服务层+夹具租户 test-tenant-m4-*，evaluator 探针勿依赖 dev tenant——M3-B 验收因此 CI 红过一次）；新视觉基线 CI 首推必红（走 update-visual-baselines workflow + pull 回）；--update-snapshots=all 会顺带重写无关基线须 checkout 还原；视觉基线含相对时间标签在本地长寿命 DB 会自然翻红（V12 洞察页留意）。\n■ M3-B 已上线 prod @ 49308c1（health 200 + 真链实证）。",
+    "Andy": "【M4-INSIGHT building 完成 12/12 → verifying · 2026-07-24 · 快车道】\n■ 实现节奏：F001 迁移串行起步 → F002/F003/F007 并行 worktree subagent（cherry-pick 合入 3a7fa04/bb9658c/b54bb8e）→ F004/F005/F006/F008 主上下文串行 → F011 → F009/F010 UI 接真 → F012 e2e+文档。全部 feat(M4-INSIGHT-F0xx) 独立 commit，HEAD CI 绿 @ f6a631b。\n■ Generator 自行裁决点（evaluator 请核）：① F002 ROI 数值口径 = conversions/spend 最小诚实口径（spec 未给公式；文件头记录为单点可裁决，本批分子恒缺生产路径恒 insufficient_evidence）② ShareLink.projectId 软引用不强 FK（暴露事实独立于项目生命周期，migration 头有理由）③ V8 对照表 4 行按可得指标轴重立（mock 营销示意行随退役；ui-inventory 例外登记）④ V8/V12 图卡（渠道/受众/ROI 走势/各项目 ROI）数据源属 M5 回传——实现保留、data 恒 null 走「待接入」占位。\n■ CI 红过两轮均已修复：一轮 = 注入缝 llm 被凭据降级改道（c09ef41 修 + 回归测试）；两轮 = F009/F010 新基线 CI 首推必红（走 update-visual-baselines workflow 重生拉回，已知路径）。\n■ 本地已知漂移（非本批回归，CI 侧绿）：today 基线相对时间标签 + env=match 基线本地长寿命 DB 有真组合数据 vs CI 夹具空态。\n■ L2 授权未消耗：draft_report/weekly-draft 全程降级固定草案（明示，零外呼）；验收若要真网关最小用量走 INSIGHT_E2E_REAL_LLM=1 npm run insight:e2e（需用户授权）。\n■ 零真实公开暴露核证：dev 库 ShareLink 0 行（e2e 夹具自清理）；mock publicUrl 恒 null；无真实分享分支。验收入口 npm run insight:e2e（23 断言）+ 各集成测 + test:visual。规格与 P 决策见 docs/specs/M4-INSIGHT-spec.md（U1-U3 / P1-P10）。",
     "Reviewer": null,
     "Mark": null
   },

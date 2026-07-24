@@ -20,6 +20,7 @@ import { formatBudget, formatGoalText } from 'lib/display/project-format';
 import { loadMatchSurfaceData } from 'lib/match/surface-data';
 import { loadReachSurfaceData } from 'lib/reach/surface-data';
 import { loadDeliverySurfaceData } from 'lib/delivery/surface-data';
+import { loadInsightSurfaceData } from 'lib/insight/surface-data';
 import type { Stage } from 'lib/agent/stage-routing';
 
 export default async function ProjectDetailPage({
@@ -52,6 +53,8 @@ export default async function ProjectDetailPage({
     const reach = await loadReachSurfaceData(row.id);
     // M3-B F009：delivery 台账组装（deliveryCheck 真值 + Payout released；失败降级空表）
     const delivery = await loadDeliverySurfaceData(row.id);
+    // M4 F009：insight 对照账本组装（roi.compute/attribution.gaps 真值 + WeeklyReport；失败降级空态）
+    const insight = await loadInsightSurfaceData(row.id);
     // M3-B F010：→delivery / →insight 守卫判据（canEnter ctx；守卫纯函数，存在性 RSC 查好传入）
     const dealStatuses = await prisma.deal.findMany({
       where: { tenantId, projectId: row.id },
@@ -89,6 +92,7 @@ export default async function ProjectDetailPage({
       match, // M2-A F005：match 语法面真数据（可序列化视图）
       reach, // M3-A F008：reach 语法面真数据（可序列化视图）
       delivery, // M3-B F009：delivery 台账真数据（可序列化视图）
+      insight, // M4 F009：insight 对照账本真数据（可序列化视图）
     };
   }
 

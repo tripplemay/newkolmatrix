@@ -39,6 +39,10 @@ import {
   EMPTY_DELIVERY_SURFACE,
   type DeliverySurfaceData,
 } from 'lib/display/delivery-format';
+import {
+  EMPTY_INSIGHT_SURFACE,
+  type InsightSurfaceData,
+} from 'lib/display/insight-format';
 import { PENDING_TEXT } from 'lib/data/provenance';
 import { useToast } from 'components/common/Toast';
 import BriefEnv from 'components/envs/brief';
@@ -86,6 +90,8 @@ export interface ProjectDetailData {
   reach: ReachSurfaceData;
   /** delivery 台账真数据（M3-B F009，RSC 组装可序列化视图） */
   delivery: DeliverySurfaceData;
+  /** insight 对照账本真数据（M4 F009，RSC 组装可序列化视图） */
+  insight: InsightSurfaceData;
 }
 
 export default function ProjectDetail({
@@ -307,6 +313,12 @@ export default function ProjectDetail({
         <DeliveryEnv
           projectId={projectId}
           data={project?.delivery ?? EMPTY_DELIVERY_SURFACE}
+        />
+      ) : env === 'insight' ? (
+        // M4 F009：insight 对照账本接真 prop（mock/env-insight.ts 已退役）；project null → 空态
+        <InsightEnv
+          projectId={projectId}
+          data={project?.insight ?? EMPTY_INSIGHT_SURFACE}
         />
       ) : (
         <Surface projectId={projectId} />

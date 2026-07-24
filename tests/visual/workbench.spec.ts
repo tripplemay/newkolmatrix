@@ -83,7 +83,14 @@ test('project env=insight visual baseline', async ({ page }) => {
   await page.goto('/admin/campaigns/xg?env=insight', {
     waitUntil: 'domcontentloaded',
   });
+  // M4 F009 接真后的基线态 = 对照表诚实占位 + 证据缺口真值（attribution.gaps）：
+  // 空态/缺口文案硬断言使「数据源整个消失 / 组装层回归」都超时硬红，不静默拍空白。
   await page.getByText('证据缺口').first().waitFor({ timeout: 30_000 });
+  await page.getByText('目标曝光').first().waitFor({ timeout: 30_000 }); // 对照表真行
+  await page
+    .getByText('触达（reach）无回传源，本期无法计入')
+    .first()
+    .waitFor({ timeout: 30_000 }); // gaprow 真值（本批 reach 恒无源）
   await shot(page, 'project-insight.png');
 });
 

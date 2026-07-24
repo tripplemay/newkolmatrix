@@ -78,7 +78,7 @@
       "title": "V8 项目级对照账本接真（env-insight mock 退役）+ 分享闸门真链",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P5/P7：数据源切真（loadInsightSurfaceData RSC 组装，roi.compute/attribution.gaps 真值）；env-insight.ts 退役；envs/insight/index.tsx 分享 stub 替换真链。spec §6 UI 四段约束。",
       "acceptance": "ui-inventory V8 19 元素逐处保持（对照表 4 列三值三样式差异列不得压二态 / 证据缺口卡 gaprow ×N 诚实边界 = attribution.gaps 真值 / 渠道 BarChart 5 柱 / 受众 donut 150 中心叠加读数 + legend / retro 卡 / 采纳结论 internal 无弹窗 / 🚪 生成对外分享报告红 gate scope=project / 底部宣示）；反向 guardrail 保持（无原型外新增区块）；ROI/差异值 = roi.compute 真值（分子缺显证据不足）；分享经真闸门链（POST 发起→GET 详情→confirm→execute，无 stub 残留 grep 证）；空态语义保留；env-insight.ts 退役登记（mock/index.ts 表更新）；视觉基线逐处对账重生（§4.5 序 + 三连稳）；两视口实测"
     },

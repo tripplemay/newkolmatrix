@@ -37,6 +37,7 @@ import {
   type AttributionGapsResult,
 } from 'lib/domain/attribution-gaps';
 import { computeRoi, type RoiComputeResult } from 'lib/domain/roi-compute';
+import { ATTRIBUTION_GAP_LABEL } from 'lib/display/insight-format';
 
 /** 长文周报模型路由插座（NFR-P8：长文→大模型；未配则沿网关默认 chat 模型）。 */
 export const REPORT_CHAT_MODEL =
@@ -135,15 +136,9 @@ const SYSTEM_PROMPT = [
   '结构建议：本期概况（花费口径如实标注）→ 各项目要点 → 证据缺口与下一步。篇幅 300-600 字。',
 ].join('\n');
 
-/** 缺口原因码 → 人类可读行（草案与固定降级草案共用，单一文案源）。 */
+/** 缺口原因码 → 人类可读行（与 V8 gaprow 同一文案源：display/insight-format）。 */
 function describeGapLine(g: AttributionGapsResult): string[] {
-  const LABEL: Record<string, string> = {
-    REACH_ABSENT: '触达（reach）无回传源，本期无法计入',
-    CONVERSIONS_ABSENT: '转化（conversions）无回传源，本期无法计入',
-    SPEND_COMMITTED_ONLY: '花费为报价承诺额（尚未实际放款），非实际支出',
-    SPEND_ABSENT: '花费无可核真源（无已放款项与承诺报价）',
-  };
-  return g.gaps.map((gap) => LABEL[gap.reason] ?? gap.reason);
+  return g.gaps.map((gap) => ATTRIBUTION_GAP_LABEL[gap.reason] ?? gap.reason);
 }
 
 /** 事实段组装（起草 prompt 与降级固定草案的共同数据源）。 */

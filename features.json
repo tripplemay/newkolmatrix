@@ -15,7 +15,7 @@
       "title": "roi.compute 纯函数（domain）+ D20 变异测试",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P1/P2：输入 spend + 目标（targetExposure/actualExposure）→ ROI + 目标差异 + 达成方向（up/down/flat 三值，供 V8 三值三样式）。分子缺 → roi=null + insufficient_evidence，绝不填 0。三处复用铁律：V8/V12 页面 / compute_roi 工具 / weekly-draft 例程。",
       "acceptance": "纯函数无 DB 读（ctx 传入）；ROI 分子（reach/conversions/actualExposure）缺失 → roi=null + basis=insufficient_evidence（绝不填 0/不猜）；目标差异 + 达成方向三值（up/down/flat）逐值可分支（V8 三值三样式数据源）；spend 缺失与 spend=0 语义可区分；全矩阵单测（分子齐/缺组合 + 达成方向三值）；D20 变异测试（破坏诚实降级如分子缺时强行返 roi=0 或正数 / 达成方向恒 up → 测试翻红）；三处复用铁律注释就位"
     },

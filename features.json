@@ -15,7 +15,7 @@
       "title": "deliveryCheck.row 纯函数（domain 层）+ D20 变异测试",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P5：输入 Deal + Deliverables（+相关 Signal），输出每条件齐/缺/不适用 + ready（全部必需条件 met）+ 缺口清单。三处复用铁律：V7 台账 / check_deliverables 工具 / payout 服务端校验。",
       "acceptance": "纯函数无 DB 读（ctx 传入）；全矩阵单测（五条件 × 四态 + required/na 组合，含 na 不计入 ready 判定的正例与 missing 阻断 ready 的负例）；缺口清单逐条可分支（调用方据此渲染「缺什么显什么」）；D20 变异测试（破坏 ready 判定如 na 压成 met / missing 放行 → 测试翻红）；三处复用铁律注释就位（页面/工具/服务端校验同一函数）"
     },

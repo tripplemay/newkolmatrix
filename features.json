@@ -69,7 +69,7 @@
       "title": "create_share_link outbound 工具 + 闸门（scope project/quarterly）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P4：class=outbound（白名单第 6 工具）；async buildHarm 三要素（可见范围 scope / 有效期 expiresAt / 「链接一经生成即暴露」红标，architecture §9.3.1）；执行 = 消费票 → mock ShareLinkService → ShareLink 落库（gateLogId 非空 + tokenHash 明文不落库）+ irrev 留痕同事务；幂等键 = PendingAction.id。",
       "acceptance": "create_share_link 注册且挂 insight 人格；class=outbound + async buildHarm 三行（可见范围/有效期/「一经生成即暴露」红标）；无令牌 → pending 信封（副作用零发生：无 ShareLink 行、无 SHARE_CREATED_MARKER）；执行后 ShareLink 落库 + gateLogId 非空 + tokenHash 存在（明文 token 仅 execute 响应现一次，DB 只存 hash）+ irrev 留痕同事务；scope project 带 projectId / quarterly 跨项目；失败 → 无 irrev 行 + 业务回滚；幂等重入不双建；P4 断言：零真实公开暴露（mock 观测标记）"
     },

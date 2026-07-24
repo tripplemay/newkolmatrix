@@ -19,6 +19,7 @@ import { checkDeliverablesTool, trackDeliveryTool } from './delivery-tracking';
 import { confirmBriefGoalTool } from './confirm-brief-goal';
 import { draftReportTool } from './draft-report';
 import { computeRoiTool } from './compute-roi';
+import { createShareLinkTool } from './create-share-link';
 import type { ToolDefinition } from './types';
 
 const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
@@ -39,6 +40,7 @@ const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
   confirmBriefGoalTool as unknown as ToolDefinition<never, unknown>, // M3-B F011（internal，brief 目标确认写入口）
   draftReportTool as unknown as ToolDefinition<never, unknown>, // M4 F006（internal，周报起草落库——只起草不采纳）
   computeRoiTool as unknown as ToolDefinition<never, unknown>, // M4 F005（internal，ROI 对账只读 = roi.compute + attribution.gaps 产物）
+  createShareLinkTool as unknown as ToolDefinition<never, unknown>, // M4 F008（outbound 白名单第 6，对外分享过闸门——链接一经生成即暴露）
 ];
 
 let registered = false;

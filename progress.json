@@ -1,12 +1,12 @@
 {
-  "status": "fixing",
+  "status": "reverifying",
   "user_goal": "交付域立真：Deal/Deliverable/GameKey/Payout 四表 + deliveryCheck 条件核对 + payout/key 两个 outbound 闸门（零真实资金动作）+ V7 台账接真 + →delivery/→insight 守卫真判 + backlog 两条消解",
   "total_features": 12,
   "completed_features": 12,
-  "fix_rounds": 0,
+  "fix_rounds": 1,
   "current_sprint": "M3-B-DELIVERY",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-24T04:25",
+  "last_updated": "2026-07-24T04:40",
   "reference_docs": [
     "docs/specs/M3-B-DELIVERY-spec.md",
     "docs/test-reports/M3A-reach-crm-signoff-2026-07-23.md",
@@ -22,23 +22,10 @@
     "framework_reviewed": true
   },
   "role_assignments": null,
-  "evaluator_feedback": {
-    "summary": "首轮隔离验收（12 features fan-out，每条独立 evaluator subagent）：11 PASS，1 PARTIAL（F012）。PARTIAL 已过对抗复核 UPHELD——发现属实、非放宽口径可豁免。唯一阻断 = architecture.md 批末新鲜度复核漏 2 处：line 254（顶层架构图 OPS 节）与 line 372（源码目录树 ops/ 节）仍把 escrow/keys 标为『演进 M3-B+/归 M3-B+』（未实装口径），而 M3-B F004 已在 ops/partner/ mock 实装，且同文档 §9.8/§10.3/§14 已翻牌为 ✅ F004——属批内反向漂移（文档自我矛盾），F012 acceptance 明列此复核项。产品代码 + 代码层/L1/浏览器实测/视觉 CI 权威门全 PASS，无产品缺陷。",
-    "pass_count": 11,
-    "partial_count": 1,
-    "fail_count": 0,
-    "issues": [
-      {
-        "feature_id": "F012",
-        "result": "PARTIAL",
-        "description": "architecture.md 批末新鲜度复核不完整：line 254 与 line 372 仍把 escrow/keys 标为『演进 M3-B+』/『归 M3-B+』（未实装未来态），而本批 F004 已 mock 实装（src/lib/ops/partner/ = MockEscrowPartner + MockKeyDistributor），且同一文档 line 1307/1313/1437 已承认『✅ M3-B F004 mock』——顶层架构图与源码目录树漏翻牌，文档内部自相矛盾。属『已实装却标未实装』批内反向漂移；F012 acceptance 逐字含『批末新鲜度复核（grep 陈旧计数/未实装残留/演进 M3 标记）』，此为显式验收项且未达成。对抗复核 UPHELD（三点取证全属实，证伪角度全灭）。判 PARTIAL 而非 FAIL——产品代码无缺陷、escrow/keys mock 实装正确可运行。修复仅需翻牌 L254/L372 两处 escrow/keys（对齐 §9.8 的 ✅ M3-B F004 mock 口径；share 保持未来态正确，不动），产品代码不动。",
-        "steps_to_reproduce": "grep -n '演进 M3-B\\|归 M3-B' docs/dev/architecture.md → 命中 254（OPS 节 escrow/keys/share）与 372（目录树 escrow · keys · share）；对照 ls src/lib/ops/partner/（mock-escrow.ts + mock-key-distributor.ts 在场）与 architecture.md L1307『escrow/keys 接口 + mock ✅ M3-B F004』确认漂移。"
-      }
-    ]
-  },
-  "generator_handoff": "building 完成 12/12（快车道串行；无 executor:evaluator 条目，本 handoff 供验收取证用）。\n■ 新增可跑命令：npm run delivery:e2e（交付闭环 24 断言，mock 恒定无 REAL 分支）· npm run f009:viewport（V7 两视口 + 反向 guardrail，需先 build + node scripts/serve-standalone.mjs）· npm run f012:colormode（跨标签页深浅色同步，同前置）· 既有 npm run gate:smoke / reach:e2e 未受影响。\n■ 验收前置：本地 D-H 清态 + npm run db:migrate（新迁移 20260723235106_m3b_delivery_four_tables）；集成测各自建夹具租户（test-tenant-m3b-*）自清理，无需 seed。\n■ P1 零真实资金动作取证点：ops/partner 恒 mock（RELEASED_MARKER='payout:RELEASED' / DISTRIBUTED_MARKER='distribute_keys:DISTRIBUTED' 计数），全批无 REAL 分支、无真实付款/发 key 外呼。\n■ 已知本地非阻塞项：`npx playwright test` 的 dashboard(en-today) 一张在**本地 mac** 可能翻红——今天页 feed 含相对时间标签「N 小时前」，本地长寿命 dev DB 的历史 OperationLog 行会随时间流逝改变标签（实测 4366px 差异，仅该区域）。CI 用 fresh DB + linux 基线，F010/F011 两次 CI 视觉门均绿；已记 proposed-learnings 待确认。delivery 那张基线本批已按 §4.5 重生序重生 + 三连稳。\n■ M3-A 结转 soft-watch 处置：F003-low-2（幂等重入 mocked 硬编码）已修；F002-XFF（右起首个非代理段）已转正 + 3 条回归测试；F004-low-1（ingest 四步事务）已包 $transaction；F003-low-1（resend 超时非真 abort）**未修**——SDK v6 实测不接收 signal、不暴露 fetch 注入点，已在 resend-sender.ts 明文标注局限 + idempotencyKey 缓解，继续记 soft-watch。",
+  "evaluator_feedback": null,
+  "generator_handoff": "fixing round1 完成（F012 唯一 PARTIAL）：翻牌 docs/dev/architecture.md L254（顶层架构图 OPS 节）+ L372（源码目录树 ops/ 节）两处 escrow/keys——从『演进 M3-B+/归 M3-B+』改为『partner(escrow/keys) mock ✅ M3-B F004；真实现归 M5』，对齐同文档 §9.8/§10.3/§14 已有口径。share 保持未来态（改标 M4）不动。产品代码零改动。grep 复核：escrow/keys 陈旧标记零命中；剩余 M3-B+ 标记全指真未来项（真入站回复/批量发信/partner 入站回调源）。\n■ 复验入口：grep -n '演进 M3-B\\|归 M3-B' docs/dev/architecture.md（应仅剩真未来项）；对照 L1307/L1313/L1437 确认文档不再自我矛盾。\n■ 注：首轮验收的 evaluator 探针已撤下（依赖 dev tenant 非 CI-safe，见 commit 49308c1）；回归套件 = Generator 自己的 12 个 M3-B 测试（fixture 租户），本机 tsc=0 / 775 测试绿、CI 49308c1 全绿。",
   "session_notes": {
-    "Andy": "【M3-B-DELIVERY building 完成 12/12 · 2026-07-23 · 快车道串行】\n■ 串行实现（未并行 subagent）：会话级全局指令限制主动派发 Agent 工具；12 条 feature 逐条独立 commit + 独立 CI，每条 CI 绿才进下一条，铁律 1/5 均满足。\n■ 要害实现点：F002 deliveryCheck 是单一真相（src 内 checkDeliveryRow 唯一调用点在 lib/delivery/check.ts 装配壳，页面/工具/服务端硬闸三处都经它）· F005 payout 的 buildHarm 与 execute 共用 resolveAndAssertReady，不存在「披露一套规则、执行另一套」的缝 · F010 五条流转自此全真判，DEPENDENCY_NOT_IMPLEMENTED 已从联合类型删除（穷举断言为证）· F003 Deal 生成只在 commit_quote 一处接线（P2）。\n■ 踩坑记录：① Deal 有 @@unique[projectId,kolId]，集成测造多笔 Deal 必须每笔独立 KOL；② 格式化 hook 会重排 import，用 python 字符串替换补 import 时要先核对实际文件内容；③ 视觉基线 --update-snapshots=all 会顺带重写无关基线（creator-drawer/en-today），须 git checkout 还原只留目标那张；④ F009 首推 CI 视觉门红 = 已知模式（mac 基线更新、linux 未重生），走 update-visual-baselines workflow + pull 回即修复。\n■ 验收建议入口：npm run delivery:e2e（一条命令覆盖 F003/F005/F006/F008/F010 主链）+ docs/dev/architecture.md §5.2/§5.3①③/§5.4/§7.2.1/§9.8/§10.3/§11.4/§14 已翻牌，可对账 as-built。",
+    "Andy": "【M3-B-DELIVERY verify→fixing→reverifying · 2026-07-24 · 快车道】\n■ 首轮 fan-out 验收：12 features 各一隔离 evaluator（分波起，受 pty fork 上限限制，完成即 TaskStop 释放）→ 11 PASS / 1 PARTIAL（F012 文档漂移）/ 0 FAIL；F012 过对抗复核 UPHELD。\n■ 踩坑：evaluator fan-out 产出的探针文件走 dev tenant，本地绿 CI 红（M3-A 教训重演）——已撤下 9 个探针（含 F007 evaluator 自行 commit 的 2 个），证据留报告，回归套件用 Generator 自己的 fixture-租户测试。\n■ fixing round1：F012 = 纯文档漂移，翻牌 architecture.md L254/L372 两处 escrow/keys（产品码不动）。\n■ 待复验：reverifying 只需复核这两行 + grep 无残留即可判 F012 PASS → 全 12 PASS → signoff → done。",
     "Reviewer": null,
     "Mark": null
   },

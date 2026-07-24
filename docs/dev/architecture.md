@@ -251,7 +251,7 @@ flowchart TB
             DOMAIN["domain/（演进 M1）：健康度/匹配分/守卫/CRM 推断/ROI"]
             SIG["signals/（✅ M3-A F004）：normalize + ingest"]
             DATA[db/prisma.ts]
-            OPS["ops/（部分实装）：email ✅ M3-A F003；escrow/keys/share 演进 M3-B+"]
+            OPS["ops/（部分实装）：email ✅ M3-A F003；partner(escrow/keys) mock ✅ M3-B F004；share 演进 M4"]
         end
     end
 
@@ -369,7 +369,7 @@ src/
 │   ├── env.ts                              [新建](演进) serverEnv 集中校验（§13.2）
 │   ├── signals/                            [已建](M3-A F004) normalize.ts + ingest.ts
 │   ├── jobs/                               [新建](演进 M1) scheduler + routines
-│   └── ops/                                [部分已建](M3-A F003) email/（EmailSender + Resend/Mock 双实现）；escrow · keys · share 归 M3-B+
+│   └── ops/                                [部分已建] email/（M3-A F003：EmailSender + Resend/Mock 双实现）· partner/（M3-B F004：EscrowPartner + KeyDistributor，仅 mock，真实现归 M5）；share 归 M4
 ├── contexts/ConfiguratorContext.ts         [已建]
 ├── hooks/                                  [已建]
 ├── variables/charts.ts                     [已建] chartOptions 预设复用源

@@ -156,9 +156,16 @@ afterAll(async () => {
 });
 
 describe('注册表（F006 注册表化口径延续）', () => {
-  it('ROUTINES 含 kol-sync @ 0 3 * * *（三例程错峰）', () => {
+  it('ROUTINES 含 kol-sync @ 0 3 * * *（与其余例程错峰）', () => {
     const names = ROUTINES.map((r) => r.name);
-    expect(names).toEqual(['health-scan', 'nightly-screen', 'kol-sync']);
+    // M4 F011 起注册表含 weekly-draft——本断言只钉 kol-sync 自身在场与错峰，
+    // 全量注册表清单归各例程测试各自断言（weekly-draft-routine.test.ts）
+    expect(names).toContain('kol-sync');
+    expect(names.slice(0, 3)).toEqual([
+      'health-scan',
+      'nightly-screen',
+      'kol-sync',
+    ]);
     expect(ROUTINES[2].cron).toBe(KOL_SYNC_CRON);
     expect(KOL_SYNC_CRON).toBe('0 3 * * *');
   });

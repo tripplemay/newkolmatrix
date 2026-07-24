@@ -258,7 +258,10 @@ export async function draftWeeklyReport(
 
   let draftContent: string;
   let degraded = false;
-  if (!hasGatewayCredentials()) {
+  // 降级判定只对默认网关 caller 生效：注入缝传入的自定义 llm（单测 mock）不依赖凭据，
+  // 必须无条件调用——否则 CI（无 AIGCGATEWAY_*）下 mock 测试会被静默改道降级分支
+  //（2026-07-24 CI 红一轮实证）。
+  if (llm === defaultLlmCaller && !hasGatewayCredentials()) {
     degraded = true;
     draftContent = fixedFallbackDraft(period, lines);
     console.warn(

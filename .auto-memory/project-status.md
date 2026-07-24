@@ -4,10 +4,9 @@ description: 项目当前状态快照（覆盖写，≤30 行）— 当前批次
 type: project
 ---
 ## 当前批次
-- **M3-B-DELIVERY 首轮验收完成 → fixing（2026-07-24，快车道）** — 12 features fan-out 隔离验收：**11 PASS，1 PARTIAL（F012）**，0 FAIL。F012 PARTIAL 经对抗复核 UPHELD：唯一阻断 = architecture.md line 254（顶层架构图 OPS 节）/ line 372（源码目录树）仍把 escrow/keys 标「演进 M3-B+/归 M3-B+」，而 F004 已 mock 实装（`ops/partner/`）+ 同文档 §9.8/§10.3/§14 已翻牌——批内反向漂移，F012 acceptance 显式含此复核项。**修法：翻牌 L254/L372 两处 escrow/keys（share 保持未来态不动），产品代码不动。** 报告全在 `docs/test-reports/M3B-F0*-verify-*.md` + `M3B-F012-recheck-*.md`
-- **building 完成 12/12（2026-07-23）** — 交付域立真：四表 + `deliveryCheck` 纯函数（三处复用）+ `dealAdvance` 资金状态机 + `ops/partner` mock 适配器（**零真实资金动作**）+ payout/distribute_keys 两 outbound 闸门（**服务端二次校验无绕过**）+ delivery 两 internal 工具 + 交付登记三端点 + V7 台账接真 + →delivery/→insight 真判（五流转自此全真判）+ backlog 两条消解。spec `docs/specs/M3-B-DELIVERY-spec.md`
-- **M3-A-REACH-CRM done ✅ 已上线**（prod 真投递 + webhook 闭环实证）；M0→M2-C 全 done ✅；下批 M4-INSIGHT
-- 验收入口：`npm run delivery:e2e`（24 断言全链）· `npm run f009:viewport` · `npm run f012:colormode`（后两者需 build + standalone）
+- **M3-B-DELIVERY done ✅（2026-07-24，快车道，fix_rounds=1）** — 交付域立真闭环全验收：**12/12 PASS**（首轮 11 PASS + F012 PARTIAL 文档漂移→对抗复核 UPHELD→fixing 翻牌 architecture.md L254/L372→reverify PASS）。四表 + `deliveryCheck` 纯函数（三处复用）+ `dealAdvance` 资金状态机 + `ops/partner` mock 适配器（**零真实资金动作**）+ payout/distribute_keys 两 outbound 闸门（**服务端二次校验无绕过**）+ delivery 两 internal 工具 + 交付登记三端点 + V7 台账接真 + →delivery/→insight 真判（五流转自此全真判）+ backlog 两条消解。signoff `docs/test-reports/M3B-DELIVERY-signoff-2026-07-24.md`；验收入口 `npm run delivery:e2e`
+- **M3-B 尚未部署**（done 但未 go-live；deploy 由用户手动触发 deploy-prod workflow，本批无新增 env——partner 恒 mock）
+- **M3-A-REACH-CRM done ✅ 已上线**（prod 真投递 + webhook 闭环实证）；M0→M2-C 全 done ✅；**下批 M4-INSIGHT**（ROI/周报/对外分享 + →insight 消费）
 
 ## 已上线
 - `https://newkol.guangai.ai` 跑 **M3-A @ `a2751fd71b7572de276b0b7fc70ad8065c831810`**；回滚=deploy-prod 填 `42bacb3dda7aebfdd71bc4a859987d7d2a9ee717`

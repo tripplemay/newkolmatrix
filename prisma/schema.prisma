@@ -150,6 +150,8 @@ model Project {
   matchCandidates MatchCandidate[] // M2-A F001：候选池反向关系
   outreachThreads OutreachThread[] // M3-A F001：触达线程反向关系
   deals           Deal[] // M3-B F001：交易反向关系
+  metricSnapshots MetricSnapshot[] // M4-INSIGHT F001：ROI 底表反向关系
+  weeklyReports   WeeklyReport[] // M4-INSIGHT F001：项目级复盘反向关系
 
   @@index([tenantId])
   @@index([gameId])
@@ -621,6 +623,90 @@ model Payout {
 
   @@index([tenantId])
   @@index([dealId])
+}
+
+// ───────────────────────── 洞察平面（M4-INSIGHT F001，spec §4 / architecture :475-477）─────────────────────────
+//
+// RLS：单租户 dev 不建 RLS policy（AGENT-FOUNDATION D4；既有 21 表同口径），M5 真实认证时统一补。
+// 本批三表沿同一例外口径——理由记录在 docs/specs/M4-INSIGHT-spec.md §4（database-patterns §8 要求的显式登记）。
+
+/// 分享可见范围（M4-INSIGHT 裁决 #3 两 scope）：project = 项目级对照账本（V8）/ quarterly = 跨项目季度洞察（V12）。
+enum ShareLinkScope {
+  project
+  quarterly
+}
+
+/// ROI 底表（M4-INSIGHT F001，P1/P3 诚实降级铁律）。spend = 真源聚合（Payout(released) 优先，
+/// 无则 Quote(committed)，spendSource 标注口径 payout/quote/none；仅 USD 计入，沿 budgetUsd 口径）。
+/// reach/conversions/roi 本批恒 null（真回传源属平台/partner 入站，M5）——**绝不填 0 / 不猜 ROI**，
+/// 缺口由 domain/attribution-gaps.ts 如实标注。本批 on-read 装配为主（lib/insight/，沿 delivery/check.ts
+/// 先例），本表为 M5 快照持久化预留（写入口最小实装，P3 不焊死取数方式）。
+model MetricSnapshot {
+  id       String @id @default(cuid())
+  tenantId String
+
+  projectId   String
+  date        DateTime // 快照时刻/日
+  spend       Decimal? @db.Decimal(14, 2) // 真源聚合；无 payout/quote 时 null（诚实降级）
+  currency    String? // ISO 4217，如 USD
+  spendSource String? // 口径标注：payout / quote / none
+  reach       Int? // M5 回传，本批恒 null
+  conversions Int? // M5，恒 null
+  roi         Float? // 分子缺 → 恒 null（P1 铁律：绝不填 0），M5 有真分子后填
+
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([projectId, date])
+}
+
+/// 周报（M4-INSIGHT F001，P6/P10 双态承载）。projectId null = 跨项目周报（V12「采纳为周报」）/
+/// 非空 = 项目级复盘（V8「采纳结论」）。draftContent = LLM 草案长文（draft_report 经 gateway 起草，
+/// 无凭据降级固定草案明示）。采纳 = internal 动作（P5：置 adopted=true + adoptedAt，无 PendingAction）。
+model WeeklyReport {
+  id       String @id @default(cuid())
+  tenantId String
+
+  projectId    String? // null=跨项目（V12）/ 非空=项目复盘（V8），P10
+  period       String // 周期串，如 2026-W30
+  draftContent String // LLM 草案长文
+  adopted      Boolean   @default(false)
+  adoptedAt    DateTime?
+  generatedBy  String    @default("insight")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([projectId])
+}
+
+/// 对外分享链接（M4-INSIGHT F001，P4 接口先行 + mock）。生成必经 create_share_link outbound 闸门
+/// （白名单第 6 工具，harm 含「链接一经生成即暴露」红标 §9.3.1）→ gateLogId 必非空。
+/// token 明文仅 execute 响应出现一次，DB 只存 tokenHash（ADR-25 先例）。payloadRef 存内容引用不存明文快照。
+/// projectId 软引用不强 FK（D13 先例）：分享一经生成即暴露、记录不随 Project 删除消失（对外暴露
+/// 事实先于且独立于项目生命周期）；scope=project 时非空由应用层保证（沿 OutreachMessage.gateLogId 口径）。
+/// 本批 mock ShareLinkService 零公开暴露，真实公开分享页/CDN → M5。
+model ShareLink {
+  id       String @id @default(cuid())
+  tenantId String
+
+  projectId String? // 软引用 → Project.id（scope=project 非空；quarterly 跨项目可空）
+  scope     ShareLinkScope
+  payloadRef String // 被分享内容引用，不存明文快照
+  tokenHash String? // 访问 token hash（明文不落库，ADR-25）
+  expiresAt DateTime?
+  revokedAt DateTime?
+  gateLogId String? // → PendingAction.id（软引用；生成经闸门必非空）
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([projectId])
 }
 
 // ───────────────────────── 运行时表（闸门 / 留痕 / 交接）─────────────────────────

@@ -60,7 +60,7 @@
       "title": "ops/share 适配器（ShareLinkService 接口 + mock）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P4：接口 + mock 实现（SHARE_CREATED_MARKER 观测标记，零公开暴露）；env 选择器沿 ops/partner 范式（恒 mock，prod 不 fail-fast，配非 mock provider 明示拒绝）。",
       "acceptance": "ops/share 接口定义 + mock 实现两件；mock 副作用有可观测标记（SHARE_CREATED_MARKER，沿 RELEASED_MARKER 先例）；生成 payloadRef + token（明文 token 仅返回一次，不落库）；env 选择器行为注释明示「本批无真实现，prod 无 key 不 fail-fast；M5 接真才启」（与 ops/email 差异有明文理由）；若走 fetch 必须 AbortController（不抄 resend race，partner 文件头规矩延续）；单测覆盖 mock 契约 + 零外呼断言"
     },

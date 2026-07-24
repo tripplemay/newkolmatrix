@@ -156,3 +156,13 @@
 **建议写入：** 坑 1/2 → `framework/patterns/database-patterns.md`（新节：完整性哈希与 JSONB 往返）或 `patterns/testing-env-patterns.md`；坑 3 → `patterns/web-runtime-patterns.md`（Next.js 路由注册副作用）；坑 4 → `patterns/testing-env-patterns.md`（mock 副作用清态）。四条均来自隔离验收抓出、building 自测漏检的真实 critical，价值高。
 
 **状态：** 待确认
+
+## [2026-07-23] Andy/Generator — 来源：M3-B F012 批末视觉门本地翻红
+
+**类型：** 新坑
+
+**内容：** 视觉基线里若包含**相对时间标签**（「N 小时前」）+ 长寿命本地 dev DB，mac 基线会随「重生时刻 → 断言时刻」的自然流逝翻红（M3-B 实测：feed 三行由 17:10 产生，20:00 重生标「2 小时前」、20:30 断言变「3 小时前」→ 4366px 差异）。CI 用 fresh DB 故不受影响，但本地重生—验证之间的时间差会造成「本地红、CI 绿」的误判耗时。建议：视觉夹具页含相对时间的区域，要么在基线环境用固定夹具时间（seed 时写死 createdAt），要么把该区域 mask 掉。
+
+**建议写入：** `framework/patterns/web-runtime-patterns.md` §4（视觉基线章节）
+
+**状态：** 待确认

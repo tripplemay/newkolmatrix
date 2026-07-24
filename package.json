@@ -30,13 +30,15 @@
     "p2:f001": "node scripts/test/p2-cleanup-f001-drawer-close.mjs",
     "p2:f002": "node scripts/test/p2-cleanup-f002-colormode-persist.mjs",
     "p2:f004": "node scripts/test/p2-cleanup-f004-handoff-panel.mjs",
+    "f012:colormode": "node scripts/test/f012-colormode-sync-check.mjs",
     "seed:projects": "node --env-file=.env --import tsx scripts/seed/canonical-projects.ts",
     "seed:visual-kols": "node --env-file=.env --import tsx scripts/seed/visual-kols.ts",
     "routine:health-scan": "node --env-file=.env --import tsx scripts/jobs/run-health-scan.ts",
     "routine:nightly-screen": "node --env-file=.env --import tsx scripts/jobs/run-nightly-screen.ts",
     "routine:kol-sync": "node --env-file=.env --import tsx scripts/jobs/run-kol-sync.ts",
     "ops:normalize-datasource": "node --env-file=.env --import tsx scripts/ops/normalize-datasource.ts",
-    "reach:e2e": "node --env-file=.env --import tsx scripts/test/reach-e2e.ts"
+    "reach:e2e": "node --env-file=.env --import tsx scripts/test/reach-e2e.ts",
+    "delivery:e2e": "node --env-file=.env --import tsx scripts/test/delivery-e2e.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.16",

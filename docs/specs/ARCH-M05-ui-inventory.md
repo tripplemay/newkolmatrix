@@ -74,9 +74,10 @@ eyebrow｜**HalfGauge 64%**（230×130 stroke18 圆头）+ 中央 32px 读数 + 
 **M3-A 新增例外登记（24→26）：** V6-25 报价条款表单 modal（F008 裁决 #1：闸门前置最小输入——金额/币种/交付物/授权范围；人是谈判条款唯一权威输入源，非画布区块）· V6-26 CRM 人工覆盖控件（F009，U4 有限覆盖仅三态，「已确认」不可达）。
 闸门：send_outreach（harm 2 行，**渲染服务端真 harm 不改写**）· commit_quote（harm 3 行同上）。
 
-### V7. Delivery 条件台账（L798-804）— 11 元素
-台账 7 列（DataTable）｜行 who（**纯色方块 av** 非色轮）+名｜sub 交付物｜🔒 note 附注条件渲染｜条件单元 **ok 绿/miss 琥珀/🔒 na 灰三态**（不得压成二态）｜放款金额右对齐 800｜🚪 「放款」红 gate（仅 ready，5 行中 2）｜🔒 「条件未齐」灰字（**替代按钮位，不得改 disabled 按钮**）｜🔒 底部 shield「没有 AI 推荐卡…不提供绕过入口」
-**反向 guardrail：刻意没有 KPI/图表/推荐卡/批量放款——一律不得补。**闸门：payout（harm 3 行 + 资金 irrev）。
+### V7. Delivery 条件台账（L798-804）— 11 元素（M3-B F009 接真）
+台账 7 列（DataTable）｜行 who（**纯色方块 av** 非色轮；接真后按 kolId 稳定散列取原型五色板，同一创作者恒定同色）+名｜sub 交付物（= Deal 条款快照 deliverables；缺 → 「—」）｜🔒 note 附注条件渲染（人工 note 优先，缺则由缺口清单合成「缺什么显什么」）｜条件单元 **ok 绿/miss 琥珀/🔒 na 灰三态**（不得压成二态；**值 = `deliveryCheck` 真值**，页面不另判）｜放款金额右对齐 800（缺金额 → 「—」，D2 不编）｜🚪 「放款」红 gate（**仅 ready**；真链路 POST /api/delivery/payout → GET 详情 → confirm → execute）｜🔒 「条件未齐」灰字（**替代按钮位，不得改 disabled 按钮**）｜🔒 底部 shield「没有 AI 推荐卡…不提供绕过入口」
+**反向 guardrail：刻意没有 KPI/图表/推荐卡/批量放款——一律不得补。**闸门：payout（harm 3 行 + 资金 irrev，**渲染服务端真 harm 不改写**）。
+**M3-B 新增例外登记（11→11，元素数不变）：** 空态文案走 `DataTable` 既有 `emptyText` 插槽（「还没有交易——报价经确认后自动生成交付条件台账」），**不新增区块**——与 V6 空态同款口径（元素在场语义不变，D2 诚实）。已放款态由 `Payout(released)` 真值驱动（原 mock 本地 paidIds 退役）。
 
 ### V8. Insight 对照账本（L806-817）— 19 元素
 对照表 4 列（指标/原目标灰/实际 navy/差异绿 up 红 down **三值三样式**）｜证据缺口卡 eyebrow「证据缺口 3」+ 🔒 gaprow ×3（诚实归因边界）｜chartcard 渠道（BarChart 5 柱 hi 渐变/rx10/底标签）｜受众构成 donut 150（PieChart donut options，stroke18 圆角段头 −90°）+ 🔒 中心叠加读数「71%/休闲玩家」+ legend 4 行｜retro 卡（渐变淡紫）dlbl+正文｜「采纳结论」实心（internal 无弹窗）｜🚪 「生成对外分享报告」红 gate（**项目级数据范围**——裁决 #3 与 V12 区分 scope）

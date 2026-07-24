@@ -1,16 +1,1 @@
-[
-  {
-    "id": "BL-FE-16",
-    "title": "useColorMode 跨实例不同步（纯读取方收不到深浅色翻转通知）",
-    "description": "src/hooks/useColorMode.ts 每个调用点各持一份独立 useState + 空依赖 useEffect，无任何跨实例订阅原语（grep MutationObserver / addEventListener / createContext / useSyncExternalStore / subscribe 全部零命中）。持有 toggle 的消费者自翻自更新，纯读取方只在挂载那一刻同步一次，活体切换永远收不到通知。P2-CLEANUP F003 首版实现按 acceptance 字面读该 hook，被隔离验收判 PARTIAL 并经对抗复核维持，即由此缺陷所致；F003 最终改用 Tailwind dark: 变体绕开，缺陷本身未修。附带影响：亦未监听 storage 事件，故多标签页之间深浅色不同步（F002 验收报告注 C 独立记录了同一条）。",
-    "decisions": [
-      "缺陷系 DS-FOUNDATION F005 遗留，非 P2-CLEANUP 引入；影响面大于 F003（多消费者 + 多标签页），故不塞进 P2-CLEANUP 修复轮，单独立项",
-      "当前实际暴露面为零：全 src/ 仅两个调用点，navbar 持 toggle 自更新正常，Avatar 全仓零引用不渲染",
-      "修法待 planning 裁决，候选：useSyncExternalStore + 模块级 store / Context Provider / MutationObserver 监听 body.classList；另可一并加 storage 事件监听解决多标签页",
-      "本项目主导范式是 Tailwind dark: 变体（84 个文件），纯样式跟随场景应优先用 CSS 而非订阅 JS 状态——修此 hook 只为真正需要读 isDark 做分支逻辑的场景"
-    ],
-    "confirmed_at": "2026-07-22",
-    "priority": "P2",
-    "source": "P2-CLEANUP F003 验收（docs/test-reports/P2-CLEANUP-F003-verify.md + 对抗复核）"
-  }
-]
+[]

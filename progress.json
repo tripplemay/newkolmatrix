@@ -1,12 +1,12 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "交付域立真：Deal/Deliverable/GameKey/Payout 四表 + deliveryCheck 条件核对 + payout/key 两个 outbound 闸门（零真实资金动作）+ V7 台账接真 + →delivery/→insight 守卫真判 + backlog 两条消解",
   "total_features": 12,
-  "completed_features": 11,
+  "completed_features": 12,
   "fix_rounds": 0,
   "current_sprint": "M3-B-DELIVERY",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-23T20:18",
+  "last_updated": "2026-07-23T20:35",
   "reference_docs": [
     "docs/specs/M3-B-DELIVERY-spec.md",
     "docs/test-reports/M3A-reach-crm-signoff-2026-07-23.md",
@@ -19,13 +19,13 @@
     "spec": "specs/M3-B-DELIVERY-spec.md",
     "test_cases": null,
     "signoff": null,
-    "framework_reviewed": false
+    "framework_reviewed": true
   },
   "role_assignments": null,
   "evaluator_feedback": null,
-  "generator_handoff": null,
+  "generator_handoff": "building 完成 12/12（快车道串行；无 executor:evaluator 条目，本 handoff 供验收取证用）。\n■ 新增可跑命令：npm run delivery:e2e（交付闭环 24 断言，mock 恒定无 REAL 分支）· npm run f009:viewport（V7 两视口 + 反向 guardrail，需先 build + node scripts/serve-standalone.mjs）· npm run f012:colormode（跨标签页深浅色同步，同前置）· 既有 npm run gate:smoke / reach:e2e 未受影响。\n■ 验收前置：本地 D-H 清态 + npm run db:migrate（新迁移 20260723235106_m3b_delivery_four_tables）；集成测各自建夹具租户（test-tenant-m3b-*）自清理，无需 seed。\n■ P1 零真实资金动作取证点：ops/partner 恒 mock（RELEASED_MARKER='payout:RELEASED' / DISTRIBUTED_MARKER='distribute_keys:DISTRIBUTED' 计数），全批无 REAL 分支、无真实付款/发 key 外呼。\n■ 已知本地非阻塞项：`npx playwright test` 的 dashboard(en-today) 一张在**本地 mac** 可能翻红——今天页 feed 含相对时间标签「N 小时前」，本地长寿命 dev DB 的历史 OperationLog 行会随时间流逝改变标签（实测 4366px 差异，仅该区域）。CI 用 fresh DB + linux 基线，F010/F011 两次 CI 视觉门均绿；已记 proposed-learnings 待确认。delivery 那张基线本批已按 §4.5 重生序重生 + 三连稳。\n■ M3-A 结转 soft-watch 处置：F003-low-2（幂等重入 mocked 硬编码）已修；F002-XFF（右起首个非代理段）已转正 + 3 条回归测试；F004-low-1（ingest 四步事务）已包 $transaction；F003-low-1（resend 超时非真 abort）**未修**——SDK v6 实测不接收 signal、不暴露 fetch 注入点，已在 resend-sender.ts 明文标注局限 + idempotencyKey 缓解，继续记 soft-watch。",
   "session_notes": {
-    "Andy": "【M3-B-DELIVERY planning 完成 → building · 2026-07-23 · 快车道】\n■ 用户裁决：U1 backlog 两条全纳入（BL-BRIEF-GOAL P1 + BL-FE-16 P2）· U2 partner 接口先行+mock 适配器（ADR-17，不碰真钱）· U3 全量一批 12 features。\n■ 12 条 Planner 决策见 spec §3，要害四条：P1 零真实资金动作（连测试目标都不设，比 M3-A 真发信更保守）· P2 Deal 由 committed Quote 生成（对 M3-A commit-quote.ts 的唯一新增接线点）· P6 payout 服务端二次校验（buildHarm 与 execute 各重跑 deliveryCheck，前端渲染了按钮也拒——FR-8.2.4.2 无绕过入口的服务端实现）· P10 goal 写入口零 UI 结构变更（走 Copilot 工具+API，V4 19 元素不动）。\n■ 开工顺序：F001→F002→F003 强依赖串行；F011（brief goal）/F012 前半（useColorMode hook）文件集不重叠可并行 subagent+worktree；F004-F008 依赖 F001-F003；F009 依赖 F002+F005+F008；F010 依赖 F003。\n■ M3-A 结转 soft-watch 4 条列为顺手项（spec §9），不构成 acceptance 阻断。\n■ M3-A 教训带入：闸门类 feature 必须有「HTTP 创建→confirm」全链回归（服务层直调会漏检 undefined-键毒化）；CI 无 dev tenant seed（route 测须下沉服务层+夹具租户）；新视觉基线 CI 首推必红（走 update-visual-baselines workflow + pull 回）。",
+    "Andy": "【M3-B-DELIVERY building 完成 12/12 · 2026-07-23 · 快车道串行】\n■ 串行实现（未并行 subagent）：会话级全局指令限制主动派发 Agent 工具；12 条 feature 逐条独立 commit + 独立 CI，每条 CI 绿才进下一条，铁律 1/5 均满足。\n■ 要害实现点：F002 deliveryCheck 是单一真相（src 内 checkDeliveryRow 唯一调用点在 lib/delivery/check.ts 装配壳，页面/工具/服务端硬闸三处都经它）· F005 payout 的 buildHarm 与 execute 共用 resolveAndAssertReady，不存在「披露一套规则、执行另一套」的缝 · F010 五条流转自此全真判，DEPENDENCY_NOT_IMPLEMENTED 已从联合类型删除（穷举断言为证）· F003 Deal 生成只在 commit_quote 一处接线（P2）。\n■ 踩坑记录：① Deal 有 @@unique[projectId,kolId]，集成测造多笔 Deal 必须每笔独立 KOL；② 格式化 hook 会重排 import，用 python 字符串替换补 import 时要先核对实际文件内容；③ 视觉基线 --update-snapshots=all 会顺带重写无关基线（creator-drawer/en-today），须 git checkout 还原只留目标那张；④ F009 首推 CI 视觉门红 = 已知模式（mac 基线更新、linux 未重生），走 update-visual-baselines workflow + pull 回即修复。\n■ 验收建议入口：npm run delivery:e2e（一条命令覆盖 F003/F005/F006/F008/F010 主链）+ docs/dev/architecture.md §5.2/§5.3①③/§5.4/§7.2.1/§9.8/§10.3/§11.4/§14 已翻牌，可对账 as-built。",
     "Reviewer": null,
     "Mark": null
   },

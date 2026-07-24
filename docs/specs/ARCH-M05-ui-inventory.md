@@ -79,8 +79,9 @@ eyebrow｜**HalfGauge 64%**（230×130 stroke18 圆头）+ 中央 32px 读数 + 
 **反向 guardrail：刻意没有 KPI/图表/推荐卡/批量放款——一律不得补。**闸门：payout（harm 3 行 + 资金 irrev，**渲染服务端真 harm 不改写**）。
 **M3-B 新增例外登记（11→11，元素数不变）：** 空态文案走 `DataTable` 既有 `emptyText` 插槽（「还没有交易——报价经确认后自动生成交付条件台账」），**不新增区块**——与 V6 空态同款口径（元素在场语义不变，D2 诚实）。已放款态由 `Payout(released)` 真值驱动（原 mock 本地 paidIds 退役）。
 
-### V8. Insight 对照账本（L806-817）— 19 元素
-对照表 4 列（指标/原目标灰/实际 navy/差异绿 up 红 down **三值三样式**）｜证据缺口卡 eyebrow「证据缺口 3」+ 🔒 gaprow ×3（诚实归因边界）｜chartcard 渠道（BarChart 5 柱 hi 渐变/rx10/底标签）｜受众构成 donut 150（PieChart donut options，stroke18 圆角段头 −90°）+ 🔒 中心叠加读数「71%/休闲玩家」+ legend 4 行｜retro 卡（渐变淡紫）dlbl+正文｜「采纳结论」实心（internal 无弹窗）｜🚪 「生成对外分享报告」红 gate（**项目级数据范围**——裁决 #3 与 V12 区分 scope）
+### V8. Insight 对照账本（L806-817）— 19 元素（M4 F009 接真）
+对照表 4 列（指标/原目标灰/实际 navy/差异 **三值三样式**：up 绿/down 红/flat·null 中性——**值 = `roi.compute`/`compareGoal` 真值**，页面不另判；分子无源单元显「证据不足」绝不填 0）｜证据缺口卡 eyebrow「证据缺口 N」+ 🔒 gaprow ×N（**= `attribution.gaps` 真值**，诚实归因边界「缺什么显什么」）｜chartcard 渠道（BarChart 5 柱 hi 渐变/rx10/底标签）｜受众构成 donut 150 + 🔒 中心叠加读数 + legend 4 行｜retro 卡（渐变淡紫）dlbl+正文（= `WeeklyReport` 项目级复盘真值；无草案 → 空态文案 + 采纳钮隐藏）｜「采纳结论」实心（internal 无弹窗；真链 POST /api/insight/adopt，已采纳 → disabled 事实态）｜🚪 「生成对外分享报告」红 gate（**项目级数据范围**——裁决 #3 与 V12 区分 scope；真链 POST /api/insight/share → GET 详情 → confirm → execute，**渲染服务端真 harm 不改写**）
+**M4 F009 例外登记（19→19，元素数不变）：** 渠道/受众两图卡数据源 = 平台回传（M5 入站）——本批 data 恒 null → 「待接入」占位（图表实现保留，数据到位零返工；D2 不编数据不删区块）。对照表 4 行按可得指标轴重立（目标曝光/花费·口径后缀/有效转化/ROI），mock 的营销示意行（有效安装等）随 env-insight.ts 退役。空态文案硬断言入视觉 spec（防静默空白）。
 
 ## 四、其余跨项目页
 
@@ -95,8 +96,9 @@ Chakra Drawer 右滑｜dw-head avatar 52+名+small+关闭钮｜dw-badges ×3｜�
 标题｜🔒 lede（素材→解析→喂环节链路句）｜左栏「游戏」列表 ×4（主题彩点+名+N 份素材+on 淡紫；**kbGame URL 化**——裁决 #4）｜kb-dhead（游戏色图标 48+名+2 pill+「重新分析」ghost）｜「素材库 · N 份」｜**UploadZone**（虚线+upload+两行文案）｜mat 行（**按 type 分图标** doc/video/data/image + 名 + 来源日期 + 🔒 **状态二态** done 绿/analyzing 琥珀「解析中…」——异步中间态不得省）｜「策略 Agent 分析出的游戏特点」+spark｜🔒 **kb-prov 溯源行**（ProvenanceTag **inline variant**——裁决 #10）｜卖点 bul ×3｜目标受众 Progress ×3（**游戏主题色**）｜合规红线 ×3（红 shield）｜🔒 kb-use「匹配用受众·触达用卖点·合规用红线」跨 Agent 消费链宣示
 交互：上传→插 analyzing 行+toast→1.1s 转 done+二次 toast（mock 契约层模拟）。
 
-### V12. 洞察（跨项目，L864-879）— 14 元素
-标题｜🔒 lede（对外分享需单独确认句）｜KPI ×4（花费无 delta）｜ROI 走势 chartcard（LineAreaChart 8 点）｜各项目 ROI chartcard（🔒 **badge 文字型「料理次元领先」**非 %，不得统一成数字；BarChart 4 柱）｜sec-head+meta｜表 5 列（DataTable）｜行 avatar+名/花费/触达/转化（右对齐 tabular-nums）/🔒 ROI 二色（绿/**琥珀**非红）｜retro 卡「洞察 Agent · 本周周报草案」+正文｜「采纳为周报」实心（internal）｜🚪 「生成对外分享报告」红 gate（**季度级数据范围**——裁决 #3）
+### V12. 洞察（跨项目，L864-879）— 14 元素（M4 F010 接真）
+标题｜🔒 lede（对外分享需单独确认句）｜KPI ×4（🔒 花费无 delta 形态保留；总花费 = USD 真源之和，触达/ROI/转化无源显「证据不足」不填 0）｜ROI 走势 chartcard（LineAreaChart 8 点）｜各项目 ROI chartcard（🔒 **badge 文字型**非 %；BarChart）｜sec-head+meta（N 个在跑项目 = 真项目数）｜表 5 列（DataTable，行 = 真项目按项目分组）｜行 avatar+名/花费（真源或证据不足）/触达/转化（右对齐 tabular-nums）/🔒 ROI 二色（绿/**琥珀**非红——**真值才上色**，证据不足显中性灰不冒充判定）｜retro 卡「洞察 Agent · 本周周报草案」+正文（= `WeeklyReport(projectId=null)` 跨项目真值；无 → 空态文案）｜「采纳为周报」实心（internal；真链 POST /api/insight/adopt）｜🚪 「生成对外分享报告」红 gate（**季度级数据范围**——裁决 #3；真闸门链同 V8）
+**M4 F010 例外登记（14→14，元素数不变）：** ROI 走势 / 各项目 ROI 两图卡无 ROI 历史与真值源（M5 有真分子后填）——本批 data 恒 null → 「待接入」占位（图表实现保留）。页面拆 RSC 薄壳（force-dynamic）+ InsightPageView client 视图；mock/insight.ts 退役。
 
 ### V13. Agent 记录（L880-892）— 10 元素
 标题｜🔒 lede「谁、何时、做了什么…永久可查」｜KPI ×4（**全部无 delta**）｜🔒 筛选 chips ×5（on 实心紫；**runFilter URL 化**——裁决 #4）｜表 4 列（DataTable append-only 流）｜行 时间（nowrap tabular-nums）/Agent（主题色 dot+名）/动作/🔒 类型 pill **四态**（自动完成 gd/需你确认 ac/已拦截 wn/不可逆·已留痕 cr——不得合并）｜🔒 底部 shield「拦截项由对应 Agent 主动停下并说明原因」

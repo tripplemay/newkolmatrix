@@ -63,6 +63,8 @@ npm run agent:smoke       # 柱一 executeTool 直调
 npm run orch:smoke        # 多 Agent 编排框架
 npm run gate:smoke        # AI→人闸门（G1-G8：两步票据 7 态 + 并发竞态 + D20 变异）
 npm run reach:e2e         # 触达 E2E 闭环（起草→审阅→点确认才发送；默认 mock 不外呼）
+npm run delivery:e2e      # 交付 E2E 闭环（条件齐→确认→放款；恒 mock 零真实资金动作）
+npm run insight:e2e       # 洞察 E2E 闭环（装配→ROI 证据不足→周报→采纳→分享闸门；恒 mock 零公开暴露）
 npm run f010:e2e          # hello-agent 端到端浏览器实测（需 dev server + 网关）
 npm run test:visual       # Playwright 视觉回归（dashboard/today + agent-canvas）
 ```

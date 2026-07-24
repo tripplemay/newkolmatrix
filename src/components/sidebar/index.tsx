@@ -7,7 +7,9 @@
 //
 // M2-A F008 — 徽标接真（U4）：GET /api/nav-badges 真计数（today=待办 pending /
 // 项目=Project 计数），client fetch on mount + 路由变化 revalidate；计数 0 → 隐藏；
-// fetch 失败 → 全隐藏不抛错（D2 诚实降级）；洞察徽标退役（无真源不显假数，恢复归 M4）。
+// fetch 失败 → 全隐藏不抛错（D2 诚实降级）；洞察徽标退役（无真源不显假数）。
+// M4 批末复核：洞察域已接真（WeeklyReport 等可作徽标源），但恢复徽标不在 M4 features
+// 范围——恢复与否（及计数口径）留下批产品裁决，不在此私自实装。
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';

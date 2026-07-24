@@ -39,7 +39,8 @@
     "routine:weekly-draft": "node --env-file=.env --import tsx scripts/jobs/run-weekly-draft.ts",
     "ops:normalize-datasource": "node --env-file=.env --import tsx scripts/ops/normalize-datasource.ts",
     "reach:e2e": "node --env-file=.env --import tsx scripts/test/reach-e2e.ts",
-    "delivery:e2e": "node --env-file=.env --import tsx scripts/test/delivery-e2e.ts"
+    "delivery:e2e": "node --env-file=.env --import tsx scripts/test/delivery-e2e.ts",
+    "insight:e2e": "node --env-file=.env --import tsx scripts/test/insight-e2e.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.16",

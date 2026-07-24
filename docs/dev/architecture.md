@@ -399,7 +399,7 @@ tests/visual/                               [已建] dashboard.spec.ts · agent-
 
 > PRD §11 给出了 `Kol` / 知识平面 / `OperationLog` 的字段级契约，并明确 `Project` / `ProjectKol` / Match 组合 / Outreach / Deal / Payout 的**字段级 schema 留后续批次 spec 定义**。本章给出**目标态概念模型**：实体、职责、关系、状态机。
 >
-> **v1.2 校准（M1-C 修订）**：本章 §5.2–§5.5 除已标注者外仍以演进目标为主——当前 `prisma/schema.prisma` 21 个模型（§7.2.1 为实装权威）。**已实装例外**：§5.3① 环节游标（M1-A/M1-B）与 §5.4 的 health.compute / envGuards（M1-A）。概念层变更需显式修订本文（R13）。
+> **v1.2 校准（M1-C 修订，M4 更新计数）**：本章 §5.2–§5.5 除已标注者外仍以演进目标为主——当前 `prisma/schema.prisma` 24 个模型（§7.2.1 为实装权威）。**已实装例外**：§5.3① 环节游标（M1-A/M1-B）与 §5.4 的 health.compute / envGuards（M1-A）。概念层变更需显式修订本文（R13）。
 
 ### 5.1 领域模块分解
 
@@ -410,7 +410,7 @@ tests/visual/                               [已建] dashboard.spec.ts · agent-
 | match | 筛查/评分/组合 | `MatchPlan` · `PlanKol` · `MatchCandidate` | 批准=internal 不弹框；低置信度入「待裁定」不显裸分 | M2 |
 | reach（CRM） | 对话/报价/跟进 | `OutreachThread` · `OutreachMessage` · `Quote` · `Signal` | CRM 状态事件推断（crmInfer）；发送/报价=outbound | ✅ M3-A |
 | delivery | 条款/交付/放款 | `Deal` · `Deliverable` · `GameKey` · `Payout` | 条件齐才可放款、无绕过；放款/发 Key=outbound | ✅ M3-B |
-| insight | ROI/复盘/周报/分享 | `MetricSnapshot` · `WeeklyReport` · `ShareLink` | 证据缺口诚实标注；对外分享=outbound | M4 |
+| insight | ROI/复盘/周报/分享 | `MetricSnapshot` · `WeeklyReport` · `ShareLink` | 证据缺口诚实标注（分子缺显「证据不足」绝不填 0）；对外分享=outbound（mock 零公开暴露，真分享页归 M5） | ✅ M4 |
 | kol 资产 | 库/溯源/向量 | `Kol`（**已建·完整**） | 契约位 nullable；发现≠执行 | M0 ✅ / M2 消费 |
 | knowledge | 素材/特点 | `Game`（**已建·最小占位**）· `Material` · `GameKnowledge` | 知识溯源非空；supersede 链不物理删 | M1 |
 | audit | 留痕 | `OperationLog`（**已建**） | append-only（当前**应用层约定**，DB 触发器欠账见 §7.7） | M0 ✅ |
@@ -472,9 +472,9 @@ erDiagram
 | `Deliverable` | dealId · kind(content/key/contract/escrow/ad_disclosure) · status(pending/met/missing/na) · evidenceRef · verifiedBy | 对应台账「内容/Key/合同/托管/#ad」五列 |
 | `GameKey` | dealId · keyRef · status(reserved/distributed) · distributedAt | 分发=outbound |
 | `Payout` | dealId · payee · amount · currency · basis · status(prepared/released/blocked) · gateLogId | 放款=outbound，逐笔 |
-| `MetricSnapshot` | projectId · date · reach · spend · conversions · roi | ROI 计算底表 |
-| `WeeklyReport` | tenantId · period · draftContent · adopted · adoptedAt | 采纳=internal |
-| `ShareLink` | projectId · scope · payloadRef · expiresAt · revokedAt · gateLogId | 生成=outbound；scope 区分 project/quarterly（裁决 #3） |
+| `MetricSnapshot` | projectId · date · spend · currency · spendSource · reach · conversions · roi | ✅ M4 F001；ROI 底表——spend 真源聚合（released Payout ＞ committed Quote，spendSource 标口径），reach/conversions/roi 本批恒 null（M5 回传源）；on-read 装配为主（`lib/insight/metric-snapshot.ts`），表为 M5 快照持久化预留 |
+| `WeeklyReport` | tenantId · projectId? · period · draftContent · adopted · adoptedAt | ✅ M4 F001；采纳=internal（幂等，重入不改写 adoptedAt）；projectId null=跨项目周报（V12）/ 非空=项目复盘（V8），P10 双态 |
+| `ShareLink` | projectId? · scope · payloadRef · tokenHash · expiresAt · revokedAt · gateLogId | ✅ M4 F001；生成=outbound（gateLogId 必非空）；tokenHash 明文不落库（ADR-25）；scope 区分 project/quarterly（裁决 #3）；projectId 软引用（暴露事实独立于项目生命周期） |
 
 ### 5.3 状态机集（配变异测试，D20）
 
@@ -535,8 +535,8 @@ pending ──confirm（人）──> executed        （confirmed 枚举值存�
 | `envGuards.canEnter / canAdvance` | Project 聚合 | bool + 原因 | 环节导轨 · 工具层 | M1 |
 | `crmInfer.status` | thread 的 messages+signals+quotes（ctx 传入） | 五态 + override 合成明细 + 越权留痕 | Reach（V6 pill / reach 工具 / signals 例程三处复用） | ✅ M3-A F005（经 `lib/reach/recompute-status.ts` 物化到 `OutreachThread.status`） |
 | `deliveryCheck.row` | Deal + Deliverables（ctx 传入） | 每条件齐/缺/不适用（三态）+ `ready` + 缺口清单（6 类原因码） | Delivery（V7 台账 / `check_deliverables` 工具 / `payout` 服务端二次校验，三处复用） | ✅ M3-B F002（装配壳 `lib/delivery/check.ts`；Signal 未纳入入参的理由见函数文件头） |
-| `roi.compute` | MetricSnapshot + 花费 | ROI · 目标差异 · 达成方向 | Insight | M4 |
-| `attribution.gaps` | 快照 + 回传完整性 | 证据缺口清单（不强行归因） | Insight | M4 |
+| `roi.compute` | 度量事实（spend/分子 + 目标，ctx 传入） | ROI（分子缺 → null + insufficient_evidence，绝不填 0）· 目标差异 · 达成方向三值（up/down/flat；缺数据 null） | Insight（V8/V12 页面 / `compute_roi` 工具 / weekly-draft 例程，三处复用） | ✅ M4 F002（`domain/roi-compute.ts`；ROI 数值口径 = conversions/spend 最小诚实口径，文件头记录为单点可裁决——本批分子恒缺，生产路径恒证据不足） |
+| `attribution.gaps` | 快照 + 回传完整性（ctx 传入） | 证据缺口清单（4 类原因码，不强行归因；无缺口空清单） | Insight（同上三处复用） | ✅ M4 F003（`domain/attribution-gaps.ts`；文案单一源 `display/insight-format.ts`） |
 
 这些函数同时被三处复用：页面数据通道（渲染）、工具层（Agent 调用）、例程（巡检/核对）——**一个真相源**。
 
@@ -664,7 +664,7 @@ PostgreSQL **16** + pgvector（dev：`docker-compose.dev.yml`，宿主端口 543
 
 **D-INTEROP 稳定对外标识（as-built）**：核心实体 `Tenant`/`Kol`/`Project`/`Game` 带 `publicId String @unique @default(cuid())`，`Tenant`/`Project`/`Game` 另带 `slug String? @unique`——为 GEO / 外部 agent 引用留插座；`fieldProvenance`/`dataSource` 兼作对外可信层。JSON-LD 具体字段 = EXTENSION POINT，未实装。
 
-建表节奏：**M0 已建 8 表**（下表）→ as-built 已 21 表（§7.2.1）；§5.2 领域表随环节批次建（M1 project/brief/knowledge 域、M2 match 域、M3 reach/delivery 域、M4 insight 域）。
+建表节奏：**M0 已建 8 表**（下表）→ as-built 已 24 表（§7.2.1；M4-INSIGHT F001 加 MetricSnapshot/WeeklyReport/ShareLink 三表 + ShareLinkScope 枚举，expand-only）；§5.2 领域表随环节批次建（M1 project/brief/knowledge 域、M2 match 域、M3 reach/delivery 域、✅ M4 insight 域）。
 
 ### 7.2 数据模型
 
@@ -906,7 +906,7 @@ export interface ToolContext {
 | `payout` | **outbound** | delivery | `buildHarm` 三行（收款方/金额+币种/依据）；**buildHarm 与 execute 各重跑一次 deliveryCheck，ready=false 一律拒**（FR-8.2.4.2 无绕过入口）；execute = mock EscrowPartner.release（P1 零真实资金动作）+ `Payout prepared→released`(gateLogId 必非空) + Deal 推进 completed，同事务（M3-B F005） |
 | `distribute_keys` | **outbound** | delivery | `buildHarm` 三要素（领取方/数量/「一经发放不可回收」）；execute = mock KeyDistributor + `GameKey reserved→distributed`(gateLogId 必非空) + key 条件置 met；库存不足明示拒绝不部分发放（M3-B F006） |
 
-**目标态 outbound 六工具白名单** = **部分实装**：`send_outreach`（✅）· `commit_quote`（✅ M3-A F006）· `payout`（✅ M3-B F005）· `distribute_keys`（✅ M3-B F006）· `send_bulk_outreach`（M3-C+）· `create_share_link`（M4）。
+**目标态 outbound 六工具白名单** = **6 中 5 已实装**：`send_outreach`（✅）· `commit_quote`（✅ M3-A F006）· `payout`（✅ M3-B F005）· `distribute_keys`（✅ M3-B F006）· `create_share_link`（✅ M4 F008：harm 三要素含「链接一经生成即暴露」红标；本批 mock 通道零真实公开暴露）· `send_bulk_outreach`（M3-C+）。
 
 > **口径分辨**：outbound **语义类别 5 类**（发信 / 报价 / 放款 / 分发 Key / 对外分享），**工具名白名单 6 个**——批量发信独立成工具，因其 harm 必须列全收件人名单。
 
@@ -984,7 +984,7 @@ export function renderToolResult(toolName: string, output: unknown);  // 未注�
 | `get_kol_detail` | 七分区详情（逐区 ProvenanceTag） | 演进（M2-B） |
 | `match_plan` | `MatchPlanCard`（对比矩阵简版卡，type:'match_plan' 路由） | ✅ 已建（M2-A F007） |
 | `gate_confirm` | 待确认动作卡（harm 结构） | 演进（M0.5 UI，见 §9.5） |
-| `compute_roi` | 图表卡（ApexCharts） | 演进（M4） |
+| `compute_roi` | 输出可序列化（JSON 往返无损）供画布；专属图表卡渲染器 = EXTENSION POINT | ✅ 工具已建（M4 F005）；画布渲染走通用回退 |
 | — | 新类型 = 注册一个组件，**不改对话面与运行时**（FR-12.13） | |
 
 > **as-built（M2-A F007 兑现 ADR-28）**：路由键 = 结果 `type` 优先（工具输出携带 `type` 字符串字段，多个工具可共用同一渲染形态）、无 `type` 回退工具名（`search_kols` 输出无 type，行为零变更）；`registerCanvasRenderer(type, component)` 受控 register API 已实装（重名抛错，测试可注入探针组件——`tests/unit/match-tools.test.ts` canvas 组）。
@@ -1011,7 +1011,7 @@ export function renderToolResult(toolName: string, output: unknown);  // 未注�
 
 （⛔ = outbound，经闸门。空 `tools` = EXTENSION POINT，各人格领域工具随 M1–M4 落地时补入。）
 
-**目标态工具子集**（演进，随批次补入 `tools`）：strategy += `parse_material`/`draft_brief`（`compute_health` ✅ M1-B / `confirm_brief_goal` ✅ M3-B F011 已兑现）；~~match += `evaluate_creator`/`match_plan`~~（✅ M2-A F007 已兑现）；~~reach += `draft_email`/`refine_email`/`commit_quote⛔`~~（✅ M3-A F006 已兑现）；reach += `get_active_plan`/`send_bulk_outreach⛔`（M3-B+）；~~delivery += `track_delivery`/`check_deliverables`/`distribute_keys⛔`/`payout⛔`~~（✅ M3-B F005/F006/F007 已兑现）；insight += `compute_roi`/`draft_report`/`create_share_link⛔`；compliance += `check_brand_safety`/`check_platform_compliance`；orchestrator += `list_pending_asks`/`summarize_squad`。
+**目标态工具子集**（演进，随批次补入 `tools`）：strategy += `parse_material`/`draft_brief`（`compute_health` ✅ M1-B / `confirm_brief_goal` ✅ M3-B F011 已兑现）；~~match += `evaluate_creator`/`match_plan`~~（✅ M2-A F007 已兑现）；~~reach += `draft_email`/`refine_email`/`commit_quote⛔`~~（✅ M3-A F006 已兑现）；reach += `get_active_plan`/`send_bulk_outreach⛔`（M3-B+）；~~delivery += `track_delivery`/`check_deliverables`/`distribute_keys⛔`/`payout⛔`~~（✅ M3-B F005/F006/F007 已兑现）；~~insight += `compute_roi`/`draft_report`/`create_share_link⛔`~~（✅ M4 F005/F006/F008 已兑现）；compliance += `check_brand_safety`/`check_platform_compliance`；orchestrator += `list_pending_asks`/`summarize_squad`。
 
 **隔离的两个语义维度**（PRD §9.3）：
 - **横向 = Agent 间分工**（越车道的事交接下游）。越界请求的回应模式已写进 prompt 组装：**不是拒答，而是指路**（「说明不属于你的职责并建议交接给对应专家」）。
@@ -1270,7 +1270,7 @@ export const harmSchema = z.object({
 | 报价 | 金额（带币种）· 交付内容 · 授权范围 · 「承诺后不可撤销」 | `amount` · `currency` · `scope` |
 | 分发 key | 领取方 · key 数量 · 「一经发放不可回收」 | `targets[]` · `quantity` |
 | 放款 | 收款方 · 金额（带币种）· 依据（合同+托管+披露证据）· 「不可逆·逐笔确认」 | `targets[]` · `amount` · `evidence` |
-| 对外分享 | 被分享内容 · **可见范围** · 有效期 · 「链接一经生成即暴露」 | `scope` · `expiresAt` |
+| 对外分享 | 被分享内容 · **可见范围** · 有效期 · 「链接一经生成即暴露」（✅ M4 F008 as-built：`scope` 数据范围行与 V8/V12 卡同口径；evidence 含红标 + 有效期绝对时刻，与 execute 同一算法） | `scope` · `expiresAt` |
 
 **`buildHarm` 是服务端函数**（从 DB 读真实名单/金额，**不信任模型转述**）；`GateConfirm` 组件**只做渲染，不参与任何判定**。
 
@@ -1304,11 +1304,13 @@ export const harmSchema = z.object({
 - **红线**：绝不在产品代码里留 `GATE_BYPASS` 之类的 env 开关来「方便测试」——**那本身就是闸门泄漏**。变异永远发生在测试脚本对源码副本的补丁上。
 - **例程路径同样覆盖**（M1 起）：例程触发 outbound 必须停在 pending。
 
-### 9.8 副作用适配器（`src/lib/ops/`）— 部分实装（email ✅ M3-A F003；escrow/keys 接口 + mock ✅ M3-B F004，真实现归 M5；share 归 M4）
+### 9.8 副作用适配器（`src/lib/ops/`）— 部分实装（email ✅ M3-A F003；escrow/keys 接口 + mock ✅ M3-B F004；share 接口 + mock ✅ M4 F007——真实现全部归 M5）
 
 闸门机制 ≠ 投递集成。outbound 工具的执行体应面向适配器接口：`EmailSender.send()` / `EscrowPartner.payout()` / `KeyDistributor.distribute()` / `ShareLinkService.create()`；适配器负责幂等（外部调用带 idempotency key）、失败分类（可重试 vs 终态）、`resultRef` 回写。
 
 **当前 as-built（M3-A F003）**：`ops/email/` = `EmailSender` 接口 + `ResendEmailSender`（真投递，port 旧项目已验证模式）+ `MockEmailSender`（`SENT_MARKER` 日志行**转正**为正式 mock 实现——测试地面真值零迁移）；env 选择器三分支：有 key 真发 / 无 key dev mock / 无 key prod fail-fast 拒发。
+
+**M4 F007 as-built**：`ops/share/` = `ShareLinkService` 接口 + `MockShareLinkService`（`SHARE_CREATED_MARKER` 观测标记；token 明文仅返回值现一次，hash 落库归 `create_share_link`；publicUrl 恒 null——**零真实公开暴露**）；env 选择器恒 mock、prod 不 fail-fast（与 email 差异理由：本批无真实现，fail-fast 会把「未配置」误报成故障；M5 接真才启），配非 mock provider 明示拒绝。
 
 **当前 as-built（M3-B F004）**：`ops/partner/` = `EscrowPartner.release()` / `KeyDistributor.distribute()` 两接口 + **仅 mock 实现**（`RELEASED_MARKER` / `DISTRIBUTED_MARKER` 观测标记，零外呼、零真实资金动作 P1）；选择器恒 mock 且 **prod 不 fail-fast**（本层无真实现 → fail-fast 无收益），配非 mock provider 则明示拒绝。接口签名 as-built 校准：是 `EscrowPartner.release()` 而非上文目标态写的 `payout()`（payout 是工具名，release 是托管侧动作名，两层语义分开）。
 
@@ -1664,7 +1666,7 @@ flowchart LR
 | K9 越权拦截率 | **运行时不变量**：无令牌 outbound 执行成功数 = 0（告警 + `gate:smoke` 断言） | ✅ 现可算 |
 | K10 假闸门数 | internal 产生 `PendingAction` 的数量 = 0（G3 断言） | ✅ 现可算 |
 | K12 溯源覆盖率 | 展示字段有 `fieldProvenance` 占比 | 演进（需填充数据） |
-| K14 复盘完成率 | `WeeklyReport.adopted` / 完结项目数 | 演进（M4） |
+| K14 复盘完成率 | `WeeklyReport.adopted` / 完结项目数 | ✅ 数据源就绪（M4 F001/F006：adopted/adoptedAt 列 + 采纳服务已实装；看板汇算 = EXTENSION POINT） |
 
 ---
 
@@ -1766,7 +1768,7 @@ fail-fast 时机：`src/instrumentation.ts`（**本仓库有 `src/`，故不在�
 | **M2-C（AGENT-HONESTY）** | 用户反馈驱动小批次 | `create_project` 工具+服务+UI 入口（项目写路径从零补齐，留痕雷达可见）· 行动承诺诚实条款（BASE_SYSTEM 产品级：真实返回才可声称已执行/超能力明说+指路/建议禁包装）· 编队名册注入（PERSONA_SEED 同源防杜撰） | ✅ **已交付**（2026-07-24，触发源 = user_report M2C-agent-honesty） |
 | **M3-A（REACH-CRM）** | reach 域立真 | 触达四表（Thread/Message/Quote/Signal）+ `crmInfer` 五态纯函数（U4 有限人工覆盖）+ **闸门两步票据 + 7 态**（§9.3.2 全量，消 R15）+ `ops/email`（Resend 真投递，P4 port）+ signals 接入层（Svix webhook）+ reach 工具扩容（draft/refine/commit_quote）+ contactEmail 录入口 + V6 收件箱接真（mock 退役） | ✅ **已交付**（2026-07-23，M3-A 批次）；真入站收信/批量发信归 M3-B+ |
 | **M3-B（DELIVERY）** | delivery 域立真 | 交付四表（Deal/Deliverable/GameKey/Payout）+ `deliveryCheck` 条件核对纯函数（三处复用）+ `dealAdvance` 资金状态机 + `ops/partner` 接口先行 + mock（**零真实资金动作**）+ `payout`/`distribute_keys` 两 outbound 闸门（**服务端二次校验，无绕过入口**）+ delivery 内部工具两件 + 交付登记三端点 + V7 台账接真（mock 退役）+ →delivery/→insight 守卫真判（五条流转自此全真判）+ backlog 两条消解（goal 写入口 / useColorMode 跨实例同步） | ✅ **已交付**（2026-07-23，M3-B 批次）；真实 partner（Stripe/电子签/key 平台）归 M5 |
-| M4（INSIGHT-ROI） | insight 域 + 度量 | `compute_roi` + 周报 + 对外分享 + 看板追问 + KPI 看板 | 计划 |
+| **M4（INSIGHT-ROI）** | insight 域立真 | 洞察三表（MetricSnapshot/WeeklyReport/ShareLink）+ `roi.compute`/`attribution.gaps` 两纯函数（三处复用，**ROI 诚实降级：分子缺显证据不足绝不填 0**）+ spend 真源装配（released Payout ＞ committed Quote）+ `compute_roi`/`draft_report` 内部工具 + `create_share_link` outbound 闸门（白名单第 6，**mock 零真实公开暴露**）+ `ops/share` 接口先行 + V8/V12 两面接真（两 mock 退役；看板追问经 insight 人格 tools 承载）+ weekly-draft 例程 | ✅ **已交付**（2026-07-24，M4-INSIGHT 批次）；真 reach/conversions 回传源与真实公开分享页归 M5 |
 | M5（PROD-HARDENING） | 数据管道 + 硬化 | 真实认证 + RLS + Apify/外购接入 + **R7 备份与恢复演练** + HNSW 索引 | 计划 |
 
 **扩展点食谱**：

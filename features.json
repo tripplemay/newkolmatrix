@@ -51,7 +51,7 @@
       "title": "draft_report 内部工具 + WeeklyReport 落库",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P6：class=internal；aigcgateway chat 起草周报草案（长文大模型路由；无凭据降级固定草案明示）→ WeeklyReport(draftContent, adopted=false)；采纳 = 独立 internal 动作置 adopted=true + adoptedAt（P5，V8 采纳结论 / V12 采纳为周报共用）。",
       "acceptance": "draft_report 注册且挂 insight 人格；class=internal；经 gateway chat 起草（无凭据/SKIP 时固定草案 + 明示降级，不静默）→ WeeklyReport 落库（draftContent 非空 / adopted=false / projectId 区分 scope P10）；采纳服务置 adopted=true + adoptedAt（幂等：重复采纳不改写 adoptedAt）；采纳是 internal（无 PendingAction）；集成测覆盖起草落库 + 采纳幂等；LLM 经注入缝 mock（真网关 L2 留验收）"
     },

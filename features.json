@@ -24,7 +24,7 @@
       "title": "attribution.gaps 纯函数（domain）+ D20 变异测试",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P1/P2：输入快照 + 回传完整性 → 证据缺口清单（reach 缺 / conversions 缺 / spend 仅承诺额非实际放款 等，逐条可分支）。不强行归因。V8 证据缺口卡数据源。",
       "acceptance": "纯函数无 DB 读；证据缺口原因码字面量联合（如 REACH_ABSENT/CONVERSIONS_ABSENT/SPEND_COMMITTED_ONLY/SPEND_ABSENT），逐条可分支渲染「缺什么显什么」；无缺口时空清单；全矩阵单测（各分子缺失组合）；D20 变异（缺口被吞成空清单 / 强行标 complete → 测试翻红）；三处复用铁律注释"
     },

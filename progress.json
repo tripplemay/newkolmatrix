@@ -1,37 +1,31 @@
 {
-  "status": "done",
-  "user_goal": "交付域立真：Deal/Deliverable/GameKey/Payout 四表 + deliveryCheck 条件核对 + payout/key 两个 outbound 闸门（零真实资金动作）+ V7 台账接真 + →delivery/→insight 守卫真判 + backlog 两条消解",
+  "status": "building",
+  "user_goal": "洞察域立真：MetricSnapshot/WeeklyReport/ShareLink 三表 + roi.compute/attribution.gaps 两纯函数（三处复用）+ compute_roi/draft_report/create_share_link 三工具（分享 outbound 白名单第 6）+ V8 项目级对照账本 & V12 跨项目洞察接真（两 mock 退役）+ weekly-draft 例程。ROI 分子诚实降级（spend 真源 + reach/conversions 缺口如实标注，真值留 M5）；对外分享接口先行+mock 零公开暴露。",
   "total_features": 12,
-  "completed_features": 12,
-  "fix_rounds": 1,
-  "current_sprint": "M3-B-DELIVERY",
+  "completed_features": 0,
+  "fix_rounds": 0,
+  "current_sprint": "M4-INSIGHT",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-24T04:50",
+  "last_updated": "2026-07-24T05:10",
   "reference_docs": [
-    "docs/specs/M3-B-DELIVERY-spec.md",
-    "docs/test-reports/M3A-reach-crm-signoff-2026-07-23.md",
+    "docs/specs/M4-INSIGHT-spec.md",
+    "docs/test-reports/M3B-DELIVERY-signoff-2026-07-24.md",
     "docs/dev/architecture.md",
     "docs/dev/agent-architecture.md",
     "framework/patterns/ui-fidelity-guardrail.md",
     "docs/specs/ARCH-M05-ui-inventory.md"
   ],
   "docs": {
-    "spec": "specs/M3-B-DELIVERY-spec.md",
+    "spec": "specs/M4-INSIGHT-spec.md",
     "test_cases": null,
-    "signoff": "test-reports/M3B-DELIVERY-signoff-2026-07-24.md",
-    "framework_reviewed": true
+    "signoff": null,
+    "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": {
-    "summary": "M3-B-DELIVERY 全 12 features PASS（fix_rounds=1）。首轮 11 PASS + 1 PARTIAL（F012 文档新鲜度漂移，对抗复核 UPHELD）→ fixing round1 翻牌 architecture.md L254/L372 → reverify F012 PASS。交付域立真闭环：四表 + deliveryCheck + dealAdvance + ops/partner mock（零真实资金动作）+ payout/distribute_keys 两 outbound 闸门（服务端二次校验无绕过）+ 交付登记三端点 + V7 台账接真 + 五流转守卫全真判 + backlog 两条消解。CI 权威门 49308c1 五项全绿。signoff 见 docs/test-reports/M3B-DELIVERY-signoff-2026-07-24.md。",
-    "pass_count": 12,
-    "partial_count": 0,
-    "fail_count": 0,
-    "issues": []
-  },
-  "generator_handoff": "fixing round1 完成（F012 唯一 PARTIAL）：翻牌 docs/dev/architecture.md L254（顶层架构图 OPS 节）+ L372（源码目录树 ops/ 节）两处 escrow/keys——从『演进 M3-B+/归 M3-B+』改为『partner(escrow/keys) mock ✅ M3-B F004；真实现归 M5』，对齐同文档 §9.8/§10.3/§14 已有口径。share 保持未来态（改标 M4）不动。产品代码零改动。grep 复核：escrow/keys 陈旧标记零命中；剩余 M3-B+ 标记全指真未来项（真入站回复/批量发信/partner 入站回调源）。\n■ 复验入口：grep -n '演进 M3-B\\|归 M3-B' docs/dev/architecture.md（应仅剩真未来项）；对照 L1307/L1313/L1437 确认文档不再自我矛盾。\n■ 注：首轮验收的 evaluator 探针已撤下（依赖 dev tenant 非 CI-safe，见 commit 49308c1）；回归套件 = Generator 自己的 12 个 M3-B 测试（fixture 租户），本机 tsc=0 / 775 测试绿、CI 49308c1 全绿。",
+  "evaluator_feedback": null,
+  "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M3-B-DELIVERY verify→fixing→reverifying · 2026-07-24 · 快车道】\n■ 首轮 fan-out 验收：12 features 各一隔离 evaluator（分波起，受 pty fork 上限限制，完成即 TaskStop 释放）→ 11 PASS / 1 PARTIAL（F012 文档漂移）/ 0 FAIL；F012 过对抗复核 UPHELD。\n■ 踩坑：evaluator fan-out 产出的探针文件走 dev tenant，本地绿 CI 红（M3-A 教训重演）——已撤下 9 个探针（含 F007 evaluator 自行 commit 的 2 个），证据留报告，回归套件用 Generator 自己的 fixture-租户测试。\n■ fixing round1：F012 = 纯文档漂移，翻牌 architecture.md L254/L372 两处 escrow/keys（产品码不动）。\n■ 待复验：reverifying 只需复核这两行 + grep 无残留即可判 F012 PASS → 全 12 PASS → signoff → done。",
+    "Andy": "【M4-INSIGHT planning 完成 → building · 2026-07-24 · 快车道】\n■ 用户裁决：U1 spend 真源+缺口诚实标注（reach/conversions 无源→attribution.gaps 如实列，ROI 显证据不足，绝不填 0；真值留 M5）· U2 分享接口先行+mock（ShareLink 表 + create_share_link outbound + mock ShareLinkService，零公开暴露）· U3 全量一批 12 features。\n■ 要害 P 决策见 spec §3：P1 ROI 诚实降级铁律（spend 取 Payout(released) 优先无则 Quote(committed)，仅 USD）· P2 roi.compute/attribution.gaps 三处复用（页面/工具/例程）· P4 create_share_link 是 outbound 白名单第 6 工具，harm 三要素含「一经生成即暴露」红标，token 明文仅响应现一次 · P5 采纳=internal / 分享=outbound · P7 V8 19/V12 14 元素零结构变更 · P9 →insight 守卫本批不碰（M3-B F010 已真判，本批消费方）。\n■ 开工顺序：F001→F002/F003/F004；F002/F003（纯函数）+ F007（ops/share 适配器）文件集不重叠可并行；F005 依赖 F002+F003+F004；F008 依赖 F001+F007；F009 依赖最广最后做；F010 依赖 F004+F006+F008。\n■ M3-B 教训带入：闸门类必有 HTTP 创建→confirm 全链回归；CI 无 dev tenant seed（集成测下沉服务层+夹具租户 test-tenant-m4-*，evaluator 探针勿依赖 dev tenant——M3-B 验收因此 CI 红过一次）；新视觉基线 CI 首推必红（走 update-visual-baselines workflow + pull 回）；--update-snapshots=all 会顺带重写无关基线须 checkout 还原；视觉基线含相对时间标签在本地长寿命 DB 会自然翻红（V12 洞察页留意）。\n■ M3-B 已上线 prod @ 49308c1（health 200 + 真链实证）。",
     "Reviewer": null,
     "Mark": null
   },

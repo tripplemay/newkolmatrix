@@ -76,6 +76,67 @@ export const INSIGHT_RECON_EMPTY_TEXT =
 export const INSIGHT_RETRO_EMPTY_TEXT =
   '暂无复盘草案——可在对话里让洞察 Agent 起草，或等待每周例程生成';
 
+/* ------------------------------------------------------------------ *
+ * V12 跨项目洞察页视图（M4 F010）
+ * ------------------------------------------------------------------ */
+
+/** KPI 卡（V12 #3 ×4；delta null = 无环比形态——原型「总花费」无 delta 是设计形态）。 */
+export interface CrossInsightKpi {
+  id: 'reach' | 'spend' | 'roi' | 'conversion';
+  name: string;
+  /** 展示值；无源 → INSIGHT_INSUFFICIENT（绝不填 0/编造） */
+  value: string;
+  delta: string | null;
+}
+
+/** 表 5 列行（V12 #7-#9）。roiTone：good 绿 / low 琥珀（🔒 二色非红）/ null 中性（证据不足）。 */
+export interface CrossInsightPortfolioRow {
+  name: string;
+  spend: string;
+  reach: string;
+  conv: string;
+  roi: string;
+  roiTone: 'good' | 'low' | null;
+}
+
+/** ROI 走势 chartcard（V12 #4）。本批无 ROI 历史源恒 null（M5），结构保留。 */
+export interface CrossInsightRoiTrend {
+  sub: string;
+  big: string;
+  badge: string;
+  points: number[];
+}
+
+/** 各项目 ROI chartcard（V12 #5，🔒 badge 文字型）。本批恒 null（M5）。 */
+export interface CrossInsightProjectRoi {
+  sub: string;
+  big: string;
+  badge: string;
+  bars: { label: string; value: number; hi: boolean }[];
+}
+
+export interface CrossInsightData {
+  kpis: CrossInsightKpi[];
+  roiTrend: CrossInsightRoiTrend | null;
+  projectRoi: CrossInsightProjectRoi | null;
+  portfolio: CrossInsightPortfolioRow[];
+  /** 最新跨项目周报草案（WeeklyReport projectId=null，P10）；null = 尚无（空态诚实） */
+  retro: InsightRetro | null;
+}
+
+/** V12 空态（D2 降级 / CI 无库）。 */
+export const EMPTY_CROSS_INSIGHT: CrossInsightData = {
+  kpis: [],
+  roiTrend: null,
+  projectRoi: null,
+  portfolio: [],
+  retro: null,
+};
+
+/** V12 周报卡空态文案。 */
+export const CROSS_RETRO_EMPTY_TEXT =
+  '本周暂无周报草案——每周一由 weekly-draft 例程生成，也可在对话里让洞察 Agent 起草';
+
 /**
  * 证据缺口原因码 → 人类可读行（V8 gaprow / 周报事实段共用——单一文案源，
  * weekly-report.ts 的草案缺口行也取自此表）。

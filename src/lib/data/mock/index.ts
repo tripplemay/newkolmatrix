@@ -16,7 +16,7 @@
 // | ~~env-insight.ts~~  | F012        | 已退役（M4 F009：insight 对照账本 RSC 组装真数据，视图契约迁 lib/display/insight-format.ts） |
 // | ~~creators.ts~~     | F013        | 已退役（M2-B F004/F005：创作者库+抽屉 RSC 接真，视图契约迁 lib/display/creator-format.ts） |
 // | ~~knowledge.ts~~    | F014        | 已退役（M1-D F004：知识页 RSC 直读 + 上传/解析接真） |
-// | insight.ts          | F015        | 洞察页 |
+// | ~~insight.ts~~      | F015        | 已退役（M4 F010：洞察页 RSC 组装真数据，视图契约迁 lib/display/insight-format.ts） |
 // | runs.ts             | F016        | Agent 记录页 |
 //
 // ## 硬规则（D2 渲染契约，违反即返工）

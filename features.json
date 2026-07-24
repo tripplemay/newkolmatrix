@@ -87,7 +87,7 @@
       "title": "V12 跨项目洞察页接真（insight mock 退役）+ 周报采纳 + 分享闸门真链",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P5/P7：数据源切真（跨项目 ROI 聚合 F004 + WeeklyReport F006）；insight.ts 退役；admin/insight/page.tsx 分享 stub 替换真链。spec §6 UI 四段约束。",
       "acceptance": "ui-inventory V12 14 元素逐处保持（KPI×4 花费无 delta 形态 / ROI 走势 LineArea 8 点 / 各项目 ROI badge 文字型非数字 + BarChart / 表 5 列数值右对齐 tabular-nums / ROI 绿·琥珀二色非红 / retro 周报卡 / 采纳为周报 internal / 🚪 生成对外分享报告红 gate scope=quarterly）；反向 guardrail；跨项目 ROI = F004 聚合真值；周报卡 = WeeklyReport 真值（无则空态诚实）；采纳为周报 internal 置 adopted；分享经真闸门链（scope=quarterly）；insight.ts 退役登记；视觉基线重生（§4.5 序 + 三连稳）；两视口实测"
     },

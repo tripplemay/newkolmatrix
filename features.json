@@ -105,7 +105,7 @@
       "title": "BL-FE-16 hook 修复 + E2E 闭环 + 文档翻牌 + 批末新鲜度复核",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "P11 useColorMode 跨实例同步（useSyncExternalStore + 模块级 store + MutationObserver + storage 事件）；delivery:e2e 全链；architecture/ui-inventory 翻牌 + 新鲜度复核。",
       "acceptance": "useColorMode 跨实例同步（多消费者同步单测：一处 toggle 另一处收到通知）+ 多标签页 storage 事件监听；既有 2 调用点行为不变断言；backlog.json 移除 BL-FE-16；delivery:e2e 脚本：committed quote → Deal 生成 → 登记 refs → 条件齐 → payout 无令牌 pending（副作用零发生断言）→ confirm+execute → Payout released + Deal 推进 + irrev 留痕齐；零真实资金动作断言（mock 适配器观测标记，无 REAL 分支）；architecture.md 翻牌（§5.2 delivery 行/§5.3①③/§5.4 deliveryCheck 行/§9.8/§10.3/§14 M3-B 行/工具表/delivery 人格 tools）+ ui-inventory V7 登记 + agent-architecture 同步 + 批末新鲜度复核（grep 陈旧计数/未实装残留/演进 M3 标记）；lint+tsc+test:unit+test:visual 绿"
     }

@@ -60,7 +60,7 @@
       "title": "delivery 内部工具：track_delivery / check_deliverables（internal）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "delivery 人格 tools 当前为空数组，本条填充；check_deliverables 复用 deliveryCheck（三处复用铁律 ②）。",
       "acceptance": "两工具注册且挂 delivery 人格（registry tools 数组 + 单测同源断言：人格声明的每个工具名真实存在于注册表）；class=internal 且无 buildHarm（只读，不过闸门）；check_deliverables 输出 = deliveryCheck 产物（不内联重算，grep 证复用）；track_delivery 返回 Deal + 条件快照（可序列化，供画布渲染）；输入契约单测"
     },

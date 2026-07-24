@@ -15,6 +15,7 @@ import { draftEmailTool, refineEmailTool } from './email-drafting';
 import { commitQuoteTool } from './commit-quote';
 import { payoutTool } from './payout';
 import { distributeKeysTool } from './distribute-keys';
+import { checkDeliverablesTool, trackDeliveryTool } from './delivery-tracking';
 import type { ToolDefinition } from './types';
 
 const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
@@ -30,6 +31,8 @@ const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
   commitQuoteTool as unknown as ToolDefinition<never, unknown>, // M3-A F006（outbound，报价承诺过闸门）
   payoutTool as unknown as ToolDefinition<never, unknown>, // M3-B F005（outbound，放款过闸门 + 服务端二次校验）
   distributeKeysTool as unknown as ToolDefinition<never, unknown>, // M3-B F006（outbound，key 分发过闸门）
+  trackDeliveryTool as unknown as ToolDefinition<never, unknown>, // M3-B F007（internal，台账只读）
+  checkDeliverablesTool as unknown as ToolDefinition<never, unknown>, // M3-B F007（internal，条件核对 = deliveryCheck 产物）
 ];
 
 let registered = false;

@@ -12,7 +12,7 @@
 // | env-brief.ts        | F008        | 策略环节语法面 |
 // | ~~env-match.ts~~    | F009        | 已退役（M2-A F005：match 面 RSC 组装真数据，视图契约迁 lib/display/match-format.ts） |
 // | ~~env-reach.ts~~    | F010        | 已退役（M3-A F008：reach 面 RSC 组装真数据，视图契约迁 lib/display/reach-format.ts） |
-// | env-delivery.ts     | F011        | 交付环节语法面（反向 guardrail：无 KPI/图表） |
+// | ~~env-delivery.ts~~ | F011        | 已退役（M3-B F009：delivery 面 RSC 组装真数据，视图契约迁 lib/display/delivery-format.ts） |
 // | env-insight.ts      | F012        | 洞察环节语法面 |
 // | ~~creators.ts~~     | F013        | 已退役（M2-B F004/F005：创作者库+抽屉 RSC 接真，视图契约迁 lib/display/creator-format.ts） |
 // | ~~knowledge.ts~~    | F014        | 已退役（M1-D F004：知识页 RSC 直读 + 上传/解析接真） |

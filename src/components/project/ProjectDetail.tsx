@@ -35,6 +35,10 @@ import {
   EMPTY_REACH_SURFACE,
   type ReachSurfaceData,
 } from 'lib/display/reach-format';
+import {
+  EMPTY_DELIVERY_SURFACE,
+  type DeliverySurfaceData,
+} from 'lib/display/delivery-format';
 import { PENDING_TEXT } from 'lib/data/provenance';
 import { useToast } from 'components/common/Toast';
 import BriefEnv from 'components/envs/brief';
@@ -76,6 +80,8 @@ export interface ProjectDetailData {
   match: MatchSurfaceData;
   /** reach 语法面真数据（M3-A F008，RSC 组装可序列化视图） */
   reach: ReachSurfaceData;
+  /** delivery 台账真数据（M3-B F009，RSC 组装可序列化视图） */
+  delivery: DeliverySurfaceData;
 }
 
 export default function ProjectDetail({
@@ -289,6 +295,12 @@ export default function ProjectDetail({
         <ReachEnv
           projectId={projectId}
           data={project?.reach ?? EMPTY_REACH_SURFACE}
+        />
+      ) : env === 'delivery' ? (
+        // M3-B F009：delivery 台账接真 prop（mock/env-delivery.ts 已退役）；project null → 空表
+        <DeliveryEnv
+          projectId={projectId}
+          data={project?.delivery ?? EMPTY_DELIVERY_SURFACE}
         />
       ) : (
         <Surface projectId={projectId} />

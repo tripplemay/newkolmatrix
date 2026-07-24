@@ -69,7 +69,13 @@ test('project env=delivery visual baseline', async ({ page }) => {
   await page.goto('/admin/campaigns/xg?env=delivery', {
     waitUntil: 'domcontentloaded',
   });
-  await page.getByText('不提供绕过入口').first().waitFor({ timeout: 30_000 });
+  // M3-B F009 接真后的基线态 = 夹具项目无 Deal 的空态（reach/match 基线同口径）：
+  // 空态文案硬断言使「数据源整个消失 / 组装层回归」都超时硬红，而不是静默拍一张空白表。
+  await page
+    .getByText('还没有交易——报价经确认后自动生成交付条件台账')
+    .first()
+    .waitFor({ timeout: 30_000 });
+  await page.getByText('不提供绕过入口').first().waitFor({ timeout: 30_000 }); // V7-11 宣示句（🔒静态锚）
   await shot(page, 'project-delivery.png');
 });
 

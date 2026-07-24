@@ -78,7 +78,7 @@
       "title": "V7 条件台账接真（mock 退役）+ payout 闸门真链",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "数据源切真（loadDeliverySurfaceData RSC 组装，沿 M3-A F008 范式）；envs/delivery/index.tsx:76-78 D6 stub 替换为真链。spec §6 UI 四段约束。",
       "acceptance": "ui-inventory V7 11 元素逐处保持（7 列/纯色方块 av 非色轮/sub/note 条件渲染/条件单元 ok绿·miss琥珀·na灰三态不得压二态/金额右对齐800/放款红 gate 仅 ready/「条件未齐」灰字替代按钮位不得改 disabled 按钮/底部 shield 宣示句）；反向 guardrail 保持（无 KPI/图表/推荐卡/批量放款——一律未补）；ready 值 = deliveryCheck 真值；放款经真闸门链路（无 stub 残留：grep confirmPayout/mockDeliveryLedger 本地覆盖零命中）；空态语义保留；env-delivery.ts 退役登记（mock/index.ts 表更新）；视觉基线逐处对账重生（§4.5 重生序+三连稳）；两视口实测"
     },

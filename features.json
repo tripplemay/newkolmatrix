@@ -33,7 +33,7 @@
       "title": "MetricSnapshot 装配服务（spend 真源聚合）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P3：按 projectId 聚合 spend（Payout(released).amount 之和优先，无则 Quote(committed).amount 之和）+ spendSource 标注（payout/quote/none）；reach/conversions/roi 恒 null（M5）。on-read 装配壳（沿 lib/delivery/check.ts 先例）+ MetricSnapshot 表写入口最小实装。",
       "acceptance": "装配服务按 projectId 聚合 spend：有 released payout → sum(payout.amount) + spendSource=payout；无 released 有 committed quote → sum(quote.amount) + spendSource=quote；两者皆无 → spend=null + spendSource=none；仅 USD 计入（非 USD 不换汇，沿 budgetUsd 口径，缺口由 attribution.gaps 承载）；reach/conversions/roi 恒 null；跨项目聚合（V12）按项目分组；集成测覆盖三种 spendSource 分支 + 空态；夹具租户隔离"
     },

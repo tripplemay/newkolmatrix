@@ -118,7 +118,10 @@ async function run(
         threadId: existing.threadId,
         messageId: existing.id,
         providerMessageId: existing.providerMessageId,
-        mocked: false,
+        // M3-B 顺手项（M3-A F003-low-2 soft-watch）：重入路径**不重新外呼**，
+        // 因此 mocked 不能硬编码 false 冒充「真发过」——按原发信留下的
+        // providerMessageId 推断：null = 当时走的是 MockEmailSender（未外呼）。
+        mocked: existing.providerMessageId == null,
       };
     }
   }

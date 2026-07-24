@@ -33,7 +33,7 @@
       "title": "ops/partner 适配器层：EscrowPartner + KeyDistributor（mock 实现）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "U2/P1 接口先行：定义适配器接口 + mock 实现（写日志标记，零外呼）；沿 M3-A ops/email 范式（接口 + 实现 + env 选择器 + 可观测标记）。",
       "acceptance": "ops/partner（或 ops/escrow + ops/keys）接口定义 + mock 实现两件；mock 副作用有可观测标记（沿 SENT_MARKER 先例，供闸门/变异测试观测副作用是否发生）；env 选择器行为注释明示「本批无真实现，prod 无 key 不 fail-fast；M5 接真时才启 fail-fast」（与 ops/email 的差异有明文理由）；单测覆盖 mock 实现契约；CI 与本地零外呼断言"
     },

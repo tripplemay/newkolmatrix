@@ -20,6 +20,15 @@ export const FROM_ADDRESS = 'marketer@kolquest.com';
 
 const SEND_TIMEOUT_MS = 30_000;
 
+/**
+ * ⚠️ 既知局限（M3-A F003-low-1 soft-watch，M3-B F004 复核结论）：
+ * 这是 `Promise.race` 超时，**只解除等待、不中断在途请求**——超时后 Resend 侧仍可能把信发出去。
+ * 真 abort 需要把 AbortSignal 传进 HTTP 层，而 resend SDK v6 既不接收 `signal` 也不暴露自定义
+ * fetch 注入点（node_modules/resend 实测：构造器只收 apiKey），故本处保留 race 超时。
+ * 缓解：`idempotencyKey`（= PendingAction.id）保证重试不双发。
+ * 正解随「SDK 支持 signal」或「改直连 REST + fetch(signal)」的批次处理，继续记 soft-watch。
+ * 新建的 partner 适配器不得抄这段——真实现必须用 AbortController（见 ops/partner/types.ts 文件头）。
+ */
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   let t: NodeJS.Timeout | undefined;
   try {
@@ -77,7 +86,9 @@ export class ResendEmailSender implements EmailSender {
           );
           if (!retryable || attempt === 1) {
             throw new SendEmailError(
-              name === 'rate_limit_exceeded' ? 'rate_limited' : 'provider_error',
+              name === 'rate_limit_exceeded'
+                ? 'rate_limited'
+                : 'provider_error',
               `resend 错误: ${name} ${error.message}`,
             );
           }
@@ -92,7 +103,9 @@ export class ResendEmailSender implements EmailSender {
         if (attempt === 1) {
           throw new SendEmailError(
             'unknown',
-            `resend 发送失败: ${err instanceof Error ? err.message : String(err)}`,
+            `resend 发送失败: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
           );
         }
       }

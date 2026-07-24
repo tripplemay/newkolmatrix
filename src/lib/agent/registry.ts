@@ -164,9 +164,10 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     duty: 'ROI 归因·复盘分析·报告生成',
     isolation: '只读结果数据，不改动执行动作',
     uiSyntax: '对照账本',
-    // M4-INSIGHT F006 起填充（原为空数组）：
+    // M4-INSIGHT F005/F006 起填充（原为空数组）：
+    // - compute_roi 是 internal 只读（ROI 对账 = roi.compute + attribution.gaps 产物，分子缺显证据不足）
     // - draft_report 是 internal 起草（只落草案不采纳；对外分享另经 create_share_link 闸门）
-    tools: ['draft_report'],
+    tools: ['compute_roi', 'draft_report'],
   },
   {
     id: 'compliance',

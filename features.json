@@ -42,7 +42,7 @@
       "title": "compute_roi 内部工具（insight 人格）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P2：class=internal 无 buildHarm；复用 roi.compute + attribution.gaps（不内联重算，grep 证）；输出可序列化供画布；挂 insight 人格（registry tools 当前空数组 [] 本条填充）。",
       "acceptance": "compute_roi 注册且挂 insight 人格（registry tools 数组 + 单测同源断言：人格声明工具名真实存在于注册表）；class=internal 且无 buildHarm（只读不过闸门）；输出 = roi.compute + attribution.gaps 产物（不内联重算，grep 证复用）；分子缺时 roi=null + gaps 非空（诚实透传，不在工具层伪造）；输出可序列化（JSON 往返无损，供画布渲染）；输入契约单测"
     },

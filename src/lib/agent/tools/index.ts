@@ -18,6 +18,7 @@ import { distributeKeysTool } from './distribute-keys';
 import { checkDeliverablesTool, trackDeliveryTool } from './delivery-tracking';
 import { confirmBriefGoalTool } from './confirm-brief-goal';
 import { draftReportTool } from './draft-report';
+import { computeRoiTool } from './compute-roi';
 import type { ToolDefinition } from './types';
 
 const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
@@ -37,6 +38,7 @@ const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
   checkDeliverablesTool as unknown as ToolDefinition<never, unknown>, // M3-B F007（internal，条件核对 = deliveryCheck 产物）
   confirmBriefGoalTool as unknown as ToolDefinition<never, unknown>, // M3-B F011（internal，brief 目标确认写入口）
   draftReportTool as unknown as ToolDefinition<never, unknown>, // M4 F006（internal，周报起草落库——只起草不采纳）
+  computeRoiTool as unknown as ToolDefinition<never, unknown>, // M4 F005（internal，ROI 对账只读 = roi.compute + attribution.gaps 产物）
 ];
 
 let registered = false;

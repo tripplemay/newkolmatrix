@@ -42,7 +42,7 @@
       "title": "payout 工具（outbound）+ 服务端二次校验（无绕过入口）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P6：buildHarm 与 execute 各重跑一次 deliveryCheck，ready=false 一律拒绝（FR-8.2.4.2 服务端实现）；执行 = 消费票 → mock escrow release → Payout prepared→released + Deal 推进，同一事务。",
       "acceptance": "payout 注册且挂 delivery 人格；class=outbound + async buildHarm 三行（收款方/金额+币种/依据含合同+托管+披露证据引用）；无令牌 → pending 信封；服务端二次校验实证：构造 ready=false 的 Deal 直调 payout → buildHarm 阶段即拒（PendingAction 不产生），以及绕过前端直打 execute 亦拒；执行后 Payout released + gateLogId 非空 + Deal 状态推进 + irrev 留痕同事务；失败 → failed 无 irrev 行；幂等重入不双放（幂等键=PendingAction.id）；P1 断言：全程零真实付款外呼（mock 适配器观测标记）"
     },

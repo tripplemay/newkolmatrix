@@ -138,7 +138,9 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     duty: '交付核对·合同/托管/披露·放款准备',
     isolation: '不选人、不谈判；放款需你逐笔确认',
     uiSyntax: '条件台账',
-    tools: [],
+    // M3-B F005 起填充（原为空数组）：payout 是 outbound——服务端二次校验 deliveryCheck，
+    // 条件未齐一律拒（FR-8.2.4.2 无绕过入口）
+    tools: ['payout'],
   },
   {
     id: 'insight',

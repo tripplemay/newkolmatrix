@@ -13,6 +13,7 @@ import { evaluateCreatorTool } from './evaluate-creator';
 import { createProjectTool } from './create-project';
 import { draftEmailTool, refineEmailTool } from './email-drafting';
 import { commitQuoteTool } from './commit-quote';
+import { payoutTool } from './payout';
 import type { ToolDefinition } from './types';
 
 const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
@@ -26,6 +27,7 @@ const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
   draftEmailTool as unknown as ToolDefinition<never, unknown>, // M3-A F006（internal，起草——只生成不发送）
   refineEmailTool as unknown as ToolDefinition<never, unknown>, // M3-A F006（internal，改写）
   commitQuoteTool as unknown as ToolDefinition<never, unknown>, // M3-A F006（outbound，报价承诺过闸门）
+  payoutTool as unknown as ToolDefinition<never, unknown>, // M3-B F005（outbound，放款过闸门 + 服务端二次校验）
 ];
 
 let registered = false;

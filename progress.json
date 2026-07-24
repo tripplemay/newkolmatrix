@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "交付域立真：Deal/Deliverable/GameKey/Payout 四表 + deliveryCheck 条件核对 + payout/key 两个 outbound 闸门（零真实资金动作）+ V7 台账接真 + →delivery/→insight 守卫真判 + backlog 两条消解",
   "total_features": 12,
-  "completed_features": 4,
+  "completed_features": 5,
   "fix_rounds": 0,
   "current_sprint": "M3-B-DELIVERY",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-23T17:56",
+  "last_updated": "2026-07-23T18:11",
   "reference_docs": [
     "docs/specs/M3-B-DELIVERY-spec.md",
     "docs/test-reports/M3A-reach-crm-signoff-2026-07-23.md",

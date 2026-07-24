@@ -4,11 +4,13 @@
 // buildHarm 三要素（spec F006）：金额（amount+currency）/ 交付物（evidence 全列）/ 对象（targets）。
 // execute（经两步票据后）：Quote proposed → committed（同一执行事务内落库+翻牌，gateLogId 必非空）
 // → P8 budgetUsd 回填（现行 approved 组合的 metrics.budgetUsd = 成员 committed 报价 USD 合计，
-// 只回填不重算评分）→ crmInfer 重算（quote.committed 是 confirmed 的唯一推出路径，U4）。
+// 只回填不重算评分）→ **Deal 生成（M3-B F003 / P2：同事务 upsert Deal + 五条件行）**
+// → crmInfer 重算（quote.committed 是 confirmed 的唯一推出路径，U4）。
 
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from 'lib/db/prisma';
+import { ensureDealForQuote } from 'lib/delivery/ensure-deal';
 import { recomputeThreadStatus } from 'lib/reach/recompute-status';
 import type { ToolContext, ToolDefinition } from './types';
 import { HARM_LABEL, type Harm } from '../gate/harm';
@@ -17,16 +19,15 @@ const inputSchema = z.object({
   projectId: z.string().min(1).describe('项目 id'),
   kolId: z.string().min(1).describe('创作者 Kol.id'),
   amount: z.number().positive().describe('报价金额（数值）'),
-  currency: z
-    .string()
-    .min(3)
-    .max(3)
-    .describe('ISO 4217 币种码，如 USD'),
+  currency: z.string().min(3).max(3).describe('ISO 4217 币种码，如 USD'),
   deliverables: z
     .array(z.string().min(1))
     .min(1)
     .describe('交付物清单（如「1 条长视频」「2 条 shorts」）'),
-  scope: z.string().optional().describe('授权/使用范围（如「项目内使用 90 天」）'),
+  scope: z
+    .string()
+    .optional()
+    .describe('授权/使用范围（如「项目内使用 90 天」）'),
 });
 
 type CommitQuoteInput = z.infer<typeof inputSchema>;
@@ -39,6 +40,10 @@ interface CommitQuoteOutput {
   currency: string;
   /** P8：本次回填后的现行组合 budgetUsd（无 approved 组合 / KOL 不在组合内时 null）。 */
   planBudgetUsd: number | null;
+  /** M3-B F003（P2）：同事务生成/命中的 Deal id——「有 committed quote 必有 Deal」。 */
+  dealId: string;
+  /** true = 本次新建 Deal（false = 命中既有 Deal，幂等重入不重复建）。 */
+  dealCreated: boolean;
 }
 
 /** async buildHarm（§9.5）：对象名从 DB 读真值。三要素：金额 / 交付物 / 对象。 */
@@ -77,7 +82,11 @@ async function backfillPlanBudget(
 ): Promise<number | null> {
   const db = ctx.db ?? prisma;
   const plan = await db.matchPlan.findFirst({
-    where: { tenantId: ctx.tenantId, projectId: input.projectId, status: 'approved' },
+    where: {
+      tenantId: ctx.tenantId,
+      projectId: input.projectId,
+      status: 'approved',
+    },
     select: { id: true, metrics: true, kols: { select: { kolId: true } } },
   });
   if (!plan) return null;
@@ -116,10 +125,27 @@ async function run(
   // 幂等重入（P6 同款）：同一闸门动作已产生 committed Quote → 不再重复落库
   if (ctx.gateActionId) {
     const existing = await db.quote.findFirst({
-      where: { tenantId: ctx.tenantId, gateLogId: ctx.gateActionId, status: 'committed' },
+      where: {
+        tenantId: ctx.tenantId,
+        gateLogId: ctx.gateActionId,
+        status: 'committed',
+      },
       select: { id: true, threadId: true },
     });
     if (existing) {
+      // M3-B F003：Deal 侧同样幂等——重入不重复建，只在历史行缺失时自愈补齐
+      const deal = await ensureDealForQuote(
+        {
+          projectId: input.projectId,
+          kolId: input.kolId,
+          quoteId: existing.id,
+          amount: input.amount,
+          currency: input.currency,
+          deliverables: input.deliverables,
+          scope: input.scope ?? null,
+        },
+        { tenantId: ctx.tenantId, db: ctx.db, actor: ctx.agentId },
+      );
       return {
         committed: true,
         quoteId: existing.id,
@@ -127,6 +153,8 @@ async function run(
         amount: input.amount,
         currency: input.currency,
         planBudgetUsd: null,
+        dealId: deal.dealId,
+        dealCreated: deal.created,
       };
     }
   }
@@ -140,10 +168,13 @@ async function run(
     where: { id: input.projectId, tenantId: ctx.tenantId },
     select: { id: true },
   });
-  if (!project) throw new Error(`[commit_quote] 项目不存在: ${input.projectId}`);
+  if (!project)
+    throw new Error(`[commit_quote] 项目不存在: ${input.projectId}`);
 
   const thread = await db.outreachThread.upsert({
-    where: { projectId_kolId: { projectId: input.projectId, kolId: input.kolId } },
+    where: {
+      projectId_kolId: { projectId: input.projectId, kolId: input.kolId },
+    },
     create: {
       tenantId: ctx.tenantId,
       projectId: input.projectId,
@@ -174,6 +205,21 @@ async function run(
   // P8 回填（同一事务）
   const planBudgetUsd = await backfillPlanBudget(input, ctx);
 
+  // M3-B F003（P2）：committed Quote → Deal（同一执行事务）。这是本工具在 M3-B 的
+  // **唯一新增接线点**——「有 committed quote 必有 Deal」是 →delivery 守卫判据的数据前提。
+  const deal = await ensureDealForQuote(
+    {
+      projectId: input.projectId,
+      kolId: input.kolId,
+      quoteId: quote.id,
+      amount: input.amount,
+      currency: input.currency,
+      deliverables: input.deliverables,
+      scope: input.scope ?? null,
+    },
+    { tenantId: ctx.tenantId, db: ctx.db, actor: ctx.agentId },
+  );
+
   // crmInfer 重算（三处复用铁律 ②）：quote.committed → confirmed（U4 唯一路径）
   await recomputeThreadStatus(thread.id, {
     tenantId: ctx.tenantId,
@@ -188,10 +234,15 @@ async function run(
     amount: input.amount,
     currency: input.currency,
     planBudgetUsd,
+    dealId: deal.dealId,
+    dealCreated: deal.created,
   };
 }
 
-export const commitQuoteTool: ToolDefinition<CommitQuoteInput, CommitQuoteOutput> = {
+export const commitQuoteTool: ToolDefinition<
+  CommitQuoteInput,
+  CommitQuoteOutput
+> = {
   name: 'commit_quote',
   description:
     '向创作者承诺报价（对外·不可撤销的商务承诺）。这是 outbound 动作——服务端会强制停在你确认前，确认卡将如实披露金额、交付物与对象。',

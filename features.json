@@ -24,7 +24,7 @@
       "title": "Deal 生成接线（commit_quote → Deal）+ Deal 资金状态机",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P2：commit_quote 执行事务内 upsert Deal（terms 取 Quote 快照，初态 negotiating）+ 按 P3 生成五条 Deliverable；dealAdvance 纯函数承载状态机流转。这是对 M3-A commit-quote.ts 的唯一新增接线点。",
       "acceptance": "commit_quote 执行后同事务落 Deal（projectId+kolId upsert 幂等）+ 五条 Deliverable（content/contract/escrow/ad_disclosure required=true；key 视 Quote.deliverables 含 key 交付决定 required 或 na）；termsJson 含金额/币种/交付物/范围快照；dealAdvance 纯函数流转合法态（negotiating→signed→escrowed→delivering→completed；blocked 可恢复；defaulted 终态）+ 非法流转拒绝；D20 变异（破坏流转约束如允许跳态 → 测试翻红）；集成测：commit_quote 全链后 Deal + 5 Deliverable 在场且幂等重入不重复建"
     },

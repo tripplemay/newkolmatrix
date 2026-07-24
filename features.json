@@ -87,7 +87,7 @@
       "title": "env-guards →delivery / →insight 真判",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P12：消 env-guards.ts:128-133 两处 DEPENDENCY_NOT_IMPLEMENTED；→delivery 判据 ≥1 Deal；→insight 判据「全部 Deal completed/defaulted 或零 Deal」。",
       "acceptance": "两条流转真判（不再返 DEPENDENCY_NOT_IMPLEMENTED）；新 reason 码 + 用户可读文案（env-guard-messages.ts 映射齐备）；EnvGuardContext 扩字段（hasDeal / allDealsSettled 等）+ 两调用点（campaigns/[id]/page.tsx + ProjectDetail.tsx）组装齐全；零 Deal 项目不被 →insight 阻断（P12 空态诚实）；D20 变异（守卫恒放行 / 判据取反 → 测试翻红）；集成测：无 Deal 拒 → 建 Deal 后放行 → 全部 completed 后 →insight 放行"
     },

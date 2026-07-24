@@ -13,7 +13,11 @@ export const ENV_GUARD_MESSAGE: Record<EnvGuardReason, string> = {
   BRIEF_GOAL_NOT_CONFIRMED: '目标尚未确认，请先在「目标 Brief」环节完成确认',
   MATCH_PLAN_NOT_APPROVED:
     '尚无已批准的匹配组合，请先在「匹配」环节批准一组方案',
-  DEPENDENCY_NOT_IMPLEMENTED: '该流转的前置能力尚未接入，暂不可推进',
+  // M3-B F010：→delivery / →insight 两条从 D9 占位理由翻为真判定理由
+  NO_DEAL_YET:
+    '尚无交易，请先在「触达」环节确认一笔报价（确认后自动生成交付台账）',
+  DEALS_NOT_SETTLED:
+    '仍有交易未收尾，请先完成放款或标记违约，全部交易收尾后即可进入洞察',
   ALREADY_AT_FINAL_STAGE: '已在最后一个环节，没有可推进的下一步',
   INVARIANT_VIOLATED: '项目环节状态异常，请刷新页面后重试',
 };

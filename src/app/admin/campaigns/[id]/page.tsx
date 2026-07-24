@@ -52,6 +52,11 @@ export default async function ProjectDetailPage({
     const reach = await loadReachSurfaceData(row.id);
     // M3-B F009：delivery 台账组装（deliveryCheck 真值 + Payout released；失败降级空表）
     const delivery = await loadDeliverySurfaceData(row.id);
+    // M3-B F010：→delivery / →insight 守卫判据（canEnter ctx；守卫纯函数，存在性 RSC 查好传入）
+    const dealStatuses = await prisma.deal.findMany({
+      where: { tenantId, projectId: row.id },
+      select: { status: true },
+    });
     // 缺失因子填 null（分子无存处，D15 该因子记 0 分）；now 在 RSC 边界注入，
     // 纯度约束只在 domain 函数（computeHealth 自身不读时钟）。
     health = computeHealth({
@@ -76,6 +81,11 @@ export default async function ProjectDetailPage({
       maxReached: row.maxReached, // D5：F004 前端守卫的数据源，从 DB 直读
       goal, // F004 canEnter ctx（→match 判据）所需
       hasApprovedMatchPlan: approvedPlan != null, // M2-A F004 →reach 判据
+      hasDeal: dealStatuses.length > 0, // M3-B F010 →delivery 判据
+      // 零 Deal 亦算收尾（P12：没开始交付的项目不该被卡在洞察门外）
+      allDealsSettled: dealStatuses.every(
+        (d) => d.status === 'completed' || d.status === 'defaulted',
+      ),
       match, // M2-A F005：match 语法面真数据（可序列化视图）
       reach, // M3-A F008：reach 语法面真数据（可序列化视图）
       delivery, // M3-B F009：delivery 台账真数据（可序列化视图）

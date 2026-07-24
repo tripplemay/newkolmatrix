@@ -26,12 +26,16 @@ const GOAL: ProjectGoal = {
 
 function ctx(over: Partial<EnvGuardContext> = {}): EnvGuardContext {
   // hasApprovedMatchPlan 默认 false（M2-A F004 扩列）：既有用例语义不变——
-  // 无已批准组合时 →reach 拒绝（理由从 DEPENDENCY_NOT_IMPLEMENTED 翻为真判定理由）。
+  // 无已批准组合时 →reach 拒绝（理由从 D9 占位翻为真判定理由）。
+  // M3-B F010 机械同步：扩必填 hasDeal / allDealsSettled，默认 false（无 Deal、未收尾）——
+  // 既有「未满足前置一律拒」的用例语义同样不变，只是拒绝理由从 D9 占位翻为真判定理由。
   return {
     cur: 'brief',
     maxReached: 'brief',
     goal: GOAL,
     hasApprovedMatchPlan: false,
+    hasDeal: false,
+    allDealsSettled: false,
     ...over,
   };
 }
@@ -101,38 +105,90 @@ describe('canAdvance：五条流转的业务前置条件（architecture.md:483-4
   });
 });
 
-describe('D9：依赖表未建的两条一律保守拒绝，绝不返回 true（M2-A F004 后余 M3 两条）', () => {
-  // 逐条实测（acceptance 明令「逐条实测返回 false，不得有任一条返回 true」）
-  // match→reach 已于 M2-A F004 替换为真判定（见下方「→reach 真判定」组）
-  const D9_TRANSITIONS: Array<{ from: Stage; to: Stage; dep: string }> = [
-    { from: 'reach', to: 'delivery', dep: 'Deal（M3 建表）' },
-    { from: 'delivery', to: 'insight', dep: 'Deal 收尾（M3 建表）' },
-  ];
-
-  for (const { from, to, dep } of D9_TRANSITIONS) {
-    it(`${from}→${to} 依赖 ${dep} → allowed=false 且理由 DEPENDENCY_NOT_IMPLEMENTED`, () => {
-      const r = canAdvance(ctx({ cur: from, maxReached: from, goal: GOAL }));
-      expect(r.allowed).toBe(false);
-      expect(r.reason).toBe('DEPENDENCY_NOT_IMPLEMENTED');
-    });
-  }
-
-  it('即使 goal 齐备也不放行——保守拒绝不因无关条件满足而松动', () => {
-    for (const { from } of D9_TRANSITIONS) {
-      const r = canAdvance(ctx({ cur: from, maxReached: from, goal: GOAL }));
-      expect(r.allowed, `${from} 不得放行`).toBe(false);
-    }
+describe('→delivery / →insight 真判定（M3-B F010：D9 占位理由退役）', () => {
+  it('reach→delivery：无 Deal → 拒绝，理由 NO_DEAL_YET', () => {
+    const r = canAdvance(ctx({ cur: 'reach', maxReached: 'reach' }));
+    expect(r).toEqual({ allowed: false, reason: 'NO_DEAL_YET' });
   });
 
-  it('两条的理由与真实业务拒绝理由可区分（供 M3 逐条替换时 grep 定位）', () => {
-    const businessDeny = canAdvance(
-      ctx({ cur: 'brief', maxReached: 'brief', goal: null }),
+  it('reach→delivery：存在 Deal → 放行', () => {
+    const r = canAdvance(
+      ctx({ cur: 'reach', maxReached: 'reach', hasDeal: true }),
     );
-    const depDeny = canAdvance(ctx({ cur: 'reach', maxReached: 'reach' }));
-    expect(businessDeny.reason).not.toBe(depDeny.reason);
+    expect(r).toEqual({ allowed: true, reason: null });
   });
 
-  it('全环节穷举（无已批准组合）：canAdvance 只在 brief→match 且 goal 齐备时放行', () => {
+  it('delivery→insight：仍有 Deal 未收尾 → 拒绝，理由 DEALS_NOT_SETTLED', () => {
+    const r = canAdvance(
+      ctx({ cur: 'delivery', maxReached: 'delivery', hasDeal: true }),
+    );
+    expect(r).toEqual({ allowed: false, reason: 'DEALS_NOT_SETTLED' });
+  });
+
+  it('delivery→insight：全部 Deal 收尾 → 放行', () => {
+    const r = canAdvance(
+      ctx({
+        cur: 'delivery',
+        maxReached: 'delivery',
+        hasDeal: true,
+        allDealsSettled: true,
+      }),
+    );
+    expect(r).toEqual({ allowed: true, reason: null });
+  });
+
+  it('P12 空态诚实：零 Deal 项目不被 →insight 阻断（allDealsSettled=true 即放行）', () => {
+    const r = canAdvance(
+      ctx({
+        cur: 'delivery',
+        maxReached: 'delivery',
+        hasDeal: false,
+        allDealsSettled: true,
+      }),
+    );
+    expect(r.allowed).toBe(true);
+  });
+
+  it('两条判据互不旁路：hasDeal 只解锁 →delivery，不解锁 →insight', () => {
+    const toInsight = canAdvance(
+      ctx({ cur: 'delivery', maxReached: 'delivery', hasDeal: true }),
+    );
+    expect(toInsight.allowed).toBe(false);
+    const toDelivery = canAdvance(
+      ctx({ cur: 'reach', maxReached: 'reach', hasDeal: true }),
+    );
+    expect(toDelivery.allowed).toBe(true);
+  });
+
+  it('五条流转全部真判：不存在任何返回 D9 占位理由的分支（行为面证据）', () => {
+    const reasons = new Set<string>();
+    for (const cur of STAGES) {
+      for (const goal of [GOAL, null]) {
+        for (const hasApprovedMatchPlan of [true, false]) {
+          for (const hasDeal of [true, false]) {
+            for (const allDealsSettled of [true, false]) {
+              const r = canAdvance(
+                ctx({
+                  cur,
+                  maxReached: cur,
+                  goal,
+                  hasApprovedMatchPlan,
+                  hasDeal,
+                  allDealsSettled,
+                }),
+              );
+              if (r.reason) reasons.add(r.reason);
+            }
+          }
+        }
+      }
+    }
+    expect(reasons.has('DEPENDENCY_NOT_IMPLEMENTED')).toBe(false);
+    expect(reasons).toContain('NO_DEAL_YET');
+    expect(reasons).toContain('DEALS_NOT_SETTLED');
+  });
+
+  it('全环节穷举（判据全 false）：canAdvance 只在 brief→match 且 goal 齐备时放行', () => {
     for (const from of STAGES) {
       const r = canAdvance(ctx({ cur: from, maxReached: from, goal: GOAL }));
       expect(r.allowed, `cur=${from}`).toBe(from === 'brief');
@@ -158,16 +214,19 @@ describe('→reach 真判定（M2-A F004：MATCH_PLAN_NOT_APPROVED 替换 D9 保
   it('真判定理由与 D9 占位理由可区分（grep 零残留的行为面证据）', () => {
     const real = canAdvance(ctx({ cur: 'match', maxReached: 'match' }));
     expect(real.reason).toBe('MATCH_PLAN_NOT_APPROVED');
-    expect(real.reason).not.toBe('DEPENDENCY_NOT_IMPLEMENTED');
   });
 
-  it('hasApprovedMatchPlan 只解锁 →reach，不旁路其他守卫（M3 两条仍拒）', () => {
+  it('hasApprovedMatchPlan 只解锁 →reach，不旁路其他守卫（M3-B 两条各有判据）', () => {
+    const denials: Record<string, string> = {
+      reach: 'NO_DEAL_YET',
+      delivery: 'DEALS_NOT_SETTLED',
+    };
     for (const cur of ['reach', 'delivery'] as Stage[]) {
       const r = canAdvance(
         ctx({ cur, maxReached: cur, hasApprovedMatchPlan: true }),
       );
       expect(r.allowed, `cur=${cur}`).toBe(false);
-      expect(r.reason).toBe('DEPENDENCY_NOT_IMPLEMENTED');
+      expect(r.reason).toBe(denials[cur]);
     }
     // goal 判据同样不受影响
     const brief = canAdvance(
@@ -262,6 +321,45 @@ function invariantBehaviourSuite(
     throw new Error('非法态 delivery>match 被判成立');
 }
 
+/**
+ * 同一组行为断言，作用在任意「canAdvance」实现上，专盯 M3-B F010 两条判据。
+ * 抛错即视为翻红。
+ */
+function dealGuardBehaviourSuite(
+  advance: (c: EnvGuardContext) => EnvGuardResult,
+): void {
+  // 1) 无 Deal 不得进交付
+  if (advance(ctx({ cur: 'reach', maxReached: 'reach' })).allowed) {
+    throw new Error('无 Deal 仍放行 →delivery');
+  }
+  // 2) 有 Deal 必须能进交付（判据是真能力，不是摆设）
+  if (
+    !advance(ctx({ cur: 'reach', maxReached: 'reach', hasDeal: true })).allowed
+  ) {
+    throw new Error('有 Deal 却拒绝 →delivery');
+  }
+  // 3) 交易未收尾不得进洞察
+  if (
+    advance(ctx({ cur: 'delivery', maxReached: 'delivery', hasDeal: true }))
+      .allowed
+  ) {
+    throw new Error('仍有未收尾交易却放行 →insight');
+  }
+  // 4) 全部收尾必须能进洞察
+  if (
+    !advance(
+      ctx({
+        cur: 'delivery',
+        maxReached: 'delivery',
+        hasDeal: true,
+        allDealsSettled: true,
+      }),
+    ).allowed
+  ) {
+    throw new Error('全部交易收尾却拒绝 →insight');
+  }
+}
+
 /** 同一组行为断言，作用在任意「maxReached 抬升」实现上。 */
 function monotonicBehaviourSuite(
   raise: (maxReached: Stage, target: Stage) => Stage,
@@ -301,6 +399,32 @@ describe('变异测试：证明上面的断言确有检测力（非死断言）'
     // 变异：直接赋值 target，丢掉「取较大者」——cur 回退时 maxReached 会跟着回落
     const mutant = (_maxReached: Stage, target: Stage): Stage => target;
     expect(() => monotonicBehaviourSuite(mutant)).toThrow();
+  });
+
+  it('把 →delivery/→insight 判据取反的变异体 → 同一组断言必须翻红（M3-B F010）', () => {
+    // 变异：hasDeal / allDealsSettled 取反送进真实守卫——判据方向反了，
+    // 「没有 Deal 反而能进交付、交易没收尾反而能进洞察」。
+    const mutant = (c: EnvGuardContext): EnvGuardResult =>
+      canAdvance({
+        ...c,
+        hasDeal: !c.hasDeal,
+        allDealsSettled: !c.allDealsSettled,
+      });
+    expect(() => dealGuardBehaviourSuite(mutant)).toThrow();
+    // 真实实现在同一组断言下全过
+    expect(() => dealGuardBehaviourSuite(canAdvance)).not.toThrow();
+  });
+
+  it('把 →delivery/→insight 改成恒放行的变异体 → 同一组断言必须翻红', () => {
+    // 恒放行 = 假守卫（PRD :129 反模式）：交付/洞察门形同虚设。
+    const mutant = (c: EnvGuardContext): EnvGuardResult => {
+      const real = canAdvance(c);
+      return real.reason === 'NO_DEAL_YET' ||
+        real.reason === 'DEALS_NOT_SETTLED'
+        ? { allowed: true, reason: null }
+        : real;
+    };
+    expect(() => dealGuardBehaviourSuite(mutant)).toThrow();
   });
 
   it('把 D9 保守拒绝改成放行的变异体 → 会被 D9 那组断言抓住', () => {

@@ -173,7 +173,7 @@ describe('superseded 不可批准（变异断言 5）', () => {
 });
 
 describe('advance 失败不回滚批准（变异断言 6）', () => {
-  it('已在 reach 的项目批准新 draft：批准生效、推进被拒（DEPENDENCY_NOT_IMPLEMENTED）、互不回滚', async () => {
+  it('已在 reach 的项目批准新 draft：批准生效、推进被拒（NO_DEAL_YET）、互不回滚', async () => {
     // 项目已推进到 reach（前面用例的产物）；重跑组合会产生新 draft——模拟夜间刷新后再批准
     const newDraft = await makeDraftPlan(projectId, 'B · 均衡组（新一轮）');
     const r = await approvePlan(newDraft, { tenantId });
@@ -186,9 +186,9 @@ describe('advance 失败不回滚批准（变异断言 6）', () => {
     const p = await prisma.matchPlan.findUniqueOrThrow({ where: { id: newDraft } });
     expect(p.status).toBe('approved');
 
-    // 推进被拒：reach→delivery 依赖 Deal（M3），失败注明但不回滚批准
+    // 推进被拒：reach→delivery 依赖 ≥1 Deal（M3-B F010 真判定），失败注明但不回滚批准
     expect(r.advance?.ok).toBe(false);
-    expect(r.advance?.reason).toBe('DEPENDENCY_NOT_IMPLEMENTED');
+    expect(r.advance?.reason).toBe('NO_DEAL_YET');
     const row = await prisma.project.findUniqueOrThrow({ where: { id: projectId } });
     expect(row.cur).toBe('reach');
   });

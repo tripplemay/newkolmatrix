@@ -76,6 +76,10 @@ export interface ProjectDetailData {
   goal: ProjectGoal | null;
   /** 是否存在已批准 MatchPlan（M2-A F004 →reach 判据，RSC 查好传入） */
   hasApprovedMatchPlan: boolean;
+  /** 是否存在 ≥1 Deal（M3-B F010 →delivery 判据，RSC 查好传入） */
+  hasDeal: boolean;
+  /** 全部 Deal 已收尾 / 零 Deal（M3-B F010 →insight 判据，P12 空态诚实） */
+  allDealsSettled: boolean;
   /** match 语法面真数据（M2-A F005，RSC 组装可序列化视图） */
   match: MatchSurfaceData;
   /** reach 语法面真数据（M3-A F008，RSC 组装可序列化视图） */
@@ -129,6 +133,8 @@ export default function ProjectDetail({
           maxReached: project.maxReached,
           goal: project.goal,
           hasApprovedMatchPlan: project.hasApprovedMatchPlan,
+          hasDeal: project.hasDeal,
+          allDealsSettled: project.allDealsSettled,
         },
         next,
       );

@@ -76,11 +76,24 @@ export async function advanceStage(
     select: { id: true },
   });
 
+  // M3-B F010：→delivery / →insight 判据（同上，恒查不按 next 分支——一次轻量 groupBy
+  // 换「不可能漏组装」）。settled = completed / defaulted；零 Deal 亦算收尾（P12 空态诚实）。
+  const dealStatuses = await prisma.deal.findMany({
+    where: { projectId, tenantId },
+    select: { status: true },
+  });
+  const hasDeal = dealStatuses.length > 0;
+  const allDealsSettled = dealStatuses.every(
+    (d) => d.status === 'completed' || d.status === 'defaulted',
+  );
+
   const guard = canAdvance({
     cur,
     maxReached,
     goal: parseProjectGoal(project.goal),
     hasApprovedMatchPlan: approvedPlan != null,
+    hasDeal,
+    allDealsSettled,
   });
 
   // 守卫拒绝：不写日志，只回理由（acceptance 明令「守卫拒绝的推进不写日志」）。

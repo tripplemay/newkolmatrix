@@ -26,15 +26,10 @@ export type EnvGuardReason =
   | 'BRIEF_GOAL_NOT_CONFIRMED'
   /** →reach：尚无 status=approved 的 MatchPlan（M2-A F004 真判定，architecture :487） */
   | 'MATCH_PLAN_NOT_APPROVED'
-  /**
-   * D9 保守拒绝：该流转的前置依赖表本批尚未建，验不了。
-   *
-   * 与真实业务拒绝理由**刻意可区分** —— M3 建 Deal 时，
-   * 直接 grep 这个字面量就能定位到所有待替换的分支，不会漏。
-   * （→reach 分支已于 M2-A F004 替换为 MATCH_PLAN_NOT_APPROVED 真判定，
-   *   现存命中 = delivery / insight 两条，均归 M3。）
-   */
-  | 'DEPENDENCY_NOT_IMPLEMENTED'
+  /** →delivery：尚无 Deal（由 committed quote 生成，M3-B F010 真判定，architecture :488） */
+  | 'NO_DEAL_YET'
+  /** →insight：仍有 Deal 未收尾（既非 completed 也非 defaulted，M3-B F010，architecture :489） */
+  | 'DEALS_NOT_SETTLED'
   /** 已在末环节，无可推进 */
   | 'ALREADY_AT_FINAL_STAGE'
   /** 双值不变量被破坏：状态本身不可信，任何流转都不予放行 */
@@ -60,6 +55,18 @@ export interface EnvGuardContext {
    * 可选缺省会把「忘了查」静默降级成拒绝，错在正确一侧但掩盖调用方 bug。
    */
   hasApprovedMatchPlan: boolean;
+  /**
+   * 是否存在 ≥1 个 Deal（→delivery 的判据，M3-B F010）。
+   * Deal 由 commit_quote 在同事务生成（P2），故它等价于「至少有一笔报价被承诺」。
+   * 必填非可选，理由同 hasApprovedMatchPlan：不给「忘了查」留静默降级的缝。
+   */
+  hasDeal: boolean;
+  /**
+   * 全部 Deal 均已收尾（→insight 的判据，M3-B F010 / P12）：
+   * 每个 Deal 都是 `completed` 或 `defaulted`；**零 Deal 时为 true**——
+   * 没开始交付的项目不该被交付条件卡在洞察门外（P12 空态诚实，architecture :489「或显式收尾」）。
+   */
+  allDealsSettled: boolean;
 }
 
 const allow = (): EnvGuardResult => ({ allowed: true, reason: null });
@@ -108,8 +115,9 @@ export function canEnter(ctx: EnvGuardContext, target: Stage): EnvGuardResult {
 /**
  * 五条流转的业务前置条件（architecture.md:483-489）。
  *
- * 只有 `→brief`（无条件）与 `→match`（可由 `goal` 判定）在本批**真正可判**；
- * 其余三条的依赖表尚未建，按 D9 一律保守拒绝。
+ * M3-B F010 起**五条全部真判**：→brief（无条件）· →match（goal）· →reach（approved 组合，
+ * M2-A F004）· →delivery（≥1 Deal）· →insight（全部 Deal 收尾或零 Deal）。
+ * D9 的占位理由 `DEPENDENCY_NOT_IMPLEMENTED` 随之退役——没有任何分支再返回它。
  */
 function transitionGuard(target: Stage, ctx: EnvGuardContext): EnvGuardResult {
   switch (target) {
@@ -126,11 +134,12 @@ function transitionGuard(target: Stage, ctx: EnvGuardContext): EnvGuardResult {
         ? allow()
         : deny('MATCH_PLAN_NOT_APPROVED');
     case 'delivery':
-      // 依赖 >=1 Deal（由 committed quote 生成）—— M3 建表
-      return deny('DEPENDENCY_NOT_IMPLEMENTED');
+      // ≥1 Deal（由 committed quote 生成，architecture :488；M3-B F010 真判定，
+      // 存在性由调用方查好经 ctx 传入——守卫保持纯函数不读 DB）
+      return ctx.hasDeal ? allow() : deny('NO_DEAL_YET');
     case 'insight':
-      // 依赖全部 Deal 到 completed 或显式收尾 —— M3 建表
-      return deny('DEPENDENCY_NOT_IMPLEMENTED');
+      // 全部 Deal 到 completed 或显式收尾（defaulted）；零 Deal 亦放行（P12 空态诚实）
+      return ctx.allDealsSettled ? allow() : deny('DEALS_NOT_SETTLED');
   }
 }
 

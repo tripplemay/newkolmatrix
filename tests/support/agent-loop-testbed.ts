@@ -33,6 +33,7 @@ import type {
   LanguageModelV4Usage,
 } from '@ai-sdk/provider';
 import { runAgentLoop, type AgentLoopRun } from '../../src/lib/agent/loop';
+import type { LoopTelemetryWriter } from '../../src/lib/agent/loop-telemetry';
 import type { CopilotContext } from '../../src/lib/agent/persona-router';
 import type { ToolContext } from '../../src/lib/agent/tools/types';
 
@@ -74,6 +75,8 @@ export interface RunScriptedLoopOptions {
   script: ScriptedStep[];
   /** 夹具租户 ToolContext（注入缝：传入即无条件使用）。 */
   ctx?: ToolContext;
+  /** 注入缝（F001 遥测测试）：给了就无条件用（覆盖落库失败分支）。 */
+  telemetryWriter?: LoopTelemetryWriter;
   /**
    * 脚本跑完后模型仍被调用时的兜底步（默认纯文本，让 loop 收敛）。
    * 设为「继续调工具」可造「打不住的模型」来验步数上限截停。
@@ -207,6 +210,7 @@ export async function runScriptedLoop(
       messages: [{ role: 'user', content: opts.prompt }],
       model,
       ctx: opts.ctx,
+      telemetryWriter: opts.telemetryWriter,
     });
 
     const toolErrors: Array<{ toolName: string; error: string }> = [];

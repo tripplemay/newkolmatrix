@@ -24,6 +24,12 @@ import {
 import { buildToolContext } from './context';
 import { gameKnowledgeSection } from './knowledge-context';
 import {
+  buildLoopTelemetryPayload,
+  logLoopTelemetry,
+  type LoopTelemetryPayload,
+  type LoopTelemetryWriter,
+} from './loop-telemetry';
+import {
   personaToolSubset,
   selectPersona,
   type CopilotContext,
@@ -48,6 +54,8 @@ export interface AgentLoopParams {
   model?: LanguageModel;
   /** 注入缝（F009 测试床）：给了就无条件用（夹具租户）。缺省 = buildToolContext（dev 租户）。 */
   ctx?: ToolContext;
+  /** 注入缝（F001 遥测测试）：给了就无条件用。缺省 = 落 OperationLog。 */
+  telemetryWriter?: LoopTelemetryWriter;
 }
 
 export interface AgentLoopRun {
@@ -60,6 +68,13 @@ export interface AgentLoopRun {
   /** 本次会话的步数预算（= persona.maxSteps）。 */
   maxSteps: number;
   result: ReturnType<typeof streamText<ToolSet>>;
+  /**
+   * 遥测句柄（F001）：会话结束后落库尝试的结果。
+   * **调用方不需要 await**——落库本身是 fire-and-forget，此 promise 只为测试可确定性等待
+   *（以及未来需要「会话结束回调」的编排面）。会话异常中断时可能永不 resolve，故不得在
+   * 请求路径上 await 它。
+   */
+  telemetry: Promise<LoopTelemetryPayload | null>;
 }
 
 /**
@@ -120,6 +135,15 @@ export async function runAgentLoop(
   const system = buildLoopSystem(persona, toolNames, knowledgeSection);
   const maxSteps = loopBudget(persona);
 
+  // 人格轨迹（F005 循环内接力时由 prepareStep 更新；无接力的会话恒为起始人格、switches=0）。
+  const track = { current: persona.id, switches: 0 };
+
+  // 遥测句柄：会话结束后 resolve。**请求路径不得 await**（见 AgentLoopRun.telemetry 注释）。
+  let settleTelemetry: (v: LoopTelemetryPayload | null) => void = () => {};
+  const telemetry = new Promise<LoopTelemetryPayload | null>((resolve) => {
+    settleTelemetry = resolve;
+  });
+
   const result = streamText({
     // 注入缝：传入即无条件使用（不因凭据缺失改道）。
     model: params.model ?? chatModel(),
@@ -131,7 +155,36 @@ export async function runAgentLoop(
     onError: ({ error }) => {
       console.error('[agent/loop]', describeGatewayError(error));
     },
+    // F001 遥测：会话结束落一行元数据（**不含正文**，见 loop-telemetry.ts 隐私边界）。
+    onEnd: (event) => {
+      const usage = event.usage as {
+        inputTokens?: number;
+        outputTokens?: number;
+        totalTokens?: number;
+      };
+      const payload = buildLoopTelemetryPayload({
+        agentId: persona.id,
+        finalAgentId: track.current,
+        steps: event.steps.length,
+        maxSteps,
+        finishReason: String(event.finishReason),
+        // 工具序列含重复且保序——循环形状的指纹（只取名字，不取入参）
+        toolNames: event.steps.flatMap((s) =>
+          s.toolCalls.map((c) => c.toolName),
+        ),
+        personaSwitches: track.switches,
+        usage: {
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          totalTokens: usage.totalTokens,
+        },
+      });
+      // fire-and-forget：不 await（不阻塞流式响应）；失败在 logLoopTelemetry 内 console.error。
+      void logLoopTelemetry(ctx, payload, params.telemetryWriter).then(() =>
+        settleTelemetry(payload),
+      );
+    },
   });
 
-  return { persona, ctx, system, toolNames, maxSteps, result };
+  return { persona, ctx, system, toolNames, maxSteps, result, telemetry };
 }

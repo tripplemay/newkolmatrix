@@ -6,7 +6,7 @@
       "title": "loop 遥测：步数/finishReason/工具序列 → OperationLog",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P2：/api/agent 每会话结束落一行遥测元数据（OperationLog kind=auto payloadJson），不含消息/入参正文。fire-and-forget + 失败 console.error（database-patterns §6 教训）。",
       "acceptance": "每次 /api/agent 会话结束落一行遥测：agentId/steps/finishReason/toolNames[]（含重复序）/usage tokens/personaSwitches（F005 前恒 0）；撞步数上限的会话可经查询区分（finishReason 或 steps>=budget 标记）；不记录任何消息正文与工具入参正文（隐私+体积，测试断言 payloadJson 序列化后不含 prompt 内容采样串）；落库 fire-and-forget 不阻塞流式响应且失败 console.error 不静默；集成测覆盖正常收敛/撞上限/落库失败三分支；tsc+lint 绿"
     },

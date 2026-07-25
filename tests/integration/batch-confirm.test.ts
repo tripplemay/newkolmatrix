@@ -108,13 +108,16 @@ describe('🔒 无批量端点（不留绕过面）', () => {
   });
 
   it('全仓无 batch/bulk 确认端点（grep 证）', () => {
-    let hits: string[] = [];
+    // 用 `git grep -n` 出带行号的命中，再滤掉注释行——注释里把批量端点当反面教材点名是允许的。
+    // 【坑】`git grep` 只搜**已跟踪**文件：新文件未 commit 时本地恒空绿、入库后 CI 才红
+    //（M4.5 F007 实测踩中）。故断言必须能容忍注释、且不得依赖「本地跑过就算数」。
+    let lines: string[] = [];
     try {
-      hits = execFileSync(
+      lines = execFileSync(
         'git',
         [
           'grep',
-          '-lEi',
+          '-nEi',
           'api/actions/(batch|bulk)|batch-confirm/route|confirmAll',
           '--',
           'src',
@@ -124,9 +127,16 @@ describe('🔒 无批量端点（不留绕过面）', () => {
         .split('\n')
         .filter(Boolean);
     } catch {
-      hits = [];
+      lines = [];
     }
-    expect(hits, `发现疑似批量确认端点：\n${hits.join('\n')}`).toEqual([]);
+    // 行形如 path:lineno:content —— 取 content 判定是否注释
+    const codeHits = lines.filter((l) => {
+      const content = l.split(':').slice(2).join(':');
+      return !/^\s*(\/\/|\*|\/\*)/.test(content);
+    });
+    expect(codeHits, `发现疑似批量确认端点：\n${codeHits.join('\n')}`).toEqual(
+      [],
+    );
   });
 
   it('执行器只调既有两个逐项端点（URL 形状钉死）', () => {

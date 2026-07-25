@@ -16,8 +16,7 @@
 import { z } from 'zod';
 import { prisma } from 'lib/db/prisma';
 import type { Prisma } from '@prisma/client';
-import { getTool } from './registry';
-import { ensureNativeToolsRegistered } from './index';
+import { getTool, getToolNames } from './registry';
 import type { ToolContext, ToolDefinition } from './types';
 
 const planItemSchema = z.object({
@@ -76,9 +75,22 @@ export const PLAN_PROPOSED_MARKER = 'agent_plan_proposed';
 export const PLAN_DISCLOSURE_MSG =
   '这是一份计划，还没有执行任何一步。标了「需你确认」的动作会逐个停在你面前等你拍板——认可这份计划只是留个痕，不会替你确认任何一步。';
 
-/** 服务端复核一条计划步骤（不信任模型对闸门的声明）。 */
+/**
+ * 服务端复核一条计划步骤（不信任模型对闸门的声明）。
+ *
+ * 前置：工具注册表已装配——`executeTool` 是唯一执行入口且自带幂等注册，故正常调用路径恒满足。
+ * 此处仍显式挡一道空注册表：注册表为空时「未知工具」与「真的没这个工具」不可区分，
+ * 会把 outbound 步骤静默降级成不需确认（**低报闸门**）——那是本函数最不能出的错。
+ *
+ * 【注意】不得从 `./index` 导入 ensureNativeToolsRegistered：index 反向 import 本模块，
+ * 形成循环 → 生产构建期 TDZ（`Cannot access 'l' before initialization`，M4.5 F004 CI 实证）。
+ */
 export function reviewPlanItem(item: z.infer<typeof planItemSchema>): PlanItem {
-  ensureNativeToolsRegistered();
+  if (getToolNames().length === 0) {
+    throw new Error(
+      '[propose-plan] 工具注册表为空，无法复核闸门标注（拒绝在此状态下低报 outbound）',
+    );
+  }
   const toolName = item.toolName ?? null;
   const def = toolName ? getTool(toolName) : null;
   const toolKnown = toolName == null ? true : def != null;

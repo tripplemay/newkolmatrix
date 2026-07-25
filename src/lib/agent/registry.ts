@@ -34,6 +34,14 @@ export interface AgentPersona {
   /** 绑定工具子集（tools/registry 里的工具名）。router 按此收窄。 */
   tools: string[];
   /**
+   * 单次会话的步数预算（M4.5 F002 / U2：按人格差异化）。
+   * **registry 是唯一真相源**——loop 消费 `persona.maxSteps`，全仓不得出现第二处硬编码步数
+   *（回归测试 agent-step-budget 以 git grep 钉死）。
+   * 定档依据：洞察追问与编排接力天然是长链（查→对比→再查→起草），5 步不够；
+   * 其余人格的动线是「查一步 → 答」到「查两步 → 起草 → 答」，5 步够用且限制爆炸半径。
+   */
+  maxSteps: number;
+  /**
    * ⑤层知识注入（M1-D F005，FR-8.4.8 下游消费映射）：该人格对话时注入的
    * GameKnowledge kind 子集——受众→匹配、卖点→触达、红线→合规、strategy 三类全量。
    * 缺省 = 不注入（编排/交付/洞察本批不消费知识）。
@@ -42,6 +50,11 @@ export interface AgentPersona {
   /** 注入 runtime 的 system prompt。由 duty + iso 组合（EXTENSION POINT：精度随业务充实）。 */
   systemPrompt: string;
 }
+
+/** 常规人格步数预算（U2：查一步→答 / 查两步→起草→答 够用）。 */
+export const DEFAULT_MAX_STEPS = 5;
+/** 深链人格步数预算（U2：洞察多轮追问 / 编排循环内接力需要更长链）。 */
+export const EXTENDED_MAX_STEPS = 10;
 
 const BASE_SYSTEM = [
   '你是 KOLMatrix 专家 Agent 编队的一员，服务单角色营销操盘手。基于工具返回的真实数据作答，不编造。',
@@ -89,6 +102,7 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     // M2-C F001：create_project（项目创建是编排入口动作——「开新项目」找编排）
     // M3-B F011：confirm_brief_goal（创建后紧接着的目标确认，同属编排入口动线）
     tools: ['create_project', 'confirm_brief_goal'],
+    maxSteps: EXTENDED_MAX_STEPS, // U2：编排要在一次会话里跑完「汇总→接力→再汇总」
   },
   {
     id: 'strategy',
@@ -106,6 +120,7 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
       'create_project',
       'confirm_brief_goal',
     ],
+    maxSteps: DEFAULT_MAX_STEPS,
     // ⑤层（M1-D F005）：知识生产者，三类全量感知
     knowledgeKinds: ['selling_point', 'audience', 'compliance_redline'],
   },
@@ -118,6 +133,7 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     uiSyntax: '对比矩阵',
     // M2-A F007：+= match_plan / evaluate_creator（architecture :1098 目标态兑现）
     tools: ['search_kols', 'get_kol_detail', 'match_plan', 'evaluate_creator'],
+    maxSteps: DEFAULT_MAX_STEPS,
     knowledgeKinds: ['audience'], // ⑤层：受众→匹配（FR-8.4.8）
   },
   {
@@ -136,6 +152,7 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
       'refine_email',
       'commit_quote',
     ],
+    maxSteps: DEFAULT_MAX_STEPS,
     knowledgeKinds: ['selling_point'], // ⑤层：卖点→触达（FR-8.4.8）
   },
   {
@@ -156,6 +173,7 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
       'payout',
       'distribute_keys',
     ],
+    maxSteps: DEFAULT_MAX_STEPS,
   },
   {
     id: 'insight',
@@ -169,6 +187,7 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     // - draft_report 是 internal 起草（只落草案不采纳）
     // - create_share_link 是 outbound（白名单第 6）：链接一经生成即暴露，服务端强制停在确认前
     tools: ['compute_roi', 'draft_report', 'create_share_link'],
+    maxSteps: EXTENDED_MAX_STEPS, // U2：ROI 追问天然多轮（对比→找缺口→再查→起草）
   },
   {
     id: 'compliance',
@@ -178,6 +197,7 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     isolation: '跨环节被调用，只做合规判断',
     uiSyntax: '嵌入各环节',
     tools: [],
+    maxSteps: DEFAULT_MAX_STEPS,
     knowledgeKinds: ['compliance_redline'], // ⑤层：红线→合规（FR-8.4.8）
   },
 ];

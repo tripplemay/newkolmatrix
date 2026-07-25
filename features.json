@@ -15,7 +15,7 @@
       "title": "按人格步数预算 + maxDuration 校准 + 长链诚实回归",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "U2/P3：AgentPersona.maxSteps 字段（insight/orchestrator=10 其余=5，registry 单一真相源）；route stopWhen 消费预算；maxDuration 60→120。",
       "acceptance": "registry AgentPersona 携带 maxSteps（insight/orchestrator=10 其余=5）；route.ts stopWhen=stepCountIs(persona.maxSteps) 消费单一真相源（无第二处硬编码，grep 证）；maxDuration=120；诚实条款长链变异回归：≥8 步 mock 链上「工具返回 pending 而模型宣称已发出/已完成」类断言在场且变异（去掉诚实条款或伪造成功文案）翻红；既有 5 步人格行为零变化（回归）；doc：architecture §8 步数预算段登记"
     },

@@ -40,11 +40,13 @@ import { getTool } from './tools/registry';
 import type { ToolContext } from './tools/types';
 import { toAiSdkTools } from './to-ai-sdk-tools';
 
-/** 单次会话的步数上限（F002 起改为按人格预算 AgentPersona.maxSteps，registry 单一真相源）。 */
-const MAX_STEPS = 5;
-
-export function loopBudget(_persona: AgentPersona): number {
-  return MAX_STEPS;
+/**
+ * 单次会话的步数预算（F002 / U2）：**唯一真相源是 registry 的 `AgentPersona.maxSteps`**。
+ * 此处只做读取，不得出现任何数字字面量——全仓「第二处硬编码步数」由回归测试
+ * `tests/unit/agent-step-budget.test.ts` 以 git grep 钉死。
+ */
+export function loopBudget(persona: AgentPersona): number {
+  return persona.maxSteps;
 }
 
 export interface AgentLoopParams {

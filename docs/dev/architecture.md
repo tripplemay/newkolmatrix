@@ -925,13 +925,33 @@ export interface ToolContext {
 
 ### 8.3 柱二 · Agent 运行时与 system prompt 装配
 
-`POST /api/agent`（`runtime='nodejs'`，`maxDuration=60`）→ `streamText` 驱动「模型 ↔ 工具」多轮 loop：
+`POST /api/agent`（`runtime='nodejs'`，`maxDuration=120` ✅ M4.5 F002）→ `streamText` 驱动「模型 ↔ 工具」多轮 loop（装配已抽到 `lib/agent/loop.ts`，带 model/ctx 注入缝供 mock-model 测试床驱动同款 loop，✅ M4.5 F009）：
 
 1. **上下文解析（服务端权威）**：请求体 `{ prompt | messages, context?: { route, projectId?, env?, agentId? } }` → `resolveContext()` 在**服务端**重新解析并校验，`agentId` 显式指定须合法、否则由 `defaultAgentForRoute(route)` 推导、最后回落 `orchestrator`——**不信任客户端指定的工具名单**。
 2. **人格选取与工具收窄**：`selectPersona(copilot)` → `personaToolSubset(persona)` → `toAiSdkTools(toolNames, ctx)`。不同人格看到不同工具。
 3. **system prompt 装配**（运行时注入，非硬编码在页面）——见下「五层装配管线」。
-4. **执行与拦截**：一切工具调用经**唯一入口** `executeTool()`；`internal` 直接执行；`outbound` 无令牌 → §9 拦截路径（`stopWhen: stepCountIs(5)` 限制 loop 步数）。
+4. **执行与拦截**：一切工具调用经**唯一入口** `executeTool()`；`internal` 直接执行；`outbound` 无令牌 → §9 拦截路径（`stopWhen: stepCountIs(persona.maxSteps)` 限制 loop 步数，见 §8.3.2）。
 5. **流式回传**：`toUIMessageStreamResponse()`，token + 工具结果边收边传（NFR-P2）；人格身份经响应头 `X-Agent-Id` / `X-Agent-Tools` 暴露。
+
+#### 8.3.2 步数预算与 loop 遥测（✅ M4.5 F001/F002）
+
+**步数预算按人格差异化**（U2）。唯一真相源 = `AgentPersona.maxSteps`（`registry.ts`），`lib/agent/loop.ts` 读取后喂给 `stopWhen: stepCountIs(maxSteps)`——**全仓不得出现第二处硬编码步数**（回归测试 `tests/unit/agent-step-budget.test.ts` 以 `git grep` 钉死：`stepCountIs(` 后不得跟数字字面量）。
+
+| 档位 | 常量 | 值 | 人格 | 定档依据 |
+|---|---|---|---|---|
+| 深链 | `EXTENDED_MAX_STEPS` | 10 | `insight` / `orchestrator` | ROI 追问天然多轮（对比→找缺口→再查→起草）；编排要在一次会话内跑完「汇总→接力→再汇总」 |
+| 常规 | `DEFAULT_MAX_STEPS` | 5 | 其余 5 人格 | 动线是「查一步→答」到「查两步→起草→答」，5 步够用且限制爆炸半径 |
+
+停止条件保持 `stepCountIs(budget)` 单上限 + loop 天然收敛（末步无 tool call 即止）——组合停止条件在天然收敛面前是过度设计（P3）。`maxDuration` 随之 60→120s（10 步 × 网关 P95 需要余量；self-host standalone 无平台上限）。
+
+**放开步数的前提是看得见**。每次会话结束落一行 `OperationLog(kind=auto)` 遥测（`lib/agent/loop-telemetry.ts`，`summary` 以 `agent_loop` 起头）：
+
+- `payloadJson` = `{v, agentId, finalAgentId, steps, maxSteps, budgetHit, finishReason, toolNames[]（含重复保序）, toolCallCount, personaSwitches, usage}`
+- **只记元数据，不记正文**（P2）：消息内容、工具入参、工具产物一律不落——体积与隐私（消息里有联系方式与报价）。载荷装配函数的入参形状本身就不接受正文，不靠调用方自觉过滤
+- `budgetHit` 让「撞上限的会话」可直接经 `payloadJson path ['budgetHit']` 查询捞出，无需解析 `finishReason` 语义
+- 落库 fire-and-forget（不阻塞流式响应），**失败必须 `console.error`**（M3-A logEvent silent-fail 教训）
+
+长链放大幻觉风险，故诚实条款配**长链变异回归**（`tests/integration/long-chain-honesty.test.ts`）：≥8 步链上「工具只返回 pending 而文本宣称已发出/已完成」必须翻红，剥离条款 / 伪造成功文案 / 隐去待确认提示三个变异体各挂一条。
 
 #### 8.3.1 五层 system prompt 装配管线
 

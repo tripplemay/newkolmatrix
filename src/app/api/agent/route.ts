@@ -23,7 +23,9 @@ import {
 import { DEFAULT_AGENT_ID, isAgentId } from 'lib/agent/registry';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+// M4.5 F002（P3）：60 → 120s。深链人格预算放到 10 步后，10 × 网关 P95 需要余量；
+// self-host standalone 无平台上限，这是纯配置数字（Vercel 托管才受套餐封顶）。
+export const maxDuration = 120;
 
 const ENVS: CopilotEnv[] = ['default', 'sandbox', 'production'];
 

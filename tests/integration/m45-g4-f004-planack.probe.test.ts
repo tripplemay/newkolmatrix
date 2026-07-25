@@ -22,7 +22,7 @@ import { getNativeToolNames } from '../../src/lib/agent/tools';
 import { getTool } from '../../src/lib/agent/tools/registry';
 import { listPersonas } from '../../src/lib/agent/registry';
 import { isPendingEnvelope } from '../../src/lib/agent/gate/harm';
-import { getDevTenantId } from '../../src/lib/agent/context';
+import { DEV_TENANT_SLUG, getDevTenantId } from '../../src/lib/agent/context';
 import {
   PLAN_PROPOSED_MARKER,
   type ProposePlanOutput,
@@ -42,6 +42,47 @@ let ctx: ToolContext;
 let devTenantId: string;
 /** dev 租户上由本探针创建的留痕行 id —— 收尾按 id 精确删除。 */
 const devRowIds = new Set<string>();
+/** true = 库里原本没有 dev 租户、由本探针建的（收尾要还原）。 */
+let devTenantCreatedByProbe = false;
+
+/**
+ * 保证 dev 租户在场（沿仓内既定套路「谁建谁删」：materials-upload / knowledge-injection /
+ * knowledge-parse 三处同款）。
+ *
+ * 【为什么这条 happy path 只能在 dev 租户上跑】被测的 `POST /api/agent/plan-ack` 在
+ * `route.ts:32` **硬调 `getDevTenantId()`**——租户不是入参。要验端点 200 这条路，
+ * 计划就必须落在它解析得到的那个租户里。
+ *
+ * 【为什么不用「缺租户就 skip」】那会让本探针最有价值的一条证据（端点 happy path，
+ * 首轮 M4/M6 变异正是被它杀死的）在 CI 永远不执行——恒绿的跳过就是假绿。
+ *
+ * 【CI 空库（只 migrate、无 seed）行为】建之 → 用 → 收尾删除，零残留。
+ * 【本机（已 seed）行为】复用不建、收尾不删，足迹与修复前完全一致。
+ */
+async function ensureDevTenant(): Promise<void> {
+  const existing = await prisma.tenant.findUnique({
+    where: { slug: DEV_TENANT_SLUG },
+    select: { id: true },
+  });
+  if (existing) return;
+  try {
+    await prisma.tenant.create({
+      data: {
+        slug: DEV_TENANT_SLUG,
+        name: 'dev tenant（M4.5 G4 探针夹具建）',
+      },
+    });
+    devTenantCreatedByProbe = true;
+    // eslint-disable-next-line no-console
+    console.log(
+      `[G4 环境] 库中无 slug=${DEV_TENANT_SLUG} 租户（CI 裸库）→ 探针自建，收尾还原`,
+    );
+  } catch {
+    // 并行用例同刻也在建（unique slug 竞态）→ 已存在即可，不认领所有权、收尾不删
+    // eslint-disable-next-line no-console
+    console.log(`[G4 环境] dev 租户由并行用例抢先建出 → 复用，不认领删除权`);
+  }
+}
 
 const planInput = (title = `${TAG} 计划`) => ({
   title,
@@ -62,6 +103,9 @@ async function propose(
 
 beforeAll(async () => {
   getNativeToolNames();
+  await ensureDevTenant();
+  // 仍走产品自己的解析函数（与 route 内部同一条路径）——不绕开它，
+  // 否则「端点解析到的就是这个租户」这一环就没被验到。
   devTenantId = await getDevTenantId();
   const t = await prisma.tenant.create({
     data: { slug: FIXTURE_SLUG, name: `M4.5 G4 探针租户 ${process.pid}` },
@@ -101,9 +145,34 @@ afterAll(async () => {
   const leftoverDev = await prisma.operationLog.count({
     where: { tenantId: devTenantId, summary: { contains: TAG } },
   });
+  // dev 租户还原（仅当是本探针建的）。
+  // 【比仓内既有三处多的一道护栏】删 Tenant 会**级联**删掉其下 game/project/user/kol
+  //（schema 里这些子表声明了 onDelete: Cascade）。CI 上多个集成测文件并行、都用同一个
+  // dev 租户放夹具——先跑完的那个若无条件删租户，会把还在跑的用例的夹具一起级联删掉。
+  // 故：只在租户名下确实空无一物时才删；否则明示放弃删除（宁可留一行也不误伤并行用例）。
+  let devTenantRestored = !devTenantCreatedByProbe;
+  if (devTenantCreatedByProbe) {
+    const [games, projects, users, kols] = await Promise.all([
+      prisma.game.count({ where: { tenantId: devTenantId } }),
+      prisma.project.count({ where: { tenantId: devTenantId } }),
+      prisma.user.count({ where: { tenantId: devTenantId } }),
+      prisma.kol.count({ where: { tenantId: devTenantId } }),
+    ]);
+    const occupied = games + projects + users + kols;
+    if (occupied === 0) {
+      await prisma.tenant.deleteMany({ where: { id: devTenantId } });
+      devTenantRestored = true;
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[G4 环境] dev 租户下已有并行用例的夹具（game=${games} project=${projects} user=${users} kol=${kols}）→ 放弃删除，避免级联误伤`,
+      );
+    }
+  }
+
   // eslint-disable-next-line no-console
   console.log(
-    `[G4 清理核证] 夹具租户残留=${leftoverTenant} · dev 租户 G4 留痕残留=${leftoverDev}`,
+    `[G4 清理核证] 夹具租户残留=${leftoverTenant} · dev 租户 G4 留痕残留=${leftoverDev} · dev 租户本探针自建=${devTenantCreatedByProbe} · 已还原=${devTenantRestored}`,
   );
   expect(leftoverTenant).toBe(0);
   expect(leftoverDev).toBe(0);

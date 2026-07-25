@@ -78,7 +78,7 @@
       "title": "loop 测试床（mock LanguageModel 注入缝）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P5：AI SDK mock LanguageModel（ai/test，导出名按 7.0.31 实物）驱动真实 streamText loop 的机械面测试基建，供 F002/F005/F007 复用。",
       "acceptance": "测试床可脚本化指定逐步 tool-call 序列驱动 /api/agent 同款 loop（真 executeTool 链）；零外呼（无 AIGCGATEWAY 请求，哨兵断言）；至少覆盖：步数上限截停 / handoff 子集切换 / outbound pending 停驻三场景可复用夹具；文档注释说明用法（后续批次可扩展）；tests/ 或 scripts/test/ 归位"
     },

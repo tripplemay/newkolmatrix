@@ -27,8 +27,9 @@ describe('F003 行动承诺诚实条款（产品级，全人格生效）', () =>
     expect(NO_TOOL_CLAUSE).toContain('页面入口');
   });
 
-  it('route.ts 无工具分支实际拼接该常量（contract-surface：读源码防丢接线）', () => {
-    const src = readFileSync('src/app/api/agent/route.ts', 'utf8');
+  // M4.5 F009：loop 装配从 route.ts 抽到 lib/agent/loop.ts，本断言随拼接点迁移（口径不变）
+  it('loop 装配的无工具分支实际拼接该常量（contract-surface：读源码防丢接线）', () => {
+    const src = readFileSync('src/lib/agent/loop.ts', 'utf8');
     expect(src).toContain('NO_TOOL_CLAUSE'); // import + 拼接点至少各一处
     expect(src.split('NO_TOOL_CLAUSE').length - 1).toBeGreaterThanOrEqual(2);
   });

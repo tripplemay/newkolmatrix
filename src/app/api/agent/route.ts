@@ -6,42 +6,25 @@
 // 单一 /api/agent 承载所有专家（不起独立进程，PRD §12.6/FR-12.1）：route 只换人格 system prompt +
 // 工具子集，端点不变。人格身份经响应头 X-Agent-Id 暴露（便于验证/前端消费）。
 //
+// 【M4.5 F009】loop 装配已抽到 lib/agent/loop.ts（带 model/ctx 注入缝，供 mock-model 测试床
+// 驱动同一条装配路径）。本文件只留 HTTP 边界：请求解析、context 校验、响应头、错误处理。
+//
 // 输入：{ prompt|messages, context?: { route?, projectId?, env?, agentId? } }。
 // 运行时 = nodejs（Prisma 不支持 edge）。
 
-import {
-  convertToModelMessages,
-  stepCountIs,
-  streamText,
-  type ModelMessage,
-} from 'ai';
-import {
-  chatModel,
-  describeGatewayError,
-  DEFAULT_MAX_OUTPUT_TOKENS,
-} from 'lib/ai/gateway';
-import { buildToolContext } from 'lib/agent/context';
-import { toAiSdkTools } from 'lib/agent/to-ai-sdk-tools';
-import { getTool } from 'lib/agent/tools/registry';
-import { ensureNativeToolsRegistered } from 'lib/agent/tools';
+import { convertToModelMessages, type ModelMessage } from 'ai';
+import { describeGatewayError } from 'lib/ai/gateway';
+import { runAgentLoop } from 'lib/agent/loop';
 import {
   defaultAgentForRoute,
-  personaToolSubset,
-  selectPersona,
   type CopilotContext,
   type CopilotEnv,
 } from 'lib/agent/persona-router';
-import {
-  DEFAULT_AGENT_ID,
-  isAgentId,
-  NO_TOOL_CLAUSE,
-} from 'lib/agent/registry';
-import { gameKnowledgeSection } from 'lib/agent/knowledge-context';
+import { DEFAULT_AGENT_ID, isAgentId } from 'lib/agent/registry';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const MAX_STEPS = 5;
 const ENVS: CopilotEnv[] = ['default', 'sandbox', 'production'];
 
 async function toModelMessages(body: unknown): Promise<ModelMessage[]> {
@@ -74,7 +57,6 @@ function resolveContext(body: unknown): CopilotContext {
 
 export async function POST(req: Request): Promise<Response> {
   try {
-    ensureNativeToolsRegistered(); // 确保 native 工具已注册（getTool/toAiSdkTools 依赖）
     const body = await req.json();
     const messages = await toModelMessages(body);
     if (messages.length === 0) {
@@ -85,51 +67,7 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     const copilot = resolveContext(body);
-    const persona = selectPersona(copilot);
-    const ctx = await buildToolContext({
-      agentId: copilot.agentId,
-      projectId: copilot.projectId,
-      env: copilot.env,
-    });
-
-    // 收窄工具子集 = 该人格绑定的工具（不同人格看到不同工具）。
-    const toolNames = personaToolSubset(persona);
-    const tools = toAiSdkTools(toolNames, ctx);
-
-    // ⑤层知识注入（M1-D F005）：经 Project.gameId 查链头按 persona.knowledgeKinds 拼知识段；
-    // ctx.projectId 为空 / 人格未声明 kinds / 无知识 → 空串跳过（不注水）。
-    const knowledgeSection = copilot.projectId
-      ? await gameKnowledgeSection(copilot.projectId, persona.knowledgeKinds)
-      : '';
-
-    // 系统提示 = 人格（身份+职责+否定式护栏）+ ⑤层知识段 + 该人格可用工具的使用指引。
-    const toolLines = toolNames
-      .map((name) => {
-        const t = getTool(name);
-        return t ? `- ${name}: ${t.description}` : null;
-      })
-      .filter(Boolean);
-    const system =
-      persona.systemPrompt +
-      knowledgeSection +
-      (toolLines.length
-        ? `\n\n你可调用的工具（需要时主动调用，基于返回的真实数据作答）：\n${toolLines.join(
-            '\n',
-          )}`
-        : // M2-C F003：无工具分支强化——明示「未执行任何动作」+ 指路（防幻觉执行）
-          NO_TOOL_CLAUSE);
-
-    const result = streamText({
-      model: chatModel(),
-      system,
-      messages,
-      tools,
-      stopWhen: stepCountIs(MAX_STEPS),
-      maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
-      onError: ({ error }) => {
-        console.error('[api/agent]', describeGatewayError(error));
-      },
-    });
+    const { persona, result } = await runAgentLoop({ copilot, messages });
 
     return result.toUIMessageStreamResponse({
       // 工具执行错误默认被 AI SDK 脱敏为 "An error occurred."；服务端 log 真实错误（不静默吞）+ 透传前端。

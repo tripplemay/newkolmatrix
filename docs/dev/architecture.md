@@ -251,7 +251,7 @@ flowchart TB
             DOMAIN["domain/（演进 M1）：健康度/匹配分/守卫/CRM 推断/ROI"]
             SIG["signals/（✅ M3-A F004）：normalize + ingest"]
             DATA[db/prisma.ts]
-            OPS["ops/（部分实装）：email ✅ M3-A F003；partner(escrow/keys) mock ✅ M3-B F004；share 演进 M4"]
+            OPS["ops/（部分实装）：email ✅ M3-A F003；partner(escrow/keys) mock ✅ M3-B F004；share mock ✅ M4 F007（真实现全归 M5）"]
         end
     end
 
@@ -369,7 +369,7 @@ src/
 │   ├── env.ts                              [新建](演进) serverEnv 集中校验（§13.2）
 │   ├── signals/                            [已建](M3-A F004) normalize.ts + ingest.ts
 │   ├── jobs/                               [新建](演进 M1) scheduler + routines
-│   └── ops/                                [部分已建] email/（M3-A F003：EmailSender + Resend/Mock 双实现）· partner/（M3-B F004：EscrowPartner + KeyDistributor，仅 mock，真实现归 M5）；share 归 M4
+│   └── ops/                                [部分已建] email/（M3-A F003：EmailSender + Resend/Mock 双实现）· partner/（M3-B F004：EscrowPartner + KeyDistributor，仅 mock）· share/（M4 F007：ShareLinkService，仅 mock 零公开暴露）；真实现全归 M5
 ├── contexts/ConfiguratorContext.ts         [已建]
 ├── hooks/                                  [已建]
 ├── variables/charts.ts                     [已建] chartOptions 预设复用源
@@ -526,7 +526,7 @@ pending ──confirm（人）──> executed        （confirmed 枚举值存�
 
 **⑧ `MatchCandidate.verdict` — 已实装（M2-A F001/F003 字段与保护 + M2-B F006 写入口，D20 变异断言两套）**：`pending → kept / dropped`（人工裁定；**写入口 = 待裁定表行内「保留/剔除」双钮 + `POST /api/match/candidates/{id}/verdict`，internal 无确认框**）；kept ↔ dropped 允许改判（人工纠错）；幂等同值重放不写库；刷新 upsert **不回退**人工态（P4，update 分支不含 verdict）；dropped 出局组合生成；裁定后待裁定表自动离表（读侧 `verdict:'pending'`）。K3 采纳率数据面随写入口激活（verdict 计数即分子分母）。
 
-### 5.4 领域服务（`src/lib/domain/`，纯函数注册表）— 部分实装（M3-B 校准：health.compute / envGuards / matchScore.compute / crmInfer / **deliveryCheck（`domain/delivery-check.ts`）+ dealAdvance（`domain/deal-advance.ts`）** 已实装；roi/attribution 仍为演进目标归 M4）
+### 5.4 领域服务（`src/lib/domain/`，纯函数注册表）— 全量实装（M4 校准：health.compute / envGuards / matchScore.compute / crmInfer / deliveryCheck + dealAdvance / **roi.compute（`domain/roi-compute.ts`）+ attribution.gaps（`domain/attribution-gaps.ts`）✅ M4 F002/F003**——注册表至此全部落地）
 
 | 函数 | 输入 | 输出 | 消费方 | 批次 |
 |---|---|---|---|---|
@@ -637,7 +637,7 @@ Tailwind + CSS 变量驱动（`AppWrappers` 注入 `--color-50..900`，品牌紫
 ### 6.7 mock 先行渲染契约
 
 M0.5（WORKBENCH-UI）以真组件 + mock 数据建满 UI：**渲染只依赖字段契约，不依赖数据来源**。所有深字段读取走统一契约层入口。
-**M1-C 校准——mock 已退役范围**：项目详情页（M1-B F001）、项目列表页与今天页（M1-C F001/F003）已 RSC 直读 DB，`mock/projects.ts`/`mock/today.ts` 已删除；**存续范围**：五环节语法面（env-\*）、creators/knowledge/insight/runs 页仍走 mock 契约层，随 M1-D+ 各批接真。契约层规则本身不变：
+**M4 校准——mock 已退役范围**：项目详情/列表/今天页（M1-B/M1-C）、knowledge 页（M1-D）、match/reach/delivery/insight 四语法面（M2-A/M3-A/M3-B/M4）、creators 页（M2-B）、洞察页（M4）均已接真退役（逐项登记见 `src/lib/data/mock/index.ts`）；**存续范围**：仅 brief 语法面（`env-brief.ts`）与 runs 页（`runs.ts`）仍走 mock 契约层，随后续批次接真。契约层规则本身不变：
 
 - `null → 渲染「待接入 / 待补充 / 待核」`，**绝不抛错、绝不填 0 冒充实测**（FR-11.17/11.18，D2）；
 - 「待核」的唯一触发条件 = **字段缺失 / 契约层返回 null**；有值即显（含低可信度值）（裁决 #2，与 §7.5 语义统一，可机械判定）；
@@ -675,13 +675,14 @@ PostgreSQL **16** + pgvector（dev：`docker-compose.dev.yml`，宿主端口 543
 > 10、8 模型 vs 实物 17、2 迁移 vs 实物 7——快照形态只记结构性事实，字段级语义看实物注释）。
 > 任何其他章节的字段描述与实物冲突时，以实物为准并即刻修订本文（R13）。
 >
-> 迁移（`prisma/migrations/`，8 条）：`20260718000000_init`（建表 + pgvector 扩展）·
+> 迁移（`prisma/migrations/`，9 条）：`20260718000000_init`（建表 + pgvector 扩展）·
 > `20260720000000_pendingaction_input` · `20260721184633_m1a_project_domain_fields_and_oplog_project_payload` ·
 > `20260722082147_pending_action_project_agent` · `20260722120709_m1d_material_gameknowledge` ·
 > `20260722161835_m2a_match_three_tables` · `20260723115700_m3a_reach_four_tables_gate7_contact_email` ·
-> `20260723235106_m3b_delivery_four_tables`（M3-B F001，expand-only：四表 + 五枚举，既有表零改动）。
+> `20260723235106_m3b_delivery_four_tables`（M3-B F001，expand-only：四表 + 五枚举，既有表零改动）·
+> `20260724183013_m4_insight_three_tables`（M4 F001，expand-only：三表 + 一枚举，既有表零改动；含单向回滚说明）。
 
-**枚举（16 个，与实物逐字一致）**
+**枚举（17 个，与实物逐字一致）**
 
 ```prisma
 enum Stage               { brief  match  reach  delivery  insight }          // M1-A（D5 环节游标）
@@ -700,9 +701,10 @@ enum DeliverableKind     { content  key  contract  escrow  ad_disclosure }   // 
 enum DeliverableStatus   { pending  met  missing  na }                       // M3-B（🔒 na 不得压成二态）
 enum GameKeyStatus       { reserved  distributed }                           // M3-B
 enum PayoutStatus        { prepared  released  blocked }                     // M3-B
+enum ShareLinkScope      { project  quarterly }                              // M4（裁决 #3 两 scope）
 ```
 
-**模型清单（21 个）**
+**模型清单（24 个）**
 
 | 模型 | 批次 | 关键唯一键 / 约束 | 说明 |
 |---|---|---|---|
@@ -723,6 +725,9 @@ enum PayoutStatus        { prepared  released  blocked }                     // 
 | `Deliverable` | M3-B | `@@unique([dealId, kind])` | 五条件行；required + evidenceRef + verifiedBy；三态判定见 `deliveryCheck` |
 | `GameKey` | M3-B | — | keyRef **存引用不存明文**（写入口守卫）；distributed 必带 gateLogId |
 | `Payout` | M3-B | — | amount Decimal(14,2)；released 必带 gateLogId；basis 记依据（合同+托管+披露） |
+| `MetricSnapshot` | M4 | `@@index([projectId, date])` | ROI 底表；spend Decimal(14,2)? + spendSource 口径标注（payout/quote/none）；reach/conversions/roi 本批恒 null（M5 回传源）；on-read 装配为主（`lib/insight/metric-snapshot.ts`），表为 M5 快照持久化预留 |
+| `WeeklyReport` | M4 | — | projectId? 双态（null=跨项目 V12 / 非空=项目复盘 V8，P10）；draftContent LLM 草案；采纳=internal 幂等（adopted/adoptedAt，重入不改写） |
+| `ShareLink` | M4 | — | tokenHash **明文不落库**（ADR-25）；gateLogId 必非空（生成经闸门）；projectId/gateLogId 软引用（D13——暴露事实独立于项目生命周期） |
 
 #### 7.2.2 `Kol` 字段契约位（D15）
 
@@ -887,7 +892,7 @@ export interface ToolContext {
 
 > **as-built 校准**：v1.1 §8.2 写的是 `kind: 'internal' | 'outbound'` 与 `agents: AgentKey[]` 字段。实物字段名为 **`class`**，且**工具定义上没有 `agents` 字段**——可见性收窄由**人格侧**承担（`registry.ts` 的 `AgentPersona.tools: string[]` 白名单 + `persona-router.personaToolSubset()`），而非工具侧声明。`output` 也无独立 zod schema（输出形状由 `execute` 返回类型承载）。
 
-**已实装工具（7 个，M2-C 校准）**：
+**已实装工具（18 个，M4 校准）**：
 
 | 工具 | class | 归属人格 | 说明 |
 |---|---|---|---|
@@ -905,6 +910,9 @@ export interface ToolContext {
 | `check_deliverables` | internal | delivery | 单笔条件核对 = `deliveryCheck` 产物（M3-B F007，不内联重算——与台账/服务端硬闸同一判定） |
 | `payout` | **outbound** | delivery | `buildHarm` 三行（收款方/金额+币种/依据）；**buildHarm 与 execute 各重跑一次 deliveryCheck，ready=false 一律拒**（FR-8.2.4.2 无绕过入口）；execute = mock EscrowPartner.release（P1 零真实资金动作）+ `Payout prepared→released`(gateLogId 必非空) + Deal 推进 completed，同事务（M3-B F005） |
 | `distribute_keys` | **outbound** | delivery | `buildHarm` 三要素（领取方/数量/「一经发放不可回收」）；execute = mock KeyDistributor + `GameKey reserved→distributed`(gateLogId 必非空) + key 条件置 met；库存不足明示拒绝不部分发放（M3-B F006） |
+| `compute_roi` | internal | insight | ROI 对账只读 = `roi.compute` + `attribution.gaps` 产物（M4 F005，不内联重算）；分子缺 → roi=null + insufficient_evidence 诚实透传；目标值接线 `Project.goal.targetExposure` |
+| `draft_report` | internal | insight | gateway chat 长文起草 → `WeeklyReport(adopted=false)` 落库（M4 F006；`AIGCGATEWAY_REPORT_MODEL` 大模型路由插座；无凭据降级固定草案首行明示）；采纳 = 独立 internal 服务置 adopted（幂等，重入不改写 adoptedAt） |
+| `create_share_link` | **outbound** | insight | `buildHarm` 三要素（可见范围 scope / 有效期 / 「链接一经生成即暴露」红标）；execute = mock ShareLinkService（**零真实公开暴露**）+ `ShareLink` 落库（gateLogId 必非空 + tokenHash，明文 token 仅 execute 响应现一次）+ irrev 同事务；幂等键 = PA.id，重入不双建且 token=null 如实返回（M4 F008，白名单第 6） |
 
 **目标态 outbound 六工具白名单** = **6 中 5 已实装**：`send_outreach`（✅）· `commit_quote`（✅ M3-A F006）· `payout`（✅ M3-B F005）· `distribute_keys`（✅ M3-B F006）· `create_share_link`（✅ M4 F008：harm 三要素含「链接一经生成即暴露」红标；本批 mock 通道零真实公开暴露）· `send_bulk_outreach`（M3-C+）。
 
@@ -1006,10 +1014,10 @@ export function renderToolResult(toolName: string, output: unknown);  // 未注�
 | `match` | 匹配 Agent | ② Match | `[search_kols, get_kol_detail, match_plan, evaluate_creator]`（M2-A F007 扩四件） | 只做发现与匹配，不发起触达、不谈价 | 对比矩阵 |
 | `reach` | 触达 Agent | ③ Reach | `[get_kol_detail, send_outreach⛔, draft_email, refine_email, commit_quote⛔]`（M3-A F006 扩容） | 不批预算、不放款；报价与发送需你确认 | 对话收件箱 |
 | `delivery` | 交付 Agent | ④ Delivery | `[track_delivery, check_deliverables, payout⛔, distribute_keys⛔]`（M3-B F005/F006/F007） | 不选人、不谈判；放款需你逐笔确认 | 条件台账 |
-| `insight` | 洞察 Agent | ⑤ Insight | `[]` | 只读结果数据，不改动执行动作 | 对照账本 |
+| `insight` | 洞察 Agent | ⑤ Insight | `[compute_roi, draft_report, create_share_link⛔]`（M4 F005/F006/F008 扩三件） | 只读结果数据，不改动执行动作 | 对照账本 |
 | `compliance` | 合规 Agent | 跨环节（被调用） | `[]` | 跨环节被调用，只做合规判断 | 嵌入各环节 |
 
-（⛔ = outbound，经闸门。空 `tools` = EXTENSION POINT，各人格领域工具随 M1–M4 落地时补入。）
+（⛔ = outbound，经闸门。空 `tools` = EXTENSION POINT——五环节人格 M1–M4 已全部补入，仅 compliance 领域工具随后续批次落地。）
 
 **目标态工具子集**（演进，随批次补入 `tools`）：strategy += `parse_material`/`draft_brief`（`compute_health` ✅ M1-B / `confirm_brief_goal` ✅ M3-B F011 已兑现）；~~match += `evaluate_creator`/`match_plan`~~（✅ M2-A F007 已兑现）；~~reach += `draft_email`/`refine_email`/`commit_quote⛔`~~（✅ M3-A F006 已兑现）；reach += `get_active_plan`/`send_bulk_outreach⛔`（M3-B+）；~~delivery += `track_delivery`/`check_deliverables`/`distribute_keys⛔`/`payout⛔`~~（✅ M3-B F005/F006/F007 已兑现）；~~insight += `compute_roi`/`draft_report`/`create_share_link⛔`~~（✅ M4 F005/F006/F008 已兑现）；compliance += `check_brand_safety`/`check_platform_compliance`；orchestrator += `list_pending_asks`/`summarize_squad`。
 

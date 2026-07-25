@@ -96,7 +96,7 @@
       "title": "check_compliance 内部工具（compliance 人格首件）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "F-G：合规核查器——经 Project.gameId 取 compliance_redline 知识链头产出结构化核查单；compliance 人格 tools 空数组起填充；本批只立工具（其他流程自动嵌入留后续，范围克制）。",
       "acceptance": "check_compliance 注册且挂 compliance 人格（tools 空数组起填充，同源断言）；class=internal 无 buildHarm；输入 projectId（+可选待查文本）→ 经既有 knowledge 链头读取器取 compliance_redline（不内联重查，grep 证复用）；输出结构化核查单（红线条目 + 逐条来源 Material 溯源引用）；无红线知识 → 空态诚实（「暂无红线知识」明示，不编造）；输出 JSON 往返无损；输入契约单测；范围注明：不强制嵌入 create_share_link/draft 流程（后续批次裁决自动接线）"
     }

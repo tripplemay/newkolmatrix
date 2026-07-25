@@ -892,7 +892,7 @@ export interface ToolContext {
 
 > **as-built 校准**：v1.1 §8.2 写的是 `kind: 'internal' | 'outbound'` 与 `agents: AgentKey[]` 字段。实物字段名为 **`class`**，且**工具定义上没有 `agents` 字段**——可见性收窄由**人格侧**承担（`registry.ts` 的 `AgentPersona.tools: string[]` 白名单 + `persona-router.personaToolSubset()`），而非工具侧声明。`output` 也无独立 zod schema（输出形状由 `execute` 返回类型承载）。
 
-**已实装工具（19 个，M4.5 校准）**：
+**已实装工具（20 个，M4.5 校准）**：
 
 | 工具 | class | 归属人格 | 说明 |
 |---|---|---|---|
@@ -914,6 +914,7 @@ export interface ToolContext {
 | `draft_report` | internal | insight | gateway chat 长文起草 → `WeeklyReport(adopted=false)` 落库（M4 F006；`AIGCGATEWAY_REPORT_MODEL` 大模型路由插座；无凭据降级固定草案首行明示）；采纳 = 独立 internal 服务置 adopted（幂等，重入不改写 adoptedAt） |
 | `create_share_link` | **outbound** | insight | `buildHarm` 三要素（可见范围 scope / 有效期 / 「链接一经生成即暴露」红标）；execute = mock ShareLinkService（**零真实公开暴露**）+ `ShareLink` 落库（gateLogId 必非空 + tokenHash，明文 token 仅 execute 响应现一次）+ irrev 同事务；幂等键 = PA.id，重入不双建且 token=null 如实返回（M4 F008，白名单第 6） |
 | `compute_roi_portfolio` | internal | insight | 跨项目 ROI 对比 = `loadTenantProjectSpends` 批量装配 + `roi.compute` + `attribution.gaps` 产物组合（M4.5 F003，不内联重算——与单项目工具、V8/V12 页面同一判定）；ROI 全部算不出时 `summary.rankable=false` + 原因如实标注，**不按花费假装排效果** |
+| `check_compliance` | internal | compliance | 该项目所属游戏的现行合规红线核查单 = `getKnowledgeHeads` 链头产物 + 逐条 Material 溯源（M4.5 F011，不内联重查——绕过链头口径会把已取代的旧红线当现行用）；**恒 `verdict:not_judged`**：只交付清单与溯源，判定归 Agent 逐条比对；无红线知识时明示「不得据此判定合规通过」。本批只立工具，不强制嵌入 draft/share 流程 |
 
 **目标态 outbound 六工具白名单** = **6 中 5 已实装**：`send_outreach`（✅）· `commit_quote`（✅ M3-A F006）· `payout`（✅ M3-B F005）· `distribute_keys`（✅ M3-B F006）· `create_share_link`（✅ M4 F008：harm 三要素含「链接一经生成即暴露」红标；本批 mock 通道零真实公开暴露）· `send_bulk_outreach`（M3-C+）。
 
@@ -1036,7 +1037,7 @@ export function renderToolResult(toolName: string, output: unknown);  // 未注�
 | `reach` | 触达 Agent | ③ Reach | `[get_kol_detail, send_outreach⛔, draft_email, refine_email, commit_quote⛔]`（M3-A F006 扩容） | 不批预算、不放款；报价与发送需你确认 | 对话收件箱 |
 | `delivery` | 交付 Agent | ④ Delivery | `[track_delivery, check_deliverables, payout⛔, distribute_keys⛔]`（M3-B F005/F006/F007） | 不选人、不谈判；放款需你逐笔确认 | 条件台账 |
 | `insight` | 洞察 Agent | ⑤ Insight | `[compute_roi, compute_roi_portfolio, draft_report, create_share_link⛔]`（M4 F005/F006/F008 扩三件 + M4.5 F003 组合对比） | 只读结果数据，不改动执行动作 | 对照账本 · 归因追问纪律条款（`INSIGHT_ATTRIBUTION_CLAUSE`） |
-| `compliance` | 合规 Agent | 跨环节（被调用） | `[]` | 跨环节被调用，只做合规判断 | 嵌入各环节 |
+| `compliance` | 合规 Agent | 跨环节（被调用） | `[check_compliance]`（M4.5 F011 首件，空数组首次填充） | 跨环节被调用，只做合规判断 | 嵌入各环节 |
 
 （⛔ = outbound，经闸门。空 `tools` = EXTENSION POINT——五环节人格 M1–M4 已全部补入，仅 compliance 领域工具随后续批次落地。）
 

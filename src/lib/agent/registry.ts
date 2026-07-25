@@ -228,7 +228,9 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     duty: '内容合规·#ad 披露·授权范围核查',
     isolation: '跨环节被调用，只做合规判断',
     uiSyntax: '嵌入各环节',
-    tools: [],
+    // M4.5 F011：check_compliance（internal，红线清单 + 溯源；不给判定）——
+    // 合规人格自 AGENT-FOUNDATION 起的空数组在此首次填充
+    tools: ['check_compliance'],
     maxSteps: DEFAULT_MAX_STEPS,
     knowledgeKinds: ['compliance_redline'], // ⑤层：红线→合规（FR-8.4.8）
   },

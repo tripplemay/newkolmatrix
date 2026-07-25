@@ -20,6 +20,7 @@ import { confirmBriefGoalTool } from './confirm-brief-goal';
 import { draftReportTool } from './draft-report';
 import { computeRoiTool } from './compute-roi';
 import { computeRoiPortfolioTool } from './compute-roi-portfolio';
+import { checkComplianceTool } from './check-compliance';
 import { createShareLinkTool } from './create-share-link';
 import type { ToolDefinition } from './types';
 
@@ -43,6 +44,7 @@ const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
   computeRoiTool as unknown as ToolDefinition<never, unknown>, // M4 F005（internal，ROI 对账只读 = roi.compute + attribution.gaps 产物）
   createShareLinkTool as unknown as ToolDefinition<never, unknown>, // M4 F008（outbound 白名单第 6，对外分享过闸门——链接一经生成即暴露）
   computeRoiPortfolioTool as unknown as ToolDefinition<never, unknown>, // M4.5 F003（internal，跨项目 ROI 对比 = 装配 + 两纯函数产物组合）
+  checkComplianceTool as unknown as ToolDefinition<never, unknown>, // M4.5 F011（internal，合规红线核查单 = 链头读取器产物 + 溯源；不给判定）
 ];
 
 let registered = false;

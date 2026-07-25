@@ -1,8 +1,8 @@
 {
-  "status": "verifying",
+  "status": "fixing",
   "user_goal": "洞察域立真：MetricSnapshot/WeeklyReport/ShareLink 三表 + roi.compute/attribution.gaps 两纯函数（三处复用）+ compute_roi/draft_report/create_share_link 三工具（分享 outbound 白名单第 6）+ V8 项目级对照账本 & V12 跨项目洞察接真（两 mock 退役）+ weekly-draft 例程。ROI 分子诚实降级（spend 真源 + reach/conversions 缺口如实标注，真值留 M5）；对外分享接口先行+mock 零公开暴露。",
   "total_features": 12,
-  "completed_features": 12,
+  "completed_features": 11,
   "fix_rounds": 0,
   "current_sprint": "M4-INSIGHT",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
@@ -22,7 +22,23 @@
     "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": null,
+  "evaluator_feedback": {
+    "round": 1,
+    "date": "2026-07-25",
+    "summary": "11 PASS / 1 PARTIAL（F012，对抗复核 4/4 UPHELD）。完整 verdict 见 docs/test-reports/m4-verify/F0XX-verdict.md，汇总见 docs/test-reports/M4-INSIGHT-verify-round1-2026-07-25.md",
+    "results": {
+      "F001": "PASS", "F002": "PASS", "F003": "PASS", "F004": "PASS",
+      "F005": "PASS", "F006": "PASS", "F007": "PASS", "F008": "PASS",
+      "F009": "PASS", "F010": "PASS", "F011": "PASS", "F012": "PARTIAL"
+    },
+    "F012_issues": [
+      "issue-1: architecture.md §9.2「已实装工具」表未加 M4 三工具行（compute_roi/draft_report/create_share_link）——acceptance 显式命名项（UPHELD）",
+      "issue-2: architecture.md §8.6 编队名册 as-built 表 insight 行 tools 仍为 []——与 registry.ts 实物（三件）矛盾（UPHELD）",
+      "issue-3: architecture.md §7.2.1 三表+一枚举+迁移计数整条未更新（schema 权威转录节）（UPHELD）",
+      "issue-4: 批末新鲜度复核漏 4 处陈旧标记：§5.4 标题未随行翻 / escrow·keys·share「演进 M4」两处残留（M3-B F012 fixing 已显式指派 M4 翻牌）/ mock env-* 语法面句仍含 insight 字样（UPHELD；与 M3-B 同坑二次复发）"
+    ],
+    "note": "e2e 闭环与 lint/tsc/test:unit/test:visual 四件套无缺陷，零产品代码 Bug；阻断项全部为文档层。零真实公开暴露经 F008/F010/F012 三处独立核证；L2 真网关未消耗（未获授权）。"
+  },
   "generator_handoff": null,
   "session_notes": {
     "Andy": "【M4-INSIGHT building 完成 12/12 → verifying · 2026-07-24 · 快车道】\n■ 实现节奏：F001 迁移串行起步 → F002/F003/F007 并行 worktree subagent（cherry-pick 合入 3a7fa04/bb9658c/b54bb8e）→ F004/F005/F006/F008 主上下文串行 → F011 → F009/F010 UI 接真 → F012 e2e+文档。全部 feat(M4-INSIGHT-F0xx) 独立 commit，HEAD CI 绿 @ f6a631b。\n■ Generator 自行裁决点（evaluator 请核）：① F002 ROI 数值口径 = conversions/spend 最小诚实口径（spec 未给公式；文件头记录为单点可裁决，本批分子恒缺生产路径恒 insufficient_evidence）② ShareLink.projectId 软引用不强 FK（暴露事实独立于项目生命周期，migration 头有理由）③ V8 对照表 4 行按可得指标轴重立（mock 营销示意行随退役；ui-inventory 例外登记）④ V8/V12 图卡（渠道/受众/ROI 走势/各项目 ROI）数据源属 M5 回传——实现保留、data 恒 null 走「待接入」占位。\n■ CI 红过两轮均已修复：一轮 = 注入缝 llm 被凭据降级改道（c09ef41 修 + 回归测试）；两轮 = F009/F010 新基线 CI 首推必红（走 update-visual-baselines workflow 重生拉回，已知路径）。\n■ 本地已知漂移（非本批回归，CI 侧绿）：today 基线相对时间标签 + env=match 基线本地长寿命 DB 有真组合数据 vs CI 夹具空态。\n■ L2 授权未消耗：draft_report/weekly-draft 全程降级固定草案（明示，零外呼）；验收若要真网关最小用量走 INSIGHT_E2E_REAL_LLM=1 npm run insight:e2e（需用户授权）。\n■ 零真实公开暴露核证：dev 库 ShareLink 0 行（e2e 夹具自清理）；mock publicUrl 恒 null；无真实分享分支。验收入口 npm run insight:e2e（23 断言）+ 各集成测 + test:visual。规格与 P 决策见 docs/specs/M4-INSIGHT-spec.md（U1-U3 / P1-P10）。",

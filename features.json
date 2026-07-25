@@ -105,7 +105,7 @@
       "title": "insight:e2e 闭环 + 文档翻牌 + 批末新鲜度复核",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "insight:e2e 全链；architecture/ui-inventory/agent-architecture 翻牌 + 新鲜度复核。",
       "acceptance": "insight:e2e 脚本：度量装配（spend 真源）→ compute_roi（分子缺显证据不足 + gaps）→ draft_report 起草 → 采纳 internal → create_share_link 无令牌 pending（副作用零发生断言）→ confirm+execute → ShareLink 落库 + gateLogId + irrev 留痕齐；零真实公开暴露断言（mock 观测标记，无真实分享分支）；architecture.md 翻牌（§5.2 insight 行 ✅/§5.4 roi·attribution 行 ✅/§14 M4 行 ✅/工具表 compute_roi·draft_report·create_share_link/insight 人格 tools/§7.2.1 三表+一枚举计数/§9.3.1 分享 harm/§10.3 ops/share）+ ui-inventory V8/V12 登记 + agent-architecture 同步 + 批末新鲜度复核（grep 陈旧计数/未实装残留/演进 M4 标记翻牌，含 outbound 白名单第 6 工具兑现）；lint+tsc+test:unit+test:visual 绿"
     }

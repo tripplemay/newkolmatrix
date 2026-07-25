@@ -13,6 +13,7 @@ test('agent loop visual baseline', async ({ page }) => {
   await mockFonts(page);
   await page.goto('/preview/agent-loop', { waitUntil: 'domcontentloaded' });
   // 两个新构件都须就位（否则可能截在它们绘制之前，基线守的是半张图）。
+  await page.getByTestId('action-plan-card-draft').waitFor({ timeout: 30_000 });
   await page.getByTestId('action-plan-card').waitFor({ timeout: 30_000 });
   await page.getByTestId('persona-switch-note').waitFor({ timeout: 30_000 });
   await page.getByTestId('pending-batch-card').waitFor({ timeout: 30_000 });
@@ -25,6 +26,7 @@ test('agent loop visual baseline (mobile viewport)', async ({ page }) => {
   await page.setViewportSize({ width: 430, height: 932 });
   await mockFonts(page);
   await page.goto('/preview/agent-loop', { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('action-plan-card-draft').waitFor({ timeout: 30_000 });
   await page.getByTestId('action-plan-card').waitFor({ timeout: 30_000 });
   await page.getByTestId('persona-switch-note').waitFor({ timeout: 30_000 });
   await page.getByTestId('pending-batch-card').waitFor({ timeout: 30_000 });

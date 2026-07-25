@@ -14,10 +14,12 @@ import PanelHeader from 'components/common/PanelHeader';
 import ExpertScope from 'components/copilot/ExpertScope';
 import PersonaSwitchNote from 'components/copilot/PersonaSwitchNote';
 import PlanCard from 'components/copilot/canvas/PlanCard';
+import PlanCardDraft from 'components/copilot/canvas/PlanCardDraft';
 import PendingBatchCard from 'components/common/PendingBatchCard';
 import {
   PENDING_BATCH_FIXTURE,
   PERSONA_SWITCH_FIXTURE,
+  PLAN_DRAFT_FIXTURE,
   PLAN_FIXTURE,
 } from './fixture';
 
@@ -28,7 +30,7 @@ export default function AgentLoopPreview() {
         <PanelHeader
           className="mb-3"
           title="Copilot · 循环放开面"
-          subtitle="M4.5 产物：行动计划卡（认可只留痕）+ 循环内接力标注（边界卡随之切换）+ 批量备好聚合确认面"
+          subtitle="M4.5 产物：行动计划卡（认可只留痕）+ 循环内接力标注（边界卡随之切换）+ 批量备好聚合确认面；计划卡含渐进态与最终态两形态"
         />
 
         {/* 起始人格边界卡 */}
@@ -39,7 +41,10 @@ export default function AgentLoopPreview() {
             把这季度的复盘和对外分享安排一下
           </ChatBubble>
 
-          {/* F004：行动计划卡（propose_plan → type:'action_plan' 画布路由） */}
+          {/* F008（裁决 C）：计划卡的渐进态——模型正在逐条写 items 时的形态 */}
+          <PlanCardDraft input={PLAN_DRAFT_FIXTURE} />
+
+          {/* F004：行动计划卡最终态（propose_plan → type:'action_plan' 画布路由） */}
           <PlanCard output={PLAN_FIXTURE} />
 
           {/* F006：循环内接力的流内标注 + 边界卡切到目标人格 */}

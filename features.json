@@ -66,12 +66,12 @@
     },
     {
       "id": "F008",
-      "title": "画布渐进渲染（pre-impl 审计先行）",
+      "title": "画布渐进渲染（pre-impl 审计 → 裁决 C：模型自写入参类工具）",
       "priority": "low",
       "executor": "generator",
-      "status": "pending",
-      "description": "P8：开工前实物核 ai@7.0.31 + @ai-sdk/react@4.0.34 的 streaming tool input 支持面，出 pre-impl 审计文档等 Planner 裁决后实装或降级。",
-      "acceptance": "pre-impl 审计文档在 docs/specs/ 落盘（实物 d.ts/poc 证据 + 方案 A 部分参数流式 / B 结果分段渲染降级）且含 Planner 裁决段；按裁决实装：draft 类工具输出（draft_email/draft_report）在画布卡渐进出现；不支持面如实降级并明示（不按猜测 API 写）；无闪烁/重复渲染（视觉基线 + 手测记录）；对非 draft 类工具零行为变化"
+      "status": "completed",
+      "description": "P8 审计已出并裁决 D-F008-1=C：用 state:input-streaming 的 partial input 渐进渲染模型自己在写的工具卡（本批 = propose_plan 计划卡）。draft 类工具正文是 execute 内部产物、入参流对其无效，本批不渐进（方案 A 入 backlog BL-TOOL-STREAM-OUTPUT）。",
+      "acceptance": "pre-impl 审计文档在 docs/specs/ 落盘（实物 d.ts 证据 + 三方案代价）且含 Planner 裁决段（D-F008-1/2/3）；按裁决实装：propose_plan 计划在画布卡渐进出现（标题→逐条步骤边写边出，state=input-streaming 的 partial input 驱动）；**渐进态不得展示模型自报 needsGate**（服务端未复核前不把最不可信的数据当结论）；draft 类工具如实不渐进并在文档明示原因（不按猜测 API 写）；无闪烁/重复渲染（渲染分支互斥单测 + 视觉基线 + 手测记录）；对非渐进类工具零行为变化"
     },
     {
       "id": "F009",

@@ -46,7 +46,11 @@ import ActionCard from './ActionCard';
 import PendingBatchCard from 'components/common/PendingBatchCard';
 import type { PendingBatchItem } from 'lib/gate/pending-items';
 import { mockCopilotUi } from './mock';
-import { hasCanvasRenderer, renderToolResult } from './canvas/canvas-registry';
+import {
+  pickToolRenderMode,
+  renderToolInputDraft,
+  renderToolResult,
+} from './canvas/canvas-registry';
 
 function deriveContext(
   pathname: string,
@@ -114,6 +118,7 @@ function MessageParts({
           toolName?: string;
           state?: string;
           output?: unknown;
+          input?: unknown;
           data?: PersonaSwitchData;
         };
         // M4.5 F006：人格切换事件（流内 data part）→ 接手标注
@@ -135,12 +140,14 @@ function MessageParts({
             part.type === 'dynamic-tool'
               ? part.toolName ?? ''
               : part.type.slice('tool-'.length);
-          if (
-            part.state === 'output-available' &&
-            // ADR-28（M2-A F007）：路由键 = 结果 type 优先、工具名回退——判定需带 output
-            hasCanvasRenderer(toolName, part.output)
-          ) {
+          // ADR-28（M2-A F007）：结果路由键 = 结果 type 优先、工具名回退（判定需带 output）；
+          // M4.5 F008（裁决 C）：模型正在写入参时先出渐进卡。三分支互斥，见 pickToolRenderMode。
+          const mode = pickToolRenderMode(toolName, part.state, part.output);
+          if (mode === 'canvas') {
             return <div key={i}>{renderToolResult(toolName, part.output)}</div>;
+          }
+          if (mode === 'draft') {
+            return <div key={i}>{renderToolInputDraft(toolName, part.input)}</div>;
           }
           const label =
             part.state === 'output-error'

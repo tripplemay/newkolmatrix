@@ -15,6 +15,7 @@ import type { ComponentType } from 'react';
 import KolResultCards, { type SearchKolsOutput } from './KolResultCards';
 import MatchPlanCard from './MatchPlanCard';
 import PlanCard from './PlanCard';
+import PlanCardDraft from './PlanCardDraft';
 
 const CANVAS_REGISTRY = new Map<string, ComponentType<{ output: never }>>();
 
@@ -48,6 +49,74 @@ function ensureBuiltinRenderers(): void {
 }
 
 ensureBuiltinRenderers();
+
+/* ────────────────────────────────────────────────────────────────
+   渐进渲染面（M4.5 F008 裁决 C）：模型**正在写**工具入参时的卡片
+   —— 与结果渲染器分开两张表：键不同（工具名 vs 结果 type）、
+   数据不同（partial input vs 完整 output）、诚实边界不同（渐进态不出闸门标注）。
+   扩展一种渐进卡 = registerCanvasDraftRenderer 一条。
+   ──────────────────────────────────────────────────────────────── */
+
+const CANVAS_DRAFT_REGISTRY = new Map<
+  string,
+  ComponentType<{ input: never }>
+>();
+
+/** 注册某工具的「入参流式」渐进渲染器（键 = 工具名——此刻还没有 output，谈不上结果 type）。 */
+export function registerCanvasDraftRenderer(
+  toolName: string,
+  component: ComponentType<{ input: never }>,
+): void {
+  if (CANVAS_DRAFT_REGISTRY.has(toolName)) {
+    throw new Error(`[canvas] 渐进渲染器重名: ${toolName}（禁止双语义并存）`);
+  }
+  CANVAS_DRAFT_REGISTRY.set(toolName, component);
+}
+
+function ensureBuiltinDraftRenderers(): void {
+  if (!CANVAS_DRAFT_REGISTRY.has('propose_plan')) {
+    CANVAS_DRAFT_REGISTRY.set(
+      'propose_plan',
+      PlanCardDraft as unknown as ComponentType<{ input: never }>,
+    );
+  }
+}
+
+ensureBuiltinDraftRenderers();
+
+export function hasCanvasDraftRenderer(toolName: string): boolean {
+  return CANVAS_DRAFT_REGISTRY.has(toolName);
+}
+
+/** 渲染「正在写」的工具入参；无注册器 → null（对话面回退为「调用工具 X…」一行字）。 */
+export function renderToolInputDraft(toolName: string, input: unknown) {
+  const Comp = CANVAS_DRAFT_REGISTRY.get(toolName);
+  if (!Comp) return null;
+  return <Comp input={(input ?? {}) as never} />;
+}
+
+/**
+ * 渲染分支判定（单一真相源，供 UI 与单测共用）：一个工具 part 在某状态下该出哪种渲染。
+ * 三分支**互斥**——同一 part 不会同时出渐进卡与结果卡（重复渲染/闪烁的机械防线）。
+ */
+export type ToolRenderMode = 'canvas' | 'draft' | 'label';
+
+export function pickToolRenderMode(
+  toolName: string,
+  state: string | undefined,
+  output: unknown,
+): ToolRenderMode {
+  if (state === 'output-available' && hasCanvasRenderer(toolName, output)) {
+    return 'canvas';
+  }
+  if (
+    (state === 'input-streaming' || state === 'input-available') &&
+    hasCanvasDraftRenderer(toolName)
+  ) {
+    return 'draft';
+  }
+  return 'label';
+}
 
 /** 路由键解析（ADR-28）：结果 type 优先，无 type 回退工具名。 */
 function resolveCanvasKey(toolName: string, output: unknown): string {

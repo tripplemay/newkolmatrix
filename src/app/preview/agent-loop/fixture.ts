@@ -92,3 +92,13 @@ export const PENDING_BATCH_FIXTURE: PendingBatchItem[] = [
     },
   },
 ];
+
+/** F008 渐进态：模型写到一半的计划入参（第 3 步还没写出来）。 */
+export const PLAN_DRAFT_FIXTURE = {
+  title: '本季度复盘与对外分享',
+  items: [
+    { title: '先算一遍跨项目 ROI，找出证据缺口' },
+    { title: '按缺口起草季度复盘周报' },
+    {}, // 正在写的那一条：字段还没成形
+  ],
+};

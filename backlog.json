@@ -3,7 +3,9 @@
     "id": "BL-COST-CAP",
     "title": "cost-cap 兑现：per-tenant 日预算闸 + 单请求 token 上限差异化",
     "description": "ai-action-contract §4.7 扩展点转正。例程 agent 化（BL-AGENT-ROUTINE）的硬前置——无人值守 loop 上线前必须有预算闸。交互式 loop 本批（M4.5）以 maxSteps+maxOutputTokens+maxDuration 三重上限覆盖（P10 裁决范围克制）。",
-    "decisions": ["M4.5 立项时裁决不入批（P10）：人在场场景三重上限够用，cost-cap 随例程批兑现"],
+    "decisions": [
+      "M4.5 立项时裁决不入批（P10）：人在场场景三重上限够用，cost-cap 随例程批兑现"
+    ],
     "confirmed_at": "2026-07-25",
     "priority": "high"
   },
@@ -11,8 +13,20 @@
     "id": "BL-AGENT-ROUTINE",
     "title": "例程 agent 化：夜间管家（F-E）+ 回信自动跟进（F-F）",
     "description": "例程执行体从固定服务升级为受预算约束的 agent loop：夜间 per-project 巡检（健康度→阻塞识别→处置起草→pending 备好→晨间雷达聚合）+ 入站信号触发 reach loop 起草回复。红线：outbound 直通继续为零，只备好进 pending。依赖：BL-COST-CAP（预算闸）+ M3-C 真入站收信（F-F 部分）+ R11 噪音上限设计（每夜 ask/pending 定量上限）。",
-    "decisions": ["M4.5 立项时裁决推后：无人值守 + 成本面最敏感，待交互式 loop 特性验证一期后再议"],
+    "decisions": [
+      "M4.5 立项时裁决推后：无人值守 + 成本面最敏感，待交互式 loop 特性验证一期后再议"
+    ],
     "confirmed_at": "2026-07-25",
     "priority": "medium"
+  },
+  {
+    "id": "BL-TOOL-STREAM-OUTPUT",
+    "title": "柱一执行入口支持流式工具产物（draft 类正文边生成边出现）",
+    "description": "AI SDK v7 的 ToolExecuteFunction 已支持返回 AsyncIterable<OUTPUT>（实物核见 docs/specs/M4.5-AGENT-LOOP-f008-preimpl-audit.md E3）。要让 draft_email/draft_report 的正文渐进出现，需 (1) 起草服务改流式网关调用 (2) toAiSdkTools 的 execute 改 async generator 逐段 yield (3) 重新论证 executeTool 返回契约引入流语义后，zod 入参校验 / class 分流 / outbound pending 信封三项保证不被削弱。",
+    "decisions": [
+      "M4.5 F008 裁决 D-F008-1/3（2026-07-25 用户实答）：不挂在 low 优先级渲染 feature 下顺手改柱一契约，独立立项"
+    ],
+    "confirmed_at": "2026-07-25",
+    "priority": "low"
   }
 ]

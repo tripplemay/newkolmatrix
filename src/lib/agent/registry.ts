@@ -126,7 +126,8 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     uiSyntax: '今天/雷达',
     // M2-C F001：create_project（项目创建是编排入口动作——「开新项目」找编排）
     // M3-B F011：confirm_brief_goal（创建后紧接着的目标确认，同属编排入口动线）
-    tools: ['create_project', 'confirm_brief_goal'],
+    // M4.5 F004：propose_plan（internal，把「打算做的几件事」产出为可追溯的计划卡）
+    tools: ['create_project', 'confirm_brief_goal', 'propose_plan'],
     maxSteps: EXTENDED_MAX_STEPS, // U2：编排要在一次会话里跑完「汇总→接力→再汇总」
   },
   {
@@ -218,6 +219,7 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
       'compute_roi_portfolio',
       'draft_report',
       'create_share_link',
+      'propose_plan', // M4.5 F004
     ],
     maxSteps: EXTENDED_MAX_STEPS, // U2：ROI 追问天然多轮（对比→找缺口→再查→起草）
   },

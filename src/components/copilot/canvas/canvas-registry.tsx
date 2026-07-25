@@ -14,6 +14,7 @@
 import type { ComponentType } from 'react';
 import KolResultCards, { type SearchKolsOutput } from './KolResultCards';
 import MatchPlanCard from './MatchPlanCard';
+import PlanCard from './PlanCard';
 
 const CANVAS_REGISTRY = new Map<string, ComponentType<{ output: never }>>();
 
@@ -38,6 +39,8 @@ function ensureBuiltinRenderers(): void {
     ['search_kols', KolResultCards as unknown as ComponentType<{ output: never }>],
     // match_plan 输出携带 type:'match_plan' → 结果 type 键（ADR-28 目标态）
     ['match_plan', MatchPlanCard as unknown as ComponentType<{ output: never }>],
+    // propose_plan 输出携带 type:'action_plan'（M4.5 F004 行动计划卡）
+    ['action_plan', PlanCard as unknown as ComponentType<{ output: never }>],
   ];
   for (const [type, comp] of builtin) {
     if (!CANVAS_REGISTRY.has(type)) CANVAS_REGISTRY.set(type, comp);

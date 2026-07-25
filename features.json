@@ -33,7 +33,7 @@
       "title": "行动计划卡：propose_plan 工具 + PlanCard 画布 + 认可留痕端点",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "U3/P4/P6/P7：propose_plan internal 工具（zod 计划结构）→ type:'action_plan' 画布路由 → PlanCard（既有组件语言）；认可 = POST /api/agent/plan-ack（internal 留痕幂等 + 30/min 限流）。",
       "acceptance": "propose_plan 注册（internal 无 buildHarm，挂 orchestrator+insight）；计划 items zod 校验（title/toolName?/needsGate/note），needsGate 项 PlanCard 上如实标「需你确认」；输出 type:'action_plan' 经 registerCanvasRenderer 路由渲染（PlanCard 仅用既有组件语言，P7 不引新视觉）；propose_plan 调用即落 OperationLog(kind=auto) 计划留痕；/api/agent/plan-ack：留痕 + 幂等（同计划重复认可不重复留痕）+ rate-limit 30/min fail-open + zod 400 明示；**回归钉死：计划认可后 outbound 工具执行仍返回 pending 信封**（认可不解锁任何执行权）；集成测覆盖工具/端点/幂等/限流"
     },

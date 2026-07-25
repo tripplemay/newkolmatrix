@@ -1,5 +1,5 @@
 {
-  "status": "reverifying",
+  "status": "done",
   "user_goal": "洞察域立真：MetricSnapshot/WeeklyReport/ShareLink 三表 + roi.compute/attribution.gaps 两纯函数（三处复用）+ compute_roi/draft_report/create_share_link 三工具（分享 outbound 白名单第 6）+ V8 项目级对照账本 & V12 跨项目洞察接真（两 mock 退役）+ weekly-draft 例程。ROI 分子诚实降级（spend 真源 + reach/conversions 缺口如实标注，真值留 M5）；对外分享接口先行+mock 零公开暴露。",
   "total_features": 12,
   "completed_features": 12,
@@ -17,12 +17,13 @@
   ],
   "docs": {
     "spec": "specs/M4-INSIGHT-spec.md",
-    "test_cases": null,
-    "signoff": null,
+    "test_cases": "test-reports/m4-verify/",
+    "signoff": "test-reports/M4-INSIGHT-signoff-2026-07-25.md",
     "framework_reviewed": false
   },
   "role_assignments": null,
   "evaluator_feedback": {
+    "final": "reverify2 PASS（2026-07-25）：issue-5 真实闭合、修复无越界、全批新鲜度终扫过、L1 全绿。12/12 PASS，signoff 已签发 docs/test-reports/M4-INSIGHT-signoff-2026-07-25.md（fix_rounds=2）。另登记 O11：§12.6 所称 OUTBOUND_TOOL_NAMES 常量/测试全仓零命中（早于本批的前瞻式描述债，非 M4 面，转 soft-watch）；并更正前两轮报告中引用该常量的表述（实质结论经独立复核仍成立：class:outbound 实测 5 件）。完整报告 docs/test-reports/m4-verify/F012-reverify2.md",
     "round": 2,
     "reverify_result": "PARTIAL（F012）：首轮 4 FAIL 4/4 CLOSED、零新问题；残留 issue-5 = §8.10 例程节仍标 weekly-draft 未实装（L1081 标题「其余 3 条随 M3-M4 表落地」实为 2 条 + 例程表 weekly-draft 行未翻已实装）——出自首轮 F012-recheck.md ADVISORY-1 明确交办，fixing round1 未做且 commit 自述「清零」过宽（O8）。修复建议：翻 §8.10 标题与 weekly-draft 行 + doc-freshness 测试追加例程行级断言（遍历 ROUTINES name 断言 §8.10 该行含已实装）。完整报告 docs/test-reports/m4-verify/F012-reverify.md",
     "reverify_l2_disclosure": "复验 evaluator 自我披露：交叉核证时误跑 M3-A 的 reach:e2e 套件，发生 1 次未授权真实网关调用——400 模型名校验拒绝，零 token 零计费；邮件恒 mock 步骤①即中止，零真实投递；夹具自清理，未重试（报告 §3.1/O9）",

@@ -24,7 +24,7 @@
       "title": "compute_roi_portfolio 工具 + 洞察追问指引",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "F-A：跨项目 ROI 对比 internal 工具，复用 loadTenantProjectSpends + computeRoi + attributionGaps（三处复用纪律延续）；挂 insight 人格；systemPrompt 补归因追问条款。",
       "acceptance": "compute_roi_portfolio 注册且挂 insight 人格（同源断言）；class=internal 无 buildHarm；输出 = 既有装配/纯函数产物组合（不内联重算，grep 证 + 与直算逐字相等测试）；每项目含 roi（分子缺→insufficient_evidence 诚实透传）+ gaps + spend 口径；输出 JSON 往返无损；insight systemPrompt 含归因追问条款（证据不足如实说、不强行归因）且单测钉文案锚点；输入契约单测（可选 projectIds 过滤，空=全项目）"
     },

@@ -47,6 +47,12 @@ export interface AgentPersona {
    * 缺省 = 不注入（编排/交付/洞察本批不消费知识）。
    */
   knowledgeKinds?: KnowledgeKindValue[];
+  /**
+   * 人格专属补充条款（M4.5 F003）：拼在 system prompt 末尾。
+   * 用途 = 某个人格特有的、不适合下放到全人格基座的纪律（如洞察的归因追问纪律）。
+   * 文案以导出常量给出（不内联），单测才钉得住、才不会静默漂移——NO_TOOL_CLAUSE 同款理由。
+   */
+  promptAddendum?: string;
   /** 注入 runtime 的 system prompt。由 duty + iso 组合（EXTENSION POINT：精度随业务充实）。 */
   systemPrompt: string;
 }
@@ -65,6 +71,20 @@ const BASE_SYSTEM = [
   '3. 建议就是建议：可以给方案与分析，但禁止把它包装成「已为你编排的任务 / 已启动的计划」——不得虚构任务表、项目代号或执行状态。',
 ].join('\n');
 
+/**
+ * 洞察人格专属的归因追问纪律（M4.5 F003 / F-A）。
+ *
+ * 触发源：步数预算放到 10 步后，洞察会真的进入「多轮追问」形态——链越长，模型越容易
+ * 在证据不足处「顺手补一个数」让结论看起来完整。ROI 造假的典型形态不是算错，
+ * 是**用替代指标凑一个数**。故把「缺证据就说缺证据」写死进人格。
+ */
+export const INSIGHT_ATTRIBUTION_CLAUSE = [
+  '归因追问纪律（洞察专属）：',
+  '1. 证据不足就说证据不足——分子（触达/转化/曝光）没有回传源时，如实说「这项证据不足，算不出 ROI」，不得用花费、报价或任何替代指标凑一个数出来。',
+  '2. 不强行归因：数字变化与某个动作之间没有可核验的链路时，只陈述你看到的事实与缺的证据，不编因果、不按花费大小假装排效果。',
+  '3. 主动追问：发现缺口就讲清「补哪一项证据、从哪来，补上之后能算出什么」；需要横向比较时先看全局再挑一个深挖，别逼用户逐个项目问。',
+].join('\n');
+
 /** 由职责 + 否定式护栏 + 界面语法组合 system prompt（人格 = 我做什么 + 我不做什么 + 我怎么呈现）。 */
 function buildSystemPrompt(
   name: string,
@@ -72,6 +92,7 @@ function buildSystemPrompt(
   isolation: string,
   uiSyntax: string,
   rosterSection: string,
+  addendum?: string,
 ): string {
   return [
     `${BASE_SYSTEM}`,
@@ -85,7 +106,11 @@ function buildSystemPrompt(
     // 防漂移）——触发源 = 用户实证：模型杜撰「创意/投放/KOL/社群/风控/数据 Agent」等
     // 名册外专家。协作与指路只能提及名册内成员。
     rosterSection,
-  ].join('\n');
+    // 人格专属补充条款（可空——多数人格没有）
+    addendum,
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 // 权威名册（PRD §9.2，与原型一致）。tools 子集：F005 native 工具均创作者向，
@@ -182,11 +207,18 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     duty: 'ROI 归因·复盘分析·报告生成',
     isolation: '只读结果数据，不改动执行动作',
     uiSyntax: '对照账本',
+    promptAddendum: INSIGHT_ATTRIBUTION_CLAUSE, // M4.5 F003：归因追问纪律
     // M4-INSIGHT F005/F006/F008 起填充（原为空数组）：
     // - compute_roi 是 internal 只读（ROI 对账 = roi.compute + attribution.gaps 产物，分子缺显证据不足）
     // - draft_report 是 internal 起草（只落草案不采纳）
     // - create_share_link 是 outbound（白名单第 6）：链接一经生成即暴露，服务端强制停在确认前
-    tools: ['compute_roi', 'draft_report', 'create_share_link'],
+    // M4.5 F003：compute_roi_portfolio（internal，跨项目对比——「先看全局再挑一个深挖」）
+    tools: [
+      'compute_roi',
+      'compute_roi_portfolio',
+      'draft_report',
+      'create_share_link',
+    ],
     maxSteps: EXTENDED_MAX_STEPS, // U2：ROI 追问天然多轮（对比→找缺口→再查→起草）
   },
   {
@@ -231,6 +263,7 @@ const PERSONAS: Record<AgentId, AgentPersona> = Object.fromEntries(
         p.isolation,
         p.uiSyntax,
         ROSTER_SECTION,
+        p.promptAddendum,
       ),
     },
   ]),

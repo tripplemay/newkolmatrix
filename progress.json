@@ -1,18 +1,18 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "在闸门与隔离红线零触碰前提下放开 agent 循环（人格差异化步数预算 + 循环内多专家接力 + 准备并行度），交付四个产品特性：洞察深度追问（compute_roi_portfolio）、行动计划卡（propose_plan + 认可留痕）、一句话推进（handoff_to 接力）、批量备好聚合确认面；配套 loop 遥测、mock-model 测试床与渐进渲染。红线：outbound 执行永过两步票据闸门、时刻隔离（P1 裁决）、例程零直通、行动承诺诚实。",
   "total_features": 11,
   "completed_features": 11,
   "fix_rounds": 0,
   "current_sprint": "M4.5-AGENT-LOOP",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-25T09:20",
+  "last_updated": "2026-07-25T09:30",
   "reference_docs": [
     "docs/specs/M4.5-AGENT-LOOP-spec.md",
-    "docs/reviews/a2a-harness-research-2026-07-25.md",
-    "docs/test-reports/M4-INSIGHT-signoff-2026-07-25.md",
-    "docs/dev/architecture.md",
+    "docs/specs/M4.5-AGENT-LOOP-f008-preimpl-audit.md",
     "docs/dev/agent-architecture.md",
+    "docs/dev/architecture.md",
+    "docs/test-reports/M4-INSIGHT-signoff-2026-07-25.md",
     "framework/patterns/ai-action-contract.md"
   ],
   "docs": {
@@ -25,7 +25,7 @@
   "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M4.5-AGENT-LOOP planning 完成 → building · 2026-07-25 · 快车道】\n■ 立项来源：agent 循环放开评测（同会话旁路研究，A2A 研究文档见 docs/reviews/）。用户裁决 U1 加码档 10 features / U2 人格差异化步数（insight/orchestrator=10 其余 5）/ U3 计划认可=internal 留痕。\n■ 要害 P 决策见 spec §3：P1 DP-3 口径裁决=时刻隔离（handoff_to 经 Handoff 落行 + prepareStep 切换，outbound 人格绑定不变）· P2 遥测只存元数据不存正文 · P4 认可不解锁执行权（回归钉死）· P5 mock LanguageModel 测试床（ai/test，开工核实物导出名）· P8 渐进渲染 pre-impl 审计先行 · P10 cost-cap 不入批（backlog BL-COST-CAP）。\n■ 零 migration 批次：遥测/计划留痕复用 OperationLog(payloadJson)，接力复用 Handoff 表（首次真实写入链）。\n■ 开工顺序：F001/F002 串行（同触 route/registry）→ F009 测试床 → F003/F004/F008 可并行（F008 先出 pre-impl 审计）→ F005（依赖 F002+F009）→ F006（依赖 F005）→ F007（依赖 F004）→ F010。\n■ 已核实物：ai@7.0.31 d.ts 含 onStepFinish/onStepEnd 别名并存 + prepareStep/activeTools + finishReason；画布注册器 copilot/canvas/canvas-registry；compliance_redline 链头读取器在 knowledge/page-data.ts（F011 数据源）。\n■ backlog 新立两条：BL-COST-CAP（例程化前置）/ BL-AGENT-ROUTINE（F-E/F-F，依赖 M3-C）。\n■ M4 部署仍待用户手动触发（image_tag=300b5c16…40 位）；M4.5 全批零新增对外副作用，聚合确认面消费既有 5 outbound 的 mock 通道 pending。",
+    "Andy": "【M4.5-AGENT-LOOP building 完成 11/11 → verifying · 2026-07-25 · 快车道】\n■ 实装顺序偏离 spec §6 建议序：F009（测试床/注入缝）先于 F001/F002——F002 的「≥8 步长链诚实变异回归」依赖测试床，串行下先落 F009 无并行冲突、交付物不变（已在 F009 commit message 说明）。\n■ F008 走了 pre-impl 审计 → **用户实答裁决 C**（审计文档 §6 有裁决段）：draft_email/draft_report 正文是 execute 内部产物、非模型入参，入参流对其无效；改覆盖面到 propose_plan 计划卡；方案 A 入 backlog BL-TOOL-STREAM-OUTPUT。Planner 追加约束「渐进态不得展示模型自报 needsGate」已落单测。\n■ building 期两次 CI 红（均已修 + 补回归测试）：① propose-plan ↔ tools/index 循环导入 → next build 期 TDZ（vitest/dev 全绿，只有 build 炸）→ tests/unit/tool-module-cycles.test.ts ② `git grep` 断言只搜已跟踪文件 → 新文件未 commit 时本地假绿，入库后 CI 才红 → 改滤注释行 + 测试内写明坑。\n■ 视觉：新建 /preview/agent-loop 确定性预览页（渐进态计划卡 + 最终态 + 接手标注 + 边界卡切换 + 聚合确认卡），两视口 fullPage 基线；刻意不并进 agent-canvas（那张 fullPage:false，新卡落折叠线以下 = 零覆盖）。linux 基线经 update-visual-baselines 重生两轮。\n■ **本地 test:visual 11 红为数据依赖**：本地 dev 租户有 2 条 pending → Copilot 面板渲染聚合卡；CI 库无 pending 故 CI 全绿（已核 diff 图，差异全在面板内）。Evaluator 若在本地跑视觉门请先确认 pending 计数。\n■ 验收入口：`npm run agentloop:e2e`（29 断言，零外呼零真实副作用）+ vitest 94 files/1135 tests + 既有 gate:smoke/reach:e2e/delivery:e2e/insight:e2e 不受影响。\n■ L2 未消耗（需授权）：模型自主接力/追问质量 + 渐进渲染真流表现（mock 测试床发完整 tool-call 片、不发 tool-input-delta，离线只到分支判定——已在审计文档 §7 如实登记为验证缺口）。\n■ proposed-learnings 追加 M4.5 四条（循环导入只在 build 炸 / git grep 假绿 / fullPage 覆盖面 / mock-model 测试床范式），待用户确认。",
     "Andy_building_archive": null,
     "Reviewer": null,
     "Mark": null

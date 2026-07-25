@@ -171,3 +171,21 @@
 **建议写入：** 坑 1 → `patterns/testing-env-patterns.md`（或 ai-action-contract.md 注入缝节）；规律 2 → `memory/role-context/planner.md`「批内文档新鲜度」段升级 + `patterns/audit-methodology.md`；坑 3 → `patterns/testing-env-patterns.md`
 
 **状态：** 待确认
+
+## [2026-07-25] Andy/Generator — 来源：M4.5-AGENT-LOOP（building 期两次 CI 红 + 视觉基线覆盖面误判）
+
+**类型：** 新坑 ×3 + 新规律 ×1
+
+**内容：**
+
+1. **模块循环导入只在生产构建期炸（vitest/dev 全绿）。** F004 的 `tools/propose-plan.ts` 从 `./index` 导入 `ensureNativeToolsRegistered`，而 `index.ts` 反向 import 该工具并在模块顶层调用注册——vitest 与 `next dev` 下模块求值顺序恰好安全，只有 `next build` 的 prerender 阶段 TDZ 崩（`ReferenceError: Cannot access 'l' before initialization`，run 30159192684 之前那次）。规律：**装配入口（把所有实现聚合起来并在顶层执行副作用的模块）不得被它聚合的成员反向 import**；需要「确保已初始化」的场景交给唯一执行入口。已落回归测试 `tests/unit/tool-module-cycles.test.ts`（目录级扫描，新工具自动纳入）。此类失效延迟暴露，本地全绿不能作为通过依据——**改动模块图后必须本地跑一次 `npm run build`**。
+
+2. **`git grep` 类断言只搜「已跟踪」文件 → 新文件未 commit 时恒空绿。** F007 的「全仓无批量确认端点」断言本地绿、入库后 CI 才红（新文件此前不在索引里，且文件头把反面教材端点名写进了注释）。规律：以 `git grep` 为证据的架构约束断言，(a) 必须滤掉注释行，(b) 本地首次绿**不算数**——要么 `git add` 后再跑，要么改用文件系统读取。
+
+3. **`fullPage:false` 的视口基线对「新加在页面下方的卡」零覆盖。** F006 起初想把新卡并进既有 `agent-canvas` 基线页，实测新卡落在折叠线以下——基线文件更新了，但新卡一个像素也没被守住。规律：给新构件加视觉覆盖时，先确认它是否在截图范围内；不在就**另起确定性预览页**（或该页改 `fullPage`），别只更新一张看不见它的基线。
+
+4. **agent loop 的机械面应当离线可测——用 SDK 官方 mock model，不要 mock 网关 HTTP 层。** 本批把 loop 装配抽成带 `model`/`ctx` 注入缝的函数（`lib/agent/loop.ts`），测试床（`tests/support/agent-loop-testbed.ts`）用 `ai/test` 的 `MockLanguageModelV4` 脚本化 tool-call 序列驱动**同一个** `runAgentLoop`，于是步数上限截停 / 工具子集收窄 / outbound pending 停驻 / 人格接力切换全部离线可断言，零外呼。关键是**测试床与生产共用同一装配函数**——在测试里复刻一份 loop 必然漂移。另：mock model 发的是完整 `tool-call` 片、不发 `tool-input-delta`，故「入参流式渲染」这类特性离线只能测分支判定，真流表现仍归 L2。
+
+**建议写入：** 坑 1 → `patterns/web-runtime-patterns.md`（构建期专属失效节）；坑 2 → `patterns/testing-env-patterns.md`；坑 3 → `patterns/web-runtime-patterns.md` §4 视觉基线节；规律 4 → `patterns/ai-action-contract.md`（agent loop 可测性节）或新起 `patterns/agent-loop-patterns.md`
+
+**状态：** 待确认

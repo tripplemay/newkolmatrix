@@ -1,8 +1,8 @@
 {
-  "status": "verifying",
+  "status": "fixing",
   "user_goal": "在闸门与隔离红线零触碰前提下放开 agent 循环（人格差异化步数预算 + 循环内多专家接力 + 准备并行度），交付四个产品特性：洞察深度追问（compute_roi_portfolio）、行动计划卡（propose_plan + 认可留痕）、一句话推进（handoff_to 接力）、批量备好聚合确认面；配套 loop 遥测、mock-model 测试床与渐进渲染。红线：outbound 执行永过两步票据闸门、时刻隔离（P1 裁决）、例程零直通、行动承诺诚实。",
   "total_features": 11,
-  "completed_features": 11,
+  "completed_features": 10,
   "fix_rounds": 0,
   "current_sprint": "M4.5-AGENT-LOOP",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
@@ -22,10 +22,86 @@
     "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": null,
+  "evaluator_feedback": {
+    "round": 1,
+    "date": "2026-07-25",
+    "by": "Andy/evaluator-subagent（fan-out G1-G5 + 对抗复核 ×1 + 跨组转交复核 ×1）",
+    "reports": [
+      "docs/test-reports/M4.5-AGENT-LOOP-verify-G1.md",
+      "docs/test-reports/M4.5-AGENT-LOOP-verify-G2.md",
+      "docs/test-reports/M4.5-AGENT-LOOP-verify-G3.md",
+      "docs/test-reports/M4.5-AGENT-LOOP-verify-G4.md",
+      "docs/test-reports/M4.5-AGENT-LOOP-verify-G5.md",
+      "docs/test-reports/M4.5-AGENT-LOOP-verify-F010-adversarial.md"
+    ],
+    "verdicts": {
+      "F001": "PASS",
+      "F002": "PASS",
+      "F003": "PASS",
+      "F004": "PASS",
+      "F005": "PASS",
+      "F006": "PASS",
+      "F007": "PASS",
+      "F008": "PASS",
+      "F009": "PASS",
+      "F010": "PARTIAL",
+      "F011": "PASS"
+    },
+    "problems": [
+      {
+        "feature": "F010",
+        "severity": "minor",
+        "refute": "UPHELD（对抗复核：机理/复现/残留数字/诊断掩盖四项元素在隔离沙箱 100% 复现，排除环境误报、排除人造变异专属、排除并发与版本因素）",
+        "desc": "scripts/test/agentloop-e2e.ts:259-262 清理段在失败路径上整体崩溃 → dev 库被污染。pendingIds 先 createdPA.push(...) 后才 assert；当 outbound 不再返回 pending 信封（= 闸门红线回归，正是这条 e2e 最该抓的事）时 pendingIds=[undefined,undefined] 入数组 → finally 首句 deleteMany({where:{gateLogId:{in:createdPA}}}) 被 Prisma 拒绝（Can not use undefined value within array）→ 整个清理段中断，且原始 ASSERT FAIL 信息被这个二次抛错盖掉。实测残留：dev 租户净增 12 OperationLog + 4 ShareLink + 2 Handoff + 2 Project，需手工回删。对抗复核的严重性校准（不改变裁定）：触发面为 1/24 失败类而非任何失败；边际残留为 4 logs + 1 handoff + 1 project（其中 2 shares + 2 logs 属发现 ② 同族，建议修法也删不掉）；影响面 100% 限于交付脚本，零产品代码、零用户可见面；修复量约 2 行。危害不是假设：fixing 轮里 e2e 失败是常态，而这正是清理最需要生效的时刻；被污染的 dev 库会直接把本机含 feed/雷达的视觉基线打红（patterns/testing-env-patterns.md §9 记的 M3-A「today feed 基线污染误判」同族），下一个隔离 evaluator 会把它当产品回归。另有同源潜伏面：pendingIds 由 run2.toolOutputs 全量 map，将来给 run2 mock 脚本加一步非 outbound 工具调用，其 output 天然无 pendingActionId → 在没有任何产品回归的情况下也会撞同一崩溃。建议修法：(1) createdPA.push(...pendingIds.filter(Boolean))（实测可使残留由 6/2/1/1 降到 2/2/0/0 并恢复 ASSERT FAIL 原文）；(2) finally 内每步删除各自 try/catch，清理段自身绝不可再抛（这条比 (1) 更根本：使任何未来的清理失败都不再掩盖首因）",
+        "steps_to_reproduce": "git worktree add /tmp/repro dcf525b && ln -s $PWD/node_modules /tmp/repro/node_modules && cp .env /tmp/repro/；在 /tmp/repro 把 src/lib/agent/execute.ts 的 outbound 闸门判断改为 if (false && …)；cd /tmp/repro && npm run agentloop:e2e → exit 1 且末尾报的是 Prisma undefined 错而非 ASSERT FAIL；回主仓查 dev 租户：Project 多出 m45-agentloop-e2e-<pid>，Handoff / OperationLog / ShareLink 同步残留"
+      },
+      {
+        "feature": "F010",
+        "severity": "low",
+        "refute": "DOWNGRADED（事实层 UPHELD：2/2 必现，106→108→110，键位与描述逐字一致，未被证伪；判定层降级为 soft-watch —— evaluator.md §14(c) 的适用对象是「批次能否切 done」而非单 feature 判档，其补救物是一句明文兜底；且本项目对同族残留已有生效先例且结论是「不建议删」，见 M4 signoff S5 / project-status O2 / patterns §9 注。单独不足以把 F010 压到 PASS 以下）",
+        "desc": "agentloop:e2e 成功路径每跑净增 2 行 SHARE_CREATED 标记 OperationLog（kind=auto, ref=null, projectId=null），清理段三把键 {ref ∈ createdPA} / {id ∈ createdLogs} / {projectId = 夹具项目} 全不命中。这正是 patterns/testing-env-patterns.md §9 点名的坑（清态必须按业务标记清，不能只按 ref=PA.id 清）——pattern 已在库、本批仍复现。M4 同类残留（insight:e2e 每跑 +1 行）有显式 soft-watch O2 兜底登记，M4.5 新增的这条没有任何登记。处置二选一（对抗复核建议取后者，与项目既定口径一致）：清理段按标记文本 + 本次会话产生的 id 精确删；或在 signoff §Soft-watch 按 M4 S5 口径写定「append-only 语义一致，不删；知晓其后果 = 会进 dev 租户活动流，本机含 feed 的视觉基线重生前须一并计入」。不要求改代码",
+        "steps_to_reproduce": "npm run agentloop:e2e（exit 0 正常成功路径）跑前跑后对 dev 租户 OperationLog 逐行快照 diff → 每次净增 2 行 summary 以 'create_share_link:SHARE_CREATED' 开头、ref=null、projectId=null 的行"
+      },
+      {
+        "feature": "F010",
+        "severity": "minor",
+        "refute": "N/A（非对抗复核标的：G5 收到编排方机械转交的 G2 组 O-G2-4 线索后自行从磁盘复核，并把范围从「那一行」扩为整轮 sweep 后新增）",
+        "desc": "批末新鲜度复核漏网：口径权威文档里 4 条被本批作废的 as-built 陈述未翻牌。(a) agent-architecture.md:161 hello-agent 数据流图仍写 `streamText agent loop（stepCountIs 5, …）`，实物为按人格 5/10；(b) agent-architecture.md:170 同图仍写 toUIMessageStreamResponse，实物为 createUIMessageStream 包一层 + createUIMessageStreamResponse（route.ts:95/118，F006）；(c) architecture.md:938 —— 落在 acceptance 明确枚举的「architecture §8 …段」之内 —— 仍写「流式回传 toUIMessageStreamResponse()…；人格身份经响应头 X-Agent-Id…」，且 X-Agent-Id 语义 F006 后已收窄为起始人格；(d) architecture.md:278 §2 对话通道概述同 (b)。四条都不是「演进目标未实装」，而是已作废的 as-built 陈述仍在权威文档里与新说法并存（同文件内均已有正确说法，自相矛盾），architecture.md:26 自订裁决原则「已实装一律 as-built…不保留双份说法」正是禁这个。结构性成因：F010 交付的 doc-freshness 机械门只读 docs/dev/architecture.md + prisma/schema.prisma，agent-architecture.md 零机械覆盖（a/b 永远不可能被机械抓到）；人工「批末复核」用的 grep 又带左括号且不搜 docs/（仓内回归测试 tests/unit/agent-step-budget.test.ts:60 的 gitGrep('stepCountIs\\(\\s*[0-9]', ['src','scripts']) 同病）。两道防线的盲区恰好重叠。G5 自陈：本组 §4.1 第 5 行原判 PASS 的依据由一个看不见目标的检测器产出，据实修正为 FAIL（第 3 行由 PASS 改判 PARTIAL）。建议修法：(1) 翻这 4 句（a→按人格 5/10；b/c/d→createUIMessageStream + createUIMessageStreamResponse，c 顺带补 X-Agent-Id = 起始人格）；(2) 把 agent-architecture.md 纳入 doc-freshness 断言面（至少钉档位值/流式 API 名/工具清单三项），否则同类漂移下批仍不可见；(3) 「批末新鲜度复核」的 grep 模式去掉左括号并加 docs/ 范围",
+        "steps_to_reproduce": "grep -rn \"stepCountIs\" --include='*.md' docs/dev/ → agent-architecture.md:161 命中「stepCountIs 5」；grep -rn \"toUIMessageStreamResponse\" docs/dev/*.md → agent-architecture.md:170 / architecture.md:938 / :278；grep -n \"createUIMessageStream|maxDuration\" src/app/api/agent/route.ts → 实物 :95 :118 :38"
+      }
+    ],
+    "soft_watch": [
+      "O-G1-1（F001）会话异常终止时不落遥测行：doStream 抛错 → onEnd 不触发 → OperationLog 新增 0 行。用遥测算撞上限率/步数分布时分母只含成功会话，网关故障率不可见。acceptance 三分支不含异常终止，且异常本身未静默（loop.ts:255 与 route onStreamError 均 console.error）",
+      "O-G1-2（F001）客户端中途断开的会话同族于 O-G1-1（流未消费完 → onEnd 不触发），未单独实测",
+      "O-G2-1（F005）接力后「备好」的动作归属人格错标：ToolContext.agentId 恒为起始人格，接力不更新 → insight 当值时创建的 pending 记 agentId='orchestrator'；今天页雷达深链 agentId→STAGE_AGENT 反查落回退分支。acceptance 未覆盖（遥测 finalAgentId 是对的）。建议下批次裁决是否派生 ctx.agentId",
+      "O-G2-2（F005）handoff_to 的「不能交接给自己」比对 ctx.agentId（起始人格）而非当值人格；当前等价成立，若后续给第二个人格发接力权或放开链式会失准",
+      "O-G2-3（F005）「切换后 system 含目标人格 prompt」若用 duty 断言是弱断言（ROSTER_SECTION 每个人格 prompt 都列全员 duty）；硬证据应取 isolation / 重读条款 / visibleToolsPerStep",
+      "O-G2-5（F006 面）接力只在单次 loop 内有效，下一轮请求回落 context.agentId；P1 时刻隔离的自然结果，产品语义连续性依赖前端是否续传 agentId",
+      "O-G3-1（F011）check_compliance 不尊重 ctx.db：链头读取走全局 prisma，事务内新建红线对本工具不可见。非缺陷（工具只读、acceptance 只要求经既有链头读取器取）；若后续需事务内一致快照读，需改共享读取器签名（涉 4 个消费方）",
+      "O-G3-2（F011）Project.gameId 指向别租户 Game 时核查单会吐出该租户红线（getKnowledgeHeads 只按 gameId 过滤）。正常应用路径造不出该数据，且同款模式在既有 knowledge-context.ts 中更宽；建议随 M5 真实认证 + RLS 一并收口",
+      "O-G3-3 toAiSdkTools 对未知工具名静默 continue——人格名单写错名字不报错只会让模型看不见；建议给全人格加一条「名单内工具名必在注册表」的通用断言",
+      "G4-O1（F004）plan-ack 的兜底 catch 与全站闸门路由不同款（错误映射口径）",
+      "G4-O2（F004）幂等是 read-then-write，无唯一约束/DB 级兜底（并发下理论可重复留痕）",
+      "G4-O3（F008）分支互斥依赖顺序而非条件（加固建议，极低）",
+      "S-G5-3（F007）常驻面板聚合卡使 9 张 admin 视觉基线新增数据依赖；本地重生基线前必须清 dev 库 pending，建议写进 web-runtime-patterns §4.5 重生序",
+      "S-G5-4（F007）BATCH_EMPTY_MSG 分支在生产路径不可达，后续接入或删除",
+      "S-G5-5（F006）「切换 → 面板重绘」缺穿透式断言，后续引入浏览器交互探针时补",
+      "S-G5-6（F010）e2e 越权负向断言写成 A || toolErrors.length > 0（任意工具错误都能满足），实际把关的是紧随其后的「项目数未变」断言；建议收紧为「错误确实来自 create_project」",
+      "S-G5-7（全局）仓内无 .nvmrc，本机 Node 25 与 CI Node 20 无版本契约；建议补 .nvmrc（patterns §4 的前提条件目前不成立）"
+    ],
+    "l2_gaps": [
+      "L2-1 模型自主接力/追问质量（本轮全部由脚本化 mock 模型驱动，验的是机械面）→ 影响 F005/F006 产品价值面，需真网关最小用量 + 用户授权",
+      "L2-2 浏览器内真实渲染：useChat 消费 data-persona_switch 后面板是否真换头/换边界卡；聚合卡「依次确认全部」的真实 fetch 链与分项结果渲染 → 需 dev/staging 浏览器实测（本地需先清 dev 库 pending 以免与视觉门互相干扰）",
+      "L2-3 渐进渲染真流表现：mock 测试床发完整 tool-call 片、不发 tool-input-delta，离线只到分支判定；网关是否真分片下发 arguments 未验 → 影响 F008，需真网关",
+      "L2-4 生产/staging 部署面：M4/M4.5 均未部署，全部结论基于本机 L1 + CI",
+      "F001 真网关下的 usage token 真实计数与真流式下 onEnd 触发时序（类型层已核形状一致，L1 内无更强证据）"
+    ],
+    "side_effects_verified": "六份报告一致核证：零真实外呼（fetch 哨兵在场且经活性证明）、零真实公开暴露（create_share_link 恒 MockShareLinkService）、零资金动作、零视觉基线改动、零产品代码改动、变异 worktree 全部移除；验收期间产生的 dev 租户留痕已按 id 精确回删，终态 logs=106 pending=2 share=0 handoff=0 project=4 tenants=1 与验收前逐行一致（pending=2 为本轮之前的旧 smoke 残留，按「不改动 dev 数据态」纪律未动）"
+  },
   "generator_handoff": null,
   "session_notes": {
     "Andy": "【M4.5-AGENT-LOOP building 完成 11/11 → verifying · 2026-07-25 · 快车道】\n■ 实装顺序偏离 spec §6 建议序：F009（测试床/注入缝）先于 F001/F002——F002 的「≥8 步长链诚实变异回归」依赖测试床，串行下先落 F009 无并行冲突、交付物不变（已在 F009 commit message 说明）。\n■ F008 走了 pre-impl 审计 → **用户实答裁决 C**（审计文档 §6 有裁决段）：draft_email/draft_report 正文是 execute 内部产物、非模型入参，入参流对其无效；改覆盖面到 propose_plan 计划卡；方案 A 入 backlog BL-TOOL-STREAM-OUTPUT。Planner 追加约束「渐进态不得展示模型自报 needsGate」已落单测。\n■ building 期两次 CI 红（均已修 + 补回归测试）：① propose-plan ↔ tools/index 循环导入 → next build 期 TDZ（vitest/dev 全绿，只有 build 炸）→ tests/unit/tool-module-cycles.test.ts ② `git grep` 断言只搜已跟踪文件 → 新文件未 commit 时本地假绿，入库后 CI 才红 → 改滤注释行 + 测试内写明坑。\n■ 视觉：新建 /preview/agent-loop 确定性预览页（渐进态计划卡 + 最终态 + 接手标注 + 边界卡切换 + 聚合确认卡），两视口 fullPage 基线；刻意不并进 agent-canvas（那张 fullPage:false，新卡落折叠线以下 = 零覆盖）。linux 基线经 update-visual-baselines 重生两轮。\n■ **本地 test:visual 11 红为数据依赖**：本地 dev 租户有 2 条 pending → Copilot 面板渲染聚合卡；CI 库无 pending 故 CI 全绿（已核 diff 图，差异全在面板内）。Evaluator 若在本地跑视觉门请先确认 pending 计数。\n■ 验收入口：`npm run agentloop:e2e`（29 断言，零外呼零真实副作用）+ vitest 94 files/1135 tests + 既有 gate:smoke/reach:e2e/delivery:e2e/insight:e2e 不受影响。\n■ L2 未消耗（需授权）：模型自主接力/追问质量 + 渐进渲染真流表现（mock 测试床发完整 tool-call 片、不发 tool-input-delta，离线只到分支判定——已在审计文档 §7 如实登记为验证缺口）。\n■ proposed-learnings 追加 M4.5 四条（循环导入只在 build 炸 / git grep 假绿 / fullPage 覆盖面 / mock-model 测试床范式），待用户确认。",
+    "Andy_verify_orchestration": "【M4.5-AGENT-LOOP 首轮验收编排 · 2026-07-25 · 快车道】\n■ 分组：G1(F009/F001，上一会话) · G2(F002/F005) · G3(F003/F011) · G4(F004/F008) · G5(F006/F007/F010)。**两波跑**——playwright 固定端口 3000 且 `playwright test` 开跑前清 test-results 目录，两组并行跑视觉门会互相踩踏；agentloop:e2e 对 dev 租户做前后计数比对，与并行 evaluator 同跑必假红。故第一波 G2/G3/G4（G4 独占浏览器），第二波 G5 单跑（独占浏览器 + e2e）。\n■ 编排纪律：prompt 只给批次名/feature 号/状态文件路径/L2 授权状态，零实现叙述；各组夹具带组号+pid 前缀，变异 worktree 路径按组隔离；结论原样落盘，未改写任何判定。\n■ **跨组转交**：G2 记的 O-G2-4（`agent-architecture.md:161` 仍写 stepCountIs 5）自标「属 F010 面」，机械转交 G5 裁定（不代判）→ G5 自陈检测器盲区（grep 带左括号且不搜 docs/，仓内回归测试 `agent-step-budget.test.ts:60` 同病），sweep 出 4 处已作废 as-built 陈述，其中 architecture.md:938 落在 acceptance 枚举的 §8 面内 → 第 5 条 acceptance 由 PASS 改判 FAIL，F010 维持 PARTIAL。\n■ **对抗复核**（F010 PARTIAL）：① UPHELD（四项元素隔离沙箱 100% 复现，排除环境误报）② DOWNGRADED（事实 UPHELD 2/2 必现，但 evaluator.md §14(c) 适用对象是批次切 done 准入而非 feature 判档；本项目同族残留既定处置是「保留+明文登记」，M4 S5/O2/patterns §9 三处一致，照 G5 的「让 Generator 删」反而与既定口径冲突）。\n■ 推送前 L1 全量核证发现 G5 探针一处 tsc 错（会红 CI typecheck），退回作者自修（未代改）；修后 tsc 0 error、`test:unit:coverage` 100 files/1223 tests 全绿、覆盖率门通过。\n■ 验收期 dev 租户留痕各组已按 id 精确回删；`pending=2` 是更早批次 smoke 残留，按「不改动 dev 数据态」纪律未动——**下次本机重生视觉基线前必须先清**（否则含 feed/雷达的基线全线假红）。",
     "Andy_building_archive": null,
     "Reviewer": null,
     "Mark": null

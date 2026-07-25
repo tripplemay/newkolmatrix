@@ -379,6 +379,21 @@ grep -rn "logAudit\|logEvent\|metrics\.\|analytics\." src/ | wc -l
 
 ---
 
+## 9. 「建立时算 hash / 存储后复算」的完整性哈希必须对齐存储层序列化语义（v1.0.12 — M3-A round1 沉淀）
+
+**坑：** payloadHash 在 `createPendingAction` 时按**内存对象**计算、在 confirm/execute 时按 **Prisma 读回的 JSONB** 复算。内存对象含 `{language: undefined}`（zod optional 字段解析后保留 present-but-undefined 键），而 JSONB 写入丢弃 undefined 值键 → 两次 stableStringify 输入不同 → hash 必不匹配 → V6 发送 confirm 恒 403。
+
+**规律：** 凡「先算后验」的完整性哈希 / 签名 / 防篡改绑定，序列化函数必须与存储层**往返语义**一致。JS 对象的 undefined 值键在 `JSON.stringify` 与 JSONB 写入中都会丢弃——stableStringify 必须同款丢弃（或入库前显式剥离 undefined 键），否则「写入前的对象」与「读回的对象」不是同一个哈希输入。
+
+**检查清单（任何 hash-bind 到 JSON 列的设计）：**
+- [ ] stableStringify 对 `{k: undefined}` 的处理 = JSON.stringify 同款（丢弃）？
+- [ ] 单测含「经 DB 往返后复算 hash 一致」用例（写入 → 读回 → 复算），不只测内存内自洽
+- [ ] zod `.optional()` 入参进 hash 前是否规范化（undefined 键剥离）
+
+**来源：** KOLMatrix M3-A-REACH-CRM round1 验收 critical（payloadHash undefined-键中毒；gate-smoke 服务层直调全绿漏检，HTTP 路由字面量入参才触发）。
+
+---
+
 ## 版本历史
 
 | 日期 | 修订 | 来源 |
@@ -390,3 +405,4 @@ grep -rn "logAudit\|logEvent\|metrics\.\|analytics\." src/ | wc -l
 | 2026-05-04 | §5 跨表 id 类型一致性 / §6 Silent updateMany / §7 staging 端到端跑 .ts 脚本 | KOLMatrix BL-031 cuid cast hotfix + BL-032 S3 |
 | 2026-05-05 | §8 Migration 引入新表必查 RLS policy 默认 enabled | KOLMatrix backend-full-scan-2026-05-04 audit DB-CRIT-1 |
 | 2026-05-05 | §8.1 同 migration 启用多表 RLS 时 cross-cutting helper 必须同 commit 配套改 withTenant（v0.9.12）| BL-034 F003 logAudit + logEvent 33+ 调用方 silent-fail 风险 |
+| 2026-07-25 | §9 完整性哈希与 JSONB 往返语义对齐（v1.0.12） | KOLMatrix M3-A round1 payloadHash undefined-键中毒 critical |

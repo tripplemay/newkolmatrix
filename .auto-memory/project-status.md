@@ -17,7 +17,8 @@ type: project
 - backlog：空。下批候选：**M5**（真实认证+RLS / 真 partner / reach·conversions 真回传源 / 真实公开分享页）· **M3-C**（真入站收信 + send_bulk_outreach）· soft-watch 小批
 - L2 未消耗：draft_report/weekly-draft 全程降级验收；真网关最小用量 = `INSIGHT_E2E_REAL_LLM=1 npm run insight:e2e`（需授权）
 - soft-watch 续记：F003-low-1（resend SDK signal）· 洞察侧栏徽标恢复（数据源已就绪，待产品裁决）· O2（insight:e2e 每跑净增 1 行 marker OperationLog，append-only 语义一致不建议删，仅知晓）· O11（§12.6 所称 OUTBOUND_TOOL_NAMES 断言为前瞻描述债，早于 M4）
-- proposed-learnings：M3-A 4 条 + M3-B 1 条 + **M4 新增 3 条**待确认
+- proposed-learnings：**M3-A 4 条已沉淀 ✅ v1.0.12**（2026-07-25 用户确认：db-patterns §9 / testing-env §8·§9 / web-runtime §7）；M3-B 1 条 + M4 3 条继续挂起待确认
+- **下一批：用户裁决暂不开批**——先手动部署 M4 上线观察（image_tag=300b5c16…40 位），有反馈再立项
 
 ## 关键技术坑（M4 新证）
 - 注入缝 LLM caller 必须无条件调用（凭据降级只对默认 caller 生效——CI 无凭据曾把 mock 测试改道降级分支）· 测试钉「恰好 N 条」清单会连坐后续扩展（改「在场+前缀序」）· 新基线 CI 首推必红走 update-visual-baselines workflow · 本地长寿命 DB：today/match 基线自然翻红属预期（CI 权威）

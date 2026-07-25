@@ -160,9 +160,34 @@ PORT=3000 node .next/standalone/server.js
 
 ---
 
+## 8. 闸门 / 签名 / token 类 feature 的回归必须含「HTTP 路由创建 → 后续验证」全链（v1.0.12 — M3-A round1 沉淀）
+
+**坑：** M3-A payloadHash 中毒 critical（见 database-patterns §9）被 gate-smoke + reach-e2e **双绿漏检**——两者均为**服务层直调**且入参恰无 undefined 键，绕开了 HTTP 路由字面量入参的毒化路径。主用户路径（V6 页面 POST → confirm）反而恒 403。
+
+**规律：** 服务层测试 ≠ HTTP 链测试。outbound 闸门这类**跨请求状态机**（创建请求算的值要在后续请求里复验），必须至少一条回归走真 HTTP 路由全链：`POST 创建端点 → GET 详情 → confirm → execute`。zod/route 层的入参解析、序列化、中间件都可能改写载荷——服务层直调全部绕过。
+
+**Evaluator 受理判据：** 闸门类 feature 的测试清单里若只有 executeTool / 服务函数直调，无 HTTP 端点全链用例 → 按测试盲区记录（不因绿灯放行主路径未覆盖）。
+
+**来源：** KOLMatrix M3-A-REACH-CRM round1（confirm 恒 403 critical，服务层双测全绿漏检）。
+
+---
+
+## 9. mock 发送类验收清态必须按业务观测标记清，不能只按 ref=PA.id 清（v1.0.12 — M3-A round1 沉淀）
+
+**坑：** M3-A 验收后清态按 `OperationLog.ref = PendingAction.id` 删除留痕，但 `SENT_MARKER` 标记行的 `ref` 语义是 projectId（非 PA.id）→ 清态漏删 → 污染 dev 租户活动流 → 后续批次视觉基线（today 页 feed）首跑翻红，被误判为产品回归。
+
+**规律：** mock 副作用的观测标记行（SENT_MARKER / RELEASED_MARKER / SHARE_CREATED_MARKER 族）各有自己的 ref 语义，清态脚本必须**按标记文本**（`summary contains MARKER`）+ 夹具租户双键清理，不能假设全部留痕都挂在 PA.id 上。写 e2e/验收脚本的 finally 清理段时，逐类副作用核对其落库行的实际键位。
+
+**注意（M4 补充证据）：** append-only 语义的留痕表（OperationLog）在 dev 租户的 marker 行也可**选择保留不删**（与「只 INSERT」语义一致）——但必须知晓其后果：会持续出现在活动流 → 污染本机含 feed 的视觉基线（M4 O2 实测）。删或留是一个显式决定，不能无意识。
+
+**来源：** KOLMatrix M3-A-REACH-CRM round1（today feed 基线污染误判）+ M4-INSIGHT O2（marker 保留的后果实测）。
+
+---
+
 ## 版本历史
 
 | 日期 | 修订 | 来源 |
 |---|---|---|
 | 2026-07-09 | v1.0 重构：自 `harness/evaluator.md` §13-§16 / §18-§19 原文迁出成独立 pattern 文件 | 框架 v1.0 目录分层 |
 | 2026-07-21 | §7 Next.js UI 实测走 standalone 不走 `next dev`（devtools × RSC manifest 冲突） | KOLMatrix ARCH-M05 |
+| 2026-07-25 | §8 闸门类回归必须含 HTTP 全链 + §9 mock 清态按业务标记清（v1.0.12） | KOLMatrix M3-A round1 critical ×2（+ M4 O2 补充证据） |

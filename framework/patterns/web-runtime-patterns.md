@@ -225,6 +225,21 @@ export const dynamic = 'force-dynamic';
 
 **来源：** KOLMatrix M1-C F001。
 
+## 7. 工具 / handler 注册不得依赖某个「入口模块」的模块图副作用（v1.0.12 — M3-A round1 沉淀）
+
+**坑：** 工具注册副作用只在 `/api/agent` route import `tools/index` 时触发。冷进程直打其他路由（`/api/reach/*`、`/api/actions/[id]/execute`——跨会话恢复 / 用户书签直达场景）时注册表为空 → 400/500。standalone boot 恰好预载了入口模块只是**运气不是契约**（dev 按需编译 / 未来拆包都会破）。
+
+**规律：** 注册表类共享状态（工具注册 / handler 映射 / canvas renderer）必须在**每个消费点显式幂等注册**——唯一执行入口（如 `executeTool`）自带 `ensureXxxRegistered()`，而不是假设某入口模块先被 import。幂等注册成本为一次 Set 查询，远低于跨会话 500 的排查成本。
+
+```ts
+export async function executeTool(name, input, ctx) {
+  ensureNativeToolsRegistered(); // 消费点自带，不依赖模块图
+  ...
+}
+```
+
+**来源：** KOLMatrix M3-A-REACH-CRM round1（fix_round1 修复：executeTool 自带幂等注册，任何路由冷进程直达不缺工具）。
+
 ## 版本历史
 
 | 日期 | 修订 | 来源 |
@@ -234,3 +249,5 @@ export const dynamic = 'force-dynamic';
 | 2026-07-21 | §4 视觉回归基线三个静默坑（CDN 字体抖动 / 容忍带双向 / 空数据基线）+ §5 Tailwind JIT 双域 token 分工 | KOLMatrix FE-REFACTOR + ARCH-M05 |
 | 2026-07-22 | §4.4 新增视觉用例 CI 首推必红且补基线不自动复验（`[skip ci]` 陷阱） | KOLMatrix P2-CLEANUP F005 |
 | 2026-07-22 | §4.2 补充（收敛声明须逐份 diff 副本——借绿的上游）+ §6 RSC 直读 DB 页面必须 force-dynamic | KOLMatrix M1-C F005 / F001（v1.0.9） |
+| 2026-07-22 | §4.5 重生前必查 :3000 无残活 dev server（v1.0.11） | KOLMatrix M2-A F008 |
+| 2026-07-25 | §7 注册不得依赖入口模块图副作用——消费点显式幂等注册（v1.0.12） | KOLMatrix M3-A round1 冷进程注册表空 |

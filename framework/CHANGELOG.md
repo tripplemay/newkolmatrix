@@ -5,6 +5,19 @@
 
 ---
 
+## v1.0.12 — 2026-07-25（隔离验收抓出的四条 critical 级新坑：M3-A round1）
+
+**来源：** KOLMatrix M3-A-REACH-CRM round1 验收（payloadHash undefined-键中毒 critical 及其连带盲区），用户 2026-07-25 确认（M4-INSIGHT done 收尾；同批挂起项 M3-B 1 条 + M4 3 条留 proposed-learnings）。
+
+共同主题：**building 自测全绿、隔离验收才暴露**——四条都是「测试形态与真实路径错位」（服务层直调 ≠ HTTP 链、内存对象 ≠ DB 往返、入口预载 ≠ 注册契约、ref 键假设 ≠ 标记实义）。
+
+**变更：**
+- `patterns/database-patterns.md` 新增 **§9 「建立时算 hash / 存储后复算」必须对齐存储层序列化语义**（undefined 值键在 JSONB 往返中丢弃 → stableStringify 须同款；单测须含 DB 往返复算用例）
+- `patterns/testing-env-patterns.md` 新增 **§8 闸门/签名/token 类回归必须含「HTTP 路由创建 → confirm → execute」全链**（服务层直调绕过 route/zod 层载荷改写；Evaluator 受理判据同步）+ **§9 mock 发送类清态按业务观测标记清**（marker 行 ref 语义各异；M4 O2 补充「保留 marker 的后果」证据）
+- `patterns/web-runtime-patterns.md` 新增 **§7 注册不得依赖入口模块图副作用**（消费点显式幂等注册；standalone 预载幸免是运气不是契约）
+
+**触发原因：** M3-A round1 confirm 恒 403 critical 被 gate-smoke + reach-e2e 双绿漏检；同轮连带发现冷进程注册表空、清态漏删污染后续批次视觉基线。M4-INSIGHT 批内「闸门类必有 HTTP 全链回归」已按此实践（create-share-link 测试含全链），本次转正为 pattern。
+
 ## v1.0.7 — 2026-07-22（证据强度：绿灯不等于证明）
 
 **来源：** KOLMatrix P2-CLEANUP（需求池清理 5 features，fix_rounds=1，已上线用户验收通过）—— signoff `docs/test-reports/P2-CLEANUP-signoff.md`。

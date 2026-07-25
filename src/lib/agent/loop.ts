@@ -34,11 +34,45 @@ import {
   selectPersona,
   type CopilotContext,
 } from './persona-router';
-import { NO_TOOL_CLAUSE, type AgentPersona } from './registry';
+import {
+  allPersonaToolNames,
+  getPersona,
+  isAgentId,
+  NO_TOOL_CLAUSE,
+  type AgentId,
+  type AgentPersona,
+} from './registry';
 import { ensureNativeToolsRegistered } from './tools';
 import { getTool } from './tools/registry';
+import { HANDOFF_REREAD_CLAUSE } from './tools/handoff-to';
 import type { ToolContext } from './tools/types';
 import { toAiSdkTools } from './to-ai-sdk-tools';
+
+/** 循环内接力工具名（仅 orchestrator 持有；见 tools/handoff-to.ts）。 */
+const HANDOFF_TOOL = 'handoff_to';
+
+/**
+ * 从已完成步骤里解析「当值人格」（M4.5 F005）：取最后一次成功的 handoff_to 产物的 toAgent。
+ * 无接力 → null（调用方回落起始人格，行为与 M4.5 前完全一致）。
+ *
+ * 以 steps 为真相源而非外部可变状态：prepareStep 可能被重放，读 steps 是幂等的。
+ */
+function latestHandoffTarget(
+  steps: ReadonlyArray<{
+    toolResults: ReadonlyArray<{ toolName: string; output?: unknown }>;
+  }>,
+): AgentId | null {
+  for (let i = steps.length - 1; i >= 0; i--) {
+    for (let j = steps[i].toolResults.length - 1; j >= 0; j--) {
+      const r = steps[i].toolResults[j];
+      if (r.toolName !== HANDOFF_TOOL) continue;
+      const to = (r.output as { type?: string; toAgent?: string } | null)
+        ?.toAgent;
+      if (typeof to === 'string' && isAgentId(to)) return to;
+    }
+  }
+  return null;
+}
 
 /**
  * 单次会话的步数预算（F002 / U2）：**唯一真相源是 registry 的 `AgentPersona.maxSteps`**。
@@ -126,7 +160,22 @@ export async function runAgentLoop(
 
   // 收窄工具子集 = 该人格绑定的工具（不同人格看到不同工具）。
   const toolNames = personaToolSubset(persona);
-  const tools = toAiSdkTools(toolNames, ctx);
+
+  // 人格轨迹（F005 循环内接力时由 prepareStep 更新；无接力的会话恒为起始人格、switches=0）。
+  const track = { current: persona.id as AgentId, switches: 0 };
+
+  // 循环内接力（F005 / P1 时刻隔离）：持有 handoff_to 的人格（仅 orchestrator）需要
+  // ToolSet 承载多人格工具并列，再由 activeTools + 执行侧硬挡按步收窄到当值子集。
+  // 其余人格的 ToolSet 仍只有自己的工具——行为与 M4.5 前完全一致。
+  const canHandoff = toolNames.includes(HANDOFF_TOOL);
+  const toolUniverse = canHandoff
+    ? [...new Set([...allPersonaToolNames(), ...toolNames])]
+    : toolNames;
+  const tools = toAiSdkTools(toolUniverse, ctx, {
+    // 视野收窄（activeTools）只影响模型看见什么；执行禁止必须自己挡——
+    // 否则模型凭历史消息里的工具名照样能调到别的人格的工具。
+    isToolActive: (name) => getPersona(track.current).tools.includes(name),
+  });
 
   // ⑤层知识注入（M1-D F005）：经 Project.gameId 查链头按 persona.knowledgeKinds 拼知识段；
   // ctx.projectId 为空 / 人格未声明 kinds / 无知识 → 空串跳过（不注水）。
@@ -137,8 +186,20 @@ export async function runAgentLoop(
   const system = buildLoopSystem(persona, toolNames, knowledgeSection);
   const maxSteps = loopBudget(persona);
 
-  // 人格轨迹（F005 循环内接力时由 prepareStep 更新；无接力的会话恒为起始人格、switches=0）。
-  const track = { current: persona.id, switches: 0 };
+  // 目标人格 system 段缓存（接力后每步都要它；知识段现查一次即可，不必每步打库）
+  const switchedSystemCache = new Map<AgentId, string>();
+  async function systemForAgent(id: AgentId): Promise<string> {
+    const cached = switchedSystemCache.get(id);
+    if (cached) return cached;
+    const target = getPersona(id);
+    const knowledge = copilot.projectId
+      ? await gameKnowledgeSection(copilot.projectId, target.knowledgeKinds)
+      : '';
+    const built =
+      buildLoopSystem(target, target.tools, knowledge) + HANDOFF_REREAD_CLAUSE;
+    switchedSystemCache.set(id, built);
+    return built;
+  }
 
   // 遥测句柄：会话结束后 resolve。**请求路径不得 await**（见 AgentLoopRun.telemetry 注释）。
   let settleTelemetry: (v: LoopTelemetryPayload | null) => void = () => {};
@@ -152,8 +213,24 @@ export async function runAgentLoop(
     system,
     messages,
     tools,
+    // 起始视野 = 起始人格子集（ToolSet 可能是并集，视野永远只有当值那一份）
+    activeTools: toolNames,
     stopWhen: stepCountIs(maxSteps),
     maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
+    // F005 循环内接力（P1 时刻隔离）：一旦发生过 handoff_to，后续每一步的 system 段与
+    // 工具视野都切到目标人格。无接力 → 返回 undefined（沿用外层配置，零行为变化）。
+    prepareStep: async ({ steps }) => {
+      const target = latestHandoffTarget(steps) ?? persona.id;
+      if (target !== track.current) {
+        track.current = target;
+        track.switches += 1;
+      }
+      if (target === persona.id) return undefined;
+      return {
+        instructions: await systemForAgent(target),
+        activeTools: getPersona(target).tools,
+      };
+    },
     onError: ({ error }) => {
       console.error('[agent/loop]', describeGatewayError(error));
     },

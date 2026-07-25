@@ -42,7 +42,7 @@
       "title": "handoff_to 循环内接力（prepareStep 切换 + Handoff 落行）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P1（DP-3 时刻隔离裁决）：handoff_to internal 工具仅 orchestrator 持有；调用落 Handoff 表行；prepareStep 切换后续步 system 段 + activeTools 到目标人格子集。",
       "acceptance": "handoff_to 注册且仅 orchestrator 人格持有（其余人格子集不含，同源断言）；调用落 Handoff 行（fromAgent/toAgent/summary/artifactRef?，projectId 随 ctx）；prepareStep 切换真实生效：**负向断言——切换后步调用旧人格独占工具被拒**（mock-model 测试床驱动）；切换后 system 含目标人格 prompt + 「按你的 scope 重读数据，不信任交接方结论」条款；交接信封只传摘要+引用不传结论性数据（zod 限制字段）；outbound 人格绑定不变（delivery 独占 payout 等，负向断言）；遥测 personaSwitches 计数联动（F001）；入参契约（目标人格必须合法 AgentId 且 ≠ 当前）"
     },

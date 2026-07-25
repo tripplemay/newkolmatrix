@@ -22,6 +22,7 @@ import { computeRoiTool } from './compute-roi';
 import { computeRoiPortfolioTool } from './compute-roi-portfolio';
 import { checkComplianceTool } from './check-compliance';
 import { proposePlanTool } from './propose-plan';
+import { handoffToTool } from './handoff-to';
 import { createShareLinkTool } from './create-share-link';
 import type { ToolDefinition } from './types';
 
@@ -47,6 +48,7 @@ const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
   computeRoiPortfolioTool as unknown as ToolDefinition<never, unknown>, // M4.5 F003（internal，跨项目 ROI 对比 = 装配 + 两纯函数产物组合）
   checkComplianceTool as unknown as ToolDefinition<never, unknown>, // M4.5 F011（internal，合规红线核查单 = 链头读取器产物 + 溯源；不给判定）
   proposePlanTool as unknown as ToolDefinition<never, unknown>, // M4.5 F004（internal，行动计划卡 + 计划留痕；认可不解锁执行权）
+  handoffToTool as unknown as ToolDefinition<never, unknown>, // M4.5 F005（internal，循环内接力——仅 orchestrator 持有；落 Handoff 行 + prepareStep 切换）
 ];
 
 let registered = false;

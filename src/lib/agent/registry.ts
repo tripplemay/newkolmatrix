@@ -127,7 +127,14 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     // M2-C F001：create_project（项目创建是编排入口动作——「开新项目」找编排）
     // M3-B F011：confirm_brief_goal（创建后紧接着的目标确认，同属编排入口动线）
     // M4.5 F004：propose_plan（internal，把「打算做的几件事」产出为可追溯的计划卡）
-    tools: ['create_project', 'confirm_brief_goal', 'propose_plan'],
+    // M4.5 F005：handoff_to（internal，循环内接力——**仅编排持有**：分派是编排的职责，
+    // 执行环节的人格不能自己改身份）
+    tools: [
+      'create_project',
+      'confirm_brief_goal',
+      'propose_plan',
+      'handoff_to',
+    ],
     maxSteps: EXTENDED_MAX_STEPS, // U2：编排要在一次会话里跑完「汇总→接力→再汇总」
   },
   {
@@ -285,6 +292,15 @@ export function isAgentId(x: string): x is AgentId {
 
 export function listPersonas(): AgentPersona[] {
   return ALL_AGENT_IDS.map((id) => PERSONAS[id]);
+}
+
+/**
+ * 全人格工具名并集（M4.5 F005）：循环内接力时 ToolSet 需承载多人格工具并列，
+ * 由 `activeTools` + 执行侧硬挡按步收窄到当值人格（时刻隔离，P1）。
+ * 仅持有 handoff_to 的人格（orchestrator）会用到——其余人格的 ToolSet 仍是自己的子集。
+ */
+export function allPersonaToolNames(): string[] {
+  return [...new Set(PERSONA_SEED.flatMap((p) => p.tools))];
 }
 
 /** 默认人格：工作区层入口 = 编排 Agent。 */

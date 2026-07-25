@@ -1078,7 +1078,7 @@ interface HandoffEnvelope {
 
 **核心语义（不可让渡）**：handoff 只携带 **artifact 引用 + 可审计摘要**；**接收方按自身 scope 重新读取数据，不信任发送方携带的金额 / 状态 / 权限结论**——防止「结论沿交接链层层失真」。交接三要素（交接对、来回消息、交接物+结果）写入上下文并在 Copilot「本环节协同」区（`HandoffCollab.tsx`）可展开核验。合规 Agent 恒以「被调用」形态出现在其它 Agent 的 collab 里（FR-7.15）。
 
-### 8.10 主动式 Agent（例程调度）— 骨架已实装（M1-C F004 scheduler + 互斥锁 + health-scan；**M2-A F006 注册表化**：`ROUTINES` 数组循环注册，新例程登记即自动获得调度——§14「扩展点食谱」口径已兑现；nightly-screen 已实装，其余 3 条随 M3-M4 表落地）
+### 8.10 主动式 Agent（例程调度）— 骨架已实装（M1-C F004 scheduler + 互斥锁 + health-scan；**M2-A F006 注册表化**：`ROUTINES` 数组循环注册，新例程登记即自动获得调度——§14「扩展点食谱」口径已兑现；已实装 4 条 = health-scan / nightly-screen / kol-sync / **weekly-draft（✅ M4 F011）**，其余 2 条（signal-sync / delivery-watch）随后续批次落地）
 
 PRD 的核心体验（J1：夜间筛查 3,100 位、为 6 位起草邀约、同步 14 条信号、拦下 2 笔放款）要求 Agent **在无人值守时推进工作**。请求-响应式 loop 回答不了这个——架构上增加与「应答」并列的第二种触发形态：
 
@@ -1096,9 +1096,9 @@ PRD 的核心体验（J1：夜间筛查 3,100 位、为 6 位起草邀约、同�
 |---|---|---|---|
 | `nightly-screen` | 每夜 | match | 对在跑项目重跑筛查/评估，刷新候选与待裁定。**✅ 已实装（M2-A F006：cron `30 2 * * *` 错峰；cur='match' 项目逐个刷新，approved 不动 P4，网关失败逐项目消化）** |
 | `signal-sync` | 每 15–30 min | reach | 拉入站信号 → 规范化（§10.4）→ CRM 推断 → 跟进草稿备好 |
-| `health-scan` | 每小时 | strategy | 重算各项目健康度，新阻塞 → ask。**as-built 注（M1-C S7 校准）：实装频率 = 每夜 `0 2 * * *`（非每小时）——纯计算成本低但产出经雷达呈现，夜间一轮已够（R11 克制）** |
+| `health-scan` | 每小时 | strategy | 重算各项目健康度，新阻塞 → ask。**✅ 已实装（M1-C F004；S7 校准：实装频率 = 每夜 `0 2 * * *` 非每小时——纯计算成本低但产出经雷达呈现，夜间一轮已够，R11 克制）** |
 | `delivery-watch` | 每 30 min | delivery | 新信号核对交付条件；达标 → 备好放款（停闸门） |
-| `weekly-draft` | 每周 | insight | 汇总跨项目数据起草周报草案 |
+| `weekly-draft` | 每周 | insight | 汇总跨项目数据起草周报草案。**✅ 已实装（M4 F011：cron `0 4 * * 1` 周一与夜间例程错峰；执行体 = `draftWeeklyReport` 服务与 `draft_report` 工具同源非旁路；`WeeklyReport(projectId=null, adopted=false)` 落库；同周期重跑覆盖不堆重复、已采纳冻结跳过；无凭据降级固定草案明示 + `npm run routine:weekly-draft` 手动触发口）** |
 | `kol-sync` | 每夜 | match | 外采服务（apify-kol）存量拉取 → Kol 库增强 + 深字段派生 + embedding 补灌。**✅ 已实装（M2-B F003：cron `0 3 * * *` 三例程错峰；探活失败静默跳过——dev 内网不可达属预期；零投喂 P1）** |
 
 实现要点：

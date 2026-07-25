@@ -17,14 +17,19 @@ const SCHEMA = readFileSync('prisma/schema.prisma', 'utf8');
 
 function docCount(pattern: RegExp, label: string): number {
   const m = DOC.match(pattern);
-  expect(m, `architecture.md 未找到计数锚点：${label}（格式变更须同步本测试）`).toBeTruthy();
+  expect(
+    m,
+    `architecture.md 未找到计数锚点：${label}（格式变更须同步本测试）`,
+  ).toBeTruthy();
   return Number(m![1]);
 }
 
 describe('§7.2.1 权威节计数 = 实物（第三次复发后机制化）', () => {
   it('模型清单计数 = schema.prisma 实物 model 数', () => {
     const actual = (SCHEMA.match(/^model /gm) ?? []).length;
-    expect(docCount(/\*\*模型清单（(\d+) 个）\*\*/, '模型清单（N 个）')).toBe(actual);
+    expect(docCount(/\*\*模型清单（(\d+) 个）\*\*/, '模型清单（N 个）')).toBe(
+      actual,
+    );
   });
 
   it('枚举计数 = schema.prisma 实物 enum 数', () => {
@@ -33,9 +38,9 @@ describe('§7.2.1 权威节计数 = 实物（第三次复发后机制化）', ()
   });
 
   it('迁移条数 = prisma/migrations 目录实物', () => {
-    const actual = readdirSync('prisma/migrations', { withFileTypes: true }).filter(
-      (d) => d.isDirectory(),
-    ).length;
+    const actual = readdirSync('prisma/migrations', {
+      withFileTypes: true,
+    }).filter((d) => d.isDirectory()).length;
     expect(
       docCount(/迁移（`prisma\/migrations\/`，(\d+) 条）/, '迁移（N 条）'),
     ).toBe(actual);
@@ -51,22 +56,44 @@ describe('§7.2.1 权威节计数 = 实物（第三次复发后机制化）', ()
 describe('§9.2 工具表计数 = 注册表实物', () => {
   it('已实装工具计数 = NATIVE_TOOLS 注册数', () => {
     const actual = getNativeToolNames().length;
-    expect(docCount(/\*\*已实装工具（(\d+) 个/, '已实装工具（N 个')).toBe(actual);
+    expect(docCount(/\*\*已实装工具（(\d+) 个/, '已实装工具（N 个')).toBe(
+      actual,
+    );
   });
 
   it('每个注册工具名都出现在 architecture.md', () => {
     for (const name of getNativeToolNames()) {
-      expect(DOC, `工具 ${name} 未登记进 architecture.md`).toContain(`\`${name}\``);
+      expect(DOC, `工具 ${name} 未登记进 architecture.md`).toContain(
+        `\`${name}\``,
+      );
     }
   });
 });
 
 describe('§8.6 名册 as-built 行 = registry 实物', () => {
   it('insight 人格声明的每个工具名都出现在名册 insight 行', () => {
-    const row = DOC.split('\n').find((l) => l.startsWith('| `insight` | 洞察 Agent'));
+    const row = DOC.split('\n').find((l) =>
+      l.startsWith('| `insight` | 洞察 Agent'),
+    );
     expect(row, '名册表 insight 行缺失').toBeTruthy();
     for (const name of getPersona('insight').tools) {
       expect(row!, `insight 行缺工具 ${name}`).toContain(name);
+    }
+  });
+});
+
+describe('§8.10 例程表 = ROUTINES 注册表实物（reverify issue-5 回归钉）', () => {
+  it('每个已注册例程在例程表中该行标「已实装」（行级作用域，仿 §8.6 断言写法）', async () => {
+    // 动态 import：scheduler 模块顶层 import node-cron 等运行时件，仅本用例需要
+    const { ROUTINES } = await import('../../src/lib/jobs/scheduler');
+    for (const routine of ROUTINES) {
+      const row = DOC.split('\n').find((l) =>
+        l.startsWith(`| \`${routine.name}\` |`),
+      );
+      expect(row, `§8.10 例程表缺 ${routine.name} 行`).toBeTruthy();
+      expect(row!, `例程 ${routine.name} 已注册但表行未标「已实装」`).toContain(
+        '已实装',
+      );
     }
   });
 });

@@ -166,3 +166,16 @@
 **建议写入：** `framework/patterns/web-runtime-patterns.md` §4（视觉基线章节）
 
 **状态：** 待确认
+
+## [2026-07-25] Andy/Generator+编排 — 来源：M4-INSIGHT（fixing round1 CI 红 + 文档翻牌两轮 PARTIAL）
+
+**类型：** 新坑 ×2 + 新规律 ×1
+
+**内容：**
+1. **注入缝 LLM caller 必须无条件调用，凭据降级只对默认 caller 生效。** M4 F006 的 `draftWeeklyReport` 曾在无凭据时忽略注入的 mock caller 直接走降级分支——本地（.env 有凭据）测试全绿、CI（无凭据）三断言红（run 30119127279）。规律：`fn(input, ctx, llm = defaultCaller)` 形态的注入缝，环境判定（凭据/开关）必须包在 `llm === defaultCaller` 条件内，否则测试注入被静默改道，且只在与开发机环境相异的 CI 暴露。
+2. **「口径权威文档」的计数/清单/表行类 as-built 断言应机制化为对实物的单元测试，批末人工 grep 已证不可靠。** 同坑三连踩：M3-B F012 首轮 PARTIAL（2 行漂移）→ M4 首轮 issue-1..4（3 个点名翻牌点整条漏 + 4 处陈旧标记）→ M4 复验 issue-5（ADVISORY 交办仍漏）。M4 fixing 落地范式 `tests/unit/architecture-doc-freshness.test.ts`：doc 计数/清单 vs schema·注册表·迁移目录·ROUTINES 实物 grep，9 断言进 CI 硬门（上线即抓出 health-scan 行旧措辞，实证载荷真实）。建议 Planner 拆批时把「文档刷新 feature」的 acceptance 从「grep 复核」升级为「新增/扩展 doc-freshness 断言」。
+3. **测试钉「恰好 N 条」全量清单会连坐后续批次的合法扩展。** M4 F011 注册 weekly-draft 后，kol-sync 测试的 `expect(names).toEqual([恰 3 条])` 无辜翻红。规律：清单本身不是验收对象时，断言写「目标项在场 + 既有前缀序稳定」而非全量相等；全量相等只用于清单即验收对象的场景（如 doc-freshness）。
+
+**建议写入：** 坑 1 → `patterns/testing-env-patterns.md`（或 ai-action-contract.md 注入缝节）；规律 2 → `memory/role-context/planner.md`「批内文档新鲜度」段升级 + `patterns/audit-methodology.md`；坑 3 → `patterns/testing-env-patterns.md`
+
+**状态：** 待确认

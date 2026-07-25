@@ -10,7 +10,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
-import { getPersona } from '../../src/lib/agent/registry';
+import { getPersona, listPersonas } from '../../src/lib/agent/registry';
 
 const DOC = readFileSync('docs/dev/architecture.md', 'utf8');
 const SCHEMA = readFileSync('prisma/schema.prisma', 'utf8');
@@ -71,13 +71,46 @@ describe('§9.2 工具表计数 = 注册表实物', () => {
 });
 
 describe('§8.6 名册 as-built 行 = registry 实物', () => {
-  it('insight 人格声明的每个工具名都出现在名册 insight 行', () => {
-    const row = DOC.split('\n').find((l) =>
-      l.startsWith('| `insight` | 洞察 Agent'),
-    );
-    expect(row, '名册表 insight 行缺失').toBeTruthy();
-    for (const name of getPersona('insight').tools) {
-      expect(row!, `insight 行缺工具 ${name}`).toContain(name);
+  // M4.5 F010：从只钉 insight 一行扩到**全人格**——本批 orchestrator / compliance 也扩了工具，
+  // 只钉一行等于只守一个人格的漂移。
+  for (const persona of listPersonas()) {
+    it(`${persona.id} 人格声明的每个工具名都出现在名册对应行`, () => {
+      const row = DOC.split('\n').find((l) =>
+        l.startsWith(`| \`${persona.id}\` | ${persona.name}`),
+      );
+      expect(row, `名册表 ${persona.id} 行缺失`).toBeTruthy();
+      for (const name of persona.tools) {
+        expect(row!, `${persona.id} 行缺工具 ${name}`).toContain(name);
+      }
+    });
+  }
+});
+
+describe('§8.3.2 步数预算表 = registry maxSteps 实物（M4.5 F002/F010）', () => {
+  it('文档档位值 = 常量实物（改档忘翻文档 → 红）', () => {
+    expect(
+      docCount(/\| 深链 \| `EXTENDED_MAX_STEPS` \| (\d+) \|/, '深链档位'),
+    ).toBe(getPersona('insight').maxSteps);
+    expect(
+      docCount(/\| 常规 \| `DEFAULT_MAX_STEPS` \| (\d+) \|/, '常规档位'),
+    ).toBe(getPersona('reach').maxSteps);
+  });
+
+  it('深链档人格名单 = 实物（新人格调档忘翻文档 → 红）', () => {
+    const deep = listPersonas()
+      .filter((p) => p.maxSteps > getPersona('reach').maxSteps)
+      .map((p) => p.id);
+    const row = DOC.split('\n').find((l) => l.startsWith('| 深链 |'));
+    expect(row, '§8.3.2 深链档行缺失').toBeTruthy();
+    for (const id of deep) {
+      expect(row!, `深链档行缺人格 ${id}`).toContain(`\`${id}\``);
+    }
+    // 常规档人格不得出现在深链行（防「全都写上去」式的假通过）
+    for (const p of listPersonas()) {
+      if (deep.includes(p.id)) continue;
+      expect(row!, `深链档行不应含常规档人格 ${p.id}`).not.toContain(
+        `\`${p.id}\``,
+      );
     }
   });
 });

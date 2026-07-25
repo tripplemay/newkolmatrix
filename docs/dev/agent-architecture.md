@@ -38,9 +38,10 @@ Agent 驱动产品的四根柱子。每柱一个明确的唯一入口，禁止�
 
 - 入口 `src/app/api/agent/route.ts`（`runtime = 'nodejs'`，Prisma 不支持 edge）。
 - 单一 `/api/agent` 承载**所有专家**，不起独立进程（PRD §12.6 / FR-12.1）：route 只换人格 system prompt + 工具子集，端点不变。
-- 流程：解析 body → `resolveContext`（服务端校验，不信任客户端范围）→ `selectPersona` → `buildToolContext` → `personaToolSubset` 收窄 → `toAiSdkTools` → `streamText({ model: chatModel(), system, messages, tools, stopWhen: stepCountIs(5) })` → `toUIMessageStreamResponse`。
+- 流程（**M4.5 F009 起 loop 装配抽到 `src/lib/agent/loop.ts`**，route 只留 HTTP 边界）：解析 body → `resolveContext`（服务端校验，不信任客户端范围）→ `runAgentLoop`（`selectPersona` → `buildToolContext` → `personaToolSubset` 收窄 → `toAiSdkTools` → `streamText({ model, system, messages, tools, activeTools, stopWhen: stepCountIs(persona.maxSteps), prepareStep, onEnd })`）→ `createUIMessageStream` 包一层（写人格切换事件）→ `createUIMessageStreamResponse`。
+- **注入缝纪律**（`loop.ts` 的 `model` / `ctx` / `telemetryWriter`）：传入即**无条件使用**，不得因凭据缺失把注入的 model 改道回默认 caller——否则无凭据环境（CI）下 mock 测试会静默走进降级分支，测的不是被测对象。
 - **⑤层知识注入（M1-D F005 as-built）**：system = `persona.systemPrompt` + 知识段 + 工具指引。知识段由 `src/lib/agent/knowledge-context.ts` 的 `gameKnowledgeSection(projectId, persona.knowledgeKinds)` 组装——Project（id/publicId/slug 三口径）→ `Game.id` → `GameKnowledge` 链头（`supersededById IS NULL`）按 kind 过滤 → 含溯源计数的文本段；`ctx.projectId` 空 / 人格未声明 kinds / 无知识 → 空串跳过（不注水，取数失败也不打死对话主链路）。特点更新后下次调用即感知（FR-8.4.9 运行时注入，非硬编码）。
-- 人格身份经响应头 `X-Agent-Id` / `X-Agent-Tools` 暴露（前端/验证消费）。
+- 人格身份经响应头 `X-Agent-Id` / `X-Agent-Tools` 暴露（前端/验证消费）。**M4.5 F006 起 `X-Agent-Id` 语义 = 起始人格**：一轮会话内可经 `handoff_to` 换人，切换史走流内 `data-persona_switch` 事件（响应头是一次性的，承载不了切换史）。
 - 网关 `src/lib/ai/gateway.ts`：aigcgateway（OpenAI 兼容）⇄ Vercel AI SDK provider。默认 chat=deepseek-v3、embedding=bge-m3。含 `resilientFetch`（空内容 patch + `keepalive:false` + 空-400 重试，绕 SSE 流污染 undici 连接池的坑）。
 
 ### 柱三 · 常驻对话面（useChat）
@@ -56,6 +57,23 @@ Agent 驱动产品的四根柱子。每柱一个明确的唯一入口，禁止�
 - `MessageParts`（CopilotPanel 内）识别流式消息的工具 part：静态工具 part 的 `type` 是 `tool-<name>`（传给 streamText 的工具），动态工具是 `dynamic-tool`；`state==='output-available'` 且有注册器 → 渲染画布组件，否则回退文本占位。
 - 本批：`search_kols` → `KolResultCards`（KOL 卡片流，忠实 Horizon 卡片视觉）。
 - 视觉基线：`/preview/agent-canvas`（固定夹具确定性还原画布）→ `tests/visual/agent-canvas.spec.ts` 截 `agent-canvas-*.png`。
+
+### 柱二扩容 · M4.5「循环放开面」（AGENT-LOOP 批次）
+
+放开 agent 循环的三个可放开面（预算 / 视野 / 准备并行度），**权力面（outbound 闸门）与例程直通零触碰**。
+
+| 面 | as-built | 落点 |
+|---|---|---|
+| **步数预算** | 按人格差异化：`AgentPersona.maxSteps`（深链 `insight`/`orchestrator` = 10，其余 5）。**registry 是唯一真相源**，全仓 `stepCountIs(` 后不得跟数字字面量（git grep 回归钉死）。`maxDuration` 60→120 | `registry.ts` / `loop.ts` |
+| **loop 遥测** | 每会话结束落一行 `OperationLog(kind=auto, summary` 以 `agent_loop` 起头`)`：agentId / finalAgentId / steps / maxSteps / **budgetHit** / finishReason / toolNames[]（含重复保序）/ personaSwitches / usage。**只记元数据不记正文**（载荷装配函数的入参形状就不接受正文）；fire-and-forget 但失败必须 `console.error` | `loop-telemetry.ts` |
+| **循环内接力** | `handoff_to`（internal，**仅 orchestrator 持有**）→ 落 `Handoff` 行 → `prepareStep` 把后续步的 system 段（目标人格 prompt + **重读条款**）与 `activeTools` 切到目标人格。当值人格从 `steps` 里解析（幂等，不靠外部可变状态） | `tools/handoff-to.ts` / `loop.ts` |
+| **时刻隔离（P1）** | 任一时刻 loop 只见当值人格子集。两道防线：① SDK `activeTools` 收窄模型视野（实测直接 `NoSuchTool` 拒绝）② **执行侧硬挡**（`toAiSdkTools` 的 `isToolActive`）——视野收窄 ≠ 执行禁止，模型凭历史消息里的工具名照样能发调用。**outbound 人格绑定不变**：payout 永远只在 delivery 子集 | `to-ai-sdk-tools.ts` |
+| **准备并行度** | 「已备好 N 件待确认」聚合卡：利害逐条列全不折叠（D28）；「依次确认」= 前端**逐项**调既有两步票据端点，**无批量端点**（一个 batch 端点会立刻成为闸门绕过面） | `lib/gate/batch-confirm.ts` / `PendingBatchCard` |
+| **渐进渲染** | `state:'input-streaming'` 的 partial input 驱动「模型自己在写」的工具卡（本批 = `propose_plan` 计划卡）。渲染分支 `canvas`/`draft`/`label` 由 `pickToolRenderMode` 单一真相源判定且**互斥**。渐进态**不展示模型自报 needsGate**（服务端未复核前不把最不可信的数据当结论） | `canvas-registry.tsx` / `PlanCardDraft.tsx` |
+
+**新增工具（本批 5 件）**：`compute_roi_portfolio`（跨项目 ROI 对比，insight）· `propose_plan`（行动计划卡 + 计划留痕，orchestrator+insight）· `handoff_to`（循环内接力，orchestrator 独占）· `check_compliance`（合规红线核查单，compliance 首件）· 认可端点 `POST /api/agent/plan-ack`（**留痕不解锁执行权**，回归钉死）。
+
+**测试床（F009）**：`tests/support/agent-loop-testbed.ts` 用 AI SDK 官方 `ai/test` 的 `MockLanguageModelV4` 脚本化 tool-call 序列，驱动**与 /api/agent 同一个** `runAgentLoop`——机械面（步数上限截停 / 子集收窄 / pending 停驻 / 接力切换）全部离线可测，零外呼（fetch 哨兵）。E2E 闭环：`npm run agentloop:e2e`。
 
 ---
 
@@ -186,8 +204,9 @@ toUIMessageStreamResponse（流式 UIMessage：text part + tool-<name> part）
 ### 6.3 加一个新 canvas 组件（工具结果的画布渲染）
 
 1. `src/components/copilot/canvas/` 下建组件，props 形如 `{ output: <该工具返回结构> }`。
-2. `canvas-registry.tsx`：`CANVAS_REGISTRY` 加一条 `工具名: 组件`。
-> `MessageParts` 会自动在工具 `output-available` 时调 `renderToolResult` 渲染；无注册器则回退文本占位。**不改对话面核心**。
+2. `canvas-registry.tsx`：`CANVAS_REGISTRY` 加一条 `结果 type（或工具名）: 组件`。
+3. （可选，M4.5 F008）要让「模型自己在写入参」的工具边写边出：再建一个渐进组件（props `{ input: partial }`），在 `CANVAS_DRAFT_REGISTRY` 加一条 `工具名: 组件`。**渐进态不得展示模型自报的闸门标注**——服务端复核前那是最不可信的数据。
+> `MessageParts` 按 `pickToolRenderMode(toolName, state, output)` 三分支互斥渲染（`canvas` / `draft` / `label`）；无注册器则回退文本占位。**不改对话面核心**。
 
 ---
 
@@ -197,8 +216,11 @@ toUIMessageStreamResponse（流式 UIMessage：text part + tool-<name> part）
 - MCP 工具实装（`source:'mcp'`）、对外互操作适配层（D-INTEROP：executeTool 不假设调用方）。
 - 真实认证 / 多租户 / RLS（M5，当前单租户 dev tenant，D4）。
 - 真实幂等对外投递（当前 send_outreach 为 mock 副作用）、报价 / 放款等更多 outbound 工具。
-- `compliance` 跨环节调用点、`receiveHandoff` 真实按 scope 重读逻辑。
+- `compliance` 跨环节调用点（M4.5 F011 已立 `check_compliance` 工具，但**未强制嵌入** draft/share 流程——自动接线留后续裁决）、`receiveHandoff` 真实按 scope 重读逻辑。
+- 工具产物流式（draft 正文边生成边出现）→ backlog `BL-TOOL-STREAM-OUTPUT`：需重新论证 `executeTool` 引入流语义后闸门保证不被削弱。
+- cost-cap（per-tenant 预算闸）→ backlog `BL-COST-CAP`，例程 agent 化的硬前置。
 
 ---
 
 _落盘：AGENT-FOUNDATION F010。四柱 + 多 Agent 编排框架 + AI→人闸门 + 数据流 + how-to。_
+_M4.5-AGENT-LOOP F010 扩容：柱二「循环放开面」段（步数预算 / 遥测 / 循环内接力 / 时刻隔离两道防线 / 准备并行度 / 渐进渲染）+ how-to 6.3 渐进渲染步骤。_

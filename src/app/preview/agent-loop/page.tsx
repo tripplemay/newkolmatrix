@@ -1,0 +1,51 @@
+// M4.5-AGENT-LOOP F006 — 循环放开面的视觉基线预览页（确定性，不接活 LLM/DB）
+//
+// 沿 /preview/agent-canvas 先例：用固定夹具还原本批新增的对话面构件，供
+// tests/visual/agent-loop.spec.ts 截确定性基线（浅色，viewport ≥1440px）。
+// 独立路由、不套 admin 外壳（无侧栏 / 无活的 Copilot），保证像素确定。
+//
+// 为什么不并进 agent-canvas 页：那张基线是 `fullPage:false` 的视口截图，新卡会落在折叠线
+// 以下——并进去等于「基线更新了但新卡一个像素也没被守住」。独立页才有真实覆盖。
+
+'use client';
+
+import ChatBubble from 'components/common/ChatBubble';
+import PanelHeader from 'components/common/PanelHeader';
+import ExpertScope from 'components/copilot/ExpertScope';
+import PersonaSwitchNote from 'components/copilot/PersonaSwitchNote';
+import PlanCard from 'components/copilot/canvas/PlanCard';
+import { PERSONA_SWITCH_FIXTURE, PLAN_FIXTURE } from './fixture';
+
+export default function AgentLoopPreview() {
+  return (
+    <div className="min-h-screen bg-gray-50 px-6 py-8">
+      <div className="mx-auto max-w-[420px]">
+        <PanelHeader
+          className="mb-3"
+          title="Copilot · 循环放开面"
+          subtitle="M4.5 产物：行动计划卡（认可只留痕）+ 循环内接力标注（边界卡随之切换）"
+        />
+
+        {/* 起始人格边界卡 */}
+        <ExpertScope agentId="orchestrator" />
+
+        <div className="mt-3 space-y-3">
+          <ChatBubble role="user">
+            把这季度的复盘和对外分享安排一下
+          </ChatBubble>
+
+          {/* F004：行动计划卡（propose_plan → type:'action_plan' 画布路由） */}
+          <PlanCard output={PLAN_FIXTURE} />
+
+          {/* F006：循环内接力的流内标注 + 边界卡切到目标人格 */}
+          <PersonaSwitchNote data={PERSONA_SWITCH_FIXTURE} />
+          <ExpertScope agentId={PERSONA_SWITCH_FIXTURE.to as string} />
+
+          <ChatBubble role="agent">
+            我按你的洞察范围重新读了数据：本期分子无回传源，ROI 算不出来，已如实标注。
+          </ChatBubble>
+        </div>
+      </div>
+    </div>
+  );
+}

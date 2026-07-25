@@ -993,6 +993,7 @@ export async function buildSystemPrompt(persona: AgentPersona, ctx: AgentRequest
 `CopilotPanel`（右栏常驻）+ 顶部指令栏（全局唯一 NL 入口）：
 
 - **上下文随 route+env 切换**（FR-7.12/8.7.8）：context key = `route:projectId:env:agentId`（`buildContextKey`）；**key 变化 = 线程重置 + 新专家开场白**（避免串味）。同一专家在同一项目内跨页 key 不变则线程保持。
+- **一轮会话内的人格接力（✅ M4.5 F006 / P9）**：`handoff_to` 发生时服务端往 UI 流写一条 `data-persona_switch`（含 from/to/atStep + `personaBoundary(to)`），CopilotPanel 据此刷新顶部专家头与职责/隔离卡，并在对话里插一行接手标注（**换人必须看得见**）。响应头 `X-Agent-Id` 语义收窄为**起始人格**——响应头是一次性的，承载不了切换史。无接力的会话行为零变化。
 - **首屏五构件**（PRD §7.5）：① 职责/隔离卡（否定式，`ExpertScope.tsx`，数据源 = `personaBoundary()`，**与 prompt 同源防漂移**）②「刚刚完成」汇报（读 `OperationLog` 该 actor 近期动作，与雷达/记录页同源）③ 生成式动作卡 ④ 协同交接（`HandoffCollab.tsx`，默认折叠）⑤ 建议追问 chips + 输入框。
 - **动作卡协议**：`{icon, title, sub, go}`，`go` 前缀驱动：`enter:<projectId>` / `env:<env>` / `pick:<kolId>`——点击即导航/办事（FR-7.14；解析见 `parseOrchestratorDirective`）。
 - a11y：流式 `aria-live="polite"`；全键盘可达。

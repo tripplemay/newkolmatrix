@@ -34,6 +34,7 @@ import type {
 } from '@ai-sdk/provider';
 import { runAgentLoop, type AgentLoopRun } from '../../src/lib/agent/loop';
 import type { LoopTelemetryWriter } from '../../src/lib/agent/loop-telemetry';
+import type { PersonaSwitchEvent } from '../../src/lib/agent/loop';
 import type { CopilotContext } from '../../src/lib/agent/persona-router';
 import type { ToolContext } from '../../src/lib/agent/tools/types';
 
@@ -65,6 +66,8 @@ export interface ScriptedLoopResult {
   systemPerStep: string[];
   /** 出网记录（应恒为空；非空 = 零外呼断言失败）。 */
   networkCalls: string[];
+  /** 循环内人格切换事件（F006 / P9：route 据此往 UI 流写 data part）。 */
+  personaSwitches: PersonaSwitchEvent[];
   /** 装配产物（persona / ctx / system / toolNames / maxSteps）。 */
   loop: AgentLoopRun;
 }
@@ -205,12 +208,14 @@ export async function runScriptedLoop(
   const model = scriptedModel(opts.script, opts.fallbackStep);
   const sentinel = installNoNetworkSentinel();
   try {
+    const personaSwitches: PersonaSwitchEvent[] = [];
     const loop = await runAgentLoop({
       copilot: opts.copilot,
       messages: [{ role: 'user', content: opts.prompt }],
       model,
       ctx: opts.ctx,
       telemetryWriter: opts.telemetryWriter,
+      onPersonaSwitch: (e) => personaSwitches.push(e),
     });
 
     const toolErrors: Array<{ toolName: string; error: string }> = [];
@@ -241,6 +246,7 @@ export async function runScriptedLoop(
       visibleToolsPerStep: model.doStreamCalls.map(visibleTools),
       systemPerStep: model.doStreamCalls.map(systemOf),
       networkCalls: sentinel.calls,
+      personaSwitches,
       loop,
     };
   } finally {

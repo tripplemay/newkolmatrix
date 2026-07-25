@@ -14,7 +14,7 @@
 
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
@@ -25,7 +25,12 @@ import {
   type CopilotContext,
 } from 'lib/agent/persona-router';
 import { WHITE } from 'lib/design-tokens';
-import { personaBoundary, DEFAULT_AGENT_ID } from 'lib/agent/registry';
+import {
+  personaBoundary,
+  isAgentId,
+  DEFAULT_AGENT_ID,
+  type AgentId,
+} from 'lib/agent/registry';
 import { agentTheme } from 'lib/agent/agent-theme';
 import { STAGE_AGENT, isStage } from 'lib/agent/stage-routing';
 import { useCopilotUi } from 'contexts/CopilotUiContext';
@@ -33,6 +38,9 @@ import Button from 'components/common/Button';
 import ChatBubble from 'components/common/ChatBubble';
 import AgentSquad, { AGENT_ICONS } from 'components/common/AgentSquad';
 import ExpertScope from './ExpertScope';
+import PersonaSwitchNote, {
+  type PersonaSwitchData,
+} from './PersonaSwitchNote';
 import HandoffCollab from './HandoffCollab';
 import ActionCard from './ActionCard';
 import { mockCopilotUi } from './mock';
@@ -62,6 +70,32 @@ function deriveContext(
   };
 }
 
+/** 流内人格切换事件的 part 类型（与 route.ts 写入端同源；导出供回归断言钉死）。 */
+export const PERSONA_SWITCH_PART = 'data-persona_switch';
+
+/**
+ * 从消息流里解析**当值人格**（P9）：取最后一次 persona_switch 事件的 to。
+ * 无切换 → 回落 context.agentId（行为与 M4.5 前完全一致）。
+ * 响应头 X-Agent-Id 只带起始人格，切换史只在流内——故这里读流不读头。
+ */
+export function activeAgentFromMessages(
+  messages: ReadonlyArray<{ parts?: unknown[] }>,
+  fallback: AgentId,
+): AgentId {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const parts = (messages[i].parts ?? []) as Array<{
+      type?: string;
+      data?: PersonaSwitchData;
+    }>;
+    for (let j = parts.length - 1; j >= 0; j--) {
+      if (parts[j]?.type !== PERSONA_SWITCH_PART) continue;
+      const to = parts[j]?.data?.to;
+      if (typeof to === 'string' && isAgentId(to)) return to;
+    }
+  }
+  return fallback;
+}
+
 /** 单条消息渲染：文本气泡 + 工具结果画布。 */
 function MessageParts({
   message,
@@ -78,7 +112,12 @@ function MessageParts({
           toolName?: string;
           state?: string;
           output?: unknown;
+          data?: PersonaSwitchData;
         };
+        // M4.5 F006：人格切换事件（流内 data part）→ 接手标注
+        if (part.type === PERSONA_SWITCH_PART) {
+          return <PersonaSwitchNote key={i} data={part.data ?? {}} />;
+        }
         if (part.type === 'text' && part.text) {
           return (
             <ChatBubble key={i} role={isUser ? 'user' : 'agent'}>
@@ -155,9 +194,18 @@ function CopilotChat({
   const { command, consumeCommand } = useCopilotUi();
   const consumedRef = useRef(0);
 
-  const persona = personaBoundary(context.agentId);
-  const theme = agentTheme(context.agentId);
-  const HeadIcon = AGENT_ICONS[context.agentId];
+  // M4.5 F006（P9）：当值人格随流内切换事件走；无切换恒为 context.agentId（零行为变化）。
+  const activeAgentId = useMemo(
+    () =>
+      activeAgentFromMessages(
+        messages as unknown as ReadonlyArray<{ parts?: unknown[] }>,
+        context.agentId,
+      ),
+    [messages, context.agentId],
+  );
+  const persona = personaBoundary(activeAgentId);
+  const theme = agentTheme(activeAgentId);
+  const HeadIcon = AGENT_ICONS[activeAgentId];
   const ui = mockCopilotUi(context.route, stage, context.projectId);
   const busy = status === 'submitted' || status === 'streaming';
 
@@ -215,10 +263,11 @@ function CopilotChat({
       {/* 消息流 + 画布 */}
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-gray-50 p-4 dark:bg-navy-900">
         {/* S3-6 🔒 职责/隔离卡 或 S3-7 🔒 编队紧凑名册（仅编排上下文） */}
-        {ui.squad ? (
+        {/* M4.5 F006：一旦发生过接力，无论哪条路由都改显当值人格的边界卡（duty + 否定式护栏） */}
+        {ui.squad && activeAgentId === context.agentId ? (
           <AgentSquad variant="compact" />
         ) : (
-          <ExpertScope agentId={context.agentId} />
+          <ExpertScope agentId={activeAgentId} />
         )}
         <RecentlyDone name={persona?.name ?? 'Agent'} items={ui.did} />
         {/* S3-9~13 🔒 协同卡（虚线框 + 逐轮台词 + 交接物 chip + 绿色结论行） */}

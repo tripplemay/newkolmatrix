@@ -304,6 +304,33 @@ describe('执行侧硬挡（第二道防线：视野收窄 ≠ 执行禁止）',
   });
 });
 
+describe('F006 人格切换事件（P9：流内 data part 的服务端来源）', () => {
+  it('接力发生时回调一次，带 from/to/atStep', async () => {
+    const run = await runScriptedLoop({
+      copilot: orchestratorCopilot,
+      ctx,
+      prompt: '这事交给洞察',
+      script: [handoffToInsight, { text: '接手完成。' }],
+    });
+    expect(run.personaSwitches).toHaveLength(1);
+    expect(run.personaSwitches[0]).toMatchObject({
+      from: 'orchestrator',
+      to: 'insight',
+    });
+    expect(run.personaSwitches[0].atStep).toBeGreaterThan(0);
+  });
+
+  it('无接力会话零事件（不发空事件污染流）', async () => {
+    const run = await runScriptedLoop({
+      copilot: orchestratorCopilot,
+      ctx,
+      prompt: '就问一句',
+      script: [{ text: '好的。' }],
+    });
+    expect(run.personaSwitches).toEqual([]);
+  });
+});
+
 describe('遥测联动（F001 personaSwitches）', () => {
   it('接力会话 personaSwitches=1 且 finalAgentId = 目标人格', async () => {
     const run = await runScriptedLoop({

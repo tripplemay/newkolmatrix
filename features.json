@@ -51,7 +51,7 @@
       "title": "CopilotPanel 多人格会话 UI（persona_switch 流内事件 + 边界卡刷新）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "P9：人格切换以流内 data part 事件标注；边界卡（duty+否定式护栏）随事件刷新；X-Agent-Id 头保留为起始人格。",
       "acceptance": "handoff 发生时流内出 persona_switch data part（含 from/to）；CopilotPanel 边界卡随事件切换显示目标人格 duty+isolation（personaBoundary 同源，不硬编码文案）；X-Agent-Id 响应头 = 起始人格（语义注释明示 P9）；无切换会话行为零变化；相关视觉基线更新（§4.5 重生序 + 三连稳 + CI workflow 拉回流程）；两视口实测"
     },

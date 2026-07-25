@@ -92,6 +92,19 @@ export interface AgentLoopParams {
   ctx?: ToolContext;
   /** 注入缝（F001 遥测测试）：给了就无条件用。缺省 = 落 OperationLog。 */
   telemetryWriter?: LoopTelemetryWriter;
+  /**
+   * 人格切换回调（M4.5 F006 / P9）：循环内接力发生时触发一次。
+   * route 用它往 UI 流里写 `data-persona_switch` 事件——响应头是一次性的，承载不了切换史。
+   */
+  onPersonaSwitch?: (event: PersonaSwitchEvent) => void;
+}
+
+/** 人格切换事件（P9 流内 data part 的载荷同源）。 */
+export interface PersonaSwitchEvent {
+  from: AgentId;
+  to: AgentId;
+  /** 第几步之后发生（0-based step 序） */
+  atStep: number;
 }
 
 export interface AgentLoopRun {
@@ -222,8 +235,15 @@ export async function runAgentLoop(
     prepareStep: async ({ steps }) => {
       const target = latestHandoffTarget(steps) ?? persona.id;
       if (target !== track.current) {
+        const from = track.current;
         track.current = target;
         track.switches += 1;
+        // P9：切换以流内事件标注（边界卡随之刷新）。回调失败不得打死会话。
+        try {
+          params.onPersonaSwitch?.({ from, to: target, atStep: steps.length });
+        } catch (err) {
+          console.error('[agent/loop] persona_switch 回调异常（已忽略）:', err);
+        }
       }
       if (target === persona.id) return undefined;
       return {

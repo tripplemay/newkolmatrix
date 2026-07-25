@@ -1,52 +1,32 @@
 {
-  "status": "done",
-  "user_goal": "洞察域立真：MetricSnapshot/WeeklyReport/ShareLink 三表 + roi.compute/attribution.gaps 两纯函数（三处复用）+ compute_roi/draft_report/create_share_link 三工具（分享 outbound 白名单第 6）+ V8 项目级对照账本 & V12 跨项目洞察接真（两 mock 退役）+ weekly-draft 例程。ROI 分子诚实降级（spend 真源 + reach/conversions 缺口如实标注，真值留 M5）；对外分享接口先行+mock 零公开暴露。",
-  "total_features": 12,
-  "completed_features": 12,
-  "fix_rounds": 2,
-  "current_sprint": "M4-INSIGHT",
+  "status": "building",
+  "user_goal": "在闸门与隔离红线零触碰前提下放开 agent 循环（人格差异化步数预算 + 循环内多专家接力 + 准备并行度），交付四个产品特性：洞察深度追问（compute_roi_portfolio）、行动计划卡（propose_plan + 认可留痕）、一句话推进（handoff_to 接力）、批量备好聚合确认面；配套 loop 遥测、mock-model 测试床与渐进渲染。红线：outbound 执行永过两步票据闸门、时刻隔离（P1 裁决）、例程零直通、行动承诺诚实。",
+  "total_features": 11,
+  "completed_features": 0,
+  "fix_rounds": 0,
+  "current_sprint": "M4.5-AGENT-LOOP",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-24T13:05",
+  "last_updated": "2026-07-25T02:40",
   "reference_docs": [
-    "docs/specs/M4-INSIGHT-spec.md",
-    "docs/test-reports/M3B-DELIVERY-signoff-2026-07-24.md",
+    "docs/specs/M4.5-AGENT-LOOP-spec.md",
+    "docs/reviews/a2a-harness-research-2026-07-25.md",
+    "docs/test-reports/M4-INSIGHT-signoff-2026-07-25.md",
     "docs/dev/architecture.md",
     "docs/dev/agent-architecture.md",
-    "framework/patterns/ui-fidelity-guardrail.md",
-    "docs/specs/ARCH-M05-ui-inventory.md"
+    "framework/patterns/ai-action-contract.md"
   ],
   "docs": {
-    "spec": "specs/M4-INSIGHT-spec.md",
-    "test_cases": "test-reports/m4-verify/",
-    "signoff": "test-reports/M4-INSIGHT-signoff-2026-07-25.md",
+    "spec": "specs/M4.5-AGENT-LOOP-spec.md",
+    "test_cases": null,
+    "signoff": null,
     "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": {
-    "final": "reverify2 PASS（2026-07-25）：issue-5 真实闭合、修复无越界、全批新鲜度终扫过、L1 全绿。12/12 PASS，signoff 已签发 docs/test-reports/M4-INSIGHT-signoff-2026-07-25.md（fix_rounds=2）。另登记 O11：§12.6 所称 OUTBOUND_TOOL_NAMES 常量/测试全仓零命中（早于本批的前瞻式描述债，非 M4 面，转 soft-watch）；并更正前两轮报告中引用该常量的表述（实质结论经独立复核仍成立：class:outbound 实测 5 件）。完整报告 docs/test-reports/m4-verify/F012-reverify2.md",
-    "round": 2,
-    "reverify_result": "PARTIAL（F012）：首轮 4 FAIL 4/4 CLOSED、零新问题；残留 issue-5 = §8.10 例程节仍标 weekly-draft 未实装（L1081 标题「其余 3 条随 M3-M4 表落地」实为 2 条 + 例程表 weekly-draft 行未翻已实装）——出自首轮 F012-recheck.md ADVISORY-1 明确交办，fixing round1 未做且 commit 自述「清零」过宽（O8）。修复建议：翻 §8.10 标题与 weekly-draft 行 + doc-freshness 测试追加例程行级断言（遍历 ROUTINES name 断言 §8.10 该行含已实装）。完整报告 docs/test-reports/m4-verify/F012-reverify.md",
-    "reverify_l2_disclosure": "复验 evaluator 自我披露：交叉核证时误跑 M3-A 的 reach:e2e 套件，发生 1 次未授权真实网关调用——400 模型名校验拒绝，零 token 零计费；邮件恒 mock 步骤①即中止，零真实投递；夹具自清理，未重试（报告 §3.1/O9）",
-    "round1": 1,
-    "date": "2026-07-25",
-    "summary": "11 PASS / 1 PARTIAL（F012，对抗复核 4/4 UPHELD）。完整 verdict 见 docs/test-reports/m4-verify/F0XX-verdict.md，汇总见 docs/test-reports/M4-INSIGHT-verify-round1-2026-07-25.md",
-    "results": {
-      "F001": "PASS", "F002": "PASS", "F003": "PASS", "F004": "PASS",
-      "F005": "PASS", "F006": "PASS", "F007": "PASS", "F008": "PASS",
-      "F009": "PASS", "F010": "PASS", "F011": "PASS", "F012": "PARTIAL"
-    },
-    "F012_issues": [
-      "issue-1: architecture.md §9.2「已实装工具」表未加 M4 三工具行（compute_roi/draft_report/create_share_link）——acceptance 显式命名项（UPHELD）",
-      "issue-2: architecture.md §8.6 编队名册 as-built 表 insight 行 tools 仍为 []——与 registry.ts 实物（三件）矛盾（UPHELD）",
-      "issue-3: architecture.md §7.2.1 三表+一枚举+迁移计数整条未更新（schema 权威转录节）（UPHELD）",
-      "issue-4: 批末新鲜度复核漏 4 处陈旧标记：§5.4 标题未随行翻 / escrow·keys·share「演进 M4」两处残留（M3-B F012 fixing 已显式指派 M4 翻牌）/ mock env-* 语法面句仍含 insight 字样（UPHELD；与 M3-B 同坑二次复发）"
-    ],
-    "note": "e2e 闭环与 lint/tsc/test:unit/test:visual 四件套无缺陷，零产品代码 Bug；阻断项全部为文档层。零真实公开暴露经 F008/F010/F012 三处独立核证；L2 真网关未消耗（未获授权）。"
-  },
+  "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M4-INSIGHT done 归档 · 2026-07-25 · 快车道全流程一会话跑完】\n■ 终局：12/12 PASS，fix_rounds=2（两轮全为文档翻牌层，零产品缺陷）；signoff = docs/test-reports/M4-INSIGHT-signoff-2026-07-25.md；验收链 = 首轮 12 fan-out + 对抗复核 + 两轮复验（各隔离 subagent，结论原样落盘）。\n■ done 收尾已完成：project-status 整合 ✅ / proposed-learnings 处置 ✅（用户裁决：M3-A 4 条沉淀为 framework v1.0.12——db-patterns §9 hash-JSONB 往返 / testing-env §8 HTTP 全链回归·§9 mock 清态按标记 / web-runtime §7 幂等注册；M3-B 1 条 + M4 3 条继续挂起）/ role_assignments 本就 null / 下一批：用户裁决**暂不开批**，先手动部署 M4 观察。\n■ 部署备忘（用户手动闸门）：deploy-prod image_tag = 300b5c169e976c1b3cf0bddcaedcc30556822f4d（最新 Build&Push success）；compose 未改、无新增必需 env、migrate 纯 CREATE 安全；回滚 = 填 49308c1a…（M3-B good SHA）。\n■ 下会话注意：CHANGELOG 存量 v1.0.9-11 条目在文件底部（与「新条目置顶」约定不一致，v1.0.12 起已回归置顶；如碍事可下批顺手归位）；L2 真网关全批未消耗（INSIGHT_E2E_REAL_LLM=1 留授权后用）；soft-watch 清单见 project-status。\n■ 历史过程记录（building/verifying 细节）见 git 史与 docs/test-reports/M4-INSIGHT-verify-round1-2026-07-25.md。原 building 期笔记要点已并入上述文件，不再重复。",
-    "Andy_building_archive": "【M4-INSIGHT building 完成 12/12 → verifying · 2026-07-24 · 快车道】\n■ 实现节奏：F001 迁移串行起步 → F002/F003/F007 并行 worktree subagent（cherry-pick 合入 3a7fa04/bb9658c/b54bb8e）→ F004/F005/F006/F008 主上下文串行 → F011 → F009/F010 UI 接真 → F012 e2e+文档。全部 feat(M4-INSIGHT-F0xx) 独立 commit，HEAD CI 绿 @ f6a631b。\n■ Generator 自行裁决点（evaluator 请核）：① F002 ROI 数值口径 = conversions/spend 最小诚实口径（spec 未给公式；文件头记录为单点可裁决，本批分子恒缺生产路径恒 insufficient_evidence）② ShareLink.projectId 软引用不强 FK（暴露事实独立于项目生命周期，migration 头有理由）③ V8 对照表 4 行按可得指标轴重立（mock 营销示意行随退役；ui-inventory 例外登记）④ V8/V12 图卡（渠道/受众/ROI 走势/各项目 ROI）数据源属 M5 回传——实现保留、data 恒 null 走「待接入」占位。\n■ CI 红过两轮均已修复：一轮 = 注入缝 llm 被凭据降级改道（c09ef41 修 + 回归测试）；两轮 = F009/F010 新基线 CI 首推必红（走 update-visual-baselines workflow 重生拉回，已知路径）。\n■ 本地已知漂移（非本批回归，CI 侧绿）：today 基线相对时间标签 + env=match 基线本地长寿命 DB 有真组合数据 vs CI 夹具空态。\n■ L2 授权未消耗：draft_report/weekly-draft 全程降级固定草案（明示，零外呼）；验收若要真网关最小用量走 INSIGHT_E2E_REAL_LLM=1 npm run insight:e2e（需用户授权）。\n■ 零真实公开暴露核证：dev 库 ShareLink 0 行（e2e 夹具自清理）；mock publicUrl 恒 null；无真实分享分支。验收入口 npm run insight:e2e（23 断言）+ 各集成测 + test:visual。规格与 P 决策见 docs/specs/M4-INSIGHT-spec.md（U1-U3 / P1-P10）。",
+    "Andy": "【M4.5-AGENT-LOOP planning 完成 → building · 2026-07-25 · 快车道】\n■ 立项来源：agent 循环放开评测（同会话旁路研究，A2A 研究文档见 docs/reviews/）。用户裁决 U1 加码档 10 features / U2 人格差异化步数（insight/orchestrator=10 其余 5）/ U3 计划认可=internal 留痕。\n■ 要害 P 决策见 spec §3：P1 DP-3 口径裁决=时刻隔离（handoff_to 经 Handoff 落行 + prepareStep 切换，outbound 人格绑定不变）· P2 遥测只存元数据不存正文 · P4 认可不解锁执行权（回归钉死）· P5 mock LanguageModel 测试床（ai/test，开工核实物导出名）· P8 渐进渲染 pre-impl 审计先行 · P10 cost-cap 不入批（backlog BL-COST-CAP）。\n■ 零 migration 批次：遥测/计划留痕复用 OperationLog(payloadJson)，接力复用 Handoff 表（首次真实写入链）。\n■ 开工顺序：F001/F002 串行（同触 route/registry）→ F009 测试床 → F003/F004/F008 可并行（F008 先出 pre-impl 审计）→ F005（依赖 F002+F009）→ F006（依赖 F005）→ F007（依赖 F004）→ F010。\n■ 已核实物：ai@7.0.31 d.ts 含 onStepFinish/onStepEnd 别名并存 + prepareStep/activeTools + finishReason；画布注册器 copilot/canvas/canvas-registry；compliance_redline 链头读取器在 knowledge/page-data.ts（F011 数据源）。\n■ backlog 新立两条：BL-COST-CAP（例程化前置）/ BL-AGENT-ROUTINE（F-E/F-F，依赖 M3-C）。\n■ M4 部署仍待用户手动触发（image_tag=300b5c16…40 位）；M4.5 全批零新增对外副作用，聚合确认面消费既有 5 outbound 的 mock 通道 pending。",
+    "Andy_building_archive": null,
     "Reviewer": null,
     "Mark": null
   },

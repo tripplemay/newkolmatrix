@@ -14,7 +14,12 @@ import PanelHeader from 'components/common/PanelHeader';
 import ExpertScope from 'components/copilot/ExpertScope';
 import PersonaSwitchNote from 'components/copilot/PersonaSwitchNote';
 import PlanCard from 'components/copilot/canvas/PlanCard';
-import { PERSONA_SWITCH_FIXTURE, PLAN_FIXTURE } from './fixture';
+import PendingBatchCard from 'components/common/PendingBatchCard';
+import {
+  PENDING_BATCH_FIXTURE,
+  PERSONA_SWITCH_FIXTURE,
+  PLAN_FIXTURE,
+} from './fixture';
 
 export default function AgentLoopPreview() {
   return (
@@ -23,7 +28,7 @@ export default function AgentLoopPreview() {
         <PanelHeader
           className="mb-3"
           title="Copilot · 循环放开面"
-          subtitle="M4.5 产物：行动计划卡（认可只留痕）+ 循环内接力标注（边界卡随之切换）"
+          subtitle="M4.5 产物：行动计划卡（认可只留痕）+ 循环内接力标注（边界卡随之切换）+ 批量备好聚合确认面"
         />
 
         {/* 起始人格边界卡 */}
@@ -44,6 +49,9 @@ export default function AgentLoopPreview() {
           <ChatBubble role="agent">
             我按你的洞察范围重新读了数据：本期分子无回传源，ROI 算不出来，已如实标注。
           </ChatBubble>
+
+          {/* F007：批量备好聚合确认面（利害逐条列全，不折叠） */}
+          <PendingBatchCard items={PENDING_BATCH_FIXTURE} />
         </div>
       </div>
     </div>

@@ -1361,7 +1361,9 @@ export const harmSchema = z.object({
 
 | 端点 | 方法 | 运行时 | 职责 | 响应形态 |
 |---|---|---|---|---|
-| `/api/agent` | POST | nodejs（`maxDuration=60`） | 柱二流式 loop | **SSE 流**（`toUIMessageStreamResponse`）+ 头 `X-Agent-Id` / `X-Agent-Tools`；错误 `Response.json({error}, {status:400\|500})` |
+| `/api/agent` | POST | nodejs（`maxDuration=120` ✅ M4.5 F002） | 柱二流式 loop | **SSE 流**（`createUIMessageStream` + `createUIMessageStreamResponse`，✅ M4.5 F006）+ 头 `X-Agent-Id`（= **起始人格**，P9）/ `X-Agent-Tools`；人格接力经流内 `data-persona_switch` 事件；错误 `Response.json({error}, {status:400\|500})` |
+| `/api/agent/plan-ack` | POST | nodejs | 认可一份行动计划（internal 留痕，✅ M4.5 F004）——**不解锁执行权**，无 PendingAction / 无令牌 | `{planId, planTitle, acknowledged, alreadyAcknowledged, acknowledgedAt, logId, note}`；400 zod / 404 计划不存在；30 req/min/IP fail-open |
+| `/api/actions` | GET | nodejs | 待确认动作清单（只读，供聚合确认卡取数；✅ M4.5 F007）——**批量确认没有对应端点**，逐项走既有两步票据 | `{items: PendingBatchItem[]}`（harm 原样）；分码 envelope |
 | `/api/actions/[id]` | GET | nodejs | 待确认动作详情（脱敏：不含 inputJson/hash/票；M3-A F002） | `PendingActionDetail`；分码 403/404/409/410 |
 | `/api/actions/[id]/confirm` | POST | nodejs | 确认 = 签发一次性执行票（M3-A F002） | `{ confirmed, ticket, ticketExpiresAt }`（票仅此响应出现一次）；分码 envelope |
 | `/api/actions/[id]/execute` | POST | nodejs | 消费票执行（同事务 executed+irrev+业务态；M3-A F002） | `{ executed: true, output }`；分码 envelope |

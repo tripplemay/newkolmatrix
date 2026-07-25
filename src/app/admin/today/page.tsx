@@ -33,6 +33,7 @@ import MiniStatistics from 'components/card/MiniStatistics';
 import AgentSquad from 'components/common/AgentSquad';
 import { AGENT_ICONS } from 'components/common/agent-icons';
 import Button from 'components/common/Button';
+import PendingBatchIsland from 'components/common/PendingBatchIsland';
 import SurfaceCard from 'components/common/SurfaceCard';
 import { ENV_META } from 'components/project/env-meta';
 import { AVATAR_WHEEL } from 'lib/design-tokens';
@@ -41,6 +42,7 @@ import { prisma } from 'lib/db/prisma';
 import { buildToolContext } from 'lib/agent/context';
 import { aggregatePending, type PendingItem } from 'lib/agent/orchestrator';
 import { harmSchema } from 'lib/agent/gate/harm';
+import { toPendingBatchItems } from 'lib/gate/pending-items';
 import { computeHealth, type HealthBand } from 'lib/domain/health';
 import { parseProjectGoal } from 'lib/data/schemas/project';
 import { readContractSlot, PENDING_TEXT } from 'lib/data/provenance';
@@ -383,6 +385,13 @@ export default async function TodayPage() {
           title="需要你确认"
           meta={`${radar.length} 个待办在等你 · 点进去从当前环节继续`}
         />
+        {/* M4.5 F007：聚合确认卡落在既有「需要你确认」聚合位内（雷达卡网格结构零变更）。
+            无 pending 时不渲染——空态由下方既有空态文案承担，不重复喊两遍。 */}
+        {radar.length > 0 && (
+          <div className="mb-5">
+            <PendingBatchIsland items={toPendingBatchItems(pending)} />
+          </div>
+        )}
         {radar.length > 0 ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {radar.map((item, i) => (

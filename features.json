@@ -60,7 +60,7 @@
       "title": "批量备好聚合确认面（雷达/面板聚合卡 + 逐项确认）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "F-D：pending 聚合卡（今天页雷达待确认区 + CopilotPanel），批量确认 = 前端循环逐项调既有 confirm+execute 端点，无批量端点。",
       "acceptance": "聚合卡列出全部 pending（harm 逐条完整展示不折叠——D28 口径）；「逐个审阅」与「依次确认」两动线；批量确认实现 = 循环调 /api/actions/[id]/confirm + /execute（**grep 证无新批量端点**，不留绕过面）；部分失败分项如实显示（成功 N / 失败 M + 各自原因原文）；空态诚实（无 pending → 占位不假造）；既有雷达区块结构零变更（P7，新卡落既有聚合位）；视觉基线更新；集成测覆盖多 pending 逐项链"
     },

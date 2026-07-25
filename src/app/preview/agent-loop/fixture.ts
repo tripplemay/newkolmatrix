@@ -6,6 +6,8 @@
 
 import type { ProposePlanOutput } from 'lib/agent/tools/propose-plan';
 import type { PersonaSwitchData } from 'components/copilot/PersonaSwitchNote';
+import type { PendingBatchItem } from 'lib/gate/pending-items';
+import { HARM_LABEL } from 'lib/agent/gate/harm';
 
 /** F004 行动计划卡：三步计划，含一条模型低报闸门的步骤（服务端已强制标出）。 */
 export const PLAN_FIXTURE: ProposePlanOutput = {
@@ -51,3 +53,42 @@ export const PERSONA_SWITCH_FIXTURE: PersonaSwitchData = {
   to: 'insight',
   atStep: 1,
 };
+
+/** F007 聚合确认卡：两件待确认（利害逐条列全，不折叠——D28 口径）。 */
+export const PENDING_BATCH_FIXTURE: PendingBatchItem[] = [
+  {
+    id: 'fx-pa-1',
+    toolName: 'send_outreach',
+    agentId: 'reach',
+    projectId: 'fx-proj-1',
+    createdAt: '2026-07-25T00:00:00.000Z',
+    harm: {
+      action: 'send_outreach',
+      summary: '向 IronSight 铁瞄 发出合作邀约邮件',
+      targets: ['IronSight 铁瞄 <ironsight@example.com>'],
+      quantity: 1,
+      irreversible: true,
+      evidence: '基于《星轨协议》卖点与该创作者受众吻合度 0.94 起草',
+      expiresAt: '2026-07-25T00:10:00.000Z',
+      label: HARM_LABEL,
+    },
+  },
+  {
+    id: 'fx-pa-2',
+    toolName: 'create_share_link',
+    agentId: 'insight',
+    projectId: 'fx-proj-1',
+    createdAt: '2026-07-25T00:01:00.000Z',
+    harm: {
+      action: 'create_share_link',
+      summary: '生成对外分享链接（季度汇总·有效期 14 天）',
+      targets: ['任何持有链接者（不限于系统内用户）'],
+      scope: '季度汇总指标 · 不含联系方式',
+      quantity: 1,
+      irreversible: true,
+      evidence: '链接一经生成即暴露：撤销仅能阻止后续访问，已被打开/转发的内容无法收回',
+      expiresAt: '2026-07-25T00:11:00.000Z',
+      label: HARM_LABEL,
+    },
+  },
+];

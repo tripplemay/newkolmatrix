@@ -43,6 +43,8 @@ import PersonaSwitchNote, {
 } from './PersonaSwitchNote';
 import HandoffCollab from './HandoffCollab';
 import ActionCard from './ActionCard';
+import PendingBatchCard from 'components/common/PendingBatchCard';
+import type { PendingBatchItem } from 'lib/gate/pending-items';
 import { mockCopilotUi } from './mock';
 import { hasCanvasRenderer, renderToolResult } from './canvas/canvas-registry';
 
@@ -154,6 +156,33 @@ function MessageParts({
       })}
     </>
   );
+}
+
+/**
+ * M4.5 F007 — 面板内「已备好 N 件待确认」聚合卡。
+ *
+ * 只读取数（GET /api/actions），确认动线仍是逐项两步票据（PendingBatchCard 内）。
+ * **无 pending 时不渲染**：面板是常驻的，空卡会变成永久占位的噪音；空态诚实由今天页
+ * 雷达区既有空态文案承担。取数失败静默降级为不渲染（对话主链路不得被侧栏取数打死）。
+ */
+function CopilotPendingBatch() {
+  const [items, setItems] = useState<PendingBatchItem[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/actions')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body: { items?: PendingBatchItem[] } | null) => {
+        if (alive && body?.items) setItems(body.items);
+      })
+      .catch(() => {
+        /* 取数失败 → 不渲染（D2 静默降级，不打死对话面） */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  if (!items || items.length === 0) return null;
+  return <PendingBatchCard items={items} />;
 }
 
 /** S3-8 🔒 「{专家}刚刚完成」卡（原型 .cop-did，ARCH-M05 mock 数据） */
@@ -270,6 +299,8 @@ function CopilotChat({
           <ExpertScope agentId={activeAgentId} />
         )}
         <RecentlyDone name={persona?.name ?? 'Agent'} items={ui.did} />
+        {/* M4.5 F007：已备好待确认的聚合卡（有才显示） */}
+        <CopilotPendingBatch />
         {/* S3-9~13 🔒 协同卡（虚线框 + 逐轮台词 + 交接物 chip + 绿色结论行） */}
         <HandoffCollab stage={context.projectId ? stage : null} />
         {messages.length === 0 && (

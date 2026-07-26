@@ -21,6 +21,16 @@ export interface ToAiSdkToolsOpts {
    * 缺省（不传）= 不做子集判定，行为与 M4.5 前完全一致。
    */
   isToolActive?: (name: string) => boolean;
+  /**
+   * 当值人格（M4.7 F004）。给了就在每次调用前把 `ctx.agentId` 派生成它——
+   * 于是留痕（PendingAction.agentId / OperationLog.actor）记的是**实际干活的人格**，
+   * 而不是会话起始人格。
+   *
+   * 【为什么必须是函数而不是值】ToolSet 在 loop 装配时构造一次，而当值人格会在
+   * 循环内接力时变；捕获一个快照值等于永远记起始人格（M4.5 soft-watch O-G2-1
+   * 正是这么来的）。
+   */
+  currentAgentId?: () => ToolContext['agentId'];
 }
 
 /** 越权调用的明示拒绝文案锚点（负向断言引用）。 */
@@ -46,7 +56,10 @@ export function toAiSdkTools(
         if (opts.isToolActive && !opts.isToolActive(name)) {
           throw new Error(`[persona] 工具 ${name} ${TOOL_NOT_IN_SUBSET_MSG}`);
         }
-        const result = await executeTool(name, input, ctx);
+        const current = opts.currentAgentId?.();
+        const callCtx =
+          current && current !== ctx.agentId ? { ...ctx, agentId: current } : ctx;
+        const result = await executeTool(name, input, callCtx);
         return result.output;
       },
     });

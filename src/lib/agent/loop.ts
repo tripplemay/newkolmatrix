@@ -174,6 +174,12 @@ export async function runAgentLoop(
     // 视野收窄（activeTools）只影响模型看见什么；执行禁止必须自己挡——
     // 否则模型凭历史消息里的工具名照样能调到别的人格的工具。
     isToolActive: (name) => getPersona(track.current).tools.includes(name),
+    // M4.7 F004（闭环 M4.5 O-G2-1）：接力后留痕归属跟着当值人格走。
+    // 此前 PendingAction.agentId / OperationLog.actor 恒为**起始**人格 ——
+    // insight 当值时备的 pending 记成 orchestrator，今天页雷达深链的
+    // agentId→STAGE_AGENT 反查因此落回退分支。
+    // 必须是函数：ToolSet 只在装配时构造一次，捕获快照等于永远记起始人格。
+    currentAgentId: () => track.current,
   });
 
   // ⑤层知识注入（M1-D F005）：经 Project.gameId 查链头按 persona.knowledgeKinds 拼知识段；

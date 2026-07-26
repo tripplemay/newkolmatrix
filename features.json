@@ -33,7 +33,7 @@
       "title": "ctx.agentId 派生 + 留痕归属（顺带闭环 M4.5 的 O-G2-1）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "D-1 裁决 A：子 loop 内 ctx.agentId 派生为目标专家，PendingAction.agentId / OperationLog.actor 记实际干活的人。M4.5 接力路径同样派生（O-G2-1 欠账一并还）。",
       "acceptance": "子 loop 内 `ctx.agentId` = 目标专家（非前台）；`PendingAction.agentId` 与 `OperationLog.actor` 记**实际干活的专家**（集成测实证：前台咨询触达专家备一封邮件 → 该 pending 的 agentId = reach 而非 orchestrator）；**M4.5 接力路径同样派生**（O-G2-1 闭环，回归实证）；雷达深链 `agentId → STAGE_AGENT` 反查**不再落回退分支**（实证：上述 pending 深链到 reach 环节而非 `project.cur`）；`handoff_to` 的「不能交接给自己」改比对**当值人格**而非起始人格（M4.5 soft-watch O-G2-2 的触发条件已命中）；变异证断言活着（派生改回起始人格 → 红）"
     },

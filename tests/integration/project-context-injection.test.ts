@@ -26,27 +26,27 @@ const SLUG = `test-tenant-m46-ctx-${process.pid}`;
 const PROJECT_NAME = `M4.6 上下文夹具项目 ${process.pid}`;
 
 /**
- * 「不编造名字」的判据。
+ * 「不编造名字」的判据 —— **正向精确匹配**（S-M46-6 收口）。
  *
- * 【为什么不用 `not.toContain('（')`】那只挡住带括号的写法。验收变异实测：改成
- * 「降级时编造名字但不带括号」照样全绿。所以改为占位名黑名单 + 括注正则双查。
+ * 【三版演进，值得留在这里】
+ *   v1 `not.toContain('（')`：只挡带括号的写法 → 验收变异「编造名字但不带括号」绕过
+ *   v2 占位名黑名单 + 括注正则：复验又用 `${id} 星辰出海计划` / `${id}【王者荣耀出海】`
+ *      两种形态绕过 —— **黑名单原理上不可穷尽**，能想到多少种违法形态就只挡多少种
+ *   v3（本版）正向全串匹配：段落必须**恰好等于**这一串。任何编造形态都会红。
+ *
+ * 规律：凡「不得编造 / 不得出现」类断言，优先写成「必须恰好等于」。
  */
-function expectNoFabricatedName(section: string): void {
-  for (const placeholder of [
-    '未命名',
-    '未知项目',
-    '某项目',
-    '该项目',
-    'N/A',
-    'unknown',
-    'Unknown',
-  ]) {
-    expect(section, `降级时编造了占位名「${placeholder}」`).not.toContain(
-      placeholder,
-    );
-  }
-  expect(section, '降级时不得给项目加任何括注名').not.toMatch(
-    /[（(][^）)]+[）)]/,
+function expectNoFabricatedName(section: string, projectId: string): void {
+  expect(
+    section,
+    '降级段落必须与「有名字」版本只差那个括注——多一个字都算编造',
+  ).toBe(
+    [
+      '',
+      '',
+      `${PROJECT_CONTEXT_HEADING}用户正在项目 ${projectId} 的页面上与你对话。`,
+      NO_ASK_PROJECT_CLAUSE,
+    ].join('\n'),
   );
 }
 
@@ -118,7 +118,7 @@ describe('projectContextSection —— 段落内容', () => {
     // 段落照常注入——projectId 本身来自 ctx，不依赖 DB；查不到的只是名字。
     expect(section).toContain(ghost);
     expect(section).toContain(NO_ASK_PROJECT_CLAUSE);
-    expectNoFabricatedName(section);
+    expectNoFabricatedName(section, ghost);
   });
 
   // ── DB 故障半边（首轮验收 D2）────────────────────────────────────────────
@@ -143,7 +143,7 @@ describe('projectContextSection —— 段落内容', () => {
         projectId,
       );
       expect(section).toContain(NO_ASK_PROJECT_CLAUSE);
-      expectNoFabricatedName(section);
+      expectNoFabricatedName(section, projectId);
     });
 
     it('DB 抛错：整场会话照常收敛（增强性注入不得打死主链路，D2 纪律）', async () => {

@@ -30,39 +30,16 @@ import { PLAN_PROPOSED_MARKER } from '../../src/lib/agent/tools/propose-plan';
 import { acknowledgePlan } from '../../src/lib/agent/plan-ack';
 import { SHARE_CREATED_MARKER } from '../../src/lib/ops/share';
 import { runScriptedLoop } from '../../tests/support/agent-loop-testbed';
+import { TOOL_NOT_IN_SUBSET_MSG } from '../../src/lib/agent/to-ai-sdk-tools';
 import type { ToolContext } from '../../src/lib/agent/tools/types';
+
+import { cleanupStep } from './cleanup-step';
 
 function assert(cond: boolean, msg: string): void {
   if (!cond) throw new Error(`ASSERT FAIL: ${msg}`);
   console.log(`  ✓ ${msg}`);
 }
 
-/**
- * 清理步骤包装：吞掉自身异常并喊出来，绝不向外抛。
- *
- * 【为什么每步都要独立 try/catch】清理段跑在 finally 里。它一抛，两件事同时发生：
- * ① 主流程的首因（`ASSERT FAIL: xxx` 原文）被这个二次抛错覆盖，红灯指向错误的地方；
- * ② 后续清理步骤全部被跳过 → dev 库留下残留 → 本机含 feed/雷达的视觉基线被打红，
- *    下一个隔离 evaluator 会把它当成产品回归（同 patterns/testing-env-patterns.md §9
- *    记的 M3-A「today feed 基线污染误判」族）。
- * 而 e2e 失败在 fixing 轮里是常态——那正是清理最需要生效的时刻。
- *
- * 来源：M4.5 首轮验收 F010 PARTIAL 缺陷 ①（对抗复核 UPHELD）。
- */
-async function cleanupStep(
-  label: string,
-  fn: () => Promise<unknown>,
-): Promise<void> {
-  try {
-    await fn();
-  } catch (err) {
-    console.error(
-      `  ⚠ 清理步骤失败（不中断后续清理）：${label} — ${
-        err instanceof Error ? err.message : err
-      }`,
-    );
-  }
-}
 
 /** 逐项闸门传输（与两个 route handler 同一服务层实现；无批量端点可用，也不该有）。 */
 function gatePost(ctx: ToolContext): BatchPost {
@@ -243,10 +220,23 @@ async function main(): Promise<void> {
         JSON.stringify(insightTools),
       '接力后模型视野收窄到洞察子集',
     );
+    // 【S-G5-6 收口】原写法是 `some(含 create_project) || toolErrors.length > 0`——
+    // 后半截让**任意**工具错误都能满足，等于这条负向断言几乎不设防（M4.5 复验登记）。
+    //
+    // 收紧时实测到一件此前被掩盖的事：拒因是 AI SDK 自己的
+    // `AI_NoSuchToolError: Model tried to call unavailable tool` —— 即
+    // **activeTools 视野收窄先生效**，请求根本没走到我们执行侧的 isToolActive。
+    // 两道防线都在，只是外层先拦（同 M4.7 F001 在子 loop 里观察到的形态）。
+    // 故判据收紧为"确实是 create_project 被判不可用"，并接受两种合法拒因形态——
+    // 这与原来的 `|| length > 0`（任意错误都算）有本质区别：那是不设防，这是精确枚举。
     assert(
-      run1.toolErrors.some((e) => e.error.includes('create_project')) ||
-        run1.toolErrors.length > 0,
-      '🔒 接力后调编排独占工具被拒（越权负向断言）',
+      run1.toolErrors.some(
+        (e) =>
+          e.toolName === 'create_project' &&
+          (e.error.includes(TOOL_NOT_IN_SUBSET_MSG) ||
+            e.error.includes('unavailable tool')),
+      ),
+      '🔒 接力后调编排独占工具被拒，且拒因确实是"该工具不可用"（越权负向断言）',
     );
     assert(
       (await prisma.project.count({ where: { tenantId } })) === projectsBefore,

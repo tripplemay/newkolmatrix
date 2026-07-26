@@ -32,30 +32,13 @@ import { SHARE_CREATED_MARKER } from '../../src/lib/ops/share';
 import { runScriptedLoop } from '../../tests/support/agent-loop-testbed';
 import type { ToolContext } from '../../src/lib/agent/tools/types';
 
+import { cleanupStep } from './cleanup-step';
+
 function assert(cond: boolean, msg: string): void {
   if (!cond) throw new Error(`ASSERT FAIL: ${msg}`);
   console.log(`  ✓ ${msg}`);
 }
 
-/**
- * 清理步骤包装：吞掉自身异常并喊出来，绝不向外抛。
- * 承 M4.5 F010 教训——清理段一抛就掩盖主流程首因并跳过后续清理，
- * 而 e2e 失败在 fixing 轮里是常态，那正是清理最该生效的时刻。
- */
-async function cleanupStep(
-  label: string,
-  fn: () => Promise<unknown>,
-): Promise<void> {
-  try {
-    await fn();
-  } catch (err) {
-    console.error(
-      `  ⚠ 清理步骤失败（不中断后续清理）：${label} — ${
-        err instanceof Error ? err.message : err
-      }`,
-    );
-  }
-}
 
 async function main(): Promise<void> {
   // 无凭据也要能跑（CI）：mock 模型全程接管，网关凭据不参与

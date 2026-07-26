@@ -297,7 +297,9 @@ export async function runAgentLoop(
         agentId: persona.id,
         finalAgentId: track.current,
         steps: event.steps.length,
-        maxSteps,
+        // M4.7 F006：报**本轮实际生效的**上限（链上最大档位），不是起始人格档位——
+        // 否则接力抬升后 budgetHit 会误报（frontdesk/agentloop e2e 实测抓到）。
+        maxSteps: currentBudget(),
         finishReason: String(event.finishReason),
         // 工具序列含重复且保序——循环形状的指纹（只取名字，不取入参）
         toolNames: event.steps.flatMap((s) =>

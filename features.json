@@ -96,7 +96,7 @@
       "title": "backlog 顺手项收口（BL-E2E-CLEANUP-PIN 触发条件已命中）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "登记时写死的触发时机就是「下一个改动 agentloop-e2e.ts 清理段 / doc-freshness 的批次必须一并做」，本批 F009/F010 正好命中。范围克制：只做已登记的四条，不扩。",
       "acceptance": "**S-M46-6**：`expectNoFabricatedName` 的黑名单改为**正向精确匹配**（断言 section 恰等于固定全串），复验实测的两种绕过形态（`${id} 星辰出海计划` / `${id}【王者荣耀出海】`）须翻红；**S-RV1-1/2/3**：`cleanupStep` 导出并加**行为级**单测（喂必抛 fn 断言 `await cleanupStep(...)` 正常 resolve），行为断言免疫写法绕过——原三条源码级正则可保留但不再是唯一防线；**S-G5-6**：e2e 越权负向断言收紧为「错误确实来自 `create_project`」（原写法任意工具错误都能满足）；**O-G3-3**：加一条「全人格名单内工具名必在注册表」通用断言；每条均须变异证活，且变异含**当初记录的那条绕过路径**"
     }

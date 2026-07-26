@@ -17,7 +17,8 @@
 // commit 时恒空绿（M4.5 building 期踩过，见 project-status.md 关键技术坑）。
 
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { cleanupStep } from '../../scripts/test/cleanup-step';
 
 const PATH = 'scripts/test/agentloop-e2e.ts';
 const SRC = readFileSync(PATH, 'utf8');
@@ -46,8 +47,10 @@ describe('agentloop:e2e 清理段卫生（F010 缺陷① 回归钉）', () => {
   });
 
   it('cleanupStep 吞掉自身异常且不再抛（catch 内不得有 throw）', () => {
-    const m = SRC.match(
-      /async function cleanupStep\([\s\S]*?\n\}\n/,
+    // M4.7 F011：定义已抽到 scripts/test/cleanup-step.ts（两个 e2e 共用，且可被
+    // 行为级单测直接驱动——见文件末尾）。本条保留为可读性好的第一道，非唯一防线。
+    const m = readFileSync('scripts/test/cleanup-step.ts', 'utf8').match(
+      /export async function cleanupStep\([\s\S]*?\n\}\n/,
     );
     expect(m, 'cleanupStep 定义缺失（结构变更须同步本测试）').toBeTruthy();
     const body = m![0];
@@ -87,5 +90,92 @@ describe('agentloop:e2e 清理段卫生（F010 缺陷① 回归钉）', () => {
     expect(block, 'ShareLink 应按跑前 id 基线差集清').toMatch(
       /shareLink\.deleteMany\([\s\S]{0,300}notIn/,
     );
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// M4.7 F011 — S-RV1-1/2/3 收口：**行为级**断言
+//
+// 上面那几条是源码级正则。M4.6 复验实测：三条全部可被写法绕过，且绕过后行为
+// 等价于原缺陷（catch 改 return Promise.reject / 跨行 deleteMany / filter(()=>true)）。
+// 规律：源码级正则的强度取决于你能想到多少种写法；行为级断言天然免疫写法。
+// 源码级那几条保留（它们读起来直观、失败信息友好），但**不再是唯一防线**。
+// ────────────────────────────────────────────────────────────────────────────
+describe('cleanupStep 行为契约（免疫写法绕过）', () => {
+  it('喂一个必抛的 fn → 仍然正常 resolve（不向外抛）', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await expect(
+        cleanupStep('必抛步骤', async () => {
+          throw new Error('m47 模拟：DB 故障');
+        }),
+      ).resolves.toBeUndefined();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('失败要喊出来（不静默吞——静默 = 残留无人知晓）', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await cleanupStep('会失败的一步', async () => {
+        throw new Error('m47 模拟：唯一约束冲突');
+      });
+      expect(spy).toHaveBeenCalled();
+      const msg = spy.mock.calls.flat().join(' ');
+      expect(msg, '要说清哪一步失败了').toContain('会失败的一步');
+      expect(msg, '要带上原始错误信息').toContain('唯一约束冲突');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('前一步失败不影响后一步执行（这才是"不中断后续清理"的实质）', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const ran: string[] = [];
+    try {
+      await cleanupStep('第一步', async () => {
+        ran.push('first');
+        throw new Error('boom');
+      });
+      await cleanupStep('第二步', async () => {
+        ran.push('second');
+      });
+      expect(ran).toEqual(['first', 'second']);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('正常步骤照常执行并 resolve', async () => {
+    const ran: string[] = [];
+    await cleanupStep('正常步骤', async () => {
+      ran.push('ok');
+    });
+    expect(ran).toEqual(['ok']);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// M4.7 F011 — O-G3-3 收口：人格名单里的工具名必须真的存在
+//
+// 来源：M4.5 G3 观察——`toAiSdkTools` 对未知工具名是**静默 continue**，人格名单
+// 写错名字不会报错，只会让模型"看不见"该工具。此前靠每件新工具各写一条同源断言
+// 兜住；这里加一条通用的，新工具不必再各写一遍。
+// ────────────────────────────────────────────────────────────────────────────
+describe('全人格工具名必在注册表（O-G3-3 收口）', () => {
+  it('每个人格声明的每个工具名都能在注册表里查到', async () => {
+    const { listPersonas } = await import('../../src/lib/agent/registry');
+    const { getNativeToolNames } = await import('../../src/lib/agent/tools');
+    const registered = new Set(getNativeToolNames());
+    expect(registered.size, '注册表为空则本断言毫无意义').toBeGreaterThan(10);
+    for (const p of listPersonas()) {
+      for (const name of p.tools) {
+        expect(
+          registered.has(name),
+          `人格 ${p.id} 声明了不存在的工具「${name}」——模型只会静默看不见它`,
+        ).toBe(true);
+      }
+    }
   });
 });

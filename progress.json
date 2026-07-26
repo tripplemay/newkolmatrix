@@ -1,106 +1,30 @@
 {
-  "status": "done",
-  "user_goal": "在闸门与隔离红线零触碰前提下放开 agent 循环（人格差异化步数预算 + 循环内多专家接力 + 准备并行度），交付四个产品特性：洞察深度追问（compute_roi_portfolio）、行动计划卡（propose_plan + 认可留痕）、一句话推进（handoff_to 接力）、批量备好聚合确认面；配套 loop 遥测、mock-model 测试床与渐进渲染。红线：outbound 执行永过两步票据闸门、时刻隔离（P1 裁决）、例程零直通、行动承诺诚实。",
-  "total_features": 11,
-  "completed_features": 11,
-  "fix_rounds": 1,
-  "current_sprint": "M4.5-AGENT-LOOP",
+  "status": "verifying",
+  "user_goal": "生产实测缺陷修复：用户在项目环节页对话时，模型反问「请提供项目ID」——ctx.projectId 服务端已解析但从未进入 system 段，而 13 个工具把 projectId 当模型入参。修复 = system 装配注入当前项目上下文。范围克制：不动工具入参契约，不注入环节/env。",
+  "total_features": 1,
+  "completed_features": 1,
+  "fix_rounds": 0,
+  "current_sprint": "M4.6-CTX",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-26T01:45",
+  "last_updated": "2026-07-26T02:25",
   "reference_docs": [
-    "docs/specs/M4.5-AGENT-LOOP-spec.md",
-    "docs/specs/M4.5-AGENT-LOOP-f008-preimpl-audit.md",
     "docs/dev/agent-architecture.md",
     "docs/dev/architecture.md",
-    "docs/test-reports/M4-INSIGHT-signoff-2026-07-25.md",
-    "framework/patterns/ai-action-contract.md"
+    "docs/test-reports/M4.5-AGENT-LOOP-signoff-2026-07-25.md"
   ],
   "docs": {
-    "spec": "specs/M4.5-AGENT-LOOP-spec.md",
+    "spec": null,
     "test_cases": null,
-    "signoff": "test-reports/M4.5-AGENT-LOOP-signoff-2026-07-25.md",
+    "signoff": null,
     "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": {
-    "round": 2,
-    "phase": "reverifying",
-    "date": "2026-07-25",
-    "by": "Andy/evaluator-subagent（隔离复验，fresh context）",
-    "tested_sha": "fd751ad",
-    "signoff": "docs/test-reports/M4.5-AGENT-LOOP-signoff-2026-07-25.md",
-    "verdicts": {
-      "F001": "PASS",
-      "F002": "PASS",
-      "F003": "PASS",
-      "F004": "PASS",
-      "F005": "PASS",
-      "F006": "PASS",
-      "F007": "PASS",
-      "F008": "PASS",
-      "F009": "PASS",
-      "F010": "PASS",
-      "F011": "PASS"
-    },
-    "batch_result": "PASS",
-    "can_signoff": true,
-    "problems": [],
-    "rationale": "11/11 PASS。F010 三条缺陷逐条实测闭环：① 修前/修后同场景对照锁定自变量——修前报 Prisma undefined 错、ASSERT FAIL 文本完全消失、残留 +6 logs +2 shares +1 handoff +1 project；修后报出原始 ASSERT FAIL 首因、清理段跑完、shares/handoffs/projects/pending 残留全 0，唯一增量为按 append-only 口径显式保留的 2 行 SHARE_CREATED 标记。另自行设计两条首轮与 Generator 都未跑过的失败路径：T2（run2 插一步非 outbound 工具，闸门不动——首轮对抗复核登记的潜伏面，无产品回归也能让 pendingActionId 变 undefined）实测同样正确失败且 dev 净增全 0；T3（清理段第一步自身抛错叠加闸门变异）实测后续 7 步照跑、首因仍可见——直接验到 cleanupStep 的行为契约（Generator 只在源码层断言过）。② spec §9 S-M45-1 逐条满足 evaluator.md §14(c) 明文兜底要件。③ 4 处文档实物翻牌属实，新机械门经 5 条同族变异全红。本轮另加代码侧变异 EXTENDED_MAX_STEPS 10→9 → 3 条档位断言同时翻红，证明 registry 单一真相源是双向绑定而非文档自证。",
-    "new_soft_watch_from_reverify": [
-      "S-RV1-1/2/3：Generator 新增的三条源码级断言均可被写法绕过并已行为复证等价于原缺陷（cleanupStep 的 catch 改 return Promise.reject(err) / 跨行 await prisma.x ⏎ .deleteMany( / .filter(() => true)）。不阻断本批（非 acceptance 项、零产品面）；兜底 = backlog BL-E2E-CLEANUP-PIN，把 cleanupStep 导出并加行为级单测（喂必抛 fn 断言正常 resolve），行为断言天然免疫写法绕过；触发时机写死为「下一个改动 agentloop-e2e.ts 清理段的批次必须一并做」",
-      "S-RV1-4：修复后 ShareLink 清理改按 id 基线差集 + createdAt 窗口，爆炸半径扩大（同窗口内其它进程在 dev 租户创建的 ShareLink 也会被删）。接受不改——只作用于 dev 租户+测试脚本、项目纪律本就禁止同一 dev 库并行跑 e2e、换更窄的键会踩回原缺陷；复议触发条件 = 将来出现并行验收编排",
-      "S-RV1-5：文档机械门只抓关键词，抓不到不含关键词的语义漂移（实测新增「loop 最多跑 5 步」句子不翻红）。接受为已知边界，兜底 = 机械门守可枚举漂移 + 批末人工复核守语义漂移",
-      "S-RV1-6：dev 租户 OperationLog 现 114 行、其中 41 行为 SHARE_CREATED 标记（M4+M4.5 历次累积）。与 S-M45-1 同处置（留不删）；硬前置 = 本机重生任何含 feed/雷达的视觉基线前先清 dev 租户 pending 与新增标记行"
-    ],
-    "note": "首轮 evaluator_feedback（10 PASS + F010 PARTIAL 三条缺陷原文）见 commit 321d352 的 progress.json 与六份首轮报告；signoff §1 已做首轮+复验的机械汇总，§8 有 soft-watch 全量清单及逐条兜底处置。"
-  },
-  "generator_handoff": {
-    "round": 1,
-    "date": "2026-07-25",
-    "fixed_feature": "F010",
-    "round1_verdicts_archived": {
-      "F001": "PASS",
-      "F002": "PASS",
-      "F003": "PASS",
-      "F004": "PASS",
-      "F005": "PASS",
-      "F006": "PASS",
-      "F007": "PASS",
-      "F008": "PASS",
-      "F009": "PASS",
-      "F010": "PARTIAL",
-      "F011": "PASS"
-    },
-    "round1_reports": [
-      "docs/test-reports/M4.5-AGENT-LOOP-verify-G1.md",
-      "docs/test-reports/M4.5-AGENT-LOOP-verify-G2.md",
-      "docs/test-reports/M4.5-AGENT-LOOP-verify-G3.md",
-      "docs/test-reports/M4.5-AGENT-LOOP-verify-G4.md",
-      "docs/test-reports/M4.5-AGENT-LOOP-verify-G5.md",
-      "docs/test-reports/M4.5-AGENT-LOOP-verify-F010-adversarial.md"
-    ],
-    "note": "首轮 evaluator_feedback 原文已随本轮清空（generator.md fixing 模式约定），完整内容见 git history（commit 321d352 的 progress.json）与上列六份报告。F001-F009/F011 首轮已 PASS，本轮未触碰其实现代码。",
-    "fixes": [
-      "缺陷① e2e 清理段失败路径崩溃：scripts/test/agentloop-e2e.ts —— (a) rawPendingIds 先 .filter 出真 string 再 push 进 createdPA（去掉 pendingActionId! 非空断言）；(b) 清理段每步包 cleanupStep()（自身 try/catch，只告警不再抛，任何一步失败都不中断后续清理、不掩盖主流程首因）；(c) ShareLink 清理改按『跑前 id 基线差集 + createdAt 窗口』——原来只按 gateLogId，而本批备的是 scope=quarterly（projectId 恒 null），闸门回归时 gateLogId 也为 null，两把键同时落空，恰好在最该清干净的失败路径上漏掉真实产物（这条是修复过程中实测新发现的同源漏点，G5 原报告未列）。",
-      "缺陷② SHARE_CREATED 留痕：不改删除逻辑（遵项目既定 append-only 口径）。处置写定 docs/specs/M4.5-AGENT-LOOP-spec.md §9『Soft-watch 兜底登记』S-M45-1：留不删 + 知晓后果（本机重生含 feed/雷达视觉基线前须计入）；并在脚本清理段结尾打印本次保留行数，使其从静默泄漏变为有账可查的显式决定。",
-      "缺陷③ 文档翻牌 + 覆盖面：agent-architecture.md:161（stepCountIs 5 → stopWhen: stepCountIs(persona.maxSteps)：深链 10/其余 5）、:170（toUIMessageStreamResponse → createUIMessageStream 包一层 + createUIMessageStreamResponse，含 X-Agent-Id = 起始人格）、architecture.md:938（§8 面内，同上 + X-Agent-Id 语义收窄，指向 §8.4）、:278（§2 对话通道）。机制化：tests/unit/architecture-doc-freshness.test.ts 覆盖面扩到 agent-architecture.md，新增 4 条断言（已作废流式 API 名 / stepCountIs 后跟数字字面量——模式改为 [(\\s] 同时抓代码写法与文档写法 / 工具清单覆盖注册表 / 步数档位值 = registry 实物）。"
-    ],
-    "regression_tests_added": [
-      "tests/unit/e2e-cleanup-hygiene.test.ts（新增 4 条）：清理段每条 deleteMany 必包 cleanupStep · cleanupStep 的 catch 内不得再抛 · 入 createdPA 的 id 必经 .filter 且不得出现 pendingActionId! 非空断言 · ShareLink 清理不得只依赖 gateLogId。用 readFileSync 读源码而非 git grep（git grep 只搜已跟踪文件，新文件未 commit 时恒空绿——M4.5 building 期踩过）。",
-      "tests/unit/architecture-doc-freshness.test.ts（新增 4 条，见 fixes 第三条）"
-    ],
-    "mutation_evidence": "9 条变异全部翻红证断言非死：文档面 5 条（还原 stepCountIs 5 / 还原 architecture.md:938 toUIMessageStreamResponse / 还原 agent-architecture 图内同 API / 档位值 10→8 / 工具清单漏登记 check_compliance）；清理段面 4 条（恢复非空断言不过滤 / 裸 deleteMany 不包 cleanupStep / cleanupStep 的 catch 内重新抛出 / ShareLink 改回只按 gateLogId）。",
-    "behavior_evidence": "隔离 worktree 变异闸门（execute.ts 的 outbound 判断改 if (false && ...)）实测失败路径：修前报 Prisma undefined 错并中断清理、残留 12 logs + 4 shares + 2 handoffs + 2 projects；修后报出原始 ASSERT FAIL: 2 件都落 pending，清理段跑完，残留 shares=0 handoffs=0 projects=0，唯一增量是按 append-only 口径显式保留的 2 行 SHARE_CREATED 标记。正常路径复跑 exit 0 全绿。worktree 已 remove，产品代码零改动。",
-    "l1_status": "npx tsc --noEmit 0 error · npx next lint 绿 · npm run test:unit 101 files / 1231 tests 全绿（修前 100/1223，净增 8 条回归断言）· npm run agentloop:e2e exit 0",
-    "for_evaluator": "复验只需覆盖 F010 三条缺陷是否闭环 + 新增 8 条回归断言是否为活断言 + 未破坏其余 10 条已 PASS 的 feature。注意：dev 租户那 2 条 pending 是更早批次 smoke 残留，非本批产物，本轮按『不改动 dev 数据态』纪律未动；本机跑视觉门前须先清，否则含 feed/雷达的基线全线假红。"
-  },
+  "evaluator_feedback": null,
+  "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M4.5-AGENT-LOOP building 完成 11/11 → verifying · 2026-07-25 · 快车道】\n■ 实装顺序偏离 spec §6 建议序：F009（测试床/注入缝）先于 F001/F002——F002 的「≥8 步长链诚实变异回归」依赖测试床，串行下先落 F009 无并行冲突、交付物不变（已在 F009 commit message 说明）。\n■ F008 走了 pre-impl 审计 → **用户实答裁决 C**（审计文档 §6 有裁决段）：draft_email/draft_report 正文是 execute 内部产物、非模型入参，入参流对其无效；改覆盖面到 propose_plan 计划卡；方案 A 入 backlog BL-TOOL-STREAM-OUTPUT。Planner 追加约束「渐进态不得展示模型自报 needsGate」已落单测。\n■ building 期两次 CI 红（均已修 + 补回归测试）：① propose-plan ↔ tools/index 循环导入 → next build 期 TDZ（vitest/dev 全绿，只有 build 炸）→ tests/unit/tool-module-cycles.test.ts ② `git grep` 断言只搜已跟踪文件 → 新文件未 commit 时本地假绿，入库后 CI 才红 → 改滤注释行 + 测试内写明坑。\n■ 视觉：新建 /preview/agent-loop 确定性预览页（渐进态计划卡 + 最终态 + 接手标注 + 边界卡切换 + 聚合确认卡），两视口 fullPage 基线；刻意不并进 agent-canvas（那张 fullPage:false，新卡落折叠线以下 = 零覆盖）。linux 基线经 update-visual-baselines 重生两轮。\n■ **本地 test:visual 11 红为数据依赖**：本地 dev 租户有 2 条 pending → Copilot 面板渲染聚合卡；CI 库无 pending 故 CI 全绿（已核 diff 图，差异全在面板内）。Evaluator 若在本地跑视觉门请先确认 pending 计数。\n■ 验收入口：`npm run agentloop:e2e`（29 断言，零外呼零真实副作用）+ vitest 94 files/1135 tests + 既有 gate:smoke/reach:e2e/delivery:e2e/insight:e2e 不受影响。\n■ L2 未消耗（需授权）：模型自主接力/追问质量 + 渐进渲染真流表现（mock 测试床发完整 tool-call 片、不发 tool-input-delta，离线只到分支判定——已在审计文档 §7 如实登记为验证缺口）。\n■ proposed-learnings 追加 M4.5 四条（循环导入只在 build 炸 / git grep 假绿 / fullPage 覆盖面 / mock-model 测试床范式），待用户确认。",
-    "Andy_verify_orchestration": "【M4.5-AGENT-LOOP 首轮验收编排 · 2026-07-25 · 快车道】\n■ 分组：G1(F009/F001，上一会话) · G2(F002/F005) · G3(F003/F011) · G4(F004/F008) · G5(F006/F007/F010)。**两波跑**——playwright 固定端口 3000 且 `playwright test` 开跑前清 test-results 目录，两组并行跑视觉门会互相踩踏；agentloop:e2e 对 dev 租户做前后计数比对，与并行 evaluator 同跑必假红。故第一波 G2/G3/G4（G4 独占浏览器），第二波 G5 单跑（独占浏览器 + e2e）。\n■ 编排纪律：prompt 只给批次名/feature 号/状态文件路径/L2 授权状态，零实现叙述；各组夹具带组号+pid 前缀，变异 worktree 路径按组隔离；结论原样落盘，未改写任何判定。\n■ **跨组转交**：G2 记的 O-G2-4（`agent-architecture.md:161` 仍写 stepCountIs 5）自标「属 F010 面」，机械转交 G5 裁定（不代判）→ G5 自陈检测器盲区（grep 带左括号且不搜 docs/，仓内回归测试 `agent-step-budget.test.ts:60` 同病），sweep 出 4 处已作废 as-built 陈述，其中 architecture.md:938 落在 acceptance 枚举的 §8 面内 → 第 5 条 acceptance 由 PASS 改判 FAIL，F010 维持 PARTIAL。\n■ **对抗复核**（F010 PARTIAL）：① UPHELD（四项元素隔离沙箱 100% 复现，排除环境误报）② DOWNGRADED（事实 UPHELD 2/2 必现，但 evaluator.md §14(c) 适用对象是批次切 done 准入而非 feature 判档；本项目同族残留既定处置是「保留+明文登记」，M4 S5/O2/patterns §9 三处一致，照 G5 的「让 Generator 删」反而与既定口径冲突）。\n■ 推送前 L1 全量核证发现 G5 探针一处 tsc 错（会红 CI typecheck），退回作者自修（未代改）；修后 tsc 0 error、`test:unit:coverage` 100 files/1223 tests 全绿、覆盖率门通过。\n■ 验收期 dev 租户留痕各组已按 id 精确回删；`pending=2` 是更早批次 smoke 残留，按「不改动 dev 数据态」纪律未动——**下次本机重生视觉基线前必须先清**（否则含 feed/雷达的基线全线假红）。",
-    "Andy_building_archive": null,
+    "Andy": "【M4.6-CTX 立批 · 2026-07-26 · 快车道】\n■ 触发源：用户生产手测（M4+M4.5 上线后首轮真实对话）。在项目环节页问「该推进什么 + 分析 ROI」，匹配 Agent 反问「请提供项目ID」并口头让用户自行去找别的 Agent。\n■ 取证得两个问题，性质不同：① **projectId 未入 system 段**——纯装配缺陷，零裁决空间 → 即本批 F001。② 环节人格无 handoff_to 只能口头推荐——非 bug，是 F005「分派是编排职责」裁决的覆盖面缺口。\n■ 问题②的处置：先提方案 A（给环节人格发接力权），**用户复议后撤销**——理由是只改跳数/预算是修补症状，根因在「页面路由决定谁来回答」。**已定方向：单一前台 + 专家降为内部能力（子 Agent 调用）**，即 architecture.md:1086 表里状态为「未实装」的演进形态。方案 A 明确不做（做完即废）。\n■ 单一前台走独立批次 + 正式 spec（下一步 Planner 产出交用户确认），本批只修 F001。\n■ **为什么 11/11 PASS 的批次没抓到 F001**：mock-model 测试床里工具入参是脚本写死的（`input: { projectId: fxProject.id }`），模型从不需要「自己发现」projectId；且 11 条 acceptance 无一要求「模型能在项目页自动认到当前项目」。这是测试床范式的结构性盲区，值得进 proposed-learnings。",
     "Reviewer": null,
-    "Mark": null,
-    "Andy_deploy": "【M4 + M4.5 上线 · 2026-07-26 · image_tag=fd751ad5cd0e1de306a2f59c17344e7ba26e2be2】\n■ 触发方式：用户在对话中明确授权「你帮我部署」后，由主实例跑 gh workflow run deploy-prod.yml。人类闸门的实质（人做决定）成立；此前已就「规则写的是用户手动点触发」提示过一次，用户复述指令即视为裁决。\n■ 部署前五项核对：镜像 Build&Push success · 该 SHA 的 CI 全绿 · status=done + batch_result=PASS + can_signoff=true · signoff 已落盘 · 工作树干净无未推送。\n■ 注意 image_tag ≠ 最新 commit：`fd56cec`（状态/记忆/文档）命中 CI paths-ignore 不触发构建，要部署的是产品代码终态 `fd751ad`。下次同理——先查 build-push.yml 里该 SHA 是否 success 再填。\n■ 实况：migrate one-shot Started→Exited 正常（M4 三表+一枚举），app 在其后才起；db/app Healthy；内网 healthcheck 通过后，另从公网独立复核 /api/health={\"ok\":true} 与 / →307→/admin/today 200（不只信 workflow 绿灯）。\n■ 回滚点：49308c1a5e71e14b3ecaf55032dc971a304c7b93（M3-B）。\n■ **L2 面首次真实曝光**：M4/M4.5 全程 L1 验收（mock、零外呼），真网关下的模型自主接力质量 / 渐进渲染真流（mock 不发 tool-input-delta）/ draft_report 真实生成 / 聚合确认真实 fetch 链，生产首测才见真章。闸门三红线证据最硬（五组独立取证+变异），不担心。"
+    "Mark": null
   },
   "lane": "fast"
 }

@@ -23,6 +23,7 @@ import {
 } from 'lib/ai/gateway';
 import { buildToolContext } from './context';
 import { gameKnowledgeSection } from './knowledge-context';
+import { projectContextSection } from './project-context';
 import {
   buildLoopTelemetryPayload,
   logLoopTelemetry,
@@ -127,13 +128,17 @@ export interface AgentLoopRun {
 }
 
 /**
- * 系统提示 = 人格（身份 + 职责 + 否定式护栏）+ ⑤层知识段 + 该人格可用工具的使用指引。
+ * 系统提示 = 人格（身份 + 职责 + 否定式护栏）+ **当前项目上下文段**（M4.6 F001）
+ * + ⑤层知识段 + 该人格可用工具的使用指引。
  * 无工具人格走 NO_TOOL_CLAUSE 分支（M2-C F003：明示「未执行任何动作」+ 指路，防幻觉执行）。
+ *
+ * projectSection 在 ctx.projectId 为空时是空串（工作区层页面不注水，同知识段纪律）。
  */
 export function buildLoopSystem(
   persona: AgentPersona,
   toolNames: string[],
   knowledgeSection: string,
+  projectSection = '',
 ): string {
   const toolLines = toolNames
     .map((name) => {
@@ -143,6 +148,7 @@ export function buildLoopSystem(
     .filter(Boolean);
   return (
     persona.systemPrompt +
+    projectSection +
     knowledgeSection +
     (toolLines.length
       ? `\n\n你可调用的工具（需要时主动调用，基于返回的真实数据作答）：\n${toolLines.join(
@@ -196,7 +202,18 @@ export async function runAgentLoop(
     ? await gameKnowledgeSection(copilot.projectId, persona.knowledgeKinds)
     : '';
 
-  const system = buildLoopSystem(persona, toolNames, knowledgeSection);
+  // M4.6 F001：当前项目上下文（ctx 已有，此前从未进入 system 段 → 模型只能反问用户要）。
+  // 查一次复用给接力后的目标人格——项目身份与人格无关，不必每次切换重查。
+  const projectSection = copilot.projectId
+    ? await projectContextSection(copilot.projectId)
+    : '';
+
+  const system = buildLoopSystem(
+    persona,
+    toolNames,
+    knowledgeSection,
+    projectSection,
+  );
   const maxSteps = loopBudget(persona);
 
   // 目标人格 system 段缓存（接力后每步都要它；知识段现查一次即可，不必每步打库）
@@ -208,8 +225,11 @@ export async function runAgentLoop(
     const knowledge = copilot.projectId
       ? await gameKnowledgeSection(copilot.projectId, target.knowledgeKinds)
       : '';
+    // 接力后的目标人格同样要看得见当前项目（复用同一装配函数与同一 projectSection——
+    // 不在这里另拼一份，否则两条路径必然漂移）。
     const built =
-      buildLoopSystem(target, target.tools, knowledge) + HANDOFF_REREAD_CLAUSE;
+      buildLoopSystem(target, target.tools, knowledge, projectSection) +
+      HANDOFF_REREAD_CLAUSE;
     switchedSystemCache.set(id, built);
     return built;
   }

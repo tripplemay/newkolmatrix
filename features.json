@@ -1,104 +1,15 @@
 {
-  "batch": "M4.5-AGENT-LOOP",
+  "batch": "M4.6-CTX",
   "features": [
     {
       "id": "F001",
-      "title": "loop 遥测：步数/finishReason/工具序列 → OperationLog",
+      "title": "system 段注入当前项目上下文（模型不得向用户索要它已持有的 projectId）",
       "priority": "high",
       "executor": "generator",
       "status": "completed",
-      "description": "P2：/api/agent 每会话结束落一行遥测元数据（OperationLog kind=auto payloadJson），不含消息/入参正文。fire-and-forget + 失败 console.error（database-patterns §6 教训）。",
-      "acceptance": "每次 /api/agent 会话结束落一行遥测：agentId/steps/finishReason/toolNames[]（含重复序）/usage tokens/personaSwitches（F005 前恒 0）；撞步数上限的会话可经查询区分（finishReason 或 steps>=budget 标记）；不记录任何消息正文与工具入参正文（隐私+体积，测试断言 payloadJson 序列化后不含 prompt 内容采样串）；落库 fire-and-forget 不阻塞流式响应且失败 console.error 不静默；集成测覆盖正常收敛/撞上限/落库失败三分支；tsc+lint 绿"
-    },
-    {
-      "id": "F002",
-      "title": "按人格步数预算 + maxDuration 校准 + 长链诚实回归",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "U2/P3：AgentPersona.maxSteps 字段（insight/orchestrator=10 其余=5，registry 单一真相源）；route stopWhen 消费预算；maxDuration 60→120。",
-      "acceptance": "registry AgentPersona 携带 maxSteps（insight/orchestrator=10 其余=5）；route.ts stopWhen=stepCountIs(persona.maxSteps) 消费单一真相源（无第二处硬编码，grep 证）；maxDuration=120；诚实条款长链变异回归：≥8 步 mock 链上「工具返回 pending 而模型宣称已发出/已完成」类断言在场且变异（去掉诚实条款或伪造成功文案）翻红；既有 5 步人格行为零变化（回归）；doc：architecture §8 步数预算段登记"
-    },
-    {
-      "id": "F003",
-      "title": "compute_roi_portfolio 工具 + 洞察追问指引",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "F-A：跨项目 ROI 对比 internal 工具，复用 loadTenantProjectSpends + computeRoi + attributionGaps（三处复用纪律延续）；挂 insight 人格；systemPrompt 补归因追问条款。",
-      "acceptance": "compute_roi_portfolio 注册且挂 insight 人格（同源断言）；class=internal 无 buildHarm；输出 = 既有装配/纯函数产物组合（不内联重算，grep 证 + 与直算逐字相等测试）；每项目含 roi（分子缺→insufficient_evidence 诚实透传）+ gaps + spend 口径；输出 JSON 往返无损；insight systemPrompt 含归因追问条款（证据不足如实说、不强行归因）且单测钉文案锚点；输入契约单测（可选 projectIds 过滤，空=全项目）"
-    },
-    {
-      "id": "F004",
-      "title": "行动计划卡：propose_plan 工具 + PlanCard 画布 + 认可留痕端点",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "U3/P4/P6/P7：propose_plan internal 工具（zod 计划结构）→ type:'action_plan' 画布路由 → PlanCard（既有组件语言）；认可 = POST /api/agent/plan-ack（internal 留痕幂等 + 30/min 限流）。",
-      "acceptance": "propose_plan 注册（internal 无 buildHarm，挂 orchestrator+insight）；计划 items zod 校验（title/toolName?/needsGate/note），needsGate 项 PlanCard 上如实标「需你确认」；输出 type:'action_plan' 经 registerCanvasRenderer 路由渲染（PlanCard 仅用既有组件语言，P7 不引新视觉）；propose_plan 调用即落 OperationLog(kind=auto) 计划留痕；/api/agent/plan-ack：留痕 + 幂等（同计划重复认可不重复留痕）+ rate-limit 30/min fail-open + zod 400 明示；**回归钉死：计划认可后 outbound 工具执行仍返回 pending 信封**（认可不解锁任何执行权）；集成测覆盖工具/端点/幂等/限流"
-    },
-    {
-      "id": "F005",
-      "title": "handoff_to 循环内接力（prepareStep 切换 + Handoff 落行）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "P1（DP-3 时刻隔离裁决）：handoff_to internal 工具仅 orchestrator 持有；调用落 Handoff 表行；prepareStep 切换后续步 system 段 + activeTools 到目标人格子集。",
-      "acceptance": "handoff_to 注册且仅 orchestrator 人格持有（其余人格子集不含，同源断言）；调用落 Handoff 行（fromAgent/toAgent/summary/artifactRef?，projectId 随 ctx）；prepareStep 切换真实生效：**负向断言——切换后步调用旧人格独占工具被拒**（mock-model 测试床驱动）；切换后 system 含目标人格 prompt + 「按你的 scope 重读数据，不信任交接方结论」条款；交接信封只传摘要+引用不传结论性数据（zod 限制字段）；outbound 人格绑定不变（delivery 独占 payout 等，负向断言）；遥测 personaSwitches 计数联动（F001）；入参契约（目标人格必须合法 AgentId 且 ≠ 当前）"
-    },
-    {
-      "id": "F006",
-      "title": "CopilotPanel 多人格会话 UI（persona_switch 流内事件 + 边界卡刷新）",
-      "priority": "medium",
-      "executor": "generator",
-      "status": "completed",
-      "description": "P9：人格切换以流内 data part 事件标注；边界卡（duty+否定式护栏）随事件刷新；X-Agent-Id 头保留为起始人格。",
-      "acceptance": "handoff 发生时流内出 persona_switch data part（含 from/to）；CopilotPanel 边界卡随事件切换显示目标人格 duty+isolation（personaBoundary 同源，不硬编码文案）；X-Agent-Id 响应头 = 起始人格（语义注释明示 P9）；无切换会话行为零变化；相关视觉基线更新（§4.5 重生序 + 三连稳 + CI workflow 拉回流程）；两视口实测"
-    },
-    {
-      "id": "F007",
-      "title": "批量备好聚合确认面（雷达/面板聚合卡 + 逐项确认）",
-      "priority": "medium",
-      "executor": "generator",
-      "status": "completed",
-      "description": "F-D：pending 聚合卡（今天页雷达待确认区 + CopilotPanel），批量确认 = 前端循环逐项调既有 confirm+execute 端点，无批量端点。",
-      "acceptance": "聚合卡列出全部 pending（harm 逐条完整展示不折叠——D28 口径）；「逐个审阅」与「依次确认」两动线；批量确认实现 = 循环调 /api/actions/[id]/confirm + /execute（**grep 证无新批量端点**，不留绕过面）；部分失败分项如实显示（成功 N / 失败 M + 各自原因原文）；空态诚实（无 pending → 占位不假造）；既有雷达区块结构零变更（P7，新卡落既有聚合位）；视觉基线更新；集成测覆盖多 pending 逐项链"
-    },
-    {
-      "id": "F008",
-      "title": "画布渐进渲染（pre-impl 审计 → 裁决 C：模型自写入参类工具）",
-      "priority": "low",
-      "executor": "generator",
-      "status": "completed",
-      "description": "P8 审计已出并裁决 D-F008-1=C：用 state:input-streaming 的 partial input 渐进渲染模型自己在写的工具卡（本批 = propose_plan 计划卡）。draft 类工具正文是 execute 内部产物、入参流对其无效，本批不渐进（方案 A 入 backlog BL-TOOL-STREAM-OUTPUT）。",
-      "acceptance": "pre-impl 审计文档在 docs/specs/ 落盘（实物 d.ts 证据 + 三方案代价）且含 Planner 裁决段（D-F008-1/2/3）；按裁决实装：propose_plan 计划在画布卡渐进出现（标题→逐条步骤边写边出，state=input-streaming 的 partial input 驱动）；**渐进态不得展示模型自报 needsGate**（服务端未复核前不把最不可信的数据当结论）；draft 类工具如实不渐进并在文档明示原因（不按猜测 API 写）；无闪烁/重复渲染（渲染分支互斥单测 + 视觉基线 + 手测记录）；对非渐进类工具零行为变化"
-    },
-    {
-      "id": "F009",
-      "title": "loop 测试床（mock LanguageModel 注入缝）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "P5：AI SDK mock LanguageModel（ai/test，导出名按 7.0.31 实物）驱动真实 streamText loop 的机械面测试基建，供 F002/F005/F007 复用。",
-      "acceptance": "测试床可脚本化指定逐步 tool-call 序列驱动 /api/agent 同款 loop（真 executeTool 链）；零外呼（无 AIGCGATEWAY 请求，哨兵断言）；至少覆盖：步数上限截停 / handoff 子集切换 / outbound pending 停驻三场景可复用夹具；文档注释说明用法（后续批次可扩展）；tests/ 或 scripts/test/ 归位"
-    },
-    {
-      "id": "F010",
-      "title": "agentloop:e2e + 文档翻牌 + doc-freshness 扩展",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "e2e 全链 + architecture/agent-architecture 翻牌 + doc-freshness 断言随新工具扩展 + 批末新鲜度复核。【首轮 PARTIAL → fix_round1 已修三条：① e2e 清理段每步 cleanupStep 包裹 + pendingIds 先过滤后入清单 + ShareLink 改按 id 基线差集清；② SHARE_CREATED 留痕处置写定 spec §9（留不删 + 跑完报账）；③ 4 处 as-built 陈述翻牌 + doc-freshness 覆盖 agent-architecture.md + 新增 e2e 清理段卫生回归钉。9 条变异全部翻红证断言活着】",
-      "acceptance": "agentloop:e2e 脚本（npm run agentloop:e2e）：mock-model 链上 遥测落行→portfolio 追问→propose_plan 计划留痕→handoff 接力（子集切换负向断言）→批量 pending 备好（副作用零发生）→逐项 confirm+execute→遥测含 personaSwitches；零外呼零真实副作用断言；architecture 翻牌（§8 步数预算/遥测/接力段 + §9.2 工具表新增工具行——doc-freshness 计数断言将强制 + §8.6 名册 orchestrator/insight/compliance 行）+ agent-architecture M4.5 扩容段 + doc-freshness 测试扩展（新工具/新 maxSteps 字段入断言面）；批末新鲜度复核（grep 演进标记/陈旧计数）；lint+tsc+test:unit+test:visual 绿"
-    },
-    {
-      "id": "F011",
-      "title": "check_compliance 内部工具（compliance 人格首件）",
-      "priority": "medium",
-      "executor": "generator",
-      "status": "completed",
-      "description": "F-G：合规核查器——经 Project.gameId 取 compliance_redline 知识链头产出结构化核查单；compliance 人格 tools 空数组起填充；本批只立工具（其他流程自动嵌入留后续，范围克制）。",
-      "acceptance": "check_compliance 注册且挂 compliance 人格（tools 空数组起填充，同源断言）；class=internal 无 buildHarm；输入 projectId（+可选待查文本）→ 经既有 knowledge 链头读取器取 compliance_redline（不内联重查，grep 证复用）；输出结构化核查单（红线条目 + 逐条来源 Material 溯源引用）；无红线知识 → 空态诚实（「暂无红线知识」明示，不编造）；输出 JSON 往返无损；输入契约单测；范围注明：不强制嵌入 create_share_link/draft 流程（后续批次裁决自动接线）"
+      "description": "生产实测缺陷：用户在项目环节页对话，模型反问「请提供项目ID」。根因——ctx.projectId 服务端已解析（CopilotPanel deriveContext → resolveContext → buildToolContext），但 buildLoopSystem（loop.ts:144-152）只拼 persona.systemPrompt + 知识段 + 工具清单，从不告诉模型当前项目是什么；而 13 个工具把 projectId 当模型入参（match_plan / compute_roi / draft_report / propose_plan / check_compliance 等），模型无从得知只能问用户。早于 M4.5，非本批引入；mock-model 测试床把工具入参写死，恰好落在盲区。",
+      "acceptance": "buildLoopSystem 在 ctx.projectId 非空时注入「当前上下文」段，含项目标识（id）+ 项目名（DB 取，取不到时只写 id 不编造）+ 明确指令「需要 projectId 入参的工具直接用它，不得向用户索要」；ctx.projectId 为空时不注入该段（工作区层页面不注水，与知识段同款空值纪律）；注入段对接力后的目标人格同样生效（systemForAgent 复用同一装配，grep 证无第二处拼接）；项目名取数与既有三口径解析同款（id/publicId/slug）并抽为可复用导出（新代码不另发明口径；既有三处内联点不在本批范围，登记 soft-watch）；取名失败降级为「只写 id 不编造名字」且不抛（不得因取名失败让整个会话炸，同知识段 D2 纪律）；单测钉「项目页装配出的 system 必含该 projectId 且含不得索要条款」+「无项目页不含该段」；变异测试证断言活着（去掉注入 → 红）；集成测经真 route 路径核实注入生效；tsc + lint + test:unit 绿",
+      "notes": "范围克制：只注入项目身份，不注入环节/env（那是另一件事，本批不做）。不改任何工具的入参契约——13 个工具的 zod schema 保持不变，避免动柱一契约。"
     }
   ]
 }

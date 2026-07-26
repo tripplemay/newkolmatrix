@@ -13,6 +13,7 @@
 
 import { z } from 'zod';
 import { prisma } from 'lib/db/prisma';
+import { createHandoff } from '../handoff';
 import {
   ALL_AGENT_IDS,
   FRONT_DESK_AGENT_ID,
@@ -125,6 +126,9 @@ async function run(
       insufficientReasons: [],
     };
   }
+  // D-5 裁决 A：咨询也落 Handoff 行——该表语义由「交接」扩为「协作」，
+  // 成为协作痕迹的统一数据源（跨会话可查，不只活在这一轮的流里）。
+  await logConsultHandoff(input, result, ctx);
   return {
     type: 'consultation',
     ok: true,
@@ -136,6 +140,30 @@ async function run(
     insufficientEvidence: result.insufficientEvidence,
     insufficientReasons: result.insufficientReasons,
   };
+}
+
+/**
+ * 咨询落 Handoff 行（fromAgent=前台 / toAgent=专家）。
+ * 落行失败不得打死咨询本身——痕迹是增强，不是主链路（同知识段 D2 纪律）。
+ */
+async function logConsultHandoff(
+  input: ConsultSpecialistInput,
+  result: SpecialistLoopResult,
+  ctx: ToolContext,
+): Promise<void> {
+  try {
+    await createHandoff(ctx, {
+      projectId: ctx.projectId ?? null,
+      fromAgent: FRONT_DESK_AGENT_ID,
+      toAgent: input.targetAgent,
+      artifactType: 'report',
+      artifactRef: input.refs?.[0] ?? (ctx.projectId ?? 'consultation'),
+      summary: `咨询${input.targetAgent}：${input.question.slice(0, 160)}`,
+      messages: [],
+    });
+  } catch (e) {
+    console.error('[consult-specialist] 协作痕迹落库失败（已忽略）:', e);
+  }
 }
 
 /**

@@ -16,6 +16,7 @@ import KolResultCards, { type SearchKolsOutput } from './KolResultCards';
 import MatchPlanCard from './MatchPlanCard';
 import PlanCard from './PlanCard';
 import PlanCardDraft from './PlanCardDraft';
+import ConsultationNote from './ConsultationNote';
 
 const CANVAS_REGISTRY = new Map<string, ComponentType<{ output: never }>>();
 
@@ -42,6 +43,12 @@ function ensureBuiltinRenderers(): void {
     ['match_plan', MatchPlanCard as unknown as ComponentType<{ output: never }>],
     // propose_plan 输出携带 type:'action_plan'（M4.5 F004 行动计划卡）
     ['action_plan', PlanCard as unknown as ComponentType<{ output: never }>],
+    // consult_specialist 输出携带 type:'consultation'（M4.7 F008 协作痕迹）——
+    // 专家隐入内部，但"谁给的结论、读了什么"必须看得见，否则单一前台就成了黑箱。
+    [
+      'consultation',
+      ConsultationNote as unknown as ComponentType<{ output: never }>,
+    ],
   ];
   for (const [type, comp] of builtin) {
     if (!CANVAS_REGISTRY.has(type)) CANVAS_REGISTRY.set(type, comp);

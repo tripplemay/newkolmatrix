@@ -69,7 +69,7 @@
       "title": "前台 UI：一个声音 + 可展开协作痕迹（Handoff 表复用）",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "D-5 裁决 A：Handoff 表与可视化保留，咨询也落 Handoff 行（fromAgent=前台, toAgent=专家），成为协作痕迹统一数据源。面板身份恒为前台，不再随路由/咨询换人。",
       "acceptance": "面板顶部身份与边界卡**恒为前台**，不随路由变、不随咨询变（负向断言：环节页 + 发生咨询后仍是前台）；咨询在对话流里呈现为**一行可展开痕迹**（咨询了谁 · 问了什么 · 读了哪些数据），数据源 = Handoff 行（`personaBoundary` 同源，不硬编码文案）；咨询落 Handoff 行（fromAgent=前台 / toAgent=专家 / summary / artifactRef?），语义扩为「协作」并在注释与文档明示；`PersonaSwitchNote` 语义从「换人」改为「咨询」；**无咨询会话行为零变化**（回归断言）；视觉基线更新（§4.5 重生序：**本机重生前先清 dev 租户 pending 与 e2e 标记行**，S-RV1-6/S-G5-3 硬前置）；两视口实测"
     },

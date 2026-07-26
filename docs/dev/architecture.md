@@ -944,8 +944,8 @@ export interface ToolContext {
 
 | 档位 | 常量 | 值 | 人格 | 定档依据 |
 |---|---|---|---|---|
-| 深链 | `EXTENDED_MAX_STEPS` | 10 | `insight` / `orchestrator` | ROI 追问天然多轮（对比→找缺口→再查→起草）；编排要在一次会话内跑完「汇总→接力→再汇总」 |
-| 常规 | `DEFAULT_MAX_STEPS` | 5 | 其余 5 人格 | 动线是「查一步→答」到「查两步→起草→答」，5 步够用且限制爆炸半径 |
+| 深链 | `EXTENDED_MAX_STEPS` | 10 | `insight` | ROI 追问天然多轮（对比→找缺口→再查→起草）。**M4.7 F006 起前台（orchestrator）降为常规档**：它只受理→咨询→综合，深链需求由「取链上最大档位」承担——咨询/接力到深链专家时本轮预算自动抬到链上最大值（`chainBudget`），不必让前台长期背着 10 步的爆炸半径 |
+| 常规 | `DEFAULT_MAX_STEPS` | 5 | 其余 6 人格（含前台） | 动线是「查一步→答」到「查两步→起草→答」，5 步够用且限制爆炸半径 |
 
 停止条件保持 `stepCountIs(budget)` 单上限 + loop 天然收敛（末步无 tool call 即止）——组合停止条件在天然收敛面前是过度设计（P3）。`maxDuration` 随之 60→120s（10 步 × 网关 P95 需要余量；self-host standalone 无平台上限）。
 

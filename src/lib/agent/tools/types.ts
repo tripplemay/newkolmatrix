@@ -60,6 +60,14 @@ export interface ToolContext {
    * `runSpecialistLoop` 据此拒绝二次嵌套——专家不能再咨询专家。
    */
   consultDepth?: number;
+  /**
+   * 本轮咨询次数预算（M4.7 F006）。由 `runAgentLoop` 每轮新建一个挂上来，
+   * `consult_specialist` 每次成功进入即 +1，用尽后如实拒绝。
+   *
+   * 【为什么是可变对象而不是数字】ToolSet 在装配时构造一次并捕获 ctx；
+   * 传数字等于每次都拿到初始值，计数永远不增（同 F004 的 currentAgentId 教训）。
+   */
+  consultBudget?: { used: number; max: number };
 }
 
 export interface ToolDefinition<TInput = unknown, TOutput = unknown> {

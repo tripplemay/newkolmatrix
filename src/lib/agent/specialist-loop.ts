@@ -21,7 +21,11 @@ import { chatModel } from '../ai/gateway';
 import { buildLoopSystem } from './system-assembly';
 import { gameKnowledgeSection } from './knowledge-context';
 import { projectContextSection } from './project-context';
-import { getPersona, type AgentId } from './registry';
+import {
+  SPECIALIST_MAX_STEPS,
+  getPersona,
+  type AgentId,
+} from './registry';
 import { personaToolSubset } from './persona-router';
 import type { ToolContext } from './tools/types';
 
@@ -41,14 +45,9 @@ async function lazyDeps() {
   return { toAiSdkTools, ensureNativeToolsRegistered };
 }
 
-/**
- * 单个专家子 loop 的步数上限。
- *
- * 【为什么是 3】专家只做一件事：读数据 + 给结论。**这个数字是猜的**——
- * 全批验收皆 mock，无真实延迟数据（spec D-3 如实登记）。故做成常量，
- * 上线拿到真实数据改这里一处即可。F006 会把它连同另两个上限收进 registry。
- */
-export const SPECIALIST_MAX_STEPS = 3;
+// M4.7 F006：三个成本上限统一收进 registry（单一真相源）。此处再导出，
+// 既有引用点不动；**不得在此重新定义数字**，否则就是第二处硬编码。
+export { SPECIALIST_MAX_STEPS } from './registry';
 
 /** 深度守卫触发时的消息（测试与前台文案共用锚点）。 */
 export const CONSULT_DEPTH_EXCEEDED_MSG =

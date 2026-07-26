@@ -117,11 +117,14 @@ describe('[G2/F002] 步数预算是行为不是常量：逐人格实测截停点
     });
   }
 
-  it('深链档（insight/orchestrator=10）严格大于常规档（其余=5）', () => {
+  it('深链档（insight=10）严格大于常规档（其余含前台=5）｜M4.7 F006 前台降档', () => {
+    // 【M4.7 F006 有意变更】前台从深链档降为常规档（D-3 裁决）：它只受理→咨询→
+    // 综合，5 步够用；深链需求改由「取链上最大档位」承担——见下方 9 步长链用例，
+    // 前台起始仅 5 步，接力到 insight 后本轮预算抬到 10，链照样跑满 9 步。
     expect(getPersona('insight').maxSteps).toBe(10);
-    expect(getPersona('orchestrator').maxSteps).toBe(10);
+    expect(getPersona('orchestrator').maxSteps).toBe(5);
     for (const p of listPersonas()) {
-      if (p.id === 'insight' || p.id === 'orchestrator') continue;
+      if (p.id === 'insight') continue;
       expect(p.maxSteps, `persona=${p.id}`).toBe(5);
     }
   });
@@ -152,7 +155,19 @@ describe('[G2/F002] 9 步长链（含人格接力）诚实条款逐步在场', (
     });
 
     expect(run.steps).toBe(9);
-    expect(run.steps).toBeLessThanOrEqual(getPersona('orchestrator').maxSteps);
+    // 【M4.7 F006】预算按**链上最大档位**（D-3 裁决），不是起始人格档位——
+    // 起始前台 5 步，接力到 insight 后抬到 10，故 9 步链不被截停。
+    // 这条断言同时是 chainBudget 的行为级证据：改回"起始人格档位"即翻红。
+    expect(run.steps).toBeLessThanOrEqual(
+      Math.max(
+        getPersona('orchestrator').maxSteps,
+        getPersona('insight').maxSteps,
+      ),
+    );
+    expect(
+      run.steps,
+      '若按起始人格档位（5）算，这条 9 步链会被截停 —— 说明链上最大档位真生效',
+    ).toBeGreaterThan(getPersona('orchestrator').maxSteps);
     expect(run.personaSwitches).toHaveLength(1);
 
     // ① 逐步 system 断言（含切换后 8 步）

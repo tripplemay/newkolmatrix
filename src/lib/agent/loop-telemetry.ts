@@ -49,6 +49,8 @@ export interface LoopTelemetryPayload {
   toolCallCount: number;
   /** 循环内人格切换次数（F005 前恒 0）。 */
   personaSwitches: number;
+  /** 本轮咨询了几个专家（M4.7 F006）。只记数量，不记问题正文。 */
+  consultCount?: number;
   usage: LoopTelemetryUsage;
 }
 
@@ -60,6 +62,8 @@ export interface LoopTelemetryInput {
   finishReason: string;
   toolNames: string[];
   personaSwitches?: number;
+  /** M4.7 F006：本轮咨询专家次数（只记数量）。 */
+  consultCount?: number;
   usage?: {
     inputTokens?: number;
     outputTokens?: number;
@@ -93,6 +97,7 @@ export function buildLoopTelemetryPayload(
     toolNames: [...input.toolNames],
     toolCallCount: input.toolNames.length,
     personaSwitches: input.personaSwitches ?? 0,
+    consultCount: input.consultCount ?? 0,
     usage: { inputTokens, outputTokens, totalTokens },
   };
 }

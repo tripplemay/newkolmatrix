@@ -12,7 +12,12 @@
 // 目标人格只看得见自己的工具，且不继承前台的 confirmationToken。详见 specialist-loop.ts。
 
 import { z } from 'zod';
-import { ALL_AGENT_IDS, FRONT_DESK_AGENT_ID, type AgentId } from '../registry';
+import {
+  ALL_AGENT_IDS,
+  FRONT_DESK_AGENT_ID,
+  MAX_CONSULTS_PER_TURN,
+  type AgentId,
+} from '../registry';
 import {
   runSpecialistLoop,
   type SpecialistLoopResult,
@@ -43,6 +48,10 @@ export type ConsultSpecialistInput = z.infer<typeof inputSchema>;
 /** 咨询自己被拒时的消息（测试与前台文案共用锚点）。 */
 export const CONSULT_SELF_MSG = '不能咨询你自己';
 
+/** 咨询次数用尽时的消息。**如实拒绝**，不静默吞、不假装咨询过。 */
+export const CONSULT_BUDGET_EXHAUSTED_MSG =
+  '本轮咨询次数已用尽（上限由 MAX_CONSULTS_PER_TURN 决定）——请用已拿到的结果作答，并如实告诉用户还有哪些没问到';
+
 export interface ConsultSpecialistOutput {
   type: 'consultation';
   /** 实际作答的专家。 */
@@ -70,6 +79,13 @@ async function run(
   if (input.targetAgent === FRONT_DESK_AGENT_ID) {
     throw new Error(`[consult-specialist] ${CONSULT_SELF_MSG}`);
   }
+  // 每轮咨询次数硬上限（M4.7 F006 / D-3）。计数器由 runAgentLoop 挂在 ctx 上，
+  // 一轮一个；**用尽即如实拒绝**——静默降级成"前台自己编"是本批最不能接受的失败模式。
+  const budget = ctx.consultBudget;
+  if (budget && budget.used >= budget.max) {
+    throw new Error(`[consult-specialist] ${CONSULT_BUDGET_EXHAUSTED_MSG}`);
+  }
+  if (budget) budget.used += 1;
   const result: SpecialistLoopResult = await runSpecialistLoop({
     targetAgent: input.targetAgent,
     question: buildQuestion(input),

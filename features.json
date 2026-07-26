@@ -51,7 +51,7 @@
       "title": "成本硬上限 + 撞顶诚实告知（registry 单一真相源）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "D-3 裁决：每轮最多咨询 2 个专家、单个子 loop ≤3 步、前台 5 步、总顶 11。数字无真实延迟数据支撑，故做成 registry 配置常量，上线拿到数据再调。",
       "acceptance": "三个上限均为 **registry 导出常量**（`MAX_CONSULTS_PER_TURN=2` / `SPECIALIST_MAX_STEPS=3` / 前台 `maxSteps=5`），**grep 证全仓无第二处数字字面量**；超出咨询数 → 工具如实拒绝并说明原因（不静默吞、不假装咨询过）；**撞任一上限时必须诚实告知「未答完 + 还差什么」**——变异钉死：去掉诚实条款或伪造完成文案 → 红（同 M4.5 F002 长链诚实回归口径）；遥测 `OperationLog(kind=auto)` 增 `consultCount` 与 `budgetHit` 区分前台/子 loop（只记元数据，不记正文，隐私哨兵串断言）；改常量值 → 实际行为同步改（双向绑定实证，非文档自证）"
     },

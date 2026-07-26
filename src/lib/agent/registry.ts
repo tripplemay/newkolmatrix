@@ -62,6 +62,21 @@ export const DEFAULT_MAX_STEPS = 5;
 /** 深链人格步数预算（U2：洞察多轮追问 / 编排循环内接力需要更长链）。 */
 export const EXTENDED_MAX_STEPS = 10;
 
+/**
+ * 每轮对话里前台最多咨询几个专家（M4.7 F006 / D-3）。
+ *
+ * 【这个数字是猜的】覆盖「推进什么 + ROI」这类双专家问题够用；但**无真实延迟数据**
+ * 支撑——全批验收皆 mock（spec D-3 如实登记）。故做成常量：上线拿到真实数据后
+ * 改这一处即可，不必翻遍代码。
+ */
+export const MAX_CONSULTS_PER_TURN = 2;
+
+/**
+ * 单个专家子 loop 的步数上限（M4.7 F006 / D-3）。专家只做一件事：读数据 + 给结论。
+ * 同样是猜的数字，同样只此一处。
+ */
+export const SPECIALIST_MAX_STEPS = 3;
+
 const BASE_SYSTEM = [
   '你是 KOLMatrix 专家 Agent 编队的一员，服务单角色营销操盘手。基于工具返回的真实数据作答，不编造。',
   // M2-C F003 —— 行动承诺诚实条款（产品级，全人格生效；触发源 = 用户实证的幻觉编排事故）：
@@ -137,7 +152,10 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
       'handoff_to',
       'consult_specialist',
     ],
-    maxSteps: EXTENDED_MAX_STEPS, // U2：编排要在一次会话里跑完「汇总→接力→再汇总」
+    // M4.7 F006（D-3）：前台自己不干活，只受理→咨询→综合，5 步够用。
+    // 深链需求由「取链上最大档位」承担：咨询/接力到深链专家（insight）时，
+    // 本轮预算自动抬到链上最大值——不必让前台一直背着 10 步的爆炸半径。
+    maxSteps: DEFAULT_MAX_STEPS,
   },
   {
     id: 'strategy',

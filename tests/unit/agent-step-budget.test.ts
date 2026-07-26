@@ -30,7 +30,10 @@ function gitGrep(pattern: string, pathspec: string[]): string[] {
   }
 }
 
-const DEEP_CHAIN_AGENTS = ['insight', 'orchestrator'];
+// M4.7 F006（D-3 裁决）：**前台（orchestrator）从深链档降为常规档**。
+// 它自己不干活，只受理→咨询→综合，5 步够用；深链需求由「取链上最大档位」承担——
+// 咨询/接力到 insight 时本轮预算自动抬到 10，不必让前台长期背着 10 步的爆炸半径。
+const DEEP_CHAIN_AGENTS = ['insight'];
 
 describe('F002 步数预算档位（U2 人格差异化）', () => {
   it('档位常量：常规 5 / 深链 10', () => {
@@ -38,7 +41,7 @@ describe('F002 步数预算档位（U2 人格差异化）', () => {
     expect(EXTENDED_MAX_STEPS).toBe(10);
   });
 
-  it('insight / orchestrator = 深链档，其余人格 = 常规档（既有 5 步行为零变化）', () => {
+  it('insight = 深链档，其余（含前台）= 常规档（M4.7 F006 起前台降档）', () => {
     for (const p of listPersonas()) {
       const expected = DEEP_CHAIN_AGENTS.includes(p.id)
         ? EXTENDED_MAX_STEPS
@@ -69,13 +72,19 @@ describe('F002 单一真相源（grep 证：无第二处硬编码）', () => {
     // 与专家子 loop（读 SPECIALIST_MAX_STEPS 常量）。两者都不含数字字面量，
     // 上一条断言仍然钉死"无第二处硬编码"。
     const consumers = gitGrep(String.raw`stepCountIs\(`, ['src']);
+    // M4.7 F006：主 loop 改用谓词（链上最大档位要随接力抬升，静态 stepCountIs 做不到），
+    // 故 stepCountIs 的唯一消费点现在是专家子 loop，且入参是 registry 常量。
     expect([...new Set(consumers.map((l) => l.split(':')[0]))].sort()).toEqual([
-      'src/lib/agent/loop.ts',
       'src/lib/agent/specialist-loop.ts',
     ]);
     const src = readFileSync('src/lib/agent/loop.ts', 'utf8');
     expect(src).toContain('return persona.maxSteps;');
-    expect(src).toContain('stopWhen: stepCountIs(maxSteps)');
+    // M4.7 F006：stopWhen 从静态 stepCountIs 改为谓词——链上最大档位要随接力抬升，
+    // 静态值做不到。判据仍是"步数达上限即停"，且上限现算自 registry（无数字字面量）。
+    expect(src).toContain('steps.length >= currentBudget()');
+    expect(src, '预算必须现算自链上人格，不得写死').toContain(
+      'chainBudget(budgetChain)',
+    );
     const sub = readFileSync('src/lib/agent/specialist-loop.ts', 'utf8');
     expect(sub, '子 loop 的上限也必须来自常量，不得写数字').toContain(
       'stopWhen: stepCountIs(SPECIALIST_MAX_STEPS)',

@@ -40,6 +40,7 @@ import {
   allPersonaToolNames,
   getPersona,
   isAgentId,
+  MAX_CONSULTS_PER_TURN,
   NO_TOOL_CLAUSE,
   type AgentId,
   type AgentPersona,
@@ -83,6 +84,20 @@ function latestHandoffTarget(
  */
 export function loopBudget(persona: AgentPersona): number {
   return persona.maxSteps;
+}
+
+/**
+ * 链上最大档位（M4.7 F006 / D-3 裁决）。
+ *
+ * 【为什么不是"起始人格档位"】前台是常规档（5）；它接力/咨询到深链专家（insight，10）
+ * 时若仍按 5 停，等于把深链分析截断在一半——用户看到的是"答到一半戛然而止"。
+ * 【为什么不是"当值人格档位"】那会随接力往下跳（深链→常规 = 10 降到 5），
+ * 可能当场截停。取最大值是两者里唯一不会中途缩水的口径。
+ */
+export function chainBudget(agentIds: Iterable<AgentId>): number {
+  let max = 0;
+  for (const id of agentIds) max = Math.max(max, getPersona(id).maxSteps);
+  return max;
 }
 
 export interface AgentLoopParams {
@@ -155,7 +170,9 @@ export async function runAgentLoop(
       projectId: copilot.projectId,
       env: copilot.env,
     }));
-  const ctx: ToolContext = { ...baseCtx, model };
+  // M4.7 F006：每轮一个咨询计数器（可变对象——ToolSet 捕获 ctx 一次，传数字则永不增）。
+  const consultBudget = { used: 0, max: MAX_CONSULTS_PER_TURN };
+  const ctx: ToolContext = { ...baseCtx, model, consultBudget };
 
   // 收窄工具子集 = 该人格绑定的工具（不同人格看到不同工具）。
   const toolNames = personaToolSubset(persona);
@@ -202,7 +219,10 @@ export async function runAgentLoop(
     knowledgeSection,
     projectSection,
   );
+  // 本轮预算：随接力/咨询把链上出现过的人格纳入，取最大档位（D-3 裁决）。
+  const budgetChain = new Set<AgentId>([persona.id]);
   const maxSteps = loopBudget(persona);
+  const currentBudget = () => chainBudget(budgetChain);
 
   // 目标人格 system 段缓存（接力后每步都要它；知识段现查一次即可，不必每步打库）
   const switchedSystemCache = new Map<AgentId, string>();
@@ -237,7 +257,9 @@ export async function runAgentLoop(
     tools,
     // 起始视野 = 起始人格子集（ToolSet 可能是并集，视野永远只有当值那一份）
     activeTools: toolNames,
-    stopWhen: stepCountIs(maxSteps),
+    // 动态预算：stepCountIs 是静态的，而链上最大档位要随接力抬升，故用谓词。
+    // 判据与 stepCountIs 同款（步数达上限即停），只是上限现算。
+    stopWhen: ({ steps }) => steps.length >= currentBudget(),
     maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     // F005 循环内接力（P1 时刻隔离）：一旦发生过 handoff_to，后续每一步的 system 段与
     // 工具视野都切到目标人格。无接力 → 返回 undefined（沿用外层配置，零行为变化）。
@@ -247,6 +269,7 @@ export async function runAgentLoop(
         const from = track.current;
         track.current = target;
         track.switches += 1;
+        budgetChain.add(target); // 接力进深链专家 → 本轮预算随之抬升（D-3）
         // P9：切换以流内事件标注（边界卡随之刷新）。回调失败不得打死会话。
         try {
           params.onPersonaSwitch?.({ from, to: target, atStep: steps.length });
@@ -281,6 +304,8 @@ export async function runAgentLoop(
           s.toolCalls.map((c) => c.toolName),
         ),
         personaSwitches: track.switches,
+        // M4.7 F006：本轮咨询了几个专家（只记数量，不记问题正文）
+        consultCount: consultBudget.used,
         usage: {
           inputTokens: usage.inputTokens,
           outputTokens: usage.outputTokens,

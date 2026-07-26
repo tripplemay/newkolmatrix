@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "单一前台：取消「页面路由决定谁来回答」，专家降为内部能力（子 Agent 调用）。用户始终对同一个助手说话，前台内部咨询专家后用一个声音作答。触发源 = 生产手测撞到「环节人格拒答并让用户自行去找别的 Agent」。红线不变：outbound 两步票据 / 时刻隔离 / 行动承诺诚实 / 例程零直通。",
   "total_features": 11,
-  "completed_features": 5,
+  "completed_features": 6,
   "fix_rounds": 0,
   "current_sprint": "M4.7-FRONTDESK",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-26T05:45",
+  "last_updated": "2026-07-26T08:20",
   "reference_docs": [
     "docs/specs/M4.7-FRONTDESK-spec.md",
     "docs/dev/agent-architecture.md",

@@ -18,6 +18,10 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/validate-state-json.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/console/validate-pending-gate.sh hook"
           }
         ]
       }

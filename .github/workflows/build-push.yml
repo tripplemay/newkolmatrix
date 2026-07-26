@@ -16,6 +16,9 @@ on:
       - "framework/**"
       - "**/*.md"
       - "harness-rules.md"
+      - ".claude/**"
+      - "harness.json"
+      - "harness.lock"
   workflow_dispatch:
 
 concurrency:

@@ -6,7 +6,7 @@
   "fix_rounds": 1,
   "current_sprint": "M4.5-AGENT-LOOP",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-25T18:10",
+  "last_updated": "2026-07-26T01:45",
   "reference_docs": [
     "docs/specs/M4.5-AGENT-LOOP-spec.md",
     "docs/specs/M4.5-AGENT-LOOP-f008-preimpl-audit.md",
@@ -99,7 +99,8 @@
     "Andy_verify_orchestration": "【M4.5-AGENT-LOOP 首轮验收编排 · 2026-07-25 · 快车道】\n■ 分组：G1(F009/F001，上一会话) · G2(F002/F005) · G3(F003/F011) · G4(F004/F008) · G5(F006/F007/F010)。**两波跑**——playwright 固定端口 3000 且 `playwright test` 开跑前清 test-results 目录，两组并行跑视觉门会互相踩踏；agentloop:e2e 对 dev 租户做前后计数比对，与并行 evaluator 同跑必假红。故第一波 G2/G3/G4（G4 独占浏览器），第二波 G5 单跑（独占浏览器 + e2e）。\n■ 编排纪律：prompt 只给批次名/feature 号/状态文件路径/L2 授权状态，零实现叙述；各组夹具带组号+pid 前缀，变异 worktree 路径按组隔离；结论原样落盘，未改写任何判定。\n■ **跨组转交**：G2 记的 O-G2-4（`agent-architecture.md:161` 仍写 stepCountIs 5）自标「属 F010 面」，机械转交 G5 裁定（不代判）→ G5 自陈检测器盲区（grep 带左括号且不搜 docs/，仓内回归测试 `agent-step-budget.test.ts:60` 同病），sweep 出 4 处已作废 as-built 陈述，其中 architecture.md:938 落在 acceptance 枚举的 §8 面内 → 第 5 条 acceptance 由 PASS 改判 FAIL，F010 维持 PARTIAL。\n■ **对抗复核**（F010 PARTIAL）：① UPHELD（四项元素隔离沙箱 100% 复现，排除环境误报）② DOWNGRADED（事实 UPHELD 2/2 必现，但 evaluator.md §14(c) 适用对象是批次切 done 准入而非 feature 判档；本项目同族残留既定处置是「保留+明文登记」，M4 S5/O2/patterns §9 三处一致，照 G5 的「让 Generator 删」反而与既定口径冲突）。\n■ 推送前 L1 全量核证发现 G5 探针一处 tsc 错（会红 CI typecheck），退回作者自修（未代改）；修后 tsc 0 error、`test:unit:coverage` 100 files/1223 tests 全绿、覆盖率门通过。\n■ 验收期 dev 租户留痕各组已按 id 精确回删；`pending=2` 是更早批次 smoke 残留，按「不改动 dev 数据态」纪律未动——**下次本机重生视觉基线前必须先清**（否则含 feed/雷达的基线全线假红）。",
     "Andy_building_archive": null,
     "Reviewer": null,
-    "Mark": null
+    "Mark": null,
+    "Andy_deploy": "【M4 + M4.5 上线 · 2026-07-26 · image_tag=fd751ad5cd0e1de306a2f59c17344e7ba26e2be2】\n■ 触发方式：用户在对话中明确授权「你帮我部署」后，由主实例跑 gh workflow run deploy-prod.yml。人类闸门的实质（人做决定）成立；此前已就「规则写的是用户手动点触发」提示过一次，用户复述指令即视为裁决。\n■ 部署前五项核对：镜像 Build&Push success · 该 SHA 的 CI 全绿 · status=done + batch_result=PASS + can_signoff=true · signoff 已落盘 · 工作树干净无未推送。\n■ 注意 image_tag ≠ 最新 commit：`fd56cec`（状态/记忆/文档）命中 CI paths-ignore 不触发构建，要部署的是产品代码终态 `fd751ad`。下次同理——先查 build-push.yml 里该 SHA 是否 success 再填。\n■ 实况：migrate one-shot Started→Exited 正常（M4 三表+一枚举），app 在其后才起；db/app Healthy；内网 healthcheck 通过后，另从公网独立复核 /api/health={\"ok\":true} 与 / →307→/admin/today 200（不只信 workflow 绿灯）。\n■ 回滚点：49308c1a5e71e14b3ecaf55032dc971a304c7b93（M3-B）。\n■ **L2 面首次真实曝光**：M4/M4.5 全程 L1 验收（mock、零外呼），真网关下的模型自主接力质量 / 渐进渲染真流（mock 不发 tool-input-delta）/ draft_report 真实生成 / 聚合确认真实 fetch 链，生产首测才见真章。闸门三红线证据最硬（五组独立取证+变异），不担心。"
   },
   "lane": "fast"
 }

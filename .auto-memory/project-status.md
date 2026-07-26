@@ -12,9 +12,10 @@ type: project
 - M0→M3-B 全 done ✅
 
 ## 已上线
-- `https://newkol.guangai.ai` 跑 **M3-B @ `49308c1a5e71e14b3ecaf55032dc971a304c7b93`**；**M4 + M4.5 均未部署**（人类闸门：deploy-prod 手动触发，image_tag 填 `fd751ad`（40 位 SHA）——M4.5 终态，Build&Push success + CI 5 job 全绿）
-- 部署面：compose 未改（无需 scp）· 无新增必需 env · M4.5 **零新增迁移**；migrate one-shot 只需应用 M4 的 3 表 + 1 枚举（expand-only 纯 CREATE 安全）
-- ⚠️ image_tag 必须完整 40 位 SHA；compose 是 VPS 人工副本
+- `https://newkol.guangai.ai` 跑 **M4 + M4.5 @ `fd751ad5cd0e1de306a2f59c17344e7ba26e2be2`**（2026-07-26 部署，用户授权后由主实例触发；上一版 M3-B `49308c1a…` 即回滚点）
+- 部署实况：migrate one-shot Started→Exited 正常（M4 的 3 表 + 1 枚举已应用，M4.5 零新增迁移）· db/app 均 Healthy · 公网独立复核 `/api/health` = `{"ok":true}`、`/` 307→`/admin/today` 200
+- ⚠️ image_tag 必须完整 40 位 SHA；compose 是 VPS 人工副本（本次未改 compose、无新增必需 env）
+- **上线后未做的事**：M4/M4.5 全部为 L1 验收（mock，零外呼），真网关面在生产是首次曝光——模型自主接力质量 / 渐进渲染真流 / `draft_report` 真实生成 / 聚合确认真实 fetch 链，均待人工手测确认
 
 ## 需求池 / 待人类
 - backlog 4 条：`BL-COST-CAP`（例程前置）· `BL-AGENT-ROUTINE`（F-E/F-F）· `BL-TOOL-STREAM-OUTPUT`（F008 方案 A）· **`BL-E2E-CLEANUP-PIN`**（e2e 清理段断言升级为行为级——源码级正则已被 evaluator 实测绕过；触发时机写死：下个改清理段的批次必须一并做）。下批候选：**M5**（真实认证+RLS / 真 partner / reach·conversions 真回传源 / 真实公开分享页）· **M3-C**（真入站收信 + send_bulk_outreach）· soft-watch 小批

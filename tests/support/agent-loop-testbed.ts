@@ -34,6 +34,7 @@ import type {
 } from '@ai-sdk/provider';
 import { runAgentLoop, type AgentLoopRun } from '../../src/lib/agent/loop';
 import type { LoopTelemetryWriter } from '../../src/lib/agent/loop-telemetry';
+import { getPersona } from '../../src/lib/agent/registry';
 import type { PersonaSwitchEvent } from '../../src/lib/agent/loop';
 import type { CopilotContext } from '../../src/lib/agent/persona-router';
 import type { ToolContext } from '../../src/lib/agent/tools/types';
@@ -85,6 +86,11 @@ export interface RunScriptedLoopOptions {
    * 设为「继续调工具」可造「打不住的模型」来验步数上限截停。
    */
   fallbackStep?: ScriptedStep;
+  /**
+   * M4.7 F009：专家子 loop 的脚本，按人格 id 分开。
+   * 前台调 `consult_specialist` 时，对应人格的脚本驱动那次子 loop。
+   */
+  specialistScripts?: Partial<Record<string, ScriptedStep[]>>;
 }
 
 /**
@@ -141,6 +147,15 @@ function visibleTools(options: LanguageModelV4CallOptions): string[] {
   return (options.tools ?? []).map((t) => t.name);
 }
 
+/** 人格的工具集——子 loop 的可见工具恰是它，用作辨认线索。找不到人格 → null。 */
+function personaToolsOf(agentId: string): string[] | null {
+  try {
+    return getPersona(agentId as never).tools;
+  } catch {
+    return null;
+  }
+}
+
 /** 取一次 provider 调用里的 system 段（prompt 首条 system 消息）。 */
 function systemOf(options: LanguageModelV4CallOptions): string {
   const first = options.prompt.find((m) => m.role === 'system');
@@ -182,11 +197,62 @@ export function installNoNetworkSentinel(): {
 export function scriptedModel(
   script: ScriptedStep[],
   fallbackStep: ScriptedStep = { text: '（脚本已用尽）' },
+  /**
+   * M4.7 F009：专家子 loop 的脚本，按人格分开（`consult_specialist` 起的子 loop
+   * 走 `generateText` → `doGenerate`，与前台的 `streamText` → `doStream` 是两条路）。
+   *
+   * 【为什么必须支持两条】ctx.model 下传给子 loop 的是**同一个 mock 实例**；
+   * 若只实现 doStream，嵌套一发生就炸在"模型不支持 doGenerate"上——
+   * 这正是首次尝试嵌套 e2e 时实测撞到的。
+   */
+  specialistScripts: Partial<Record<string, ScriptedStep[]>> = {},
 ): MockLanguageModelV4 {
   let cursor = 0;
+  const subCursors = new Map<string, number>();
   return new MockLanguageModelV4({
     provider: 'testbed',
     modelId: 'scripted-mock',
+    // 子 loop 路径：按**这次调用可见的工具集**认出是哪位专家在问。
+    //
+    // 【为什么不按 system 里的 duty 认】名册段在每个人格的 prompt 里都列了全员 duty
+    //（M4.5 soft-watch O-G2-3 记过这是弱判据）——按 duty 匹配会命中第一个 key，
+    // 两次子 loop 拿到同一份脚本。实测踩过：insight 的子 loop 拿了 match 的脚本，
+    // 于是"专家备 outbound"这一步根本没发生。工具集才是各人格真正互不相同的东西。
+    doGenerate: async (options) => {
+      const visible = new Set(
+        (options.tools ?? []).map((t) => (t as { name: string }).name),
+      );
+      const agentId =
+        Object.keys(specialistScripts).find((id) => {
+          const tools = personaToolsOf(id);
+          return (
+            tools !== null &&
+            tools.length === visible.size &&
+            tools.every((n) => visible.has(n))
+          );
+        }) ?? '__unknown__';
+      const sub = specialistScripts[agentId] ?? [];
+      const i = subCursors.get(agentId) ?? 0;
+      subCursors.set(agentId, i + 1);
+      const step = sub[i] ?? { text: '（专家脚本已用尽）' };
+      const calls = step.toolCalls ?? [];
+      return {
+        finishReason: {
+          unified: calls.length ? ('tool-calls' as const) : ('stop' as const),
+          raw: undefined,
+        },
+        usage: usagePart(step),
+        content: calls.length
+          ? calls.map((c, k) => ({
+              type: 'tool-call' as const,
+              toolCallId: `sub-${agentId}-${i}-${k}`,
+              toolName: c.toolName,
+              input: JSON.stringify(c.input ?? {}),
+            }))
+          : [{ type: 'text' as const, text: step.text ?? '' }],
+        warnings: [],
+      };
+    },
     doStream: async () => {
       const step = script[cursor] ?? fallbackStep;
       const index = cursor;
@@ -209,7 +275,11 @@ export function scriptedModel(
 export async function runScriptedLoop(
   opts: RunScriptedLoopOptions,
 ): Promise<ScriptedLoopResult> {
-  const model = scriptedModel(opts.script, opts.fallbackStep);
+  const model = scriptedModel(
+    opts.script,
+    opts.fallbackStep,
+    opts.specialistScripts,
+  );
   const sentinel = installNoNetworkSentinel();
   try {
     const personaSwitches: PersonaSwitchEvent[] = [];

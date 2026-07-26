@@ -78,7 +78,7 @@
       "title": "测试床支持嵌套 loop + frontdesk:e2e 全链",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "现有测试床只驱动单层 loop。嵌套后需能脚本化指定前台脚本 + 每个专家子 loop 的脚本。",
       "acceptance": "测试床支持**嵌套脚本化**（前台逐步 tool-call + 每个 targetAgent 的子 loop 逐步脚本，可复用夹具）；`npm run frontdesk:e2e` 全链：项目环节页发起 → 前台受理（非环节人格）→ 咨询专家 A + B（≤2）→ 专家备 outbound → **停 pending 副作用零发生** → 逐项 confirm+execute → 留痕归属为专家（F004）→ 遥测含 consultCount；**零外呼零真实副作用**断言 + 哨兵活性证明；**清理段承 M4.5 教训**：每步各自 try/catch 不得再抛、id 入清理清单前先过滤、软引用表（OperationLog/Handoff）逐表清 + 逐表断言残留（M4.6 D3 教训：只断言 tenant 残留 = 假信心）"
     },

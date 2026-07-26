@@ -1,12 +1,12 @@
 {
-  "status": "planning",
+  "status": "building",
   "user_goal": "单一前台：取消「页面路由决定谁来回答」，专家降为内部能力（子 Agent 调用）。用户始终对同一个助手说话，前台内部咨询专家后用一个声音作答。触发源 = 生产手测撞到「环节人格拒答并让用户自行去找别的 Agent」。红线不变：outbound 两步票据 / 时刻隔离 / 行动承诺诚实 / 例程零直通。",
-  "total_features": 0,
+  "total_features": 11,
   "completed_features": 0,
   "fix_rounds": 0,
   "current_sprint": "M4.7-FRONTDESK",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-26T03:15",
+  "last_updated": "2026-07-26T03:30",
   "reference_docs": [
     "docs/specs/M4.7-FRONTDESK-spec.md",
     "docs/dev/agent-architecture.md",
@@ -24,7 +24,7 @@
   "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M4.7-FRONTDESK planning · 2026-07-26 · spec 待用户裁决】\n■ spec 落盘 docs/specs/M4.7-FRONTDESK-spec.md，含 7 个待裁决点（D-1..D-7）各带推荐。**未获用户逐条确认前不写 features.json、不开工。**\n■ 方案 A（给环节人格发 handoff_to）已由用户复议撤销——治标且做完即废。\n■ 取证到的关键事实（影响裁决）：① gate.ts:128 用 ctx.agentId 写 PendingAction.agentId，而接力不更新它（O-G2-1 欠着）→ 单一前台下所有 pending 会记成前台，雷达深链 agentId→STAGE_AGENT 反查全线落回退分支。② Handoff 表只有一个真实读消费者（/api/handoffs）+ 前端四组件，保留成本低于预估。③ ToolContext 无 model 字段 → 子 loop 取模型必须新开注入缝，否则 L1 无法覆盖（M4 教训：注入缝传入即无条件用）。\n■ D-3 的成本数字（每轮 2 个专家 / 子 loop ≤3 步 / 总顶 11）**是猜的**，无真实延迟数据（全批验收皆 mock）——建议做成 registry 配置常量，上线拿到真实数据再调。\n■ spec §6 把本日教训写进测试策略：正向精确匹配 > 黑名单否定断言 · 每条断言附「什么改动会让它红」的变异记录 · 机械钉覆盖面逐项对齐 · mock 测试床对「模型自填入参」类缺陷有结构性盲区 · 软引用表清理要逐表断言。",
+    "Andy": "【M4.7-FRONTDESK planning 完成 → building · 2026-07-26 · 快车道】\n■ 用户 2026-07-26 一次性裁决：**D-1..D-7 全部按 spec 推荐执行**。\n  D-1=A（ctx.agentId 派生，留痕记实际干活的专家，顺带闭环 O-G2-1）· D-2=A（专家结论原样透传 + insufficientEvidence 结构化字段）· D-3=推荐值做成 registry 常量（每轮 2 专家 / 子 loop ≤3 步 / 前台 5 / 总顶 11，**数字是猜的，无真实延迟数据**，上线拿到数据再调）· D-4=A（失败如实说 + 留痕）· D-5=A（Handoff 表保留，咨询也落行，成为协作痕迹统一数据源）· D-6=A（ToolContext.model 注入缝）· D-7=A（复用 orchestrator 作前台）。\n■ 11 features。F011 是 backlog 顺手项收口——`BL-E2E-CLEANUP-PIN` 登记时写死的触发时机就是「下个改动 agentloop-e2e 清理段 / doc-freshness 的批次必须一并做」，本批 F009/F010 正好命中，不再往后推。范围克制：只做已登记的四条。\n■ acceptance 里把本日教训写成硬要求，不靠自觉：正向精确匹配 > 黑名单否定断言（F005/F011）· 变异须含「作者没想到的绕过路径」（F005）· 真 route 路径核实而非服务层自证（F003）· 软引用表逐表清 + 逐表断言残留（F009）· 机械钉覆盖面逐项对齐（F010）。\n■ 依赖序：F001 → F002 → 其余多数依赖 F002。F008(UI) 可与 F005/F006/F007 并行。F009/F010/F011 收尾。\n■ 视觉基线硬前置（S-RV1-6 / S-G5-3）：本机重生任何含 feed/雷达的基线前，必须先清 dev 租户 pending 与 e2e 标记行，否则基线把测试残留拍进产品基线。",
     "Reviewer": null,
     "Mark": null
   },

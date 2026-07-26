@@ -28,5 +28,15 @@
     ],
     "confirmed_at": "2026-07-25",
     "priority": "low"
+  },
+  {
+    "id": "BL-E2E-CLEANUP-PIN",
+    "title": "e2e 清理段断言升级为行为级 + 顺手项若干",
+    "description": "M4.5 复验登记（signoff §8.1 S-RV1-1/2/3）：fix_round1 给 agentloop-e2e 清理段加的三条断言都是源码级正则，已被 evaluator 实测绕过并复证等价于原缺陷（catch 改 return Promise.reject / 跨行 await prisma.x ⏎ .deleteMany( / .filter(() => true)）。做法：导出 cleanupStep 并加行为级单测（喂一个必抛的 fn，断言 await cleanupStep(...) 正常 resolve），行为断言天然免疫写法绕过。同批顺手项：e2e 越权负向断言收紧为「错误确实来自 create_project」（S-G5-6）；全人格「名单内工具名必在注册表」通用断言（O-G3-3）。",
+    "decisions": [
+      "M4.5 复验裁定不阻断本批（非 acceptance 项、零产品面），但触发时机写死：下一个改动 scripts/test/agentloop-e2e.ts 清理段的批次必须一并做"
+    ],
+    "confirmed_at": "2026-07-25",
+    "priority": "medium"
   }
 ]

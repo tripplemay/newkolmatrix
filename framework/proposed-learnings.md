@@ -189,3 +189,21 @@
 **建议写入：** 坑 1 → `patterns/web-runtime-patterns.md`（构建期专属失效节）；坑 2 → `patterns/testing-env-patterns.md`；坑 3 → `patterns/web-runtime-patterns.md` §4 视觉基线节；规律 4 → `patterns/ai-action-contract.md`（agent loop 可测性节）或新起 `patterns/agent-loop-patterns.md`
 
 **状态：** 待确认
+
+## [2026-07-25] Andy/编排者 + Evaluator — 来源：M4.5-AGENT-LOOP 首轮 fan-out 验收 + 一轮 fixing + 复验
+
+**类型：** 新规律 ×3 + 新坑 ×1
+
+**内容：**
+
+1. **e2e / 验收脚本的清理段自身绝不可再抛——它一抛就同时干掉「首因可见」与「环境干净」两件事。** M4.5 F010 首轮 PARTIAL 的主因：`pendingIds` 先 push 后 assert，闸门红线一回归就把 `undefined` 塞进 `deleteMany({in:[...]})`，Prisma 拒绝 → `finally` 整段中断 → 原始 `ASSERT FAIL` 被二次抛错盖掉 + dev 库残留污染下一个隔离 evaluator 的视觉基线。**而 e2e 失败在 fixing 轮里是常态，那正是清理最该生效的时刻。** 规律：清理段每步独立 try/catch 只告警；入删除清单的 id 必先过滤；清理键不得依赖「被测行为正确」才存在的字段（本例 `gateLogId` 在闸门回归时恒 null、`projectId` 因 scope=quarterly 恒 null，两把键同时落空——**跑前 id 基线差集**才是不受被测代码影响的键）。
+
+2. **源码级正则断言可被写法绕过，行为级断言才免疫。** fix_round1 给清理段加的三条断言（catch 内无 `throw` / 无裸 `deleteMany` / id 必经 `.filter(`）全部被复验 evaluator 实测绕过并**复证等价于原缺陷**（`return Promise.reject(err)` / 跨行 `await prisma.x` ⏎ `.deleteMany(` / `.filter(() => true)`）。规律：当被测物是「顶层执行 main() 的脚本」这类不可 import 的形态时，源码级断言是权宜之计而非终局——应把关键函数导出后加行为级单测（喂一个必抛的 fn，断言包装器正常 resolve）。已入 backlog `BL-E2E-CLEANUP-PIN` 并写死触发时机。
+
+3. **「0 findings」的 grep 判据必须先证明它能看见目标。** M4.5 文档漂移活过整个批次的成因是两道防线盲区重叠：doc-freshness 机械门不覆盖 `agent-architecture.md`，人工批末复核用的 grep 又带左括号（`stepCountIs(`）且不搜 `docs/`——代码写 `stepCountIs(5)`、文档写 `stepCountIs 5`，模式差一个字符就全盲。规律：以 grep 为证据的「无残留」结论，必须先构造一个已知命中项验证模式能抓到它（同 role-context「0 findings 必配活性证明」，此处是它在**文档面**的实例）。
+
+4. **`framework/patterns/README.md` 的角色路由是真实的分发闸门，标错角色 = 该 pattern 对另一个角色不存在。** `testing-env-patterns.md` §9 正文写的是「清态必须按业务标记清，不能只按 `ref=PA.id` 清」——这是写给 Generator 的施工要求，但索引表把该文件的适用角色只标了 **Evaluator**。M4.5 F010 两条缺陷正是该分发缺口的直接后果（pattern 在库、Generator 没被路由到、批内原样复现）。**建议（需用户裁定，未擅改 framework）：** 角色列改为 `Generator / Evaluator`，触发条件补一条「新增或修改 e2e / smoke / 验收脚本的清理段」。
+
+**建议写入：** 规律 1 → `patterns/testing-env-patterns.md` §9 扩写（或新起 e2e 脚本节）；规律 2 → `patterns/audit-methodology.md`（断言强度分级）；规律 3 → `patterns/audit-methodology.md` + `memory/role-context/evaluator.md`「0 findings 活性证明」段补文档面实例；坑 4 → `framework/patterns/README.md` 索引表角色列（**须用户确认后才改**）
+
+**状态：** 待确认

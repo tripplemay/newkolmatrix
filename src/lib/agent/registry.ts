@@ -121,19 +121,21 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
     id: 'orchestrator',
     name: '编排 Agent',
     stage: '工作区层',
-    duty: '环节调度·专家编排·待办汇总',
-    isolation: '不亲自执行环节工作，只分派与汇总',
+    duty: '受理与综合·咨询专家·待办汇总',
+    isolation: '不亲自执行环节工作；专家的结论可转述不可改写',
     uiSyntax: '今天/雷达',
     // M2-C F001：create_project（项目创建是编排入口动作——「开新项目」找编排）
     // M3-B F011：confirm_brief_goal（创建后紧接着的目标确认，同属编排入口动线）
     // M4.5 F004：propose_plan（internal，把「打算做的几件事」产出为可追溯的计划卡）
     // M4.5 F005：handoff_to（internal，循环内接力——**仅编排持有**：分派是编排的职责，
     // 执行环节的人格不能自己改身份）
+    // M4.7 F002：consult_specialist（internal，**仅前台持有**）——单一前台的核心动作。
     tools: [
       'create_project',
       'confirm_brief_goal',
       'propose_plan',
       'handoff_to',
+      'consult_specialist',
     ],
     maxSteps: EXTENDED_MAX_STEPS, // U2：编排要在一次会话里跑完「汇总→接力→再汇总」
   },
@@ -281,6 +283,15 @@ const PERSONAS: Record<AgentId, AgentPersona> = Object.fromEntries(
 ) as Record<AgentId, AgentPersona>;
 
 export const ALL_AGENT_IDS = PERSONA_SEED.map((p) => p.id);
+
+/**
+ * 前台人格（M4.7 D-7 裁决 A：复用 orchestrator，不新建成员）。
+ *
+ * 【它是什么】用户在任何页面对话，受理的都是它——页面路由不再决定谁有发言权
+ * （那正是「匹配 Agent 拒答并让用户自己去找洞察 Agent」的根因）。
+ * 它自己不干专家的活，靠 consult_specialist 在内部咨询专家，再用一个声音作答。
+ */
+export const FRONT_DESK_AGENT_ID: AgentId = 'orchestrator';
 
 export function getPersona(id: AgentId): AgentPersona {
   return PERSONAS[id];

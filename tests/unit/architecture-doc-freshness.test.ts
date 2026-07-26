@@ -207,7 +207,8 @@ describe('agent-architecture.md 新鲜度（M4.5 F010 缺陷③ 回归钉）', (
     // 而既有机械门只钉工具清单/步数/废弃 API 名，钉不到这种「句子级」漂移。
     //
     // 判据取自实物：buildLoopSystem 的拼接表达式里各段的出现次序。
-    const loopSrc = readFileSync('src/lib/agent/loop.ts', 'utf8');
+    // M4.7 F002：buildLoopSystem 从 loop.ts 抽到 system-assembly.ts（断 tools/index 循环）
+    const loopSrc = readFileSync('src/lib/agent/system-assembly.ts', 'utf8');
     const exprStart = loopSrc.indexOf('persona.systemPrompt +');
     // 【显式钉前提】原先用 indexOf('NO_TOOL_CLAUSE') 当切片终点，而它在第 42 行的
     // import 里就出现了（早于拼接表达式）→ 切出空串。取证器看不见目标时必须当场红，

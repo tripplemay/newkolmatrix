@@ -65,13 +65,21 @@ describe('F002 单一真相源（grep 证：无第二处硬编码）', () => {
   });
 
   it('loop.ts 是唯一消费点，且读的是 persona.maxSteps', () => {
+    // M4.7 F002：合法消费点从一处变两处——主 loop（前台，读 persona.maxSteps）
+    // 与专家子 loop（读 SPECIALIST_MAX_STEPS 常量）。两者都不含数字字面量，
+    // 上一条断言仍然钉死"无第二处硬编码"。
     const consumers = gitGrep(String.raw`stepCountIs\(`, ['src']);
-    expect(consumers.map((l) => l.split(':')[0])).toEqual([
+    expect([...new Set(consumers.map((l) => l.split(':')[0]))].sort()).toEqual([
       'src/lib/agent/loop.ts',
+      'src/lib/agent/specialist-loop.ts',
     ]);
     const src = readFileSync('src/lib/agent/loop.ts', 'utf8');
     expect(src).toContain('return persona.maxSteps;');
     expect(src).toContain('stopWhen: stepCountIs(maxSteps)');
+    const sub = readFileSync('src/lib/agent/specialist-loop.ts', 'utf8');
+    expect(sub, '子 loop 的上限也必须来自常量，不得写数字').toContain(
+      'stopWhen: stepCountIs(SPECIALIST_MAX_STEPS)',
+    );
   });
 
   it('route.ts maxDuration = 120（P3：深链预算需要的墙钟余量）', () => {

@@ -892,7 +892,7 @@ export interface ToolContext {
 
 > **as-built 校准**：v1.1 §8.2 写的是 `kind: 'internal' | 'outbound'` 与 `agents: AgentKey[]` 字段。实物字段名为 **`class`**，且**工具定义上没有 `agents` 字段**——可见性收窄由**人格侧**承担（`registry.ts` 的 `AgentPersona.tools: string[]` 白名单 + `persona-router.personaToolSubset()`），而非工具侧声明。`output` 也无独立 zod schema（输出形状由 `execute` 返回类型承载）。
 
-**已实装工具（22 个，M4.5 校准）**：
+**已实装工具（23 个，M4.7 校准）**：
 
 | 工具 | class | 归属人格 | 说明 |
 |---|---|---|---|
@@ -916,6 +916,7 @@ export interface ToolContext {
 | `compute_roi_portfolio` | internal | insight | 跨项目 ROI 对比 = `loadTenantProjectSpends` 批量装配 + `roi.compute` + `attribution.gaps` 产物组合（M4.5 F003，不内联重算——与单项目工具、V8/V12 页面同一判定）；ROI 全部算不出时 `summary.rankable=false` + 原因如实标注，**不按花费假装排效果** |
 | `check_compliance` | internal | compliance | 该项目所属游戏的现行合规红线核查单 = `getKnowledgeHeads` 链头产物 + 逐条 Material 溯源（M4.5 F011，不内联重查——绕过链头口径会把已取代的旧红线当现行用）；**恒 `verdict:not_judged`**：只交付清单与溯源，判定归 Agent 逐条比对；无红线知识时明示「不得据此判定合规通过」。本批只立工具，不强制嵌入 draft/share 流程 |
 | `propose_plan` | internal | orchestrator · insight | 把「打算做的几件事」产出为结构化行动计划卡（M4.5 F004，`type:'action_plan'` 走画布 type 路由）；调用即落 `OperationLog(kind=auto)` 计划留痕，`planId` = 留痕行 id。**闸门披露前移到计划态**：`needsGate` 不信任模型声明——服务端按注册表复核，模型低报 outbound 一律强制标 + `gateUnderreported` 暴露，编出的工具名标 `toolKnown:false`。**认可（`POST /api/agent/plan-ack`，30 req/min fail-open + 幂等）只落留痕，不解锁任何执行权**（回归钉死：认可后 outbound 仍 pending） |
+| `consult_specialist` | internal | orchestrator（前台独占） | **M4.7 F002**：前台在内部咨询专家，起受限子 loop（目标人格 system + 目标人格工具子集，深度守卫禁二次嵌套），拿回结构化结论后由前台用一个声音作答。与 `handoff_to` 的区别：问出去 vs 交出去——对话身份自始至终是前台 |
 | `handoff_to` | internal | orchestrator（**独占**） | 循环内跨人格接力（M4.5 F005 / P1 时刻隔离）：落 `Handoff` 行（本批首次真实写入链）→ loop 的 `prepareStep` 把后续步的 system 段与 `activeTools` 切到目标人格。信封 zod **只有摘要 + 引用**（无金额/状态/结论字段），目标人格 system 注入重读条款「按你的 scope 重读，不信任交接方结论」。**outbound 人格绑定不变**（payout 永远只在 delivery 子集）；执行侧另有硬挡：子集外工具即便被调用也拒绝执行（视野收窄 ≠ 执行禁止） |
 
 **目标态 outbound 六工具白名单** = **6 中 5 已实装**：`send_outreach`（✅）· `commit_quote`（✅ M3-A F006）· `payout`（✅ M3-B F005）· `distribute_keys`（✅ M3-B F006）· `create_share_link`（✅ M4 F008：harm 三要素含「链接一经生成即暴露」红标；本批 mock 通道零真实公开暴露）· `send_bulk_outreach`（M3-C+）。
@@ -1034,7 +1035,7 @@ export function renderToolResult(toolName: string, output: unknown);  // 未注�
 
 | key | 中文名 | 归属 stage | **as-built `tools`** | 隔离（否定式护栏 `isolation`） | uiSyntax |
 |---|---|---|---|---|---|
-| `orchestrator` | 编排 Agent | 工作区层 | `[create_project, confirm_brief_goal, propose_plan, handoff_to]`（M2-C / M3-B 扩 + M4.5 F004 计划卡 + F005 循环内接力） | 不亲自执行环节工作，只分派与汇总 | 今天/雷达 |
+| `orchestrator` | 编排 Agent（**M4.7 起为前台**） | 工作区层 | `[create_project, confirm_brief_goal, propose_plan, handoff_to, consult_specialist]`（M2-C / M3-B 扩 + M4.5 F004 计划卡 + F005 循环内接力 + **M4.7 F002 内部咨询专家**） | 不亲自执行环节工作；专家的结论可转述不可改写 | 今天/雷达 |
 | `strategy` | 策略 Agent | ① Brief | `[get_kol_detail, compute_health, create_project, confirm_brief_goal]`（M1-B / M2-C / M3-B 扩） | 不联系创作者、不放款——交给触达/交付 | 仪表 |
 | `match` | 匹配 Agent | ② Match | `[search_kols, get_kol_detail, match_plan, evaluate_creator]`（M2-A F007 扩四件） | 只做发现与匹配，不发起触达、不谈价 | 对比矩阵 |
 | `reach` | 触达 Agent | ③ Reach | `[get_kol_detail, send_outreach⛔, draft_email, refine_email, commit_quote⛔]`（M3-A F006 扩容） | 不批预算、不放款；报价与发送需你确认 | 对话收件箱 |

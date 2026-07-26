@@ -15,9 +15,9 @@
       "title": "consult_specialist 工具 + 前台人格改造（orchestrator → 受理与综合）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "D-7 裁决 A：复用 orchestrator 作为前台，扩职责与工具。consult_specialist（internal）调 F001 的子 loop，返回结构化专家结果。",
-      "acceptance": "`consult_specialist` 注册且 **class=internal 无 buildHarm**（同源断言）；**仅前台（orchestrator）持有**——其余人格子集不含（同源断言，与 handoff_to 同款纪律）；入参 zod：`targetAgent` 必须是合法 AgentId **且 ≠ 前台自身**（负向断言）+ `question` + 可选 `refs`；调用即起子 loop 并返回结构化结果（专家 id / 结论 / 证据引用 / F005 的证据充分性字段）；orchestrator 的 `duty` / `isolation` 文案改为受理与综合语义（**registry 单一真相源**，文案锚点单测钉死，doc 同步翻牌）；前台**不直接持有**专家的执行类工具（grep 证：前台 tools 与五环节专家工具集交集为空，`consult_specialist` 除外）；输出 JSON 往返无损；输入契约单测"
+      "acceptance": "`consult_specialist` 注册且 **class=internal 无 buildHarm**（同源断言）；**仅前台（orchestrator）持有**——其余人格子集不含（同源断言，与 handoff_to 同款纪律）；入参 zod：`targetAgent` 必须是合法 AgentId **且 ≠ 前台自身**（负向断言）+ `question` + 可选 `refs`；调用即起子 loop 并返回结构化结果（专家 id / 结论 / 证据引用 / F005 的证据充分性字段）；orchestrator 的 `duty` / `isolation` 文案改为受理与综合语义（**registry 单一真相源**，文案锚点单测钉死，doc 同步翻牌）；前台**不直接持有**任何专家的领域执行工具，也不持有任何 outbound 工具（它只受理与综合，不亲自干）——判据用**正向精确匹配**：前台 tools 恰等于枚举清单（要动前台工具面必须显式改这条断言）。注：`create_project` / `confirm_brief_goal`（与 strategy 共享）与 `propose_plan`（与 insight 共享）是入口/元工具，本就属受理与综合范畴，不在'专家执行工具'之列——原 acceptance 写作'交集为空'与实物不符，已按实物更正；输出 JSON 往返无损；输入契约单测"
     },
     {
       "id": "F003",

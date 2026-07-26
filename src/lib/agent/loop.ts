@@ -127,36 +127,10 @@ export interface AgentLoopRun {
   telemetry: Promise<LoopTelemetryPayload | null>;
 }
 
-/**
- * 系统提示 = 人格（身份 + 职责 + 否定式护栏）+ **当前项目上下文段**（M4.6 F001）
- * + ⑤层知识段 + 该人格可用工具的使用指引。
- * 无工具人格走 NO_TOOL_CLAUSE 分支（M2-C F003：明示「未执行任何动作」+ 指路，防幻觉执行）。
- *
- * projectSection 在 ctx.projectId 为空时是空串（工作区层页面不注水，同知识段纪律）。
- */
-export function buildLoopSystem(
-  persona: AgentPersona,
-  toolNames: string[],
-  knowledgeSection: string,
-  projectSection = '',
-): string {
-  const toolLines = toolNames
-    .map((name) => {
-      const t = getTool(name);
-      return t ? `- ${name}: ${t.description}` : null;
-    })
-    .filter(Boolean);
-  return (
-    persona.systemPrompt +
-    projectSection +
-    knowledgeSection +
-    (toolLines.length
-      ? `\n\n你可调用的工具（需要时主动调用，基于返回的真实数据作答）：\n${toolLines.join(
-          '\n',
-        )}`
-      : NO_TOOL_CLAUSE)
-  );
-}
+// buildLoopSystem 已抽到 ./system-assembly（断开 tools/index 循环，见该文件头注）。
+// 此处**再导出**保持既有引用点不动（loop.ts 一直是它的公开出口）。
+export { buildLoopSystem } from './system-assembly';
+import { buildLoopSystem as assembleSystem } from './system-assembly';
 
 /**
  * 装配并启动一次 agent loop。返回 streamText 结果 + 装配产物（人格 / ctx / system / 工具子集），
@@ -213,7 +187,7 @@ export async function runAgentLoop(
     ? await projectContextSection(copilot.projectId)
     : '';
 
-  const system = buildLoopSystem(
+  const system = assembleSystem(
     persona,
     toolNames,
     knowledgeSection,
@@ -233,7 +207,7 @@ export async function runAgentLoop(
     // 接力后的目标人格同样要看得见当前项目（复用同一装配函数与同一 projectSection——
     // 不在这里另拼一份，否则两条路径必然漂移）。
     const built =
-      buildLoopSystem(target, target.tools, knowledge, projectSection) +
+      assembleSystem(target, target.tools, knowledge, projectSection) +
       HANDOFF_REREAD_CLAUSE;
     switchedSystemCache.set(id, built);
     return built;

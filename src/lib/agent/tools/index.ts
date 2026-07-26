@@ -23,6 +23,7 @@ import { computeRoiPortfolioTool } from './compute-roi-portfolio';
 import { checkComplianceTool } from './check-compliance';
 import { proposePlanTool } from './propose-plan';
 import { handoffToTool } from './handoff-to';
+import { consultSpecialistTool } from './consult-specialist';
 import { createShareLinkTool } from './create-share-link';
 import type { ToolDefinition } from './types';
 
@@ -49,6 +50,7 @@ const NATIVE_TOOLS: ToolDefinition<never, unknown>[] = [
   checkComplianceTool as unknown as ToolDefinition<never, unknown>, // M4.5 F011（internal，合规红线核查单 = 链头读取器产物 + 溯源；不给判定）
   proposePlanTool as unknown as ToolDefinition<never, unknown>, // M4.5 F004（internal，行动计划卡 + 计划留痕；认可不解锁执行权）
   handoffToTool as unknown as ToolDefinition<never, unknown>, // M4.5 F005（internal，循环内接力——仅 orchestrator 持有；落 Handoff 行 + prepareStep 切换）
+  consultSpecialistTool as unknown as ToolDefinition<never, unknown>, // M4.7 F002（internal，前台内部咨询专家——仅前台持有；起受限子 loop）
 ];
 
 let registered = false;

@@ -18,14 +18,29 @@
 import { generateText, stepCountIs } from 'ai';
 import type { LanguageModel } from 'ai';
 import { chatModel } from '../ai/gateway';
-import { buildLoopSystem } from './loop';
+import { buildLoopSystem } from './system-assembly';
 import { gameKnowledgeSection } from './knowledge-context';
 import { projectContextSection } from './project-context';
 import { getPersona, type AgentId } from './registry';
 import { personaToolSubset } from './persona-router';
-import { ensureNativeToolsRegistered } from './tools';
-import { toAiSdkTools } from './to-ai-sdk-tools';
 import type { ToolContext } from './tools/types';
+
+// 【为什么这两个是惰性 import】本模块被 `tools/consult-specialist.ts` 依赖，而后者由
+// 装配入口 `tools/index.ts` 在顶层注册。若在此顶层 import `./tools`（装配入口）或
+// `./to-ai-sdk-tools`（→ execute → tools/index），就形成
+//   tools/index → consult-specialist → specialist-loop → … → tools/index
+// 的循环。M4.5 F004 踩过同一个：**vitest / next dev 全绿，只有 `next build` 的
+// prerender 阶段 TDZ 崩**（Cannot access 'l' before initialization）。
+// 仓内守门 tool-module-cycles.test.ts 当时只查「工具模块直接 import tools/index」，
+// 抓不到这种传递链——本批把它升级为传递闭包扫描（见该测试文件）。
+// 改成调用时动态 import：模块初始化期不成环，运行期一切已就绪。
+async function lazyDeps() {
+  const [{ toAiSdkTools }, { ensureNativeToolsRegistered }] = await Promise.all([
+    import('./to-ai-sdk-tools'),
+    import('./tools'),
+  ]);
+  return { toAiSdkTools, ensureNativeToolsRegistered };
+}
 
 /**
  * 单个专家子 loop 的步数上限。
@@ -84,6 +99,7 @@ export interface RunSpecialistLoopParams {
 export async function runSpecialistLoop(
   params: RunSpecialistLoopParams,
 ): Promise<SpecialistLoopResult> {
+  const { toAiSdkTools, ensureNativeToolsRegistered } = await lazyDeps();
   ensureNativeToolsRegistered();
   const { targetAgent, question, ctx } = params;
 

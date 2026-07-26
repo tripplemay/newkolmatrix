@@ -9,8 +9,6 @@
 // 给定脚本化的 tool-call，子 loop 的隔离/守卫/注入是否按契约成立。
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { MockLanguageModelV4 } from 'ai/test';
-import type { LanguageModelV4GenerateResult } from '@ai-sdk/provider';
 import { prisma } from '../../src/lib/db/prisma';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
 import { getPersona } from '../../src/lib/agent/registry';
@@ -21,10 +19,11 @@ import {
   runSpecialistLoop,
 } from '../../src/lib/agent/specialist-loop';
 import { TOOL_NOT_IN_SUBSET_MSG } from '../../src/lib/agent/to-ai-sdk-tools';
+import { installNoNetworkSentinel } from '../support/agent-loop-testbed';
 import {
-  installNoNetworkSentinel,
-  usagePart,
-} from '../support/agent-loop-testbed';
+  scriptedGenerateModel,
+  type SeenCall,
+} from '../support/scripted-generate-model';
 import type { ToolContext } from '../../src/lib/agent/tools/types';
 
 const SLUG = `test-tenant-m47-f001-${process.pid}`;
@@ -33,57 +32,8 @@ let tenantId: string;
 let projectId: string;
 let frontDeskCtx: ToolContext;
 
-/** 记录每次 doGenerate 收到的 system / 可见工具，供隔离断言。 */
-interface Seen {
-  system: string;
-  tools: string[];
-}
-
-/**
- * 脚本化 mock 模型：逐步产出指定 tool-call，用尽后出一段文本。
- * 同时把每步收到的 system 与工具清单记下来——**断言对象是模型真收到的东西**。
- */
-function scriptedGenerateModel(
-  script: Array<{ toolName: string; input?: unknown } | { text: string }>,
-  seen: Seen[],
-) {
-  let i = 0;
-  return new MockLanguageModelV4({
-    doGenerate: async (options): Promise<LanguageModelV4GenerateResult> => {
-      seen.push({
-        system:
-          options.prompt.find((m) => m.role === 'system')?.content?.toString() ??
-          '',
-        tools: (options.tools ?? []).map(
-          (t) => (t as { name: string }).name ?? '',
-        ),
-      });
-      const step = script[i] ?? { text: '（脚本用尽）' };
-      i += 1;
-      if ('text' in step) {
-        return {
-          finishReason: { unified: 'stop' as const, raw: undefined },
-          usage: usagePart(),
-          content: [{ type: 'text', text: step.text }],
-          warnings: [],
-        };
-      }
-      return {
-        finishReason: { unified: 'tool-calls' as const, raw: undefined },
-        usage: usagePart(),
-        content: [
-          {
-            type: 'tool-call',
-            toolCallId: `call-${i}`,
-            toolName: step.toolName,
-            input: JSON.stringify(step.input ?? {}),
-          },
-        ],
-        warnings: [],
-      };
-    },
-  });
-}
+// 脚本化 mock 已抽到 ../support/scripted-generate-model（与 F002 共用，
+// 避免 usage / finishReason 形状在两处各写一份而漂移）。
 
 beforeAll(async () => {
   getNativeToolNames();
@@ -123,7 +73,7 @@ afterAll(async () => {
 
 describe('时刻隔离在子 loop 内照旧（两道防线）', () => {
   it('防线①：模型看见的工具 = 目标人格子集，一个不多', async () => {
-    const seen: Seen[] = [];
+    const seen: SeenCall[] = [];
     const sentinel = installNoNetworkSentinel();
     try {
       await runSpecialistLoop({
@@ -152,7 +102,7 @@ describe('时刻隔离在子 loop 内照旧（两道防线）', () => {
   // "工具不存在"挡掉，根本走不到执行侧那道。故如实命名为"越权不发生"，
   // 不声称测到了防线②（它在子 loop 里当前不可达，实现处已注明）。
   it('越权调用不发生：洞察硬调交付独占工具 → 无副作用、不落 PendingAction', async () => {
-    const seen: Seen[] = [];
+    const seen: SeenCall[] = [];
     const sentinel = installNoNetworkSentinel();
     let run;
     try {
@@ -184,7 +134,7 @@ describe('时刻隔离在子 loop 内照旧（两道防线）', () => {
     // 【补的是什么洞】实现里写了 `confirmationToken: undefined`，但首版测试对它
     // 零断言：变异实测「子 loop 继承前台令牌」时 9 条用例全绿。而这正是闸门红线——
     // 一旦继承，模型就能在内部子 loop 里自我放行 outbound。
-    const seen: Seen[] = [];
+    const seen: SeenCall[] = [];
     const sentinel = installNoNetworkSentinel();
     const shareBefore = await prisma.shareLink.count({ where: { tenantId } });
     try {
@@ -216,7 +166,7 @@ describe('时刻隔离在子 loop 内照旧（两道防线）', () => {
   });
 
   it('system 段 = 目标人格装配 + 咨询条款（不是前台的 system）', async () => {
-    const seen: Seen[] = [];
+    const seen: SeenCall[] = [];
     const sentinel = installNoNetworkSentinel();
     try {
       await runSpecialistLoop({
@@ -246,7 +196,7 @@ describe('时刻隔离在子 loop 内照旧（两道防线）', () => {
 
 describe('深度守卫', () => {
   it('专家不能再咨询专家：depth ≥ 1 时抛错，且不静默', async () => {
-    const seen: Seen[] = [];
+    const seen: SeenCall[] = [];
     await expect(
       runSpecialistLoop({
         targetAgent: 'match',
@@ -260,7 +210,7 @@ describe('深度守卫', () => {
   });
 
   it('子 loop 内派生的 ctx 深度 = 1（下一层必被守卫拦住）', async () => {
-    const seen: Seen[] = [];
+    const seen: SeenCall[] = [];
     const sentinel = installNoNetworkSentinel();
     try {
       // 用一个能观察 ctx 的工具：compute_health 挂 strategy，入参含 projectId
@@ -281,7 +231,7 @@ describe('深度守卫', () => {
 
 describe('注入缝纪律（M4 教训：传入即无条件使用）', () => {
   it('注入了 model 就绝不回落 chatModel()——无网络凭据下照样跑通', async () => {
-    const seen: Seen[] = [];
+    const seen: SeenCall[] = [];
     const sentinel = installNoNetworkSentinel();
     const saved = process.env.AIGCGATEWAY_API_KEY;
     delete process.env.AIGCGATEWAY_API_KEY;
@@ -304,7 +254,7 @@ describe('注入缝纪律（M4 教训：传入即无条件使用）', () => {
   });
 
   it('ctx.model 也是注入缝（前台下传的那条路径）', async () => {
-    const seen: Seen[] = [];
+    const seen: SeenCall[] = [];
     const sentinel = installNoNetworkSentinel();
     try {
       const run = await runSpecialistLoop({
@@ -325,7 +275,7 @@ describe('注入缝纪律（M4 教训：传入即无条件使用）', () => {
 
 describe('结构化产物', () => {
   it('撞步数上限 → budgetHit=true（前台据此如实转达"没说完"）', async () => {
-    const seen: Seen[] = [];
+    const seen: SeenCall[] = [];
     const sentinel = installNoNetworkSentinel();
     try {
       // 脚本恒出 tool-call，打不住 → 必然撞顶
@@ -351,7 +301,7 @@ describe('结构化产物', () => {
   });
 
   it('自然收敛 → budgetHit=false（与撞顶可区分）', async () => {
-    const seen: Seen[] = [];
+    const seen: SeenCall[] = [];
     const sentinel = installNoNetworkSentinel();
     try {
       const run = await runSpecialistLoop({

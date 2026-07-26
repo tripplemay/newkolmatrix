@@ -73,7 +73,9 @@ Agent 驱动产品的四根柱子。每柱一个明确的唯一入口，禁止�
 | **准备并行度** | 「已备好 N 件待确认」聚合卡：利害逐条列全不折叠（D28）；「依次确认」= 前端**逐项**调既有两步票据端点，**无批量端点**（一个 batch 端点会立刻成为闸门绕过面） | `lib/gate/batch-confirm.ts` / `PendingBatchCard` |
 | **渐进渲染** | `state:'input-streaming'` 的 partial input 驱动「模型自己在写」的工具卡（本批 = `propose_plan` 计划卡）。渲染分支 `canvas`/`draft`/`label` 由 `pickToolRenderMode` 单一真相源判定且**互斥**。渐进态**不展示模型自报 needsGate**（服务端未复核前不把最不可信的数据当结论） | `canvas-registry.tsx` / `PlanCardDraft.tsx` |
 
-**新增工具（本批 5 件）**：`compute_roi_portfolio`（跨项目 ROI 对比，insight）· `propose_plan`（行动计划卡 + 计划留痕，orchestrator+insight）· `handoff_to`（循环内接力，orchestrator 独占）· `check_compliance`（合规红线核查单，compliance 首件）· 认可端点 `POST /api/agent/plan-ack`（**留痕不解锁执行权**，回归钉死）。
+**M4.7 新增工具（1 件）**：`consult_specialist`（前台内部咨询专家，orchestrator 独占——起受限子 loop，目标人格 system + 目标人格工具子集 + 深度守卫；对话身份自始至终是前台）。
+
+**M4.5 新增工具（本批 5 件）**：`compute_roi_portfolio`（跨项目 ROI 对比，insight）· `propose_plan`（行动计划卡 + 计划留痕，orchestrator+insight）· `handoff_to`（循环内接力，orchestrator 独占）· `check_compliance`（合规红线核查单，compliance 首件）· 认可端点 `POST /api/agent/plan-ack`（**留痕不解锁执行权**，回归钉死）。
 
 **测试床（F009）**：`tests/support/agent-loop-testbed.ts` 用 AI SDK 官方 `ai/test` 的 `MockLanguageModelV4` 脚本化 tool-call 序列，驱动**与 /api/agent 同一个** `runAgentLoop`——机械面（步数上限截停 / 子集收窄 / pending 停驻 / 接力切换）全部离线可测，零外呼（fetch 哨兵）。E2E 闭环：`npm run agentloop:e2e`。
 

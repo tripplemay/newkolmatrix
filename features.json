@@ -60,7 +60,7 @@
       "title": "咨询失败降级：如实说，不假装",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "D-4 裁决 A：子 loop 抛错/超时 → 前台如实说明「问了但没拿到结果 + 原因」，给出自己能给的部分，绝不假装咨询过、不用猜测填补。",
       "acceptance": "子 loop 抛错 / 超时 → `consult_specialist` 返回结构化失败结果（`ok:false` + reason），**不抛穿导致整场会话炸**（同知识段 D2 纪律）；前台 system 含条款「咨询失败时如实说明，不得用自己的猜测填补，不得宣称咨询过并得到结论」+ 正向锚点钉；失败**必须落 OperationLog**（线上可归因）；变异：静默降级为前台自答 / 失败不留痕 → 均须翻红；集成测覆盖抛错与超时两支"
     },

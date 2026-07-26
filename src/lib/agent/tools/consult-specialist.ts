@@ -12,6 +12,7 @@
 // 目标人格只看得见自己的工具，且不继承前台的 confirmationToken。详见 specialist-loop.ts。
 
 import { z } from 'zod';
+import { prisma } from 'lib/db/prisma';
 import {
   ALL_AGENT_IDS,
   FRONT_DESK_AGENT_ID,
@@ -52,8 +53,21 @@ export const CONSULT_SELF_MSG = '不能咨询你自己';
 export const CONSULT_BUDGET_EXHAUSTED_MSG =
   '本轮咨询次数已用尽（上限由 MAX_CONSULTS_PER_TURN 决定）——请用已拿到的结果作答，并如实告诉用户还有哪些没问到';
 
+/** 咨询失败留痕标记（线上归因用；测试与查询共用锚点）。 */
+export const CONSULT_FAILED_MARKER = 'consult_specialist:FAILED';
+
 export interface ConsultSpecialistOutput {
   type: 'consultation';
+  /**
+   * 咨询是否拿到结果（M4.7 F007 / D-4 裁决 A）。
+   *
+   * false 时 `answer` 为空、`failureReason` 说明原因。前台必须**如实说没问到**，
+   * 不得用自己的猜测填补、不得宣称咨询过并得到结论——静默降级成"前台自己编"
+   * 是本批最不能接受的失败模式（用户只听得见前台的声音，无从分辨）。
+   */
+  ok: boolean;
+  /** 失败原因（ok=false 时非空）。原样透传，不美化。 */
+  failureReason?: string;
   /** 实际作答的专家。 */
   agentId: string;
   /** 专家的结论正文（前台可组织语言转述，但不得改写其中的结论性内容）。 */
@@ -86,13 +100,34 @@ async function run(
     throw new Error(`[consult-specialist] ${CONSULT_BUDGET_EXHAUSTED_MSG}`);
   }
   if (budget) budget.used += 1;
-  const result: SpecialistLoopResult = await runSpecialistLoop({
-    targetAgent: input.targetAgent,
-    question: buildQuestion(input),
-    ctx,
-  });
+  let result: SpecialistLoopResult;
+  try {
+    result = await runSpecialistLoop({
+      targetAgent: input.targetAgent,
+      question: buildQuestion(input),
+      ctx,
+    });
+  } catch (err) {
+    // 【不抛穿】子 loop 炸了不该把整场会话带走（同知识段 D2 纪律：增强性能力
+    // 失败不打死主链路）。返回结构化失败，让前台如实转达。
+    const reason = err instanceof Error ? err.message : String(err);
+    await logConsultFailure(input.targetAgent, reason, ctx);
+    return {
+      type: 'consultation',
+      ok: false,
+      failureReason: reason,
+      agentId: input.targetAgent,
+      answer: '',
+      toolNames: [],
+      steps: 0,
+      budgetHit: false,
+      insufficientEvidence: false,
+      insufficientReasons: [],
+    };
+  }
   return {
     type: 'consultation',
+    ok: true,
     agentId: result.agentId,
     answer: result.text,
     toolNames: result.toolNames,
@@ -101,6 +136,31 @@ async function run(
     insufficientEvidence: result.insufficientEvidence,
     insufficientReasons: result.insufficientReasons,
   };
+}
+
+/**
+ * 咨询失败必须留痕——否则线上只看得到"前台说没问到"，无从归因是哪一步炸的。
+ * 留痕本身失败不得再抛（fire-and-forget 语义，同 loop 遥测）。
+ */
+async function logConsultFailure(
+  targetAgent: string,
+  reason: string,
+  ctx: ToolContext,
+): Promise<void> {
+  try {
+    const db = ctx.db ?? prisma;
+    await db.operationLog.create({
+      data: {
+        tenantId: ctx.tenantId,
+        kind: 'auto',
+        actor: ctx.agentId,
+        summary: `${CONSULT_FAILED_MARKER} 咨询 ${targetAgent} 未拿到结果：${reason.slice(0, 200)}`,
+        projectId: ctx.projectId ?? null,
+      },
+    });
+  } catch (e) {
+    console.error('[consult-specialist] 失败留痕落库失败（已忽略）:', e);
+  }
 }
 
 /** 把引用拼进问题——专家据此定位数据，但仍要自己去读。 */

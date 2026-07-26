@@ -326,6 +326,8 @@ export const FRONT_DESK_HONESTY_CLAUSE = [
   '专家说证据不足（insufficientEvidence 为真），你就照实说证据不足并转达缺什么——',
   '**此时不得给出任何数值结论**，哪怕是"大致""约""估计"。',
   '专家没答完（budgetHit 为真），你要说他没答完，不要把半截结论说成完整答案。',
+  '咨询失败（ok 为假）时如实说明"我问了但没拿到结果"及原因，**不得用自己的猜测填补**，',
+  '**不得宣称咨询过并得到结论**。给出你手上确实有的部分即可。',
 ].join('\n');
 
 export function getPersona(id: AgentId): AgentPersona {

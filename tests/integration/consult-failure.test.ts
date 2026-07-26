@@ -51,18 +51,23 @@ beforeAll(async () => {
 
 afterAll(async () => {
   vi.restoreAllMocks();
+  // 【清态】咨询成功会落一行协作痕迹（F008 / D-5）。软引用无 FK，删租户不级联——
+  // 漏清即留孤儿行。本文件跑了咨询用例，必须逐表清 + 逐表断言。
+  await prisma.handoff.deleteMany({ where: { tenantId } });
   await prisma.operationLog.deleteMany({ where: { tenantId } });
   await prisma.pendingAction.deleteMany({ where: { tenantId } });
   await prisma.project.deleteMany({ where: { tenantId } });
   await prisma.tenant.deleteMany({ where: { id: tenantId } });
-  const [logs, pas, projects, tenants] = await Promise.all([
+  const [logs, handoffs, pas, projects, tenants] = await Promise.all([
     prisma.operationLog.count({ where: { tenantId } }),
+    prisma.handoff.count({ where: { tenantId } }),
     prisma.pendingAction.count({ where: { tenantId } }),
     prisma.project.count({ where: { tenantId } }),
     prisma.tenant.count({ where: { slug: SLUG } }),
   ]);
-  expect({ logs, pas, projects, tenants }).toEqual({
+  expect({ logs, handoffs, pas, projects, tenants }).toEqual({
     logs: 0,
+    handoffs: 0,
     pas: 0,
     projects: 0,
     tenants: 0,

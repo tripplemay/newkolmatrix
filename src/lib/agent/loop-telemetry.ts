@@ -66,6 +66,15 @@ export interface LoopTelemetryInput {
   /** M4.7 F006：本轮咨询专家次数（只记数量）。 */
   consultCount?: number;
   /**
+   * M4.7 fix_round1（R-6）：是否**真被截停**。
+   *
+   * 【为什么要调用方传而不是这里算】判据是「步数用满**且末步仍在要工具**」——
+   * 末步信息只有 loop 那一层有。此前这里只按 `steps >= maxSteps` 算，于是
+   * 自然收敛恰好用满时：用户面（严判据）不告知、遥测（宽判据）却记 budgetHit=true
+   * ——同一事实两个消费者口径分歧，线上按遥测算"撞顶率"会系统性偏高。
+   */
+  truncated?: boolean;
+  /**
    * M4.7 fix_round1：撞顶发生在哪一层。
    * 'front' = 前台自己用满步数（用户端会收到 budget_notice）；
    * 'none'  = 未撞顶。子 loop 的撞顶记在各自 consultation 产物的 budgetHit 上，
@@ -100,13 +109,15 @@ export function buildLoopTelemetryPayload(
     finalAgentId: input.finalAgentId ?? input.agentId,
     steps: input.steps,
     maxSteps: input.maxSteps,
-    budgetHit: input.steps >= input.maxSteps,
+    // R-6：与用户面同一判据。调用方未传（旧调用点）时退回步数判据并保持原语义。
+    budgetHit: input.truncated ?? input.steps >= input.maxSteps,
     finishReason: input.finishReason,
     toolNames: [...input.toolNames],
     toolCallCount: input.toolNames.length,
     personaSwitches: input.personaSwitches ?? 0,
     consultCount: input.consultCount ?? 0,
-    budgetHitScope: input.steps >= input.maxSteps ? 'front' : 'none',
+    budgetHitScope:
+      (input.truncated ?? input.steps >= input.maxSteps) ? 'front' : 'none',
     usage: { inputTokens, outputTokens, totalTokens },
   };
 }

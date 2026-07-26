@@ -20,7 +20,10 @@ import sys
 from dataclasses import dataclass, field
 
 WT = "/tmp/m47-adv2"
-PROBE = "tests/integration/m47-adv-probe.test.ts"
+PROBES = [
+    "tests/integration/m47-adv-probe.test.ts",
+    "tests/integration/m47-adv-route-probe.test.ts",
+]
 
 
 @dataclass
@@ -75,7 +78,7 @@ MUTATIONS: list[Mutation] = [
         file="src/app/api/agent/route.ts",
         desc="撞顶告知不再写进流（回调在、但 route 不落 data part）",
         subs=[(r"type: 'data-budget_notice',", "type: 'data-nothing_to_see_here',")],
-        expect_red=["P7b 撞顶告知抵达 UI 了吗"],
+        expect_red=["P7b 覆盖面不变式", "PR1"],
     ),
     Mutation(
         id="MUT-E",
@@ -88,6 +91,28 @@ MUTATIONS: list[Mutation] = [
             )
         ],
         expect_red=["P9c 闸真的到达 socket"],
+    ),
+
+    Mutation(
+        id="MUT-F",
+        file="src/components/copilot/CopilotPanel.tsx",
+        desc="摘掉面板的 budget_notice 渲染分支 → R-2 原样复发（写进流、没人渲染）",
+        subs=[(r"if \(part\.type === BUDGET_NOTICE_PART\) \{", "if (false && part.type === ('' as never)) {")],
+        expect_red=["P7b 覆盖面不变式"],
+    ),
+    Mutation(
+        id="MUT-G",
+        file="src/components/copilot/CopilotPanel.tsx",
+        desc="渲染分支只匹配 type、不输出 notice 正文（空壳分支）",
+        subs=[(r"\{notice\}\n", "{''}\n")],
+        expect_red=["P7b 覆盖面不变式"],
+    ),
+    Mutation(
+        id="MUT-H",
+        file="src/lib/agent/loop.ts",
+        desc="撞顶判据退回宽形态（只看步数）→ 自然收敛又被误报「我没答完」",
+        subs=[(r"event\.steps\.length >= currentBudget\(\) &&\n\s*\(lastStep\?\.toolCalls\.length \?\? 0\) > 0;", "event.steps.length >= currentBudget();")],
+        expect_red=["P7c 自然收敛恰好用满步数", "PR2 自然收敛"],
     ),
 ]
 
@@ -144,7 +169,7 @@ def main() -> int:
                 verdicts.append((m.id, "SKIP", "锚点未命中"))
                 continue
             proc = run(
-                ["npx", "vitest", "run", PROBE, "--reporter=verbose", "--no-color"]
+                ["npx", "vitest", "run", *PROBES, "--reporter=verbose", "--no-color"]
             )
             results = probe_results(proc.stdout)
             reds = [n for n, v in results.items() if v == "RED"]

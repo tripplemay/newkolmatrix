@@ -68,15 +68,23 @@ async function main(): Promise<void> {
   try {
     /* ── ① 环节页发起 → 前台受理 + 咨询两位专家 ─────────────────── */
     console.log('[1/3] 环节页发起：前台受理并咨询两位专家');
-    const run = await runScriptedLoop({
-      copilot: {
+    // 【R-5】客户端 body 刻意传环节人格 'match'，经**真 resolveContext** 解析后
+    // 把产物直接喂给本轮 loop —— 解析与执行串成一条链，而不是两段各跑各的。
+    const resolved = resolveContextForTest({
+      context: {
         route: `/admin/campaigns/${fxProject.id}`,
         projectId: fxProject.id,
         env: 'default',
-        // 刻意传环节人格：服务层同样不该让它决定受理者
-        agentId: FRONT_DESK_AGENT_ID,
+        agentId: 'match',
         stage: 'match',
       },
+    });
+    assert(
+      resolved.agentId === FRONT_DESK_AGENT_ID && resolved.agentId !== 'match',
+      '🔑 客户端传环节人格，服务端仍解析为前台（本批根因的正面证明，输入≠期望）',
+    );
+    const run = await runScriptedLoop({
+      copilot: resolved,
       ctx,
       prompt: '帮我看看这个项目该推进什么，然后分析下 ROI',
       script: [
@@ -112,25 +120,9 @@ async function main(): Promise<void> {
     });
 
     assert(run.networkCalls.length === 0, '零外呼（fetch 哨兵在场）');
-    // 【首轮验收：原断言是同义反复】它读的是 run.loop.persona.id，而
-    // copilot.agentId 由本脚本自己传入 —— 等于在验测试自己写下的值。
-    // 改为**经真 route 的 resolveContext**：body 里刻意传环节人格 'match'，
-    // 服务端仍须解析成前台。输入 ≠ 期望，才有鉴别力。
-    const resolved = resolveContextForTest({
-      context: {
-        route: `/admin/campaigns/${fxProject.id}`,
-        projectId: fxProject.id,
-        agentId: 'match',
-        stage: 'match',
-      },
-    });
-    assert(
-      resolved.agentId === FRONT_DESK_AGENT_ID && resolved.agentId !== 'match',
-      '🔑 客户端传环节人格，服务端仍解析为前台（本批根因的正面证明，输入≠期望）',
-    );
     assert(
       run.loop.persona.id === FRONT_DESK_AGENT_ID,
-      '本轮 loop 的受理人格也是前台',
+      '本轮 loop 的受理人格 = 上面解析出的那个（解析与执行串成一条链，非两段各跑各的）',
     );
     assert(
       run.toolNames.filter((n) => n === 'consult_specialist').length === 2,

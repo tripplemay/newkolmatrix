@@ -323,7 +323,14 @@ export async function runAgentLoop(
       };
       // F006：撞顶 → 服务端补一句如实说明（模型此刻已无开口机会）。
       // 回调失败不得打死会话，同 persona_switch 纪律。
-      if (event.steps.length >= currentBudget()) {
+      // 【R-1 修正】判据不能只看步数：自然收敛恰好用满时会误报"我没答完"
+      //（对抗复核实测 fired=1）。沿用 specialist-loop 已有的正确形态——
+      // 步数用满**且末步仍在要工具** = 真被截停；末步出文本 = 自然收敛。
+      const lastStep = event.steps[event.steps.length - 1];
+      const trulyTruncated =
+        event.steps.length >= currentBudget() &&
+        (lastStep?.toolCalls.length ?? 0) > 0;
+      if (trulyTruncated) {
         try {
           params.onBudgetExhausted?.({
             steps: event.steps.length,
@@ -350,6 +357,9 @@ export async function runAgentLoop(
         personaSwitches: track.switches,
         // M4.7 F006：本轮咨询了几个专家（只记数量，不记问题正文）
         consultCount: consultBudget.used,
+        // R-6：遥测与用户面用**同一个** trulyTruncated，不各算各的——
+        // 同一事实两套口径会让线上的"撞顶率"系统性偏高。
+        truncated: trulyTruncated,
         usage: {
           inputTokens: usage.inputTokens,
           outputTokens: usage.outputTokens,

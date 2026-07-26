@@ -13,6 +13,7 @@
 // abortSignal 驱动，测的是真超时路径。
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { MockLanguageModelV4 } from 'ai/test';
 import type { LanguageModelV4GenerateResult } from '@ai-sdk/provider';
 import { prisma } from '../../src/lib/db/prisma';
@@ -97,6 +98,18 @@ afterAll(async () => {
 });
 
 describe('F007 — 真超时闸（不是抛错支改名）', () => {
+  it('🔒 R-3：允许的咨询次数内连续挂死也撞不穿主闸', async () => {
+    // 对抗复核残留缺口 R-3：2 × 60s > 110s 时，两次连续挂死会先撞穿主 loop 闸，
+    // 前台照样说不出话——子闸等于白设。不等式必须成立。
+    const { MAX_CONSULTS_PER_TURN } = await import(
+      '../../src/lib/agent/registry'
+    );
+    expect(
+      MAX_CONSULTS_PER_TURN * SPECIALIST_TIMEOUT_MS,
+      `${MAX_CONSULTS_PER_TURN} 次 × ${SPECIALIST_TIMEOUT_MS}ms 必须 < 主闸 ${LOOP_TIMEOUT_MS}ms`,
+    ).toBeLessThan(LOOP_TIMEOUT_MS);
+  });
+
   it('常量在场且低于 route 的 maxDuration（我们的降级要先于外部兜底）', () => {
     expect(SPECIALIST_TIMEOUT_MS).toBeGreaterThan(0);
     expect(
@@ -203,6 +216,78 @@ describe('F006 — 撞顶时用户端拿得到「未答完 + 还差什么」', (
     );
   });
 
+  it('🔒 R-1：自然收敛恰好用满步数时**不得**误报「我没答完」', async () => {
+    // 对抗复核实测：判据只看步数时，末步出文本的自然收敛也会 fired=1 —— 用户看到
+    // 一句莫名其妙的"我没答完"。正确判据是"步数用满**且末步仍在要工具**"，
+    // specialist-loop 早就是这么写的，主 loop 当时没沿用。
+    const events: unknown[] = [];
+    const front = (await import('../../src/lib/agent/registry')).getPersona(
+      FRONT_DESK_AGENT_ID,
+    );
+    const script = Array.from({ length: front.maxSteps - 1 }, () => ({
+      toolCalls: [
+        {
+          toolName: 'propose_plan',
+          input: { title: 'x', items: [{ title: 'y', needsGate: false }] },
+        },
+      ],
+    }));
+    const run = await runScriptedLoop({
+      copilot: {
+        route: '/admin',
+        projectId: null,
+        env: 'default',
+        agentId: FRONT_DESK_AGENT_ID,
+      },
+      ctx: { ...ctx },
+      prompt: '恰好用满但自然收敛',
+      // 前 n-1 步调工具，末步出文本 → 步数恰好用满，但是自然收敛
+      script: [...script, { text: '答完了。' }],
+      onBudgetExhausted: () => events.push(1),
+    });
+    expect(run.steps, '前提：确实用满了预算').toBe(front.maxSteps);
+    expect(events, '自然收敛不该被当成"没答完"').toEqual([]);
+  });
+
+  it('🔒 R-6：遥测与用户面同口径（自然收敛用满时两边都不算撞顶）', async () => {
+    // 对抗复核残留缺口 R-6：用户面改严判据后，遥测仍是宽判据（只看步数）——
+    // 同一事实两个消费者口径分歧，线上按遥测算"撞顶率"会系统性偏高。
+    // 【本条是补上的】修完 R-6 时我一度没写断言，变异"遥测退回宽判据"全绿 =
+    // 等于没修（实测踩到）。
+    const events: unknown[] = [];
+    const front = (await import('../../src/lib/agent/registry')).getPersona(
+      FRONT_DESK_AGENT_ID,
+    );
+    const script = Array.from({ length: front.maxSteps - 1 }, () => ({
+      toolCalls: [
+        {
+          toolName: 'propose_plan',
+          input: { title: 'x', items: [{ title: 'y', needsGate: false }] },
+        },
+      ],
+    }));
+    const run = await runScriptedLoop({
+      copilot: {
+        route: '/admin',
+        projectId: null,
+        env: 'default',
+        agentId: FRONT_DESK_AGENT_ID,
+      },
+      ctx: { ...ctx },
+      prompt: '恰好用满但自然收敛',
+      script: [...script, { text: '答完了。' }],
+      onBudgetExhausted: () => events.push(1),
+    });
+    const tele = await run.loop.telemetry;
+    expect(run.steps, '前提：确实用满了预算').toBe(front.maxSteps);
+    expect(events, '用户面：自然收敛不告知').toEqual([]);
+    expect(
+      tele!.budgetHit,
+      '遥测必须与用户面同口径 —— 不然线上撞顶率系统性偏高',
+    ).toBe(false);
+    expect(tele!.budgetHitScope).toBe('none');
+  });
+
   it('未撞顶的会话不触发（不打扰正常动线）', async () => {
     const events: unknown[] = [];
     await runScriptedLoop({
@@ -218,5 +303,28 @@ describe('F006 — 撞顶时用户端拿得到「未答完 + 还差什么」', (
       onBudgetExhausted: () => events.push(1),
     });
     expect(events).toEqual([]);
+  });
+});
+
+describe('R-2 — 告知必须真的渲染到用户眼前（写进流 ≠ 看得见）', () => {
+  it('CopilotPanel 有 data-budget_notice 的渲染分支', () => {
+    // 对抗复核残留缺口 R-2：服务端写了、面板没有分支 → 告知到不了用户眼前，
+    // 论断②（用户端零告知）因此**并未闭合**。这条钉住渲染侧。
+    const src = readFileSync('src/components/copilot/CopilotPanel.tsx', 'utf8');
+    expect(src).toContain('BUDGET_NOTICE_PART');
+    expect(src).toContain("'data-budget_notice'");
+    expect(src, '要真的渲染出 notice 文本，不能只是接住事件').toContain(
+      'data-testid="budget-notice"',
+    );
+  });
+
+  it('route 写入的载荷字段与面板读取的字段同名（两侧对得上）', () => {
+    const route = readFileSync('src/app/api/agent/route.ts', 'utf8');
+    const panel = readFileSync(
+      'src/components/copilot/CopilotPanel.tsx',
+      'utf8',
+    );
+    expect(route, 'route 侧写 notice 字段').toMatch(/notice:\s*budgetExhaustedNotice/);
+    expect(panel, '面板侧读同一个字段').toMatch(/\{\s*notice\?:\s*string\s*\}/);
   });
 });

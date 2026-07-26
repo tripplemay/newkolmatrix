@@ -209,10 +209,14 @@ describe('C3 · 受理人格的真相源在哪一层', () => {
       e2e,
     );
     expect(ledger['C3fix.e2eCallsResolveContext']).toBe(true);
-    // ⑤ 残留观测 R-5：解析出的 context 没有回喂给同一轮 loop
-    //   （e2e 仍以自己手写的 copilot 驱动 runScriptedLoop，两段各自成立、未串成一条链）
+    // ⑤ R-5 回归钉：解析产物必须**回喂给同一轮 loop**——否则解析与执行是
+    //   两段各跑各的，中间那一环（谁真的受理了）仍然没被证明。
     ledger['C3fix.resolvedContextFedIntoLoop'] =
       /runScriptedLoop\(\{\s*copilot:\s*resolved/.test(e2e);
+    expect(
+      ledger['C3fix.resolvedContextFedIntoLoop'],
+      'resolveContext 的产物要直接驱动同一轮 loop，不能两段各跑各的',
+    ).toBe(true);
   });
 
   it('P4 该断言并非零信息：若装配层改用 stage 定人格，它会翻红（残余灵敏度）', () => {
@@ -391,7 +395,16 @@ describe('C2 · 前台撞顶的用户可见面', () => {
     }
   }, 60_000);
 
-  it('P7b 撞顶告知抵达 UI 了吗——渲染层覆盖面实录（残留缺口 R-2 的判据）', async () => {
+  /* ── P7b：fix_round2 后由「R-2 缺陷判据」转为「覆盖面不变式回归钉」 ────────
+     首轮形态断言的是「面板只认 persona_switch」（缺陷在场）。渲染分支补上后
+     该断言按预期不再成立。改成钉**不变式**而非钉这一个实例：
+       route 往流里写的每一种 data part，面板都必须有渲染分支。
+     这样下次再新增一种 data part 却忘了渲染分支时，同样会红——挡的是那一
+     **类**缺陷（"写进流 ≠ 用户看得见"），不是只挡 budget_notice 这一次。
+     如实说明上限：vitest 固定 environment:'node'（无 jsdom，见 vitest.config.ts），
+     故这里是源码级契约；"这条 part 真的进了 HTTP 响应体"由同组的
+     m47-adv-route-probe.test.ts 走真 route 行为核实，渲染像素由视觉基线兜。 */
+  it('P7b 覆盖面不变式：route 写进流的每一种 data part，面板都有渲染分支', async () => {
     const fs = await import('node:fs/promises');
     const panel = await fs.readFile(
       'src/components/copilot/CopilotPanel.tsx',
@@ -401,22 +414,33 @@ describe('C2 · 前台撞顶的用户可见面', () => {
     const written = [...routeSrc.matchAll(/type:\s*'(data-[^']+)'/g)].map(
       (m) => m[1],
     );
-    // 面板认得哪些 data part：只看它显式判等的常量
+    // 面板认得哪些 data part = 它显式判等的常量（`part.type === X` 的 X 的字面值）
     const rendered = [...panel.matchAll(/'(data-[^']+)'/g)].map((m) => m[1]);
+    const uncovered = written.filter((p) => !rendered.includes(p));
     ledger['C2fix.routeWritesDataParts'] = written;
     ledger['C2fix.panelRendersDataParts'] = rendered;
-    ledger['C2fix.dataPartsWrittenButNotRendered'] = written.filter(
-      (p) => !rendered.includes(p),
-    );
-    // 传输层已闭合：route 确实把撞顶告知写进了流
+    ledger['C2fix.dataPartsWrittenButNotRendered'] = uncovered;
+
+    // ① 不变式：写了就必须有人渲染（R-2 当初正是这一条不成立）
+    expect(uncovered, '写进流却没有渲染分支的 data part').toEqual([]);
+    // ② 撞顶告知确实两侧都在
     expect(written).toContain('data-budget_notice');
-    // 渲染层未闭合：面板只认 persona_switch，其余 data part 落到 `return null`
-    expect(rendered).toEqual(['data-persona_switch']);
+    expect(rendered).toContain('data-budget_notice');
+    // ③ 分支不能是空壳：必须真的把 notice 正文渲染出来，且带可定位的 testid
+    const branch = panel.slice(panel.indexOf('BUDGET_NOTICE_PART)'));
+    const body = branch.slice(0, branch.indexOf('PERSONA_SWITCH_PART'));
+    ledger['C2fix.budgetNoticeBranchRendersNotice'] = /\{notice\}/.test(body);
+    expect(body, '渲染分支必须输出 notice 正文，而不是只匹配 type').toMatch(
+      /\{notice\}/,
+    );
+    expect(body).toContain('data-testid="budget-notice"');
   });
 
-  it('P7c 撞顶判据的宽窄：自然收敛在恰好用满步数时是否误报（残留缺口 R-1）', async () => {
+  /* ── P7c：R-1 修复后转为回归钉，并顺带钉住"两个消费者口径要一致" ──────── */
+  it('P7c 自然收敛恰好用满步数 → 不误报「我没答完」（R-1 回归钉）', async () => {
     const sentinel = installNoNetworkSentinel();
     const events: BudgetEvent[] = [];
+    let telemetry: unknown = null;
     try {
       // 4 步调工具 + 第 5 步出文本 = **自然收敛**，答案是完整的，
       // 只是恰好把预算用满了。此时不该说"我没答完"。
@@ -434,14 +458,30 @@ describe('C2 · 前台撞顶的用户可见面', () => {
         ],
         onBudgetExhausted: (e) => events.push(e),
       });
+      telemetry = await run.loop.telemetry;
       ledger['C2fix.naturalConvergenceSteps'] = run.steps;
       ledger['C2fix.naturalConvergenceText'] = run.text;
       ledger['C2fix.naturalConvergenceNoticeFired'] = events.length;
-      // 只记录实测事实，不写成"这样才对"的断言——它是待修的缺口，
-      // 修好之后这里应当变成 0，那时该翻红的是报告而不是这条钉子。
+      ledger['C2fix.naturalConvergenceTelemetry'] = telemetry;
+
+      // 前置：确实是"恰好用满 + 自然收敛"这个边界，不是没跑到上限
       expect(run.steps).toBe(DEFAULT_MAX_STEPS);
       expect(run.text).not.toBe('');
+      // 🔒 R-1 契约：答案完整时绝不能对用户说"我没答完"
+      expect(events, '自然收敛不得触发撞顶告知').toEqual([]);
       expect(run.networkCalls).toEqual([]);
+
+      // ── 残留缺口 R-6 的判据：同一事实的两个消费者口径是否一致 ──
+      // 用户面已改用严判据（步数用满**且末步仍在要工具**），
+      // 但 loop-telemetry 的 budgetHit / budgetHitScope 仍是宽判据（只看步数）。
+      const t = telemetry as {
+        budgetHit?: boolean;
+        budgetHitScope?: string;
+      } | null;
+      ledger['C2fix.telemetrySaysBudgetHit'] = t?.budgetHit;
+      ledger['C2fix.telemetrySaysScope'] = t?.budgetHitScope;
+      ledger['C2fix.userFacingVsTelemetryDisagree'] =
+        events.length === 0 && t?.budgetHit === true;
     } finally {
       sentinel.restore();
     }
@@ -601,6 +641,9 @@ describe('C1 · 子 loop 超时闸', () => {
      `resilientFetch` 对 init 做的是浅拷贝（`{...init, keepalive, body}`），
      signal 若在任何一环被丢掉，代码里有 abortSignal 也照样等 undici 的 301s。
      故这里用**本地**永不响应的服务器打真链路（不出网，非外呼）。 */
+  // 【注意】本条会初始化 gateway 单例（`_gateway` 模块级缓存）并指向本地死端口。
+  // 本文件后续用例一律走注入 model，不碰 chatModel()；若将来在本条之后新增
+  // 需要真 gateway 的用例，请把它排在本条之前，或另起文件。
   it('P9c 闸真的到达 socket：真 provider 链路上 signal 未被 resilientFetch 丢掉', async () => {
     const http = await import('node:http');
     const { generateText } = await import('ai');

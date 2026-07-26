@@ -82,6 +82,14 @@ function deriveContext(
 
 /** 流内人格切换事件的 part 类型（与 route.ts 写入端同源；导出供回归断言钉死）。 */
 export const PERSONA_SWITCH_PART = 'data-persona_switch';
+/**
+ * 撞顶告知（M4.7 fix_round1 / F006）。服务端在 loop 用满预算时写这条 data part——
+ * 那一刻模型已无开口机会，不补这一句用户拿到的就是**完全空白的回复**。
+ *
+ * 【为什么单独列出来】首轮对抗复核残留缺口 R-2：服务端写了、面板没有渲染分支，
+ * 于是告知**到不了用户眼前**——写进流不等于用户看得见。
+ */
+export const BUDGET_NOTICE_PART = 'data-budget_notice';
 
 /**
  * 从消息流里解析**当值人格**（P9）：取最后一次 persona_switch 事件的 to。
@@ -123,8 +131,21 @@ function MessageParts({
           state?: string;
           output?: unknown;
           input?: unknown;
-          data?: PersonaSwitchData;
+          data?: PersonaSwitchData & { notice?: string };
         };
+        // M4.7 F006：撞顶告知——服务端补的那一句必须真的渲染出来（R-2）
+        if (part.type === BUDGET_NOTICE_PART) {
+          const notice = (part.data as { notice?: string } | undefined)?.notice;
+          return notice ? (
+            <div
+              key={i}
+              data-testid="budget-notice"
+              className="my-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+            >
+              {notice}
+            </div>
+          ) : null;
+        }
         // M4.5 F006：人格切换事件（流内 data part）→ 接手标注
         if (part.type === PERSONA_SWITCH_PART) {
           return <PersonaSwitchNote key={i} data={part.data ?? {}} />;

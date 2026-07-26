@@ -87,12 +87,17 @@ export const SPECIALIST_MAX_STEPS = 3;
  * （对抗复核同时更正了两处：自托管 standalone 下 `maxDuration=120` 是死配置、
  *   不构成平台截断；且该暴露**不是子 loop 专属**，主 loop 同样无自限。）
  */
-export const SPECIALIST_TIMEOUT_MS = 60_000;
+export const SPECIALIST_TIMEOUT_MS = 45_000;
 
 /**
  * 主 loop 的墙钟上限（M4.7 fix_round1 / F007 连带）。
  * 取值低于 `route.ts` 的 `maxDuration = 120`，让**我们自己的降级路径**先于任何
  * 外部兜底生效——否则挂死时用户拿到的是连接被掐断，不是一句如实说明。
+ *
+ * 【与子闸的关系（R-3）】必须满足
+ * `MAX_CONSULTS_PER_TURN × SPECIALIST_TIMEOUT_MS < LOOP_TIMEOUT_MS`——
+ * 否则允许的咨询次数内连续挂死会先撞穿主闸，前台照样说不出话，
+ * 等于子闸白设。该不等式由 timeout-and-budget-notice.test.ts 钉死。
  */
 export const LOOP_TIMEOUT_MS = 110_000;
 

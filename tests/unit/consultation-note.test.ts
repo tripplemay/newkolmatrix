@@ -75,3 +75,27 @@ describe('失败态不编造', () => {
     );
   });
 });
+
+describe('M4.7 fix_round1 补项', () => {
+  it('痕迹展示「问了什么」（只说咨询了谁 = 用户无从判断问对没问对）', () => {
+    expect(SRC).toContain('output.question');
+    expect(SRC).toContain('问的是：');
+  });
+
+  it('专家展示名**与 registry 同源**，组件内不得自带映射表', () => {
+    // 首轮验收：组件自带 AGENT_LABEL 映射 → registry 改名它不跟着变，双份说法。
+    expect(SRC, '不得再硬编码人格名映射').not.toMatch(/AGENT_LABEL\s*[:=]/);
+    expect(SRC, '应从 registry 取名').toContain('getPersona');
+  });
+
+  it('PersonaSwitchNote 语义已随单一前台更新（handoff ≠ 面板换人）', () => {
+    const note = readFileSync(
+      'src/components/copilot/PersonaSwitchNote.tsx',
+      'utf8',
+    );
+    expect(note).toContain('对话身份恒为前台');
+    expect(note, '要说清 consult 与 handoff 两条路径语义不同').toContain(
+      'consult = 问出去',
+    );
+  });
+});

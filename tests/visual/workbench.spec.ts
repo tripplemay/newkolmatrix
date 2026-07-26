@@ -35,6 +35,11 @@ test('project env=brief visual baseline', async ({ page }) => {
   await shot(page, 'project-brief.png');
 });
 
+// 【本机限制，如实登记（M4.7 fix_round1）】本用例断言的是**CI 空库下的空态文案**。
+// 本机 dev 库有真实种子数据（项目 xg 有 3 条 MatchPlan），页面显示数据态 → 本机
+// 必然超时红，darwin 基线也因此**无法在本机重生**。这不是缺陷，是数据态差异；
+// CI（每次 migrate 后空库 + seed:projects）才是本用例的权威环境。
+// 不为了让本机绿去删真实种子数据——那是拿产品数据迁就测试。
 test('project env=match visual baseline', async ({ page }) => {
   await page.goto('/admin/campaigns/xg?env=match', {
     waitUntil: 'domcontentloaded',

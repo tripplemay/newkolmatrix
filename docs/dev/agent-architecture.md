@@ -6,7 +6,7 @@
 
 ## 0. 一句话与目录
 
-自然语言 → Agent 运行时 streamText loop → 唯一执行入口 executeTool（zod 校验 + class 门控）→ 工具产出经 generative canvas 渲染；多个专家人格共享单一 `/api/agent`，按 route 切换 + 一次可视化 handoff；对外动作被服务端强制拦在「人确认」前。
+自然语言 → Agent 运行时 streamText loop → 唯一执行入口 executeTool（zod 校验 + class 门控）→ 工具产出经 generative canvas 渲染；多个专家人格共享单一 `/api/agent`；**M4.7 F003 起受理人格恒为前台**（route 不再决定谁来回答），专家降为内部能力（`consult_specialist` 起受限子 loop），协作以痕迹呈现；对外动作被服务端强制拦在「人确认」前。
 
 - §1 四柱架构
 - §2 多 Agent 编排框架（⑥ 编队运行时）
@@ -124,7 +124,7 @@ Agent 驱动产品的四根柱子。每柱一个明确的唯一入口，禁止�
 
 ### 最小跑通验证（框架验收证据，非填内容）
 
-`npm run orch:smoke`：≥2 真实人格按 route 切换（工具子集不同）+ 一次 handoff（信封创建→落表→接收方按 id 重读）+ orchestrator 路由到某项目某环节 + 聚合原样不改写。等同 hello-agent 证明单 agent 闭环。
+`npm run orch:smoke`：≥2 真实人格按 route 切换（工具子集不同；**注**：M4.7 F003 后 `defaultAgentForRoute` 仅此 smoke 脚本消费，对话路径已不再用它）+ 一次 handoff（信封创建→落表→接收方按 id 重读）+ orchestrator 路由到某项目某环节 + 聚合原样不改写。等同 hello-agent 证明单 agent 闭环。
 
 ---
 

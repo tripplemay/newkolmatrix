@@ -51,6 +51,7 @@ export interface LoopTelemetryPayload {
   personaSwitches: number;
   /** 本轮咨询了几个专家（M4.7 F006）。只记数量，不记问题正文。 */
   consultCount?: number;
+  budgetHitScope: 'front' | 'none';
   usage: LoopTelemetryUsage;
 }
 
@@ -64,6 +65,13 @@ export interface LoopTelemetryInput {
   personaSwitches?: number;
   /** M4.7 F006：本轮咨询专家次数（只记数量）。 */
   consultCount?: number;
+  /**
+   * M4.7 fix_round1：撞顶发生在哪一层。
+   * 'front' = 前台自己用满步数（用户端会收到 budget_notice）；
+   * 'none'  = 未撞顶。子 loop 的撞顶记在各自 consultation 产物的 budgetHit 上，
+   * 不混进会话级遥测——两者口径不同，混在一起线上无法归因。
+   */
+  budgetHitScope?: 'front' | 'none';
   usage?: {
     inputTokens?: number;
     outputTokens?: number;
@@ -98,6 +106,7 @@ export function buildLoopTelemetryPayload(
     toolCallCount: input.toolNames.length,
     personaSwitches: input.personaSwitches ?? 0,
     consultCount: input.consultCount ?? 0,
+    budgetHitScope: input.steps >= input.maxSteps ? 'front' : 'none',
     usage: { inputTokens, outputTokens, totalTokens },
   };
 }

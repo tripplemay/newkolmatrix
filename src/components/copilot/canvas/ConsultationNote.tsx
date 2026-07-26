@@ -13,10 +13,13 @@
 'use client';
 
 import { useState } from 'react';
+import { getPersona } from 'lib/agent/registry';
 
 export interface ConsultationOutput {
   type: 'consultation';
   ok: boolean;
+  /** 前台问出去的原话——痕迹要说清「问了什么」 */
+  question?: string;
   failureReason?: string;
   agentId: string;
   answer: string;
@@ -27,15 +30,20 @@ export interface ConsultationOutput {
   insufficientReasons: string[];
 }
 
-/** 专家 id → 展示名。文案与 registry 同源由调用方保证；此处只做兜底。 */
-const AGENT_LABEL: Record<string, string> = {
-  strategy: '策略专家',
-  match: '匹配专家',
-  reach: '触达专家',
-  delivery: '交付专家',
-  insight: '洞察专家',
-  compliance: '合规专家',
-};
+/**
+ * 专家展示名与职责**与 registry 同源**（M4.7 fix_round1 / F008）。
+ *
+ * 【为什么不硬编码】首轮验收指出本组件自带一份 AGENT_LABEL 映射——registry 改了
+ * 名字这里不会跟着变，是典型的双份说法。仓内一贯纪律：人格文案单一真相源在
+ * registry，前端不硬编码（同 personaBoundary 的用法）。
+ */
+function agentLabel(agentId: string): string {
+  try {
+    return getPersona(agentId as never).name;
+  } catch {
+    return agentId; // 未知 id 就照实显示，不编一个好看的名字
+  }
+}
 
 export default function ConsultationNote({
   output,
@@ -43,7 +51,7 @@ export default function ConsultationNote({
   output: ConsultationOutput;
 }) {
   const [open, setOpen] = useState(false);
-  const who = AGENT_LABEL[output.agentId] ?? output.agentId;
+  const who = agentLabel(output.agentId);
 
   return (
     <div className="my-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5">
@@ -86,6 +94,7 @@ export default function ConsultationNote({
               没拿到结果：{output.failureReason ?? '未知原因'}
             </p>
           )}
+          {output.question && <p>问的是：{output.question}</p>}
           {output.toolNames.length > 0 && (
             <p>读取：{output.toolNames.join('、')}</p>
           )}

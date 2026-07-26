@@ -932,10 +932,10 @@ export interface ToolContext {
 
 `POST /api/agent`（`runtime='nodejs'`，`maxDuration=120` ✅ M4.5 F002）→ `streamText` 驱动「模型 ↔ 工具」多轮 loop（装配已抽到 `lib/agent/loop.ts`，带 model/ctx 注入缝供 mock-model 测试床驱动同款 loop，✅ M4.5 F009）：
 
-1. **上下文解析（服务端权威）**：请求体 `{ prompt | messages, context?: { route, projectId?, env?, agentId? } }` → `resolveContext()` 在**服务端**重新解析并校验，`agentId` 显式指定须合法、否则由 `defaultAgentForRoute(route)` 推导、最后回落 `orchestrator`——**不信任客户端指定的工具名单**。
+1. **上下文解析（服务端权威）**：请求体 `{ prompt | messages, context?: { route, projectId?, env?, agentId? } }` → `resolveContext()` 在**服务端**重新解析并校验。**M4.7 F003 起 `agentId` 恒为前台**（`FRONT_DESK_AGENT_ID`）——客户端传来的 `agentId` 一律**不采信**（它本就只是前端从路径推的，不是权限凭据）；页面所处环节改由 `stage` 承载，只作为线索进 system、不构成权限。原「显式指定 → `defaultAgentForRoute` 推导 → 回落」的解析链已删除。
 2. **人格选取与工具收窄**：`selectPersona(copilot)` → `personaToolSubset(persona)` → `toAiSdkTools(toolNames, ctx)`。不同人格看到不同工具。
 3. **system prompt 装配**（运行时注入，非硬编码在页面）——见下「五层装配管线」。
-4. **执行与拦截**：一切工具调用经**唯一入口** `executeTool()`；`internal` 直接执行；`outbound` 无令牌 → §9 拦截路径（`stopWhen: stepCountIs(persona.maxSteps)` 限制 loop 步数，见 §8.3.2）。
+4. **执行与拦截**：一切工具调用经**唯一入口** `executeTool()`；`internal` 直接执行；`outbound` 无令牌 → §9 拦截路径（步数上限见 §8.3.2——**M4.7 F006 起主 loop 的 `stopWhen` 是谓词**，上限现算自链上最大档位，不再是静态 `stepCountIs`）。
 5. **流式回传**：`createUIMessageStream` 包一层（写 `persona_switch` data part，M4.5 F006）→ `createUIMessageStreamResponse()`，token + 工具结果边收边传（NFR-P2）；人格身份经响应头 `X-Agent-Id`（= **起始**人格；循环内接力后的当值人格走流内 `data-persona_switch` 事件，见 §8.4）/ `X-Agent-Tools` 暴露。
 
 #### 8.3.2 步数预算与 loop 遥测（✅ M4.5 F001/F002）
@@ -1065,10 +1065,10 @@ export function renderToolResult(toolName: string, output: unknown);  // 未注�
 
 ### 8.7 编排 Agent 与「今天雷达」聚合
 
-编排 Agent 只做两件事（FR-9.6）：**待办汇总** + **环节调度**。
+前台（编排 Agent，M4.7 F003 起为唯一受理者）做三件事：**受理** + **咨询专家** + **待办汇总**。
 
 - **待办汇总（as-built）**：`orchestrator.aggregatePending(ctx)` 查 `PendingAction where status='pending'`（按 `createdAt desc`），**原样返回 `{id, kind, toolName, status, harm, createdAt}`，不改写 `harm`、不软化任何专家/闸门结论**。
-- **不改写铁律的双保险**（FR-9.6 + FR-10.8）：① **数据层**——聚合接口只做 SELECT 透传，签名中**没有任何改写/过滤/摘要参数**；② **prompt 层**——前台（orchestrator）的 `isolation` 声明「不亲自执行环节工作；专家的结论可转述不可改写」（**M4.7 F002 起**：前台是唯一对用户说话的人，「不改写」这一层因此比 M4.5 时更吃重）。
+- **不改写铁律的双保险**（FR-9.6 + FR-10.8）：① **数据层**——聚合接口只做 SELECT 透传，签名中**没有任何改写/过滤/摘要参数**；② **prompt 层**——前台（orchestrator）的 `isolation` 声明「不亲自执行环节工作；专家的结论可转述不可改写」（**M4.7 F002 起**：前台是唯一对用户说话的人，「不改写」这一层因此比 M4.5 时更吃重）。文案以 `registry.ts` 为单一真相源，本节不再逐字复述——首轮验收实测过一次「文档以『代码保证』之名引用了代码里已不存在的字符串」。
 - **目标态**：`ask` = 派生计算（非手工打标），来源三类：① `PendingAction(status='pending')` 的 outbound 待确认（✅已建）② 合规 `block` 待补件（演进 M2）③ 健康度/阻塞报警（演进 M1）。KPI「待你确认」计数与卡数**必须同源**（FR-8.1.3）——经同一取数函数，不得各查各的。
 - **环节调度（as-built）**：`stage-routing.ts` 提供 client-safe 纯函数 `routeToStage()` / `STAGE_AGENT`（brief→strategy, match→match, reach→reach, delivery→delivery, insight→insight）/ `parseOrchestratorDirective()`（`enter:` / `env:` / `pick:`）。抽为独立 client-safe 模块是**刻意的**——避免页面 client bundle 拉入 prisma。
 - 编排不持有对话之外的写能力；跨环节跳转只产动作卡。

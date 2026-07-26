@@ -74,6 +74,12 @@ export interface ConsultSpecialistOutput {
   failureReason?: string;
   /** 实际作答的专家。 */
   agentId: string;
+  /**
+   * 前台问出去的原话（M4.7 fix_round1 / F008）。
+   * 痕迹要展示「问了什么」——只说"咨询了某专家"而不说问了什么，
+   * 用户无从判断这次咨询是否问对了地方。
+   */
+  question: string;
   /** 专家的结论正文（前台可组织语言转述，但不得改写其中的结论性内容）。 */
   answer: string;
   /** 专家实际调用的工具序列（可解释性：让人看得见结论是从哪读出来的）。 */
@@ -131,6 +137,7 @@ async function run(
       ok: false,
       failureReason: reason,
       agentId: input.targetAgent,
+      question: input.question,
       answer: '',
       toolNames: [],
       steps: 0,
@@ -146,6 +153,7 @@ async function run(
     type: 'consultation',
     ok: true,
     agentId: result.agentId,
+    question: input.question,
     answer: result.text,
     toolNames: result.toolNames,
     steps: result.steps,

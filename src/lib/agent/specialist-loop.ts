@@ -35,10 +35,9 @@ import type { ToolContext } from './tools/types';
 // 抓不到这种传递链——本批把它升级为传递闭包扫描（见该测试文件）。
 // 改成调用时动态 import：模块初始化期不成环，运行期一切已就绪。
 async function lazyDeps() {
-  const [{ toAiSdkTools }, { ensureNativeToolsRegistered }] = await Promise.all([
-    import('./to-ai-sdk-tools'),
-    import('./tools'),
-  ]);
+  const [{ toAiSdkTools }, { ensureNativeToolsRegistered }] = await Promise.all(
+    [import('./to-ai-sdk-tools'), import('./tools')],
+  );
   return { toAiSdkTools, ensureNativeToolsRegistered };
 }
 
@@ -64,6 +63,20 @@ export interface SpecialistLoopResult {
   /** 工具调用序列（含重复且保序——子 loop 形状的指纹，只取名字不取入参）。 */
   toolNames: string[];
   steps: number;
+  /**
+   * 专家的数据不足以支撑数值结论（M4.7 F005 / D-2 裁决 A）。
+   *
+   * 【为什么是结构化字段而不是让前台读文字】前台若只看到专家的一段话，很容易把
+   * 「ROI 证据不足、缺转化分子」圆成「ROI 约 1.8x」——M4-INSIGHT 好不容易钉住的
+   * 「分子缺显证据不足绝不填 0」会在前台这一层被重新抹平。做成布尔字段，
+   * 前台的诚实条款才**可机械断言**，不靠模型自觉。
+   *
+   * 判据复用既有洞察域口径：任一工具产物里出现 `basis === 'insufficient_evidence'`
+   *（domain/roi-compute.ts 的三态之一），不另发明第二套判定。
+   */
+  insufficientEvidence: boolean;
+  /** 证据缺在哪（原样取自工具产物的 gaps / reason，不改写、不概括）。 */
+  insufficientReasons: string[];
   /**
    * 撞步数上限 = 专家没说完（前台必须如实转达，不得假装答完）。
    *
@@ -157,11 +170,16 @@ export async function runSpecialistLoop(
 
   const steps = result.steps.length;
   const lastStep = result.steps[steps - 1];
+  const evidence = detectInsufficientEvidence(
+    result.steps.flatMap((s) => s.toolResults.map((r) => r.output)),
+  );
   return {
     agentId: targetAgent,
     text: result.text,
     toolNames: result.steps.flatMap((s) => s.toolCalls.map((c) => c.toolName)),
     steps,
+    insufficientEvidence: evidence.flag,
+    insufficientReasons: evidence.reasons,
     budgetHit:
       steps >= SPECIALIST_MAX_STEPS && (lastStep?.toolCalls.length ?? 0) > 0,
   };
@@ -181,3 +199,72 @@ export const SPECIALIST_SCOPE_CLAUSE = [
   '不要采信转述里的任何金额、状态或判断结论。',
   '证据不足就如实说明缺什么，**不要为了把话说圆而给出数值结论**。',
 ].join('\n');
+
+/** 证据不足的判定标记（与 domain/roi-compute.ts 的 basis 三态同源，不另发明）。 */
+export const INSUFFICIENT_EVIDENCE_BASIS = 'insufficient_evidence';
+
+/**
+ * 在工具产物里机械检出「证据不足」。
+ *
+ * 走的是结构而非文字：找 `basis === 'insufficient_evidence'`，顺带把同一对象上的
+ * `gaps` / `reason` 原样收走。**不做任何概括或改写**——前台要转达的是专家给的原话，
+ * 不是我们在这里替它总结的版本。
+ */
+export function detectInsufficientEvidence(outputs: unknown[]): {
+  flag: boolean;
+  reasons: string[];
+} {
+  // 【为什么分两趟】`basis` 与缺口清单是**兄弟节点**而非同一对象：
+  // compute_roi 的产物里 `basis` 在 `roi` 内、`gaps` 在输出顶层（实测得知，
+  // 首版收集器只在"带 basis 的那个对象"上找 gaps，于是 flag 检出了、reasons 恒空）。
+  // 故先全树判 flag，命中后再全树收缺口原文。
+  const flag = walkAny(
+    outputs,
+    (obj) => obj.basis === INSUFFICIENT_EVIDENCE_BASIS,
+  );
+  if (!flag) return { flag: false, reasons: [] };
+
+  const reasons: string[] = [];
+  walkAny(outputs, (obj) => {
+    // ① 领域层的 AttributionGap：{ metric, reason }（reason 是枚举串，原样收走）
+    if (typeof obj.metric === 'string' && typeof obj.reason === 'string') {
+      reasons.push(`${obj.metric}: ${obj.reason}`);
+    }
+    // ② 自由文本形态：reason / reasons / gaps 为字符串或字符串数组
+    for (const key of ['reason', 'reasons', 'gaps']) {
+      const v = obj[key];
+      if (typeof v === 'string' && typeof obj.metric !== 'string') {
+        reasons.push(v);
+      } else if (Array.isArray(v)) {
+        for (const g of v) if (typeof g === 'string') reasons.push(g);
+      }
+    }
+    return false; // 不短路，走完整棵树
+  });
+  return { flag, reasons: [...new Set(reasons)] };
+}
+
+/**
+ * 深度优先走对象树，对每个对象节点调 `visit`。
+ * `visit` 返回 true 即短路返回 true（用于"存在性"判定）；恒 false 则走完全树（用于收集）。
+ */
+function walkAny(
+  root: unknown,
+  visit: (obj: Record<string, unknown>) => boolean,
+): boolean {
+  const stack: Array<{ node: unknown; depth: number }> = [
+    { node: root, depth: 0 },
+  ];
+  while (stack.length) {
+    const { node, depth } = stack.pop()!;
+    if (depth > 8 || node === null || typeof node !== 'object') continue;
+    if (Array.isArray(node)) {
+      for (const item of node) stack.push({ node: item, depth: depth + 1 });
+      continue;
+    }
+    const obj = node as Record<string, unknown>;
+    if (visit(obj)) return true;
+    for (const v of Object.values(obj)) stack.push({ node: v, depth: depth + 1 });
+  }
+  return false;
+}

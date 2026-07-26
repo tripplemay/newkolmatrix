@@ -54,6 +54,13 @@ export interface ConsultSpecialistOutput {
   steps: number;
   /** 专家没说完（撞了步数上限）——前台必须如实转达，不得假装答完。 */
   budgetHit: boolean;
+  /**
+   * 专家的数据不足以支撑数值结论（M4.7 F005）。为真时前台**不得给出任何数值结论**
+   *（registry 的 FRONT_DESK_HONESTY_CLAUSE 明写，e2e 机械断言）。
+   */
+  insufficientEvidence: boolean;
+  /** 证据缺在哪——原样透传专家给的原话，不概括不改写。 */
+  insufficientReasons: string[];
 }
 
 async function run(
@@ -75,6 +82,8 @@ async function run(
     toolNames: result.toolNames,
     steps: result.steps,
     budgetHit: result.budgetHit,
+    insufficientEvidence: result.insufficientEvidence,
+    insufficientReasons: result.insufficientReasons,
   };
 }
 

@@ -42,7 +42,7 @@
       "title": "诚实透传：专家结论不得被前台圆掉",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "D-2 裁决 A：专家结果原样透传。证据不足做成结构化字段而非一句话，使其可机械断言。",
       "acceptance": "专家返回结构化结果含 `insufficientEvidence: boolean` + `reason`（缺证据时必为 true，复用既有 insight 域『分子缺显证据不足绝不填 0』口径，三处复用纪律延续）；前台 system 含硬条款「该字段为真时不得给出任何数值结论」——**文案锚点用正向精确匹配钉死**（M4.6 教训：黑名单式否定断言不可穷尽，两种编造形态实测绕过）；前台不得改写专家结论性字段（数值 / 证据充分性 / 状态）；e2e 链上实证：专家返回 `insufficientEvidence=true` → 前台输出**不含数值结论**（机械断言，非人读）；变异 ≥3 条且须含「作者没想到的绕过路径」：把字段改 false / 删前台条款 / 前台用近义表述规避锚点 → 均须翻红"
     },

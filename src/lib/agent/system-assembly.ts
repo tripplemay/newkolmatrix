@@ -12,7 +12,12 @@
 //
 // 本模块只依赖 `tools/registry`（低层注册表，无副作用、无反向依赖），不碰装配入口。
 
-import { NO_TOOL_CLAUSE, type AgentPersona } from './registry';
+import {
+  FRONT_DESK_AGENT_ID,
+  FRONT_DESK_HONESTY_CLAUSE,
+  NO_TOOL_CLAUSE,
+  type AgentPersona,
+} from './registry';
 import { getTool } from './tools/registry';
 
 /**
@@ -42,6 +47,8 @@ export function buildLoopSystem(
       ? `\n\n你可调用的工具（需要时主动调用，基于返回的真实数据作答）：\n${toolLines.join(
           '\n',
         )}`
-      : NO_TOOL_CLAUSE)
+      : NO_TOOL_CLAUSE) +
+    // M4.7 F005：前台是唯一对用户说话的人，转述纪律必须挂在它身上。
+    (persona.id === FRONT_DESK_AGENT_ID ? FRONT_DESK_HONESTY_CLAUSE : '')
   );
 }

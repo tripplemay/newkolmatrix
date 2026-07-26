@@ -293,6 +293,23 @@ export const ALL_AGENT_IDS = PERSONA_SEED.map((p) => p.id);
  */
 export const FRONT_DESK_AGENT_ID: AgentId = 'orchestrator';
 
+/**
+ * 前台专属的诚实条款（M4.7 F005 / D-2 裁决 A）。
+ *
+ * 【它防的是什么】专家返回「ROI 证据不足，缺转化分子」，前台在综合成一段话时
+ * 很可能圆成「ROI 大约 1.8x」——M4-INSIGHT 钉住的「分子缺显证据不足绝不填 0」
+ * 会在前台这一层被重新抹平。单一前台之后，用户只听得见前台的声音，这一层一旦
+ * 松了，下面所有的诚实都白做。
+ */
+export const FRONT_DESK_HONESTY_CLAUSE = [
+  '',
+  '',
+  '【转述纪律】专家的结论你可以组织语言，但**不得改写其中的数值、状态与证据充分性判断**。',
+  '专家说证据不足（insufficientEvidence 为真），你就照实说证据不足并转达缺什么——',
+  '**此时不得给出任何数值结论**，哪怕是"大致""约""估计"。',
+  '专家没答完（budgetHit 为真），你要说他没答完，不要把半截结论说成完整答案。',
+].join('\n');
+
 export function getPersona(id: AgentId): AgentPersona {
   return PERSONAS[id];
 }

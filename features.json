@@ -87,8 +87,8 @@
       "title": "agentloop:e2e + 文档翻牌 + doc-freshness 扩展",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
-      "description": "e2e 全链 + architecture/agent-architecture 翻牌 + doc-freshness 断言随新工具扩展 + 批末新鲜度复核。【首轮 PARTIAL → fixing：见 progress.json evaluator_feedback.problems 三条（e2e 清理段失败路径崩溃 / SHARE_CREATED 留痕处置登记 / 4 处 as-built 陈述未翻牌 + doc-freshness 覆盖面）】",
+      "status": "completed",
+      "description": "e2e 全链 + architecture/agent-architecture 翻牌 + doc-freshness 断言随新工具扩展 + 批末新鲜度复核。【首轮 PARTIAL → fix_round1 已修三条：① e2e 清理段每步 cleanupStep 包裹 + pendingIds 先过滤后入清单 + ShareLink 改按 id 基线差集清；② SHARE_CREATED 留痕处置写定 spec §9（留不删 + 跑完报账）；③ 4 处 as-built 陈述翻牌 + doc-freshness 覆盖 agent-architecture.md + 新增 e2e 清理段卫生回归钉。9 条变异全部翻红证断言活着】",
       "acceptance": "agentloop:e2e 脚本（npm run agentloop:e2e）：mock-model 链上 遥测落行→portfolio 追问→propose_plan 计划留痕→handoff 接力（子集切换负向断言）→批量 pending 备好（副作用零发生）→逐项 confirm+execute→遥测含 personaSwitches；零外呼零真实副作用断言；architecture 翻牌（§8 步数预算/遥测/接力段 + §9.2 工具表新增工具行——doc-freshness 计数断言将强制 + §8.6 名册 orchestrator/insight/compliance 行）+ agent-architecture M4.5 扩容段 + doc-freshness 测试扩展（新工具/新 maxSteps 字段入断言面）；批末新鲜度复核（grep 演进标记/陈旧计数）；lint+tsc+test:unit+test:visual 绿"
     },
     {

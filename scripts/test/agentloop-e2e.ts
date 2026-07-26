@@ -37,6 +37,33 @@ function assert(cond: boolean, msg: string): void {
   console.log(`  ✓ ${msg}`);
 }
 
+/**
+ * 清理步骤包装：吞掉自身异常并喊出来，绝不向外抛。
+ *
+ * 【为什么每步都要独立 try/catch】清理段跑在 finally 里。它一抛，两件事同时发生：
+ * ① 主流程的首因（`ASSERT FAIL: xxx` 原文）被这个二次抛错覆盖，红灯指向错误的地方；
+ * ② 后续清理步骤全部被跳过 → dev 库留下残留 → 本机含 feed/雷达的视觉基线被打红，
+ *    下一个隔离 evaluator 会把它当成产品回归（同 patterns/testing-env-patterns.md §9
+ *    记的 M3-A「today feed 基线污染误判」族）。
+ * 而 e2e 失败在 fixing 轮里是常态——那正是清理最需要生效的时刻。
+ *
+ * 来源：M4.5 首轮验收 F010 PARTIAL 缺陷 ①（对抗复核 UPHELD）。
+ */
+async function cleanupStep(
+  label: string,
+  fn: () => Promise<unknown>,
+): Promise<void> {
+  try {
+    await fn();
+  } catch (err) {
+    console.error(
+      `  ⚠ 清理步骤失败（不中断后续清理）：${label} — ${
+        err instanceof Error ? err.message : err
+      }`,
+    );
+  }
+}
+
 /** 逐项闸门传输（与两个 route handler 同一服务层实现；无批量端点可用，也不该有）。 */
 function gatePost(ctx: ToolContext): BatchPost {
   return async (url, body) => {
@@ -92,6 +119,17 @@ async function main(): Promise<void> {
   const createdLogs: string[] = [];
   const projectsBefore = await prisma.project.count({ where: { tenantId } });
   const shareBefore = await prisma.shareLink.count({ where: { tenantId } });
+  // 跑前 ShareLink id 基线 —— 清理段按「差集」删，不依赖 gateLogId / projectId。
+  // 【为什么不能只靠那两把键】本批 e2e 备的是 `scope='quarterly'` 分享，projectId 恒 null；
+  // 而闸门红线一旦回归（outbound 直连执行），链接也不带 gateLogId —— 两把键同时落空，
+  // 恰好在最该清干净的失败路径上漏掉真实产物。差集是唯一不受被测代码行为影响的键。
+  const shareIdsBefore = (
+    await prisma.shareLink.findMany({
+      where: { tenantId },
+      select: { id: true },
+    })
+  ).map((r) => r.id);
+  const runStartedAt = new Date();
   const markerBefore = await prisma.operationLog.count({
     where: { tenantId, summary: { contains: SHARE_CREATED_MARKER } },
   });
@@ -256,12 +294,20 @@ async function main(): Promise<void> {
     });
     assert(run2.networkCalls.length === 0, '洞察会话零外呼');
 
-    const pendingIds = run2.toolOutputs.map(
-      (o) => (o.output as { pendingActionId?: string }).pendingActionId!,
+    const rawPendingIds = run2.toolOutputs.map(
+      (o) => (o.output as { pendingActionId?: string }).pendingActionId,
+    );
+    // 【先过滤再入清理清单】闸门红线一旦回归（outbound 不再返回 pending 信封），
+    // pendingActionId 就是 undefined。若把 undefined 塞进 createdPA，finally 首句
+    // deleteMany({ gateLogId: { in: [undefined] } }) 会被 Prisma 拒绝
+    //（Can not use undefined value within array）→ 清理段中断 + 盖掉下面这条断言的原文。
+    // 这正是这条 e2e 最该抓住的场景，不能在抓到的同时把自己炸掉。
+    const pendingIds = rawPendingIds.filter(
+      (id): id is string => typeof id === 'string' && id.length > 0,
     );
     createdPA.push(...pendingIds);
     assert(
-      pendingIds.length === 2 && pendingIds.every(Boolean),
+      rawPendingIds.length === 2 && pendingIds.length === 2,
       '2 件都落 pending',
     );
     assert(
@@ -316,24 +362,61 @@ async function main(): Promise<void> {
 
     console.log('[agentloop-e2e] ✅ 全部断言通过（零外呼 · 零真实对外副作用）');
   } finally {
-    // 夹具清理（只删本脚本产物）
-    await prisma.shareLink.deleteMany({
-      where: { tenantId, gateLogId: { in: createdPA } },
+    // 夹具清理（只删本脚本产物）。每步各自 try/catch —— 清理段自身绝不可再抛，
+    // 否则会掩盖主流程首因并跳过后续清理（见 cleanupStep 头注）。
+    await cleanupStep('shareLink(本次跑出来的：id 基线差集)', () =>
+      prisma.shareLink.deleteMany({
+        where: {
+          tenantId,
+          id: { notIn: shareIdsBefore },
+          createdAt: { gte: runStartedAt },
+        },
+      }),
+    );
+    await cleanupStep('operationLog(ref ∈ createdPA)', () =>
+      prisma.operationLog.deleteMany({
+        where: { tenantId, ref: { in: createdPA } },
+      }),
+    );
+    await cleanupStep('operationLog(id ∈ createdLogs)', () =>
+      prisma.operationLog.deleteMany({
+        where: { tenantId, id: { in: createdLogs } },
+      }),
+    );
+    await cleanupStep('operationLog(projectId = 夹具项目)', () =>
+      prisma.operationLog.deleteMany({
+        where: { tenantId, projectId: fxProject.id },
+      }),
+    );
+    await cleanupStep('pendingAction(id ∈ createdPA)', () =>
+      prisma.pendingAction.deleteMany({ where: { id: { in: createdPA } } }),
+    );
+    await cleanupStep('handoff(projectId = 夹具项目)', () =>
+      prisma.handoff.deleteMany({
+        where: { tenantId, projectId: fxProject.id },
+      }),
+    );
+    await cleanupStep('project(夹具项目)', () =>
+      prisma.project.deleteMany({ where: { id: fxProject.id } }),
+    );
+
+    // 【显式决定：留不删】mock 分享通道的 SHARE_CREATED 标记行 ref=null / projectId=null，
+    // 上面三把清理键都不命中。按项目既定口径保留不删——同族先例 M4 `insight:e2e`
+    // 每跑净增 1 行（signoff S5 / project-status O2：「append-only 语义一致不建议删」），
+    // patterns/testing-env-patterns.md §9 亦写明「append-only 语义的留痕表可选择保留不删，
+    // 但删或留必须是一个**显式决定**」。故此处不删，改为把留下的行数喊出来——
+    // 让它从「静默泄漏」变成「有账可查的显式残留」。
+    // 来源：M4.5 首轮验收 F010 缺陷 ②（对抗复核 DOWNGRADED：不要求改代码，需明文兜底）。
+    await cleanupStep('SHARE_CREATED 留痕计账（不删，只报账）', async () => {
+      const markerAfter = await prisma.operationLog.count({
+        where: { tenantId, summary: { contains: SHARE_CREATED_MARKER } },
+      });
+      console.log(
+        `[清理] 按 append-only 口径**保留**（不删）SHARE_CREATED 标记留痕 ${
+          markerAfter - markerBefore
+        } 行 —— 显式决定，非泄漏；本机重生含 feed/雷达的视觉基线前须把它计入`,
+      );
     });
-    await prisma.operationLog.deleteMany({
-      where: { tenantId, ref: { in: createdPA } },
-    });
-    await prisma.operationLog.deleteMany({
-      where: { tenantId, id: { in: createdLogs } },
-    });
-    await prisma.operationLog.deleteMany({
-      where: { tenantId, projectId: fxProject.id },
-    });
-    await prisma.pendingAction.deleteMany({ where: { id: { in: createdPA } } });
-    await prisma.handoff.deleteMany({
-      where: { tenantId, projectId: fxProject.id },
-    });
-    await prisma.project.deleteMany({ where: { id: fxProject.id } });
   }
 }
 

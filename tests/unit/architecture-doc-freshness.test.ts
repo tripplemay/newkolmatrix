@@ -136,3 +136,77 @@ describe('M4 批内陈旧标记清零（issue-4 回归钉）', () => {
     expect(DOC).not.toMatch(/演进 M4|归 M4|演进目标归 M4/);
   });
 });
+
+// ────────────────────────────────────────────────────────────────────────────
+// M4.5-AGENT-LOOP fixing round1 — 覆盖面扩到 agent-architecture.md
+//
+// 触发源：M4.5 首轮验收 F010 PARTIAL 缺陷 ③。本门此前只读 architecture.md +
+// schema.prisma，`agent-architecture.md` **零机械覆盖**；而人工「批末新鲜度复核」
+// 用的 grep 又带左括号（`stepCountIs(`）且不搜 docs/ —— 两道防线的盲区恰好重叠，
+// 于是 4 条已作废的 as-built 陈述与新说法在权威文档里并存了整整一个批次
+//（architecture.md line 26 自订原则：「已实装一律 as-built…不保留双份说法」）。
+//
+// 这里钉的是**已作废 API 名 / 已改档位值**这类可机械判定的漂移，不是语义复核。
+// ────────────────────────────────────────────────────────────────────────────
+const AGENT_DOC = readFileSync('docs/dev/agent-architecture.md', 'utf8');
+
+describe('agent-architecture.md 新鲜度（M4.5 F010 缺陷③ 回归钉）', () => {
+  /** 两份权威文档一起扫——漂移不挑文件。 */
+  const AUTHORITATIVE: ReadonlyArray<readonly [string, string]> = [
+    ['docs/dev/architecture.md', DOC],
+    ['docs/dev/agent-architecture.md', AGENT_DOC],
+  ];
+
+  it('不得残留已作废的流式 API 名 toUIMessageStreamResponse', () => {
+    // 实物：route.ts 用 createUIMessageStream + createUIMessageStreamResponse（M4.5 F006）。
+    const route = readFileSync('src/app/api/agent/route.ts', 'utf8');
+    expect(
+      route,
+      '前提失效：route 已不再用 createUIMessageStreamResponse，本断言需重写',
+    ).toContain('createUIMessageStreamResponse');
+    expect(route).not.toContain('toUIMessageStreamResponse');
+
+    for (const [name, doc] of AUTHORITATIVE) {
+      const stale = doc
+        .split('\n')
+        .map((l, i) => [i + 1, l] as const)
+        .filter(([, l]) => /(?<!create)[Tt]oUIMessageStreamResponse/.test(l));
+      expect(
+        stale.map(([n, l]) => `${name}:${n}: ${l.trim()}`),
+        `${name} 仍写着已作废的 toUIMessageStreamResponse`,
+      ).toEqual([]);
+    }
+  });
+
+  it('不得出现 stepCountIs 后跟数字字面量（带不带括号都算——原 grep 只搜带括号的，漏了文档写法）', () => {
+    for (const [name, doc] of AUTHORITATIVE) {
+      const stale = doc
+        .split('\n')
+        .map((l, i) => [i + 1, l] as const)
+        // 关键：`[(\s]` —— 代码写 `stepCountIs(5)`，文档写 `stepCountIs 5`，两种都要抓
+        .filter(([, l]) => /stepCountIs[(\s]\s*[0-9]/.test(l));
+      expect(
+        stale.map(([n, l]) => `${name}:${n}: ${l.trim()}`),
+        `${name} 写死了步数上限（真相源是 registry 的 persona.maxSteps）`,
+      ).toEqual([]);
+    }
+  });
+
+  it('agent-architecture.md 的工具清单覆盖注册表实物（新工具漏登记 → 红）', () => {
+    for (const name of getNativeToolNames()) {
+      expect(
+        AGENT_DOC,
+        `agent-architecture.md 未提及已注册工具 ${name}`,
+      ).toContain(name);
+    }
+  });
+
+  it('agent-architecture.md 的步数档位值 = registry 实物', () => {
+    const deep = Math.max(...listPersonas().map((p) => p.maxSteps));
+    const normal = getPersona('reach').maxSteps;
+    const row = AGENT_DOC.split('\n').find((l) => l.includes('**步数预算**'));
+    expect(row, 'agent-architecture.md 缺步数预算行').toBeTruthy();
+    expect(row!, `深链档位应为 ${deep}`).toContain(`= ${deep}`);
+    expect(row!, `常规档位应为 ${normal}`).toContain(`其余 ${normal}`);
+  });
+});

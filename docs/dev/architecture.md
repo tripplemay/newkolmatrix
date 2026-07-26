@@ -275,7 +275,7 @@ flowchart TB
 
 1. **单全栈应用**（D1）：前后端同处一个 Next.js App Router 应用；后端 = Route Handlers + `src/lib`。无独立后端服务、无微服务、无消息队列。
 2. **三条请求通道分离**：
-   - **对话通道**：`POST /api/agent`，SSE 流式（`toUIMessageStreamResponse`），承载「NL → 规划 → 工具 → 画布结果」；
+   - **对话通道**：`POST /api/agent`，SSE 流式（`createUIMessageStream` + `createUIMessageStreamResponse`），承载「NL → 规划 → 工具 → 画布结果」；
    - **数据通道**：页面读类数据走普通 Route Handler / Server Component 直读 repository——**读数据不经过模型**；
    - **作业通道**：调度器例程（**已实装 M1-C F004**：health-scan 落 OperationLog 经今天页 feed/KPI 呈现）+ 信号 webhook（**已实装 M3-A F004**：`/api/signals/inbound` Svix 验签 + externalId 防重 + crmInfer 重算）——产物一律落库留痕，再经雷达/记录页呈现。
 3. **工具结果协议解耦四柱**（FR-12.3）：新增工具或结果类型不改运行时 route 核心与对话面外壳（见 §8.5 as-built 路由键说明）。
@@ -935,7 +935,7 @@ export interface ToolContext {
 2. **人格选取与工具收窄**：`selectPersona(copilot)` → `personaToolSubset(persona)` → `toAiSdkTools(toolNames, ctx)`。不同人格看到不同工具。
 3. **system prompt 装配**（运行时注入，非硬编码在页面）——见下「五层装配管线」。
 4. **执行与拦截**：一切工具调用经**唯一入口** `executeTool()`；`internal` 直接执行；`outbound` 无令牌 → §9 拦截路径（`stopWhen: stepCountIs(persona.maxSteps)` 限制 loop 步数，见 §8.3.2）。
-5. **流式回传**：`toUIMessageStreamResponse()`，token + 工具结果边收边传（NFR-P2）；人格身份经响应头 `X-Agent-Id` / `X-Agent-Tools` 暴露。
+5. **流式回传**：`createUIMessageStream` 包一层（写 `persona_switch` data part，M4.5 F006）→ `createUIMessageStreamResponse()`，token + 工具结果边收边传（NFR-P2）；人格身份经响应头 `X-Agent-Id`（= **起始**人格；循环内接力后的当值人格走流内 `data-persona_switch` 事件，见 §8.4）/ `X-Agent-Tools` 暴露。
 
 #### 8.3.2 步数预算与 loop 遥测（✅ M4.5 F001/F002）
 

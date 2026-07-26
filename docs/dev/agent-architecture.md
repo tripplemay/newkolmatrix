@@ -158,7 +158,7 @@ POST /api/agent（柱二 route.ts, runtime=nodejs）
   │  buildToolContext（单租户 dev tenant, D4）
   │  personaToolSubset → toAiSdkTools（收窄子集）
   ▼
-streamText agent loop（stepCountIs 5, chatModel=deepseek-v3 via aigcgateway）
+streamText agent loop（stopWhen: stepCountIs(persona.maxSteps)：深链 10 / 其余 5，chatModel=deepseek-v3 via aigcgateway）
   │  模型自主决定调用工具
   ▼
 executeTool（柱一唯一入口, execute.ts）
@@ -167,8 +167,9 @@ executeTool（柱一唯一入口, execute.ts）
   │      ├─ internal → tool.execute（如 search_kols → embedText(bge-m3) → pgvector 向量检索 seed KOL）
   │      └─ outbound 且无令牌 → createPendingAction → pending 信封 + harm（副作用不执行，§4）
   ▼
-toUIMessageStreamResponse（流式 UIMessage：text part + tool-<name> part）
-  │  X-Agent-Id / X-Agent-Tools 响应头
+createUIMessageStream 包一层（写 persona_switch data part）→ createUIMessageStreamResponse
+（流式 UIMessage：text part + tool-<name> part + data-persona_switch part）
+  │  X-Agent-Id（= **起始**人格，P9）/ X-Agent-Tools 响应头
   ▼
 柱三 MessageParts → 柱四 canvas-registry.renderToolResult
   └─ search_kols → KolResultCards（KOL 卡片流在画布渲染）

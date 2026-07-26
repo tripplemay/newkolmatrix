@@ -1,12 +1,12 @@
 {
-  "status": "reverifying",
+  "status": "done",
   "user_goal": "生产实测缺陷修复：用户在项目环节页对话时，模型反问「请提供项目ID」——ctx.projectId 服务端已解析但从未进入 system 段，而 13 个工具把 projectId 当模型入参。修复 = system 装配注入当前项目上下文。范围克制：不动工具入参契约，不注入环节/env。",
   "total_features": 1,
   "completed_features": 1,
   "fix_rounds": 1,
   "current_sprint": "M4.6-CTX",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-26T02:40",
+  "last_updated": "2026-07-26T02:55",
   "reference_docs": [
     "docs/dev/agent-architecture.md",
     "docs/dev/architecture.md",
@@ -15,30 +15,36 @@
   "docs": {
     "spec": null,
     "test_cases": null,
-    "signoff": null,
+    "signoff": "test-reports/M4.6-CTX-signoff.md",
     "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": null,
-  "generator_handoff": {
-    "round": 1,
+  "evaluator_feedback": {
+    "round": 2,
+    "phase": "reverifying",
     "date": "2026-07-26",
-    "fixed_feature": "F001",
-    "round1_report": "docs/test-reports/M4.6-CTX-verify.md",
-    "round1_verdict": "F001 PARTIAL / can_signoff=false（D1 D2 阻断 + D3 D4 非阻断，均为交付面；产品代码本体经 12 条变异 + 5 条独立探针未被击穿）",
-    "fixes": [
-      "D1 真 route 路径证据缺失 → 新增 tests/integration/project-context-route.test.ts（3 条，单独成文件避免 vi.mock 外溢）：打真 POST /api/agent 经 resolveContext，断言模型实际收到的 system（读 mock provider 的 doStreamCalls）含项目段；覆盖项目页 / 工作区层负向 / 接力后第二步。",
-      "D2 降级断言是死的（原用例只覆盖「项目不存在」，findFirst 返回 null 不进 catch）→ 补 2 条真 DB 故障用例（vi.spyOn(prisma.project,'findFirst').mockRejectedValue）：段落层 + 会话层；并把「不编造名字」判据从 not.toContain('（') 升级为 expectNoFabricatedName（占位名黑名单 未命名/未知项目/某项目/该项目/N-A/unknown + 括注正则）。验收指出的三条变异 E-MUT-6/7/8 现全部翻红（此前全绿）。",
-      "D3 夹具清态不完整（OperationLog/Handoff 对 Tenant 软引用无 FK，删租户不级联）→ 两个测试文件 afterAll 均改为逐表按 tenantId 清 + 逐表残留断言（原来只断言 tenant 残留 = 假信心）；库内既存孤儿行 36 OperationLog + 15 Handoff 已按「tenantId 在 Tenant 表中不存在」精确清除，dev 租户数据零触碰（清后总 logs=118、租户数=1、孤儿=0）。实测跑两遍 OperationLog 计数不变。",
-      "D4 as-built 文档漂移 → agent-architecture.md 新增「system 装配序（as-built）」句并单列「当前项目上下文段」条目；architecture-doc-freshness.test.ts 加句级机械钉（从 loop.ts 拼接表达式提取实物段序 vs 文档句序，双向比对）。"
+    "by": "Andy/evaluator-subagent（隔离复验，fresh context）",
+    "tested_sha": "61ce474",
+    "signoff": "docs/test-reports/M4.6-CTX-signoff.md",
+    "verdicts": {
+      "F001": "PASS"
+    },
+    "batch_result": "PASS",
+    "can_signoff": true,
+    "problems": [],
+    "rationale": "D1-D4 四条全部闭环，每条均有 evaluator 独立设计并重跑的变异/计数证据，无一采信 Generator 自述。D1 决定性证据：R-MUT-1（resolveContext 里 projectId 恒 null）→ 新增 route 用例 RED、服务层用例 GREEN，一红一绿证明所缺取证面确已补上；且专门核过「vi.mock 了 buildToolContext 是否让真 route 证据名不副实」——注入门读的是 copilot.projectId 而非 buildToolContext 产物，故未绕开接缝。D2：首轮全绿的 E-MUT-6/7/8 现全部翻红，另加 R-MUT-11（指令句语义改反）/ R-MUT-12（换 seam 使 spy 失灵）均翻红。D3：自写计数器实测跑测前后库计数逐项不变、孤儿 0，首轮遗留 36+15 行孤儿已清零。D4：R-MUT-6 挪序即红。Generator 自陈的两处「取证器看不见目标」修法实测立住；同类问题在本轮其它新增断言里逐个排查过——route 用例的空 system / 模型未被调用两个盲点实测均翻红。回归面：全量 1251 单测 + agentloop:e2e + 三个 smoke 全绿，产品代码本轮零改动。",
+    "new_soft_watch": [
+      "S-M46-6（low）expectNoFabricatedName 是「占位名黑名单 + 括注正则」，黑名单原理上不可穷尽。实测绕过：降级时编造 `${id} 星辰出海计划`（R-MUT-2）或 `${id}【王者荣耀出海】`（R-MUT-3）均不翻红。产品行为正确，属断言强度上限。根治 = 改正向精确匹配（断言 section 恰等于固定全串），任何编造形态都会红",
+      "S-M46-7（low）D4 新钉的实物序只覆盖文档句所列 4 段中的 3 段，不含「工具指引」。实测绕过：把工具指引挪到知识段之前 → 真实文档漂移而钉子全绿（R-MUT-9）。根治 = 把工具指引段纳入 order 数组，与文档句 4 段逐项对齐",
+      "S-M46-1（结转，中）findProjectByRef 无 tenantId 作用域，实测可跨租户取名。单租户 dev 下无实际影响且工具执行仍按 ctx.tenantId 作用域；但它是新导出的可复用口径，M5（真实认证+RLS）前必须收口",
+      "S-M46-2（结转，low）内联三口径解析实测 7 处而非注释所称 3 处，收口批次按 7 处排",
+      "S-M46-3/4/5（结转，low）每会话对同一 Project 行串行查两次可合一 · 空白串 projectId 会注入空白 label · e2e-cleanup-hygiene 守门覆盖不到 vitest 集成测的夹具清理"
     ],
-    "self_caught_during_fix": "补 D4 钉子时自己又踩两次「取证器看不见目标」：① 切片终点用 indexOf('NO_TOOL_CLAUSE')，而它在第 42 行 import 就出现 → 切出空串（这次红了而非假绿，已显式钉前提）；② order 数组按声明顺序 map 而未按实际位置 sort → 把实物段序挪动也照样绿（死断言，已加 .sort + 长度断言）。两个方向的活性变异现均翻红。",
-    "soft_watch_accepted": "S-M46-1（findProjectByRef 无 tenantId 作用域，实测可跨租户取名）本轮**未修**——单租户 dev 下无实际影响且工具执行仍按 ctx.tenantId 作用域；但它是新导出的可复用口径，按验收建议登记为 M5（真实认证+RLS）前必须收口。S-M46-2（内联三口径解析实测 7 处而非注释所称三处）已知悉，收口批次按 7 处排。S-M46-3/4/5 同样登记不修。",
-    "l1_status": "tsc 0 error · lint 绿 · test:unit 104 files / 1251 tests 全绿（修前 102/1240）· 新增/改动测试文件跑两遍库计数不变、孤儿行 0",
-    "for_evaluator": "复验只需覆盖 D1-D4 是否闭环 + 本轮新增断言是否为活断言（建议另找我没试过的绕过路径）+ 未破坏既有会话行为。产品代码本体（project-context.ts / loop.ts）本轮**未再改动**，仅测试与文档。"
+    "l2_gap": "本缺陷的最终效果（真模型是否真的不再反问用户要 projectId）属 L2，未授权未验证。L1 只能验到装配层事实（模型实际收到的 system 里确有项目标识与不要索要条款）。建议上线后由用户做一次真实对话手测确认。"
   },
+  "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M4.6-CTX 立批 · 2026-07-26 · 快车道】\n■ 触发源：用户生产手测（M4+M4.5 上线后首轮真实对话）。在项目环节页问「该推进什么 + 分析 ROI」，匹配 Agent 反问「请提供项目ID」并口头让用户自行去找别的 Agent。\n■ 取证得两个问题，性质不同：① **projectId 未入 system 段**——纯装配缺陷，零裁决空间 → 即本批 F001。② 环节人格无 handoff_to 只能口头推荐——非 bug，是 F005「分派是编排职责」裁决的覆盖面缺口。\n■ 问题②的处置：先提方案 A（给环节人格发接力权），**用户复议后撤销**——理由是只改跳数/预算是修补症状，根因在「页面路由决定谁来回答」。**已定方向：单一前台 + 专家降为内部能力（子 Agent 调用）**，即 architecture.md:1086 表里状态为「未实装」的演进形态。方案 A 明确不做（做完即废）。\n■ 单一前台走独立批次 + 正式 spec（下一步 Planner 产出交用户确认），本批只修 F001。\n■ **为什么 11/11 PASS 的批次没抓到 F001**：mock-model 测试床里工具入参是脚本写死的（`input: { projectId: fxProject.id }`），模型从不需要「自己发现」projectId；且 11 条 acceptance 无一要求「模型能在项目页自动认到当前项目」。这是测试床范式的结构性盲区，值得进 proposed-learnings。",
+    "Andy": "【M4.6-CTX 立批 · 2026-07-26 · 快车道】\n■ 触发源：用户生产手测（M4+M4.5 上线后首轮真实对话）。在项目环节页问「该推进什么 + 分析 ROI」，匹配 Agent 反问「请提供项目ID」并口头让用户自行去找别的 Agent。\n■ 取证得两个问题，性质不同：① **projectId 未入 system 段**——纯装配缺陷，零裁决空间 → 即本批 F001。② 环节人格无 handoff_to 只能口头推荐——非 bug，是 F005「分派是编排职责」裁决的覆盖面缺口。\n■ 问题②的处置：先提方案 A（给环节人格发接力权），**用户复议后撤销**——理由是只改跳数/预算是修补症状，根因在「页面路由决定谁来回答」。**已定方向：单一前台 + 专家降为内部能力（子 Agent 调用）**，即 architecture.md:1086 表里状态为「未实装」的演进形态。方案 A 明确不做（做完即废）。\n■ 单一前台走独立批次 + 正式 spec（下一步 Planner 产出交用户确认），本批只修 F001。\n■ **为什么 11/11 PASS 的批次没抓到 F001**：mock-model 测试床里工具入参是脚本写死的（`input: { projectId: fxProject.id }`），模型从不需要「自己发现」projectId；且 11 条 acceptance 无一要求「模型能在项目页自动认到当前项目」。这是测试床范式的结构性盲区，值得进 proposed-learnings。\n■ 【收尾】首轮 PARTIAL（D1-D4 全在交付面）→ 一轮 fixing → 复验 PASS/可签收。两条新 soft-watch（S-M46-6/7，断言强度上限）验收已给确切修法，但批次已签收在 61ce474，不在签收后改代码——登记 backlog 下批做。",
     "Reviewer": null,
     "Mark": null
   },

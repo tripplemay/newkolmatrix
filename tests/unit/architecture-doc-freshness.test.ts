@@ -221,15 +221,28 @@ describe('agent-architecture.md 新鲜度（M4.5 F010 缺陷③ 回归钉）', (
     expect(expr, '切片为空 = 取证器失效').not.toBe('');
     // 【必须按实际位置排序】起初漏了 .sort，于是数组永远按我声明的顺序产出，
     // 把实物里 projectSection 挪到 knowledgeSection 之后也照样绿 —— 死断言。
-    const order = ['persona.systemPrompt', 'projectSection', 'knowledgeSection']
+    // 【S-M46-7 收口】原先只钉 3 段实物却比对 4 段文档句——把「工具指引」挪到知识段
+    // 之前是真实漂移，钉子却全绿（M4.6 复验实测 R-MUT-9）。钉子的覆盖面必须与它
+    // 守护的那句话**逐项对齐**，N-1 段 = 留了一道静默门。
+    const order = [
+      'persona.systemPrompt',
+      'projectSection',
+      'knowledgeSection',
+      'toolLines', // 工具指引段（拼接里以 toolLines 出现）
+    ]
       .map((seg) => [seg, expr.indexOf(seg)] as const)
       .filter(([, i]) => i >= 0)
       .sort((a, b) => a[1] - b[1]);
-    expect(order.length, '三段应全部出现在拼接表达式里').toBe(3);
+    expect(order.length, '四段应全部出现在拼接表达式里').toBe(4);
     expect(
       order.map(([s]) => s),
       '实物装配序变了 —— 本断言与文档句都要随之更新',
-    ).toEqual(['persona.systemPrompt', 'projectSection', 'knowledgeSection']);
+    ).toEqual([
+      'persona.systemPrompt',
+      'projectSection',
+      'knowledgeSection',
+      'toolLines',
+    ]);
 
     const row = AGENT_DOC.split('\n').find((l) => l.includes('system 装配序'));
     expect(
@@ -257,5 +270,48 @@ describe('agent-architecture.md 新鲜度（M4.5 F010 缺陷③ 回归钉）', (
     expect(row, 'agent-architecture.md 缺步数预算行').toBeTruthy();
     expect(row!, `深链档位应为 ${deep}`).toContain(`= ${deep}`);
     expect(row!, `常规档位应为 ${normal}`).toContain(`其余 ${normal}`);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// M4.7-FRONTDESK F010 — 单一前台面的 as-built 钉
+// ────────────────────────────────────────────────────────────────────────────
+describe('M4.7 单一前台 as-built（新工具 / 前台职责 / 成本常量）', () => {
+  it('子 Agent 调用形态已翻牌为 as-built（不得再写「未实装」）', () => {
+    const row = DOC.split('\n').find((l) => l.includes('子 Agent 调用'));
+    expect(row, 'architecture.md 缺两形态表的子 Agent 调用列').toBeTruthy();
+    const stateRow = DOC.split('\n').find(
+      (l) => l.startsWith('| 状态 |') && l.includes('Handoff'),
+    );
+    expect(stateRow, '缺状态行').toBeTruthy();
+    expect(
+      stateRow!,
+      '子 Agent 调用已实装，状态行不得仍写「未实装」',
+    ).not.toContain('未实装');
+    expect(stateRow!).toContain('specialist-loop');
+  });
+
+  it('前台职责文案 = registry 实物（改 duty 忘翻文档 → 红）', () => {
+    const front = getPersona('orchestrator');
+    const row = DOC.split('\n').find((l) =>
+      l.startsWith('| `orchestrator` |'),
+    );
+    expect(row, '§8.6 名册缺 orchestrator 行').toBeTruthy();
+    expect(row!, '名册行的护栏文案与 registry 漂移').toContain(front.isolation);
+  });
+
+  it('三个成本常量值 = registry 实物（agent-architecture 写死数字 → 红）', async () => {
+    const { MAX_CONSULTS_PER_TURN, SPECIALIST_MAX_STEPS } = await import(
+      '../../src/lib/agent/registry'
+    );
+    expect(AGENT_DOC, '缺每轮咨询上限').toContain(
+      `MAX_CONSULTS_PER_TURN=${MAX_CONSULTS_PER_TURN}`,
+    );
+    expect(AGENT_DOC, '缺子 loop 步数上限').toContain(
+      `SPECIALIST_MAX_STEPS=${SPECIALIST_MAX_STEPS}`,
+    );
+    expect(AGENT_DOC, '缺前台步数档位').toContain(
+      `前台 \`maxSteps=${getPersona('orchestrator').maxSteps}\``,
+    );
   });
 });

@@ -1084,10 +1084,10 @@ export function renderToolResult(toolName: string, output: unknown);  // 未注�
 
 **两种实现形态**：
 
-| 维度 | 工具级共享（主用） | 子 Agent 调用（演进） |
+| 维度 | 工具级共享（主用） | 子 Agent 调用（**M4.7 F001/F002 已实装**） |
 |---|---|---|
 | 形态 | 上游把产物**持久化到 DB**，下游经自己作用域内的读工具取用 | 某工具 `execute` 内部再起一次 `generateText`（子专家 prompt + 子工具集） |
-| 状态 | `Handoff` 表 + `handoff.ts` 信封协议 ✅已建 | 未实装 |
+| 状态 | `Handoff` 表 + `handoff.ts` 信封协议 ✅已建 | ✅ **as-built**：`lib/agent/specialist-loop.ts`（受限子 loop：目标人格 system + 目标人格工具子集 + 深度守卫）+ `tools/consult-specialist.ts`（internal，**仅前台持有**）。咨询也落 `Handoff` 行（fromAgent=前台 / toAgent=专家），该表语义由「交接」扩为「协作」 |
 
 **信封协议（as-built）**：
 

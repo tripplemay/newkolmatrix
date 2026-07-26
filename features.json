@@ -87,7 +87,7 @@
       "title": "文档翻牌 + doc-freshness 扩断言",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "architecture.md:1086「子 Agent 调用（演进）」状态列翻 as-built；agent-architecture.md 补前台形态段；doc-freshness 随之扩。",
       "acceptance": "`architecture.md:1086` 两形态表的「子 Agent 调用」状态由「未实装」翻为 as-built（含实装位置指针）；`agent-architecture.md` 补「单一前台 + 子 Agent 调用」段（含成本上限、留痕归属、失败降级三条 as-built 事实）；§8.6 名册段随前台职责变更同步；doc-freshness **扩断言**：新工具入表 / 前台职责文案 / 三个成本常量值 = registry 实物；**S-M46-7 一并收口**——装配序钉的覆盖面补齐「工具指引」段，与文档句 4 段逐项对齐（当初登记的触发时机就是「下个动 doc-freshness 的批次」）；批末新鲜度复核用**不带左括号且含 docs/ 范围**的判据（M4.5 教训）"
     },

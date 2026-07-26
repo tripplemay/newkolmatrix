@@ -73,6 +73,19 @@ Agent 驱动产品的四根柱子。每柱一个明确的唯一入口，禁止�
 | **准备并行度** | 「已备好 N 件待确认」聚合卡：利害逐条列全不折叠（D28）；「依次确认」= 前端**逐项**调既有两步票据端点，**无批量端点**（一个 batch 端点会立刻成为闸门绕过面） | `lib/gate/batch-confirm.ts` / `PendingBatchCard` |
 | **渐进渲染** | `state:'input-streaming'` 的 partial input 驱动「模型自己在写」的工具卡（本批 = `propose_plan` 计划卡）。渲染分支 `canvas`/`draft`/`label` 由 `pickToolRenderMode` 单一真相源判定且**互斥**。渐进态**不展示模型自报 needsGate**（服务端未复核前不把最不可信的数据当结论） | `canvas-registry.tsx` / `PlanCardDraft.tsx` |
 
+### 单一前台 + 子 Agent 调用（M4.7 as-built）
+
+**根因与转变**：此前 `defaultAgentForRoute(route)` / `STAGE_AGENT[stage]` 把「用户落在哪个页面」映射成「哪个专家有发言权」，于是内部的人格分区变成了用户要面对的墙——在匹配页问 ROI，匹配 Agent 只能拒答并让用户自己去找洞察 Agent（2026-07-26 生产实测）。M4.7 起：
+
+- **受理人格恒为前台**（`FRONT_DESK_AGENT_ID` = orchestrator，registry 单一真相源）。客户端传来的 `agentId` 一律不采信；页面改以 `stage` 线索进 system，明写「不限制你能做什么」。`STAGE_AGENT` / `defaultAgentForRoute` 保留给雷达深链等非对话用途
+- **专家降为内部能力**：前台经 `consult_specialist` 起受限子 loop（`runSpecialistLoop`），拿回结构化结果后用一个声音作答。对话身份自始至终是前台，界面上专家以可展开的协作痕迹呈现（`ConsultationNote`，canvas 路由键 `type:'consultation'`）
+- **成本上限**（registry 单一真相源，**数字是猜的**，无真实延迟数据，上线拿到数据再调）：`MAX_CONSULTS_PER_TURN=2` · `SPECIALIST_MAX_STEPS=3` · 前台 `maxSteps=5`。接力/咨询到深链专家时本轮预算按**链上最大档位**抬升（`chainBudget`），`stopWhen` 因此是谓词而非静态 `stepCountIs`
+- **留痕归属**：`ctx.agentId` 按当值人格派生（`toAiSdkTools` 的 `currentAgentId` 回调），`PendingAction.agentId` / `OperationLog.actor` 记**实际干活的专家**（闭环 M4.5 的 O-G2-1/O-G2-2）
+- **诚实透传**：子 loop 产出 `insufficientEvidence` + `insufficientReasons`（判据复用 `domain/roi-compute.ts` 的 `basis` 三态），前台挂 `FRONT_DESK_HONESTY_CLAUSE`——不得改写数值/状态/证据充分性，证据不足时不得给出任何数值结论
+- **失败降级**：子 loop 抛错 → 结构化失败（`ok:false` + 原因）而非抛穿，并落 `CONSULT_FAILED_MARKER` 留痕；前台须如实说"问了但没拿到结果"，不得用猜测填补
+- **红线不变**：子 loop 走同一个 `executeTool`，outbound 一律停 pending 且**不继承前台的 `confirmationToken`**；时刻隔离照旧（目标人格工具子集）
+- 验收入口 `npm run frontdesk:e2e`
+
 **M4.7 新增工具（1 件）**：`consult_specialist`（前台内部咨询专家，orchestrator 独占——起受限子 loop，目标人格 system + 目标人格工具子集 + 深度守卫；对话身份自始至终是前台）。
 
 **M4.5 新增工具（本批 5 件）**：`compute_roi_portfolio`（跨项目 ROI 对比，insight）· `propose_plan`（行动计划卡 + 计划留痕，orchestrator+insight）· `handoff_to`（循环内接力，orchestrator 独占）· `check_compliance`（合规红线核查单，compliance 首件）· 认可端点 `POST /api/agent/plan-ack`（**留痕不解锁执行权**，回归钉死）。

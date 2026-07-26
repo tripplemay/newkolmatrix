@@ -201,6 +201,54 @@ describe('agent-architecture.md 新鲜度（M4.5 F010 缺陷③ 回归钉）', (
     }
   });
 
+  it('system 装配序的 as-built 句 = 实物装配顺序（M4.6 D4 回归钉）', () => {
+    // 触发源：M4.6-CTX 首轮验收 D4——加了项目上下文段，但 agent-architecture.md 里
+    // 那句标着 as-built 的 `system = persona.systemPrompt + 知识段 + 工具指引` 没翻，
+    // 而既有机械门只钉工具清单/步数/废弃 API 名，钉不到这种「句子级」漂移。
+    //
+    // 判据取自实物：buildLoopSystem 的拼接表达式里各段的出现次序。
+    const loopSrc = readFileSync('src/lib/agent/loop.ts', 'utf8');
+    const exprStart = loopSrc.indexOf('persona.systemPrompt +');
+    // 【显式钉前提】原先用 indexOf('NO_TOOL_CLAUSE') 当切片终点，而它在第 42 行的
+    // import 里就出现了（早于拼接表达式）→ 切出空串。取证器看不见目标时必须当场红，
+    // 不能让后面的断言在空输入上「碰巧成立」。
+    expect(
+      exprStart,
+      'buildLoopSystem 的拼接表达式没找到（结构变更须同步本测试）',
+    ).toBeGreaterThan(0);
+    const expr = loopSrc.slice(exprStart, exprStart + 400);
+    expect(expr, '切片为空 = 取证器失效').not.toBe('');
+    // 【必须按实际位置排序】起初漏了 .sort，于是数组永远按我声明的顺序产出，
+    // 把实物里 projectSection 挪到 knowledgeSection 之后也照样绿 —— 死断言。
+    const order = ['persona.systemPrompt', 'projectSection', 'knowledgeSection']
+      .map((seg) => [seg, expr.indexOf(seg)] as const)
+      .filter(([, i]) => i >= 0)
+      .sort((a, b) => a[1] - b[1]);
+    expect(order.length, '三段应全部出现在拼接表达式里').toBe(3);
+    expect(
+      order.map(([s]) => s),
+      '实物装配序变了 —— 本断言与文档句都要随之更新',
+    ).toEqual(['persona.systemPrompt', 'projectSection', 'knowledgeSection']);
+
+    const row = AGENT_DOC.split('\n').find((l) => l.includes('system 装配序'));
+    expect(
+      row,
+      'agent-architecture.md 缺「system 装配序」as-built 句',
+    ).toBeTruthy();
+    const docOrder = [
+      'persona.systemPrompt',
+      '当前项目上下文段',
+      '知识段',
+      '工具指引',
+    ];
+    let cursor = -1;
+    for (const seg of docOrder) {
+      const at = row!.indexOf(seg, cursor + 1);
+      expect(at, `装配序句里缺「${seg}」或顺序不对`).toBeGreaterThan(cursor);
+      cursor = at;
+    }
+  });
+
   it('agent-architecture.md 的步数档位值 = registry 实物', () => {
     const deep = Math.max(...listPersonas().map((p) => p.maxSteps));
     const normal = getPersona('reach').maxSteps;

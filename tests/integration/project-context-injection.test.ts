@@ -10,7 +10,7 @@
 // 所以本文件不测「模型会不会填对入参」（那要真模型，属 L2），只测**装配层事实**：
 // 项目页装配出来的 system 里，到底有没有这个项目标识和「不要索要」的指令。
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { prisma } from '../../src/lib/db/prisma';
 import { getPersona } from '../../src/lib/agent/registry';
 import { buildLoopSystem } from '../../src/lib/agent/loop';
@@ -24,6 +24,31 @@ import {
 
 const SLUG = `test-tenant-m46-ctx-${process.pid}`;
 const PROJECT_NAME = `M4.6 上下文夹具项目 ${process.pid}`;
+
+/**
+ * 「不编造名字」的判据。
+ *
+ * 【为什么不用 `not.toContain('（')`】那只挡住带括号的写法。验收变异实测：改成
+ * 「降级时编造名字但不带括号」照样全绿。所以改为占位名黑名单 + 括注正则双查。
+ */
+function expectNoFabricatedName(section: string): void {
+  for (const placeholder of [
+    '未命名',
+    '未知项目',
+    '某项目',
+    '该项目',
+    'N/A',
+    'unknown',
+    'Unknown',
+  ]) {
+    expect(section, `降级时编造了占位名「${placeholder}」`).not.toContain(
+      placeholder,
+    );
+  }
+  expect(section, '降级时不得给项目加任何括注名').not.toMatch(
+    /[（(][^）)]+[）)]/,
+  );
+}
 
 let tenantId: string;
 let projectId: string;
@@ -40,10 +65,26 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // 【软引用无 FK】OperationLog / Handoff 对 Tenant 只有 @@index，删租户**不级联**。
+  // 首轮验收 D3 实测：本文件两条 runScriptedLoop 用例每跑泄 2 行 OperationLog（遥测）
+  // + 1 行 Handoff（接力）到「租户已不存在」的孤儿状态；而原 afterAll 只断言
+  // tenant 残留 0 —— 给出「已清干净」的假信心。故逐表按 tenantId 清 + 逐表断言。
+  await prisma.handoff.deleteMany({ where: { tenantId } });
+  await prisma.operationLog.deleteMany({ where: { tenantId } });
+  await prisma.pendingAction.deleteMany({ where: { tenantId } });
   await prisma.project.deleteMany({ where: { tenantId } });
   await prisma.tenant.deleteMany({ where: { id: tenantId } });
-  const leftover = await prisma.tenant.count({ where: { slug: SLUG } });
-  expect(leftover, '夹具租户残留').toBe(0);
+  const [logs, handoffs, pas, projects, tenants] = await Promise.all([
+    prisma.operationLog.count({ where: { tenantId } }),
+    prisma.handoff.count({ where: { tenantId } }),
+    prisma.pendingAction.count({ where: { tenantId } }),
+    prisma.project.count({ where: { tenantId } }),
+    prisma.tenant.count({ where: { slug: SLUG } }),
+  ]);
+  expect(
+    { logs, handoffs, pas, projects, tenants },
+    '夹具残留（含软引用表——只查 tenant 会漏掉孤儿行）',
+  ).toEqual({ logs: 0, handoffs: 0, pas: 0, projects: 0, tenants: 0 });
 });
 
 describe('projectContextSection —— 段落内容', () => {
@@ -77,8 +118,53 @@ describe('projectContextSection —— 段落内容', () => {
     // 段落照常注入——projectId 本身来自 ctx，不依赖 DB；查不到的只是名字。
     expect(section).toContain(ghost);
     expect(section).toContain(NO_ASK_PROJECT_CLAUSE);
-    // 不得凭空造一个项目名（诚实条款：不知道就不说）
-    expect(section).not.toContain('（');
+    expectNoFabricatedName(section);
+  });
+
+  // ── DB 故障半边（首轮验收 D2）────────────────────────────────────────────
+  // 【补的是什么洞】上面那条只覆盖「项目不存在」——findFirst 返回 null，**根本不进 catch**。
+  // 验收变异实测：把 catch 改成 `return ''`（降级退化成什么都不说，缺陷复发）、
+  // 或整块摘掉 try/catch（DB 故障直接把会话打死，正是 acceptance 明令禁止的），
+  // 交付的 9 条用例**双双全绿**。即「取名失败…且不抛」这半边此前无任何断言。
+  describe('取名失败（真 DB 故障）降级', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('DB 抛错：段落照常注入、只写 id、不编造名字、不向外抛', async () => {
+      vi.spyOn(prisma.project, 'findFirst').mockRejectedValue(
+        new Error('m46 模拟 DB 故障'),
+      );
+      const section = await projectContextSection(projectId);
+      expect(section, '降级不得退化成「什么都不说」——那等于缺陷复发').toContain(
+        PROJECT_CONTEXT_HEADING,
+      );
+      expect(section, 'projectId 来自 ctx，不依赖 DB，必须照常给').toContain(
+        projectId,
+      );
+      expect(section).toContain(NO_ASK_PROJECT_CLAUSE);
+      expectNoFabricatedName(section);
+    });
+
+    it('DB 抛错：整场会话照常收敛（增强性注入不得打死主链路，D2 纪律）', async () => {
+      vi.spyOn(prisma.project, 'findFirst').mockRejectedValue(
+        new Error('m46 模拟 DB 故障'),
+      );
+      const run = await runScriptedLoop({
+        copilot: {
+          route: `/admin/campaigns/${projectId}`,
+          projectId,
+          env: 'default',
+          agentId: 'match',
+        },
+        ctx: { tenantId, agentId: 'match', projectId, env: 'default' },
+        prompt: '这个项目该推进什么？',
+        script: [{ text: '好的。' }],
+      });
+      expect(run.networkCalls, '零外呼').toEqual([]);
+      expect(run.loop.system).toContain(projectId);
+      expect(run.systemPerStep[0]).toContain(NO_ASK_PROJECT_CLAUSE);
+    });
   });
 
   it('三口径解析：id / publicId / slug 任一都能认到同一个项目', async () => {

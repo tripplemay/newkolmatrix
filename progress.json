@@ -1,12 +1,12 @@
 {
-  "status": "verifying",
+  "status": "fixing",
   "user_goal": "单一前台：取消「页面路由决定谁来回答」，专家降为内部能力（子 Agent 调用）。用户始终对同一个助手说话，前台内部咨询专家后用一个声音作答。触发源 = 生产手测撞到「环节人格拒答并让用户自行去找别的 Agent」。红线不变：outbound 两步票据 / 时刻隔离 / 行动承诺诚实 / 例程零直通。",
   "total_features": 11,
-  "completed_features": 11,
+  "completed_features": 0,
   "fix_rounds": 0,
   "current_sprint": "M4.7-FRONTDESK",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-26T09:45",
+  "last_updated": "2026-07-26T11:35",
   "reference_docs": [
     "docs/specs/M4.7-FRONTDESK-spec.md",
     "docs/dev/agent-architecture.md",
@@ -21,7 +21,114 @@
     "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": null,
+  "evaluator_feedback": {
+    "round": 1,
+    "date": "2026-07-26",
+    "by": "Andy/evaluator-subagent（fan-out G1-G4 + 对抗复核 ×1）",
+    "tested_sha": "958c5e4",
+    "reports": [
+      "docs/test-reports/M4.7-FRONTDESK-verify-G1.md",
+      "docs/test-reports/M4.7-FRONTDESK-verify-G2.md",
+      "docs/test-reports/M4.7-FRONTDESK-verify-G3.md",
+      "docs/test-reports/M4.7-FRONTDESK-verify-G4.md",
+      "docs/test-reports/M4.7-FRONTDESK-adversarial.md"
+    ],
+    "verdicts": {
+      "F001": "PARTIAL",
+      "F002": "PARTIAL",
+      "F003": "PARTIAL",
+      "F004": "PARTIAL",
+      "F005": "PARTIAL",
+      "F006": "PARTIAL",
+      "F007": "PARTIAL",
+      "F008": "PARTIAL",
+      "F009": "PARTIAL",
+      "F010": "PARTIAL",
+      "F011": "PARTIAL"
+    },
+    "problems": [
+      {
+        "feature": "F001",
+        "severity": "minor",
+        "refute": "N/A（自证：各条均附「变异后仍绿」或可复现步骤）",
+        "desc": "PARTIAL — 注入缝纪律 / 深度守卫 / 步数常量 / 闸门不继承令牌 / 零外呼 全部经变异实证成立且产品行为正确；但 acceptance 明列的负向断言「子 loop 内调非目标人格工具被拒」在隔离双防线被同时摘掉时**照样全绿**（越权 create_project 真的执行并落行），断言无鉴别力。根因：既有用例挑的 payout 入参过不了自己的 zod（要 dealId 却给 projectId），故「不落 PendingAction」恒真、与隔离无关。",
+        "steps_to_reproduce": "见对应报告逐条实测输出"
+      },
+      {
+        "feature": "F002",
+        "severity": "minor",
+        "refute": "N/A（自证：各条均附「变异后仍绿」或可复现步骤）",
+        "desc": "PARTIAL — 工具注册形状 / 仅前台持有 / 入参三负向 / 正向枚举工具面 / 无 outbound / 结构化产物 / 循环导入守门 全部经变异实证成立；但 acceptance 明列的「doc 同步翻牌」漏了 architecture.md:1071 —— 该处仍逐字引用代码中已不存在的旧 isolation 串。",
+        "steps_to_reproduce": "见对应报告逐条实测输出"
+      },
+      {
+        "feature": "F003",
+        "severity": "minor",
+        "refute": "N/A（自证：各条均附「变异后仍绿」或可复现步骤）",
+        "desc": "PARTIAL — D1（必修）三处与实物相反/陈旧的注释全在 F003 亲手改的 CopilotPanel.tsx 里，其中 :392 描述与实物相反（buildContextKey = route:projectId:env:agentId 不含 stage，agentId 现恒定 → 同一项目内切 ?env= 不再 remount、对话不再清空）；D2（必修）X-Agent-Id 输出点未补「恒为前台」语义注释；OBS-3 stage-hint.ts:10-11 保留理由与实物不符（雷达深链用的是 STAGE_AGENT；defaultAgentForRoute 现仅 smoke 脚本消费）；OBS-4 线索段「不限制」只被正向存在性钉住，实测在常量末尾追加「本环节以外的事请告诉用户切换到相应助手再提问，你这边不作答」→ 本批要根治的缺陷原样复发而 project-context-route.test.ts 全绿（15/15）。",
+        "steps_to_reproduce": "见对应报告逐条实测输出"
+      },
+      {
+        "feature": "F004",
+        "severity": "minor",
+        "refute": "N/A（自证：各条均附「变异后仍绿」或可复现步骤）",
+        "desc": "PARTIAL — D1（主因）acceptance 把 PendingAction.agentId 与 OperationLog.actor 并列写为「记实际干活的专家」，交付物只给前者上钉子。变异实证：gate.ts 的 actor 写死为前台后 1341 条测试无一翻红——违反本批 spec §6.3 自己立的「机械钉覆盖面必须与它守护的那句话逐项对齐（N-1 段 = 静默门）」；D2（轻）acceptance 指名场景是 reach + send_outreach 经 consult_specialist 真链，交付用例换成 insight + create_share_link 且为服务层直调。",
+        "steps_to_reproduce": "见对应报告逐条实测输出"
+      },
+      {
+        "feature": "F005",
+        "severity": "minor",
+        "refute": "N/A（自证：各条均附「变异后仍绿」或可复现步骤）",
+        "desc": "PARTIAL — 结构化字段、正向锚点、检出器口径均成立且经变异证明；但 acceptance 明列的「链上机械断言前台不出数值结论」完全缺项，且要求的「作者没想到的绕过路径」实测不翻红（工具出口层无断言）。",
+        "steps_to_reproduce": "见对应报告逐条实测输出"
+      },
+      {
+        "feature": "F006",
+        "severity": "minor",
+        "refute": "N/A（自证：各条均附「变异后仍绿」或可复现步骤）",
+        "desc": "PARTIAL — 三常量单一真相源 + 超限如实拒绝 + 三条常量双向绑定实证全部成立；但「撞任一上限诚实告知」只覆盖 2/3：前台自撞步数顶时用户端**有痕迹、无答案、无「未答完+还差什么」说明**（对抗复核订正措辞并把严重度由中上调至中—高：触发路径为常见的连续工具入参错误，后果是完全空白的回复，且**无法由 prompt 条款修复，须加产品机制**）；遥测在「区分前台/子 loop」与仓内断言覆盖上有缺；自身测试文件违反 spec §6.5 泄漏 Handoff。",
+        "steps_to_reproduce": "见对应报告逐条实测输出"
+      },
+      {
+        "feature": "F007",
+        "severity": "minor",
+        "refute": "N/A（自证：各条均附「变异后仍绿」或可复现步骤）",
+        "desc": "PARTIAL — 结构化失败、不抛穿、留痕、条款锚点四项全部成立且变异全红；但「集成测覆盖抛错与超时两支」不成立：**产品侧无超时闸**（实测挂死不返回），测试的「超时支」是同一条抛错路径改名。对抗复核 UPHELD 并作两处事实更正：无 120s 平台截断（self-host standalone 无平台上限）；~301s 由 undici 兜底而非永挂；且暴露面为**主 loop + 子 loop 全链**，非子 loop 专属。修复点须定位到 gateway/loop 层 deadline + 真超时用例。",
+        "steps_to_reproduce": "见对应报告逐条实测输出"
+      },
+      {
+        "feature": "F008",
+        "severity": "minor",
+        "refute": "N/A（自证：各条均附「变异后仍绿」或可复现步骤）",
+        "desc": "PARTIAL — 身份恒为前台与三态痕迹都真实可用且经浏览器实测；但 acceptance 明列的 4 项未落地（PersonaSwitchNote 语义 / 「问了什么」/ 文案同源 / 零变化回归断言），且 darwin 基线未重生使本机视觉门失效。",
+        "steps_to_reproduce": "见对应报告逐条实测输出"
+      },
+      {
+        "feature": "F009",
+        "severity": "minor",
+        "refute": "N/A（自证：各条均附「变异后仍绿」或可复现步骤）",
+        "desc": "PARTIAL — 嵌套测试床与 13 条全链断言实跑全绿、清理在失败路径上确实完整执行；但「逐表断言残留」只清不断（变异实证留下 2 行孤儿仍 exit 0）、卫生钉漏掉新脚本、🔑 断言是同义反复。对抗复核 UPHELD 并钉死严重性上限：产品红线由 F003 的真 route 用例在 CI 内守住（project-context-route.test.ts:249，输入≠期望），本条是**测试产物 + 注释**缺陷、非产品缺陷。",
+        "steps_to_reproduce": "见对应报告逐条实测输出"
+      },
+      {
+        "feature": "F010",
+        "severity": "minor",
+        "refute": "N/A（自证：各条均附「变异后仍绿」或可复现步骤）",
+        "desc": "PARTIAL — 翻牌与三条扩断言均落地且变异证活，S-M46-7 当初那条绕过路径已翻红；但批末新鲜度复核漏网 4 处 as-built 反向漂移，其中一处以「代码保证」之名引用了代码里已不存在的字符串。",
+        "steps_to_reproduce": "见对应报告逐条实测输出"
+      },
+      {
+        "feature": "F011",
+        "severity": "minor",
+        "refute": "N/A（自证：各条均附「变异后仍绿」或可复现步骤）",
+        "desc": "PARTIAL — 4/6 条老账真收口且变异用**当初记录的原路径**逐条证活；S-RV1-2 / S-RV1-3 的绕过路径原样仍绿，commit 声称的「行为级断言免疫写法绕过」对这两条不成立。",
+        "steps_to_reproduce": "见对应报告逐条实测输出"
+      }
+    ],
+    "adversarial": "三条产品级论断全部 UPHELD：① F007 无超时闸（两处事实更正：无 120s 平台截断、~301s undici 兜底而非永挂、暴露面为全链）② F006 前台撞顶用户端有痕迹无答案无说明（严重度上调至中—高，须加产品机制而非 prompt 条款）③ F009 🔑 断言同义反复（严重性上限已钉死：产品红线由 F003 真 route 用例守住，本条属测试产物缺陷）。",
+    "baseline_audit": "基线核查独立结论（G4）：958c5e4 的 12 张 linux 新基线**全部可归因于本批预期变更，未掩盖回归**。含未触发失败阈值的那 2 张（runs / creator-drawer）的逐像素 bbox 归因：差异全部落在右侧 Copilot 面板身份卡/主题色/边界卡区域（F003 deriveContext 恒为前台），以及 agent-loop 的纯插入 150 行（F008 三张 ConsultationNote 样本）。",
+    "red_lines": "四组独立取证一致：outbound 停 pending、子 loop 不继承前台 confirmationToken（G1 以「前台带假令牌」构造最坏情况实测）、时刻隔离、留痕归属、诚实字段——**产品红线未被击穿**。11 条 PARTIAL 全部落在断言强度 / 交付卫生 / 文档漂移。"
+  },
   "generator_handoff": null,
   "session_notes": {
     "Andy": "【M4.7-FRONTDESK planning 完成 → building · 2026-07-26 · 快车道】\n■ 用户 2026-07-26 一次性裁决：**D-1..D-7 全部按 spec 推荐执行**。\n  D-1=A（ctx.agentId 派生，留痕记实际干活的专家，顺带闭环 O-G2-1）· D-2=A（专家结论原样透传 + insufficientEvidence 结构化字段）· D-3=推荐值做成 registry 常量（每轮 2 专家 / 子 loop ≤3 步 / 前台 5 / 总顶 11，**数字是猜的，无真实延迟数据**，上线拿到数据再调）· D-4=A（失败如实说 + 留痕）· D-5=A（Handoff 表保留，咨询也落行，成为协作痕迹统一数据源）· D-6=A（ToolContext.model 注入缝）· D-7=A（复用 orchestrator 作前台）。\n■ 11 features。F011 是 backlog 顺手项收口——`BL-E2E-CLEANUP-PIN` 登记时写死的触发时机就是「下个改动 agentloop-e2e 清理段 / doc-freshness 的批次必须一并做」，本批 F009/F010 正好命中，不再往后推。范围克制：只做已登记的四条。\n■ acceptance 里把本日教训写成硬要求，不靠自觉：正向精确匹配 > 黑名单否定断言（F005/F011）· 变异须含「作者没想到的绕过路径」（F005）· 真 route 路径核实而非服务层自证（F003）· 软引用表逐表清 + 逐表断言残留（F009）· 机械钉覆盖面逐项对齐（F010）。\n■ 依赖序：F001 → F002 → 其余多数依赖 F002。F008(UI) 可与 F005/F006/F007 并行。F009/F010/F011 收尾。\n■ 视觉基线硬前置（S-RV1-6 / S-G5-3）：本机重生任何含 feed/雷达的基线前，必须先清 dev 租户 pending 与 e2e 标记行，否则基线把测试残留拍进产品基线。",

@@ -6,7 +6,7 @@
       "title": "ToolContext model 注入缝 + 受限子 loop 执行器（深度守卫 + 时刻隔离）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "D-6 裁决 A：ToolContext 增可选 model，由 runAgentLoop 下传，子 loop 用 ctx.model ?? chatModel()。子 loop 执行器 = 目标人格 system + 目标人格工具子集，带深度守卫。",
       "acceptance": "ToolContext 增 `model?: LanguageModel`；runAgentLoop 把自己的 model 下传（**单一下传点**，grep 证无第二处）；**注入即无条件使用**——注入 mock model 后绝不回落 `chatModel()`（M4 教训：凭据降级只对默认 caller 生效；变异：把 `ctx.model ?? chatModel()` 改成凭据判定 → 红）；`runSpecialistLoop(targetAgent, question, ctx)` 用目标人格 systemPrompt + `personaToolSubset(target)`，**时刻隔离双保险照旧**（activeTools 收窄视野 + `isToolActive` 执行侧拦截）——**负向断言：子 loop 内调非目标人格工具被拒**（mock 测试床驱动）；**深度守卫：子 loop 内不得再起子 loop**（负向断言，撞守卫时如实报错不静默）；子 loop 步数上限读 registry 常量（F006 落地前用临时常量，不散落硬编码）；零外呼哨兵断言且**哨兵活性证明**在场；tsc + lint 绿"
     },
@@ -15,7 +15,7 @@
       "title": "consult_specialist 工具 + 前台人格改造（orchestrator → 受理与综合）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "D-7 裁决 A：复用 orchestrator 作为前台，扩职责与工具。consult_specialist（internal）调 F001 的子 loop，返回结构化专家结果。",
       "acceptance": "`consult_specialist` 注册且 **class=internal 无 buildHarm**（同源断言）；**仅前台（orchestrator）持有**——其余人格子集不含（同源断言，与 handoff_to 同款纪律）；入参 zod：`targetAgent` 必须是合法 AgentId **且 ≠ 前台自身**（负向断言）+ `question` + 可选 `refs`；调用即起子 loop 并返回结构化结果（专家 id / 结论 / 证据引用 / F005 的证据充分性字段）；orchestrator 的 `duty` / `isolation` 文案改为受理与综合语义（**registry 单一真相源**，文案锚点单测钉死，doc 同步翻牌）；前台**不直接持有**任何专家的领域执行工具，也不持有任何 outbound 工具（它只受理与综合，不亲自干）——判据用**正向精确匹配**：前台 tools 恰等于枚举清单（要动前台工具面必须显式改这条断言）。注：`create_project` / `confirm_brief_goal`（与 strategy 共享）与 `propose_plan`（与 insight 共享）是入口/元工具，本就属受理与综合范畴，不在'专家执行工具'之列——原 acceptance 写作'交集为空'与实物不符，已按实物更正；输出 JSON 往返无损；输入契约单测"
     },
@@ -24,7 +24,7 @@
       "title": "路由降级为线索：页面不再决定谁有发言权",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "取消『页面路由决定谁来回答』——本批根因。defaultAgentForRoute 不再用于对话人格选取；页面上下文（项目 + 环节）作为线索进 system，不构成权限。",
       "acceptance": "对话人格恒为前台——**负向断言：项目环节页（如 `?env=match`）发起的会话，受理人格仍是前台**（真 route 路径实证，非服务层自证）；`STAGE_AGENT` / `defaultAgentForRoute` **保留**给雷达深链等非对话用途（grep 证未删、消费点仍在）；当前环节作为**线索**注入 system（沿 M4.6 `project-context.ts` 同款空值纪律：无环节不注水），且明写「这是用户当前所在位置，不限制你能做什么」；`X-Agent-Id` 恒为前台（语义注释明示）；无回归：工作区层会话行为零变化；集成测经**真 route** 核实（M4.6 D1 教训：服务层测试 ≠ HTTP 链测试）"
     },
@@ -33,7 +33,7 @@
       "title": "ctx.agentId 派生 + 留痕归属（顺带闭环 M4.5 的 O-G2-1）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "D-1 裁决 A：子 loop 内 ctx.agentId 派生为目标专家，PendingAction.agentId / OperationLog.actor 记实际干活的人。M4.5 接力路径同样派生（O-G2-1 欠账一并还）。",
       "acceptance": "子 loop 内 `ctx.agentId` = 目标专家（非前台）；`PendingAction.agentId` 与 `OperationLog.actor` 记**实际干活的专家**（集成测实证：前台咨询触达专家备一封邮件 → 该 pending 的 agentId = reach 而非 orchestrator）；**M4.5 接力路径同样派生**（O-G2-1 闭环，回归实证）；雷达深链 `agentId → STAGE_AGENT` 反查**不再落回退分支**（实证：上述 pending 深链到 reach 环节而非 `project.cur`）；`handoff_to` 的「不能交接给自己」改比对**当值人格**而非起始人格（M4.5 soft-watch O-G2-2 的触发条件已命中）；变异证断言活着（派生改回起始人格 → 红）"
     },
@@ -42,7 +42,7 @@
       "title": "诚实透传：专家结论不得被前台圆掉",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "D-2 裁决 A：专家结果原样透传。证据不足做成结构化字段而非一句话，使其可机械断言。",
       "acceptance": "专家返回结构化结果含 `insufficientEvidence: boolean` + `reason`（缺证据时必为 true，复用既有 insight 域『分子缺显证据不足绝不填 0』口径，三处复用纪律延续）；前台 system 含硬条款「该字段为真时不得给出任何数值结论」——**文案锚点用正向精确匹配钉死**（M4.6 教训：黑名单式否定断言不可穷尽，两种编造形态实测绕过）；前台不得改写专家结论性字段（数值 / 证据充分性 / 状态）；e2e 链上实证：专家返回 `insufficientEvidence=true` → 前台输出**不含数值结论**（机械断言，非人读）；变异 ≥3 条且须含「作者没想到的绕过路径」：把字段改 false / 删前台条款 / 前台用近义表述规避锚点 → 均须翻红"
     },
@@ -51,7 +51,7 @@
       "title": "成本硬上限 + 撞顶诚实告知（registry 单一真相源）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "D-3 裁决：每轮最多咨询 2 个专家、单个子 loop ≤3 步、前台 5 步、总顶 11。数字无真实延迟数据支撑，故做成 registry 配置常量，上线拿到数据再调。",
       "acceptance": "三个上限均为 **registry 导出常量**（`MAX_CONSULTS_PER_TURN=2` / `SPECIALIST_MAX_STEPS=3` / 前台 `maxSteps=5`），**grep 证全仓无第二处数字字面量**；超出咨询数 → 工具如实拒绝并说明原因（不静默吞、不假装咨询过）；**撞任一上限时必须诚实告知「未答完 + 还差什么」**——变异钉死：去掉诚实条款或伪造完成文案 → 红（同 M4.5 F002 长链诚实回归口径）；遥测 `OperationLog(kind=auto)` 增 `consultCount` 与 `budgetHit` 区分前台/子 loop（只记元数据，不记正文，隐私哨兵串断言）；改常量值 → 实际行为同步改（双向绑定实证，非文档自证）"
     },
@@ -60,7 +60,7 @@
       "title": "咨询失败降级：如实说，不假装",
       "priority": "medium",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "D-4 裁决 A：子 loop 抛错/超时 → 前台如实说明「问了但没拿到结果 + 原因」，给出自己能给的部分，绝不假装咨询过、不用猜测填补。",
       "acceptance": "子 loop 抛错 / 超时 → `consult_specialist` 返回结构化失败结果（`ok:false` + reason），**不抛穿导致整场会话炸**（同知识段 D2 纪律）；前台 system 含条款「咨询失败时如实说明，不得用自己的猜测填补，不得宣称咨询过并得到结论」+ 正向锚点钉；失败**必须落 OperationLog**（线上可归因）；变异：静默降级为前台自答 / 失败不留痕 → 均须翻红；集成测覆盖抛错与超时两支"
     },
@@ -69,7 +69,7 @@
       "title": "前台 UI：一个声音 + 可展开协作痕迹（Handoff 表复用）",
       "priority": "medium",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "D-5 裁决 A：Handoff 表与可视化保留，咨询也落 Handoff 行（fromAgent=前台, toAgent=专家），成为协作痕迹统一数据源。面板身份恒为前台，不再随路由/咨询换人。",
       "acceptance": "面板顶部身份与边界卡**恒为前台**，不随路由变、不随咨询变（负向断言：环节页 + 发生咨询后仍是前台）；咨询在对话流里呈现为**一行可展开痕迹**（咨询了谁 · 问了什么 · 读了哪些数据），数据源 = Handoff 行（`personaBoundary` 同源，不硬编码文案）；咨询落 Handoff 行（fromAgent=前台 / toAgent=专家 / summary / artifactRef?），语义扩为「协作」并在注释与文档明示；`PersonaSwitchNote` 语义从「换人」改为「咨询」；**无咨询会话行为零变化**（回归断言）；视觉基线更新（§4.5 重生序：**本机重生前先清 dev 租户 pending 与 e2e 标记行**，S-RV1-6/S-G5-3 硬前置）；两视口实测"
     },
@@ -78,7 +78,7 @@
       "title": "测试床支持嵌套 loop + frontdesk:e2e 全链",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "现有测试床只驱动单层 loop。嵌套后需能脚本化指定前台脚本 + 每个专家子 loop 的脚本。",
       "acceptance": "测试床支持**嵌套脚本化**（前台逐步 tool-call + 每个 targetAgent 的子 loop 逐步脚本，可复用夹具）；`npm run frontdesk:e2e` 全链：项目环节页发起 → 前台受理（非环节人格）→ 咨询专家 A + B（≤2）→ 专家备 outbound → **停 pending 副作用零发生** → 逐项 confirm+execute → 留痕归属为专家（F004）→ 遥测含 consultCount；**零外呼零真实副作用**断言 + 哨兵活性证明；**清理段承 M4.5 教训**：每步各自 try/catch 不得再抛、id 入清理清单前先过滤、软引用表（OperationLog/Handoff）逐表清 + 逐表断言残留（M4.6 D3 教训：只断言 tenant 残留 = 假信心）"
     },
@@ -87,7 +87,7 @@
       "title": "文档翻牌 + doc-freshness 扩断言",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "architecture.md:1086「子 Agent 调用（演进）」状态列翻 as-built；agent-architecture.md 补前台形态段；doc-freshness 随之扩。",
       "acceptance": "`architecture.md:1086` 两形态表的「子 Agent 调用」状态由「未实装」翻为 as-built（含实装位置指针）；`agent-architecture.md` 补「单一前台 + 子 Agent 调用」段（含成本上限、留痕归属、失败降级三条 as-built 事实）；§8.6 名册段随前台职责变更同步；doc-freshness **扩断言**：新工具入表 / 前台职责文案 / 三个成本常量值 = registry 实物；**S-M46-7 一并收口**——装配序钉的覆盖面补齐「工具指引」段，与文档句 4 段逐项对齐（当初登记的触发时机就是「下个动 doc-freshness 的批次」）；批末新鲜度复核用**不带左括号且含 docs/ 范围**的判据（M4.5 教训）"
     },
@@ -96,7 +96,7 @@
       "title": "backlog 顺手项收口（BL-E2E-CLEANUP-PIN 触发条件已命中）",
       "priority": "medium",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "登记时写死的触发时机就是「下一个改动 agentloop-e2e.ts 清理段 / doc-freshness 的批次必须一并做」，本批 F009/F010 正好命中。范围克制：只做已登记的四条，不扩。",
       "acceptance": "**S-M46-6**：`expectNoFabricatedName` 的黑名单改为**正向精确匹配**（断言 section 恰等于固定全串），复验实测的两种绕过形态（`${id} 星辰出海计划` / `${id}【王者荣耀出海】`）须翻红；**S-RV1-1/2/3**：`cleanupStep` 导出并加**行为级**单测（喂必抛 fn 断言 `await cleanupStep(...)` 正常 resolve），行为断言免疫写法绕过——原三条源码级正则可保留但不再是唯一防线；**S-G5-6**：e2e 越权负向断言收紧为「错误确实来自 `create_project`」（原写法任意工具错误都能满足）；**O-G3-3**：加一条「全人格名单内工具名必在注册表」通用断言；每条均须变异证活，且变异含**当初记录的那条绕过路径**"
     }

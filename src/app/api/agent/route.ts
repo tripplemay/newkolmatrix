@@ -4,7 +4,7 @@
 // → 模型自主调工具 → 经唯一执行入口 executeTool（zod 校验 + class 门控）→ 流式返回工具结果 + 文本。
 //
 // 单一 /api/agent 承载所有专家（不起独立进程，PRD §12.6/FR-12.1）：route 只换人格 system prompt +
-// 工具子集，端点不变。人格身份经响应头 X-Agent-Id 暴露（便于验证/前端消费）。
+// 工具子集，端点不变。人格身份经响应头 X-Agent-Id 暴露（M4.7 F003 起恒为前台）。
 //
 // 【M4.5 F009】loop 装配已抽到 lib/agent/loop.ts（带 model/ctx 注入缝，供 mock-model 测试床
 // 驱动同一条装配路径）。本文件只留 HTTP 边界：请求解析、context 校验、响应头、错误处理。
@@ -26,7 +26,11 @@ import {
   type CopilotEnv,
 } from 'lib/agent/persona-router';
 import { isStage } from 'lib/agent/stage-routing';
-import { FRONT_DESK_AGENT_ID, personaBoundary } from 'lib/agent/registry';
+import {
+  budgetExhaustedNotice,
+  FRONT_DESK_AGENT_ID,
+  personaBoundary,
+} from 'lib/agent/registry';
 
 export const runtime = 'nodejs';
 // M4.5 F002（P3）：60 → 120s。深链人格预算放到 10 步后，10 × 网关 P95 需要余量；
@@ -47,6 +51,15 @@ async function toModelMessages(body: unknown): Promise<ModelMessage[]> {
 }
 
 /** 从请求解析 copilot context（服务端解析/校验，不信任客户端范围——架构稿 §4.3）。 */
+/**
+ * 请求体 → CopilotContext。**导出仅供测试**（M4.7 fix_round1 / F009）：
+ * 它是「客户端说什么」到「服务端认什么」的唯一接缝，此前未导出、零用例，
+ * e2e 里那条 🔑 断言因此只能读测试自己传的值 = 同义反复。
+ */
+export function resolveContextForTest(body: unknown): CopilotContext {
+  return resolveContext(body);
+}
+
 function resolveContext(body: unknown): CopilotContext {
   const raw = (body as { context?: Record<string, unknown> })?.context ?? {};
   const route = typeof raw.route === 'string' ? raw.route : '/admin';
@@ -97,6 +110,14 @@ export async function POST(req: Request): Promise<Response> {
         const { result } = await runAgentLoop({
           copilot,
           messages,
+          // F006 fix：撞顶时模型已无开口机会，服务端往流里补一句如实说明——
+          // 否则用户拿到的是完全空白的回复（首轮验收实测）。
+          onBudgetExhausted: ({ steps, consultCount }) => {
+            writer.write({
+              type: 'data-budget_notice',
+              data: { steps, consultCount, notice: budgetExhaustedNotice(steps, consultCount) },
+            });
+          },
           onPersonaSwitch: ({ from, to, atStep }) => {
             writer.write({
               type: 'data-persona_switch',
@@ -120,6 +141,10 @@ export async function POST(req: Request): Promise<Response> {
       // 暴露人格身份 + 边界（F007 对话面顶部常驻显示 duty + 否定式护栏用）。
       // 【P9 语义】值 = **起始人格**：一轮会话内可能经 handoff_to 换人，切换史只在流内事件里。
       headers: {
+        // M4.7 F003 起**恒为前台**：受理人格不再由页面/客户端决定，
+        // 故该头不再承载「这轮是谁在答」——专家参与经流内 consultation 痕迹呈现。
+        // M4.7 F003 起**恒为前台**：受理人格不再由页面/客户端决定，该头因此不再
+        // 承载「这轮是谁在答」——专家的参与经流内 consultation 痕迹呈现。
         'X-Agent-Id': startPersona.id,
         'X-Agent-Tools': startPersona.tools.join(',') || '(none)',
       },

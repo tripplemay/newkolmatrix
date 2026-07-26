@@ -7,8 +7,10 @@
 // 改后：受理的永远是前台，页面只作为**关注点线索**进 system——
 // 明写「这是用户当前所在位置，不限制你能做什么」，免得模型把线索又读成权限。
 //
-// STAGE_AGENT / defaultAgentForRoute **保留**：雷达深链等非对话用途仍在用它们
-// （见 stage-routing.ts 的消费点），本批只切断「决定谁来回答」这一条用途。
+// `STAGE_AGENT` **保留**：今天页雷达深链靠 `agentId → STAGE_AGENT` 反查环节，
+// 与对话人格选取无关。`defaultAgentForRoute` 本批之后**唯一调用者是 smoke 脚本**
+// （首轮验收 OBS-3 实测更正：它与雷达深链无关，`stage-routing.ts` 也不消费它）。
+// 本批只切断「决定谁来回答」这一条用途。
 
 import { STAGE_LABEL, isStage, type Stage } from './stage-routing';
 

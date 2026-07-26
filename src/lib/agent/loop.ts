@@ -40,6 +40,7 @@ import {
   allPersonaToolNames,
   getPersona,
   isAgentId,
+  LOOP_TIMEOUT_MS,
   MAX_CONSULTS_PER_TURN,
   NO_TOOL_CLAUSE,
   type AgentId,
@@ -109,11 +110,34 @@ export interface AgentLoopParams {
   ctx?: ToolContext;
   /** 注入缝（F001 遥测测试）：给了就无条件用。缺省 = 落 OperationLog。 */
   telemetryWriter?: LoopTelemetryWriter;
+  /** 注入缝（F007 超时测试）：覆盖默认墙钟闸，不必真等 110 秒。 */
+  abortSignal?: AbortSignal;
   /**
    * 人格切换回调（M4.5 F006 / P9）：循环内接力发生时触发一次。
    * route 用它往 UI 流里写 `data-persona_switch` 事件——响应头是一次性的，承载不了切换史。
    */
   onPersonaSwitch?: (event: PersonaSwitchEvent) => void;
+  /**
+   * 撞步数上限回调（M4.7 fix_round1 / F006）。
+   *
+   * 【为什么必须是机制而不是 prompt 条款】首轮验收实测：前台撞顶时模型那一步
+   * 根本没机会说话——loop 直接停，用户端**有痕迹、无答案、也没有"未答完"的说明**，
+   * 拿到的是完全空白的回复。这不是模型不诚实，是它没有开口的机会，
+   * 所以任何写在 system 里的条款都救不了；只能由服务端在流里补一句。
+   */
+  onBudgetExhausted?: (event: BudgetExhaustedEvent) => void;
+}
+
+/** 撞顶事件（F006）：本轮用满了预算，答案很可能不完整。 */
+export interface BudgetExhaustedEvent {
+  /** 实际跑了几步 */
+  steps: number;
+  /** 本轮生效的上限（链上最大档位） */
+  maxSteps: number;
+  /** 当值人格——告诉用户是谁没说完 */
+  agentId: AgentId;
+  /** 已经咨询过几个专家（前台场景下有用） */
+  consultCount: number;
 }
 
 /** 人格切换事件（P9 流内 data part 的载荷同源）。 */
@@ -260,6 +284,10 @@ export async function runAgentLoop(
     // 动态预算：stepCountIs 是静态的，而链上最大档位要随接力抬升，故用谓词。
     // 判据与 stepCountIs 同款（步数达上限即停），只是上限现算。
     stopWhen: ({ steps }) => steps.length >= currentBudget(),
+    // 墙钟闸（F007 fix 连带）：对抗复核实测，产品侧此前**全链无自限**——挂死时
+    // 只能等 undici 的 ~301s 兜底（自托管 standalone 下 maxDuration=120 是死配置，
+    // 不构成截断）。设在 route 的 maxDuration 之下，让我们自己的降级先生效。
+    abortSignal: params.abortSignal ?? AbortSignal.timeout(LOOP_TIMEOUT_MS),
     maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     // F005 循环内接力（P1 时刻隔离）：一旦发生过 handoff_to，后续每一步的 system 段与
     // 工具视野都切到目标人格。无接力 → 返回 undefined（沿用外层配置，零行为变化）。
@@ -293,6 +321,20 @@ export async function runAgentLoop(
         outputTokens?: number;
         totalTokens?: number;
       };
+      // F006：撞顶 → 服务端补一句如实说明（模型此刻已无开口机会）。
+      // 回调失败不得打死会话，同 persona_switch 纪律。
+      if (event.steps.length >= currentBudget()) {
+        try {
+          params.onBudgetExhausted?.({
+            steps: event.steps.length,
+            maxSteps: currentBudget(),
+            agentId: track.current,
+            consultCount: consultBudget.used,
+          });
+        } catch (err) {
+          console.error('[agent/loop] budget_exhausted 回调异常（已忽略）:', err);
+        }
+      }
       const payload = buildLoopTelemetryPayload({
         agentId: persona.id,
         finalAgentId: track.current,

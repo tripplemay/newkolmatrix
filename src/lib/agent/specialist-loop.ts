@@ -23,6 +23,7 @@ import { gameKnowledgeSection } from './knowledge-context';
 import { projectContextSection } from './project-context';
 import {
   SPECIALIST_MAX_STEPS,
+  SPECIALIST_TIMEOUT_MS,
   getPersona,
   type AgentId,
 } from './registry';
@@ -100,6 +101,11 @@ export interface RunSpecialistLoopParams {
   projectSection?: string;
   /** 注入缝：测试注入 mock model。**传入即无条件使用**，见下方注释。 */
   model?: LanguageModel;
+  /**
+   * 注入缝（测试）：覆盖默认墙钟闸。给了就无条件用——测真超时时用一个极短的
+   * signal，不必真等 60 秒。
+   */
+  abortSignal?: AbortSignal;
 }
 
 /**
@@ -165,6 +171,12 @@ export async function runSpecialistLoop(
     tools,
     activeTools: toolNames,
     stopWhen: stepCountIs(SPECIALIST_MAX_STEPS),
+    // 墙钟闸（F007 fix）：不设它就只能等 undici 的 ~301s 兜底，那之前用户端空转、
+    // 前台也没机会说"我问了但没拿到结果"。超时以 abort 抛出 → consult_specialist
+    // 的 catch 转成结构化失败，D-4 承诺的降级路径这才真的可达。
+    abortSignal:
+      params.abortSignal ??
+      AbortSignal.timeout(ctx.consultTimeoutMs ?? SPECIALIST_TIMEOUT_MS),
   });
 
   const steps = result.steps.length;

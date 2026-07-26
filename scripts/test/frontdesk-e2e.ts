@@ -30,6 +30,7 @@ import { LOOP_TELEMETRY_MARKER } from '../../src/lib/agent/loop-telemetry';
 import { CONSULT_FAILED_MARKER } from '../../src/lib/agent/tools/consult-specialist';
 import { SHARE_CREATED_MARKER } from '../../src/lib/ops/share';
 import { runScriptedLoop } from '../../tests/support/agent-loop-testbed';
+import { resolveContextForTest } from '../../src/app/api/agent/route';
 import type { ToolContext } from '../../src/lib/agent/tools/types';
 
 import { cleanupStep } from './cleanup-step';
@@ -111,9 +112,25 @@ async function main(): Promise<void> {
     });
 
     assert(run.networkCalls.length === 0, '零外呼（fetch 哨兵在场）');
+    // 【首轮验收：原断言是同义反复】它读的是 run.loop.persona.id，而
+    // copilot.agentId 由本脚本自己传入 —— 等于在验测试自己写下的值。
+    // 改为**经真 route 的 resolveContext**：body 里刻意传环节人格 'match'，
+    // 服务端仍须解析成前台。输入 ≠ 期望，才有鉴别力。
+    const resolved = resolveContextForTest({
+      context: {
+        route: `/admin/campaigns/${fxProject.id}`,
+        projectId: fxProject.id,
+        agentId: 'match',
+        stage: 'match',
+      },
+    });
+    assert(
+      resolved.agentId === FRONT_DESK_AGENT_ID && resolved.agentId !== 'match',
+      '🔑 客户端传环节人格，服务端仍解析为前台（本批根因的正面证明，输入≠期望）',
+    );
     assert(
       run.loop.persona.id === FRONT_DESK_AGENT_ID,
-      '🔑 环节页发起，受理的仍是前台（本批根因的正面证明）',
+      '本轮 loop 的受理人格也是前台',
     );
     assert(
       run.toolNames.filter((n) => n === 'consult_specialist').length === 2,
@@ -222,6 +239,24 @@ async function main(): Promise<void> {
     );
     // 【显式决定：留不删】mock 分享通道的标记行 ref/projectId 皆 null，三把键都不命中。
     // 沿 M4.5 spec §9 S-M45-1 既定口径：append-only，保留不删，但**报账**。
+    // 【首轮验收：只清不断 = 假信心】变异实证：故意留 2 行孤儿，脚本仍 exit 0。
+    // 清完必须**逐表断言残留为 0**，否则清理写没写对无人知晓。
+    await cleanupStep('清态断言（逐表，残留非 0 即失败）', async () => {
+      const [logs, handoffs, pas, projects] = await Promise.all([
+        prisma.operationLog.count({
+          where: { tenantId, projectId: fxProject.id },
+        }),
+        prisma.handoff.count({ where: { tenantId, projectId: fxProject.id } }),
+        prisma.pendingAction.count({ where: { id: { in: createdPA } } }),
+        prisma.project.count({ where: { id: fxProject.id } }),
+      ]);
+      const leftover = { logs, handoffs, pas, projects };
+      if (logs || handoffs || pas || projects) {
+        throw new Error(`清态断言失败，仍有残留：${JSON.stringify(leftover)}`);
+      }
+      console.log('  ✓ 清态断言：夹具残留逐表为 0');
+    });
+
     await cleanupStep('SHARE_CREATED 留痕计账（不删，只报账）', async () => {
       const after = await prisma.operationLog.count({
         where: { tenantId, summary: { contains: SHARE_CREATED_MARKER } },

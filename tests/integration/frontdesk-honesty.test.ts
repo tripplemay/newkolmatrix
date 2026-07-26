@@ -168,3 +168,46 @@ describe('子 loop 透传', () => {
     }
   });
 });
+
+describe('工具出口层：证据不足时产物里不得夹带数值结论（F005 链上断言）', () => {
+  it('consult_specialist 的产物在 insufficientEvidence=true 时，answer 不含数值结论', async () => {
+    // 【首轮验收缺项】acceptance 明列「链上机械断言前台不出数值结论」，交付物完全没有。
+    // 前台的最终措辞属 L2（真模型），但**工具出口这一层**可以机械断言：
+    // 专家自己在证据不足时就不该给数字——这是 SPECIALIST_SCOPE_CLAUSE 的要求，
+    // 也是前台唯一的事实来源。出口层守住，前台才没有编数字的原料。
+    const { executeTool } = await import('../../src/lib/agent/execute');
+    const sentinel = installNoNetworkSentinel();
+    try {
+      const res = (await executeTool(
+        'consult_specialist',
+        { targetAgent: 'insight', question: 'ROI？' },
+        {
+          ...ctx,
+          consultBudget: { used: 0, max: 2 },
+          model: scriptedGenerateModel([
+            { toolName: 'compute_roi', input: { projectId } },
+            { text: '本期分子无回传源，ROI 算不出来。' },
+          ]),
+        },
+      )) as { output: { insufficientEvidence: boolean; answer: string } };
+      expect(res.output.insufficientEvidence, '前提：本地夹具必然证据不足').toBe(
+        true,
+      );
+      // 机械判据：证据不足时 answer 里不得出现"ROI 是/约/大致 + 数字"这类结论形态
+      expect(
+        res.output.answer,
+        '证据不足却给了数值结论 —— M4-INSIGHT 钉住的诚实在这一层被抹平',
+      ).not.toMatch(/(ROI|回报率)\s*(是|为|约|大致|大约|≈|~)?\s*[0-9]+(\.[0-9]+)?\s*(倍|x|X|%)?/);
+    } finally {
+      sentinel.restore();
+    }
+  });
+
+  it('活性证明：同一判据能抓住"编了个数字"的产物', () => {
+    // 若判据本身抓不到目标，上面那条恒绿、毫无意义（本会话反复踩过这个坑）。
+    const fabricated = '本期 ROI 大约 1.8 倍，建议加投。';
+    expect(fabricated).toMatch(
+      /(ROI|回报率)\s*(是|为|约|大致|大约|≈|~)?\s*[0-9]+(\.[0-9]+)?\s*(倍|x|X|%)?/,
+    );
+  });
+});

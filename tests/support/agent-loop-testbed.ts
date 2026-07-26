@@ -91,6 +91,13 @@ export interface RunScriptedLoopOptions {
    * 前台调 `consult_specialist` 时，对应人格的脚本驱动那次子 loop。
    */
   specialistScripts?: Partial<Record<string, ScriptedStep[]>>;
+  /** M4.7 fix_round1：撞顶告知回调（F006）——透传给 runAgentLoop。 */
+  onBudgetExhausted?: (e: {
+    steps: number;
+    maxSteps: number;
+    agentId: string;
+    consultCount: number;
+  }) => void;
 }
 
 /**
@@ -289,6 +296,7 @@ export async function runScriptedLoop(
       model,
       ctx: opts.ctx,
       telemetryWriter: opts.telemetryWriter,
+      onBudgetExhausted: opts.onBudgetExhausted as never,
       onPersonaSwitch: (e) => personaSwitches.push(e),
     });
 

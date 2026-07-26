@@ -1068,7 +1068,7 @@ export function renderToolResult(toolName: string, output: unknown);  // 未注�
 编排 Agent 只做两件事（FR-9.6）：**待办汇总** + **环节调度**。
 
 - **待办汇总（as-built）**：`orchestrator.aggregatePending(ctx)` 查 `PendingAction where status='pending'`（按 `createdAt desc`），**原样返回 `{id, kind, toolName, status, harm, createdAt}`，不改写 `harm`、不软化任何专家/闸门结论**。
-- **不改写铁律的双保险**（FR-9.6 + FR-10.8）：① **数据层**——聚合接口只做 SELECT 透传，签名中**没有任何改写/过滤/摘要参数**；② **prompt 层**——orchestrator 的 `isolation` 声明「不亲自执行环节工作，只分派与汇总」。
+- **不改写铁律的双保险**（FR-9.6 + FR-10.8）：① **数据层**——聚合接口只做 SELECT 透传，签名中**没有任何改写/过滤/摘要参数**；② **prompt 层**——前台（orchestrator）的 `isolation` 声明「不亲自执行环节工作；专家的结论可转述不可改写」（**M4.7 F002 起**：前台是唯一对用户说话的人，「不改写」这一层因此比 M4.5 时更吃重）。
 - **目标态**：`ask` = 派生计算（非手工打标），来源三类：① `PendingAction(status='pending')` 的 outbound 待确认（✅已建）② 合规 `block` 待补件（演进 M2）③ 健康度/阻塞报警（演进 M1）。KPI「待你确认」计数与卡数**必须同源**（FR-8.1.3）——经同一取数函数，不得各查各的。
 - **环节调度（as-built）**：`stage-routing.ts` 提供 client-safe 纯函数 `routeToStage()` / `STAGE_AGENT`（brief→strategy, match→match, reach→reach, delivery→delivery, insight→insight）/ `parseOrchestratorDirective()`（`enter:` / `env:` / `pick:`）。抽为独立 client-safe 模块是**刻意的**——避免页面 client bundle 拉入 prisma。
 - 编排不持有对话之外的写能力；跨环节跳转只产动作卡。

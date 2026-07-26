@@ -77,6 +77,43 @@ export const MAX_CONSULTS_PER_TURN = 2;
  */
 export const SPECIALIST_MAX_STEPS = 3;
 
+/**
+ * 专家子 loop 的墙钟上限（M4.7 fix_round1 / F007）。
+ *
+ * 【为什么必须有】首轮验收实测：上游"连上但永不回响应头"时，产品侧**没有任何自限**——
+ * 全靠 Node 全局 fetch（undici）的 `headersTimeout` 兜底，实测 **301,018 ms**（≈5 分钟）
+ * 才抛 `UND_ERR_HEADERS_TIMEOUT`。在那之前用户端一直空转，前台也没机会说
+ * 「我问了但没拿到结果」——D-4 承诺的失败降级在挂死场景根本不可达。
+ * （对抗复核同时更正了两处：自托管 standalone 下 `maxDuration=120` 是死配置、
+ *   不构成平台截断；且该暴露**不是子 loop 专属**，主 loop 同样无自限。）
+ */
+export const SPECIALIST_TIMEOUT_MS = 60_000;
+
+/**
+ * 主 loop 的墙钟上限（M4.7 fix_round1 / F007 连带）。
+ * 取值低于 `route.ts` 的 `maxDuration = 120`，让**我们自己的降级路径**先于任何
+ * 外部兜底生效——否则挂死时用户拿到的是连接被掐断，不是一句如实说明。
+ */
+export const LOOP_TIMEOUT_MS = 110_000;
+
+/**
+ * 撞顶告知文案（M4.7 fix_round1 / F006）。服务端在流里补这一句。
+ *
+ * 【为什么不写成 prompt 条款】撞顶时模型没有开口的机会——loop 直接停。
+ * 首轮验收实测：用户端拿到的是完全空白的回复。故必须由服务端补。
+ */
+export function budgetExhaustedNotice(steps: number, consultCount: number): string {
+  const consulted =
+    consultCount > 0 ? `，其间咨询了 ${consultCount} 位专家` : '';
+  return (
+    `我没答完就到步数上限了（用满 ${steps} 步${consulted}）。` +
+    '上面是我已经查到的部分；剩下的没来得及查，你可以把问题拆小一点再问我一次。'
+  );
+}
+
+/** 撞顶告知的语义锚点（测试钉字面量，防被改成"已为你完成"之类）。 */
+export const BUDGET_NOTICE_ANCHOR = '我没答完就到步数上限了';
+
 const BASE_SYSTEM = [
   '你是 KOLMatrix 专家 Agent 编队的一员，服务单角色营销操盘手。基于工具返回的真实数据作答，不编造。',
   // M2-C F003 —— 行动承诺诚实条款（产品级，全人格生效；触发源 = 用户实证的幻觉编排事故）：

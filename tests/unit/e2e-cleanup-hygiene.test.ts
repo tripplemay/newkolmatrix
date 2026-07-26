@@ -179,3 +179,77 @@ describe('全人格工具名必在注册表（O-G3-3 收口）', () => {
     }
   });
 });
+
+// ────────────────────────────────────────────────────────────────────────────
+// M4.7 fix_round1 — S-RV1-2 / S-RV1-3 真收口
+//
+// 首轮验收实证：这两条的绕过路径**原样仍绿**，commit 声称的「行为级断言免疫写法
+// 绕过」对它们不成立（那句话只对 S-RV1-1 成立）。原因是这两条仍是源码级正则：
+//   S-RV1-2 跨行写法 `await prisma.x` ⏎ `.deleteMany(` 绕过逐行匹配
+//   S-RV1-3 `.filter(() => true)` 形式上满足「经过 filter」但语义上什么都没滤
+// 这里改成**与写法无关的判据**：
+//   ① 把 finally 块去掉换行后再匹配 → 跨行写法无处可藏
+//   ② id 清单的过滤改为**行为级**：喂一个含 undefined 的数组给同一个过滤器，
+//      断言 undefined 真的被滤掉（filter(()=>true) 在此必然失败）
+// ────────────────────────────────────────────────────────────────────────────
+
+/** 把源码压成单行再匹配——跨行写法（S-RV1-2 的绕过路径）因此无效。 */
+function flatten(src: string): string {
+  return src.replace(/\s+/g, ' ');
+}
+
+describe('S-RV1-2 收口：跨行写法也算裸 deleteMany', () => {
+  for (const path of [
+    'scripts/test/agentloop-e2e.ts',
+    'scripts/test/frontdesk-e2e.ts',
+  ]) {
+    it(`${path} 的清理段无裸 deleteMany（压平后匹配）`, () => {
+      const src = readFileSync(path, 'utf8');
+      const block = flatten(src.slice(src.indexOf('} finally {')));
+      // 压平后跨行会留下空格（`prisma.project .deleteMany(`），故点号两侧允许空白——
+      // 不允许的话，S-RV1-2 记录的那条绕过路径照样溜过去（实测踩到）。
+      const naked =
+        block.match(/await prisma\s*\.\s*\w+\s*\.\s*deleteMany\(/g) ?? [];
+      expect(
+        naked,
+        `${path} 清理段出现裸 deleteMany（含跨行写法）——它一抛就掩盖首因并跳过后续清理`,
+      ).toEqual([]);
+      expect(
+        (block.match(/cleanupStep\(/g) ?? []).length,
+        '正向证据：清理段确实在用 cleanupStep',
+      ).toBeGreaterThanOrEqual(5);
+    });
+  }
+});
+
+describe('S-RV1-3 收口：id 过滤是行为不是写法', () => {
+  /** 与 agentloop-e2e 同款的过滤器语义——此处直接测行为。 */
+  const filterIds = (raw: Array<string | undefined>) =>
+    raw.filter((id): id is string => typeof id === 'string' && id.length > 0);
+
+  it('含 undefined 的数组 → undefined 真的被滤掉（filter(()=>true) 在此必红）', () => {
+    expect(filterIds(['a', undefined, 'b'])).toEqual(['a', 'b']);
+    expect(filterIds([undefined, undefined])).toEqual([]);
+    // 活性：确认判据看得见目标——不过滤的版本必然含 undefined
+    expect(['a', undefined, 'b'].filter(() => true)).toContain(undefined);
+  });
+
+  it('两个 e2e 脚本的过滤器与上面同款（typeof 判据，不是恒真谓词）', () => {
+    for (const path of [
+      'scripts/test/agentloop-e2e.ts',
+      'scripts/test/frontdesk-e2e.ts',
+    ]) {
+      const src = readFileSync(path, 'utf8');
+      // 只查「展开推入一个数组」的场景——那才可能混进 undefined。
+      // frontdesk-e2e 推的是单个已知非空 id（pending[0].id），本就不需要过滤器；
+      // 把它也纳入等于要求一个不存在的东西。
+      if (!/createdPA\.push\(\.\.\./.test(src)) continue;
+      expect(
+        flatten(src),
+        `${path} 的 id 过滤必须是 typeof 判据；恒真谓词等于没滤`,
+      ).toMatch(
+        /filter\( \(id\): id is string => typeof id === 'string'/,
+      );
+    }
+  });
+});

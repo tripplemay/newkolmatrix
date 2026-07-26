@@ -98,6 +98,19 @@ describe('子 loop 内的动作归属专家（不是前台）', () => {
     expect(pa!.agentId).not.toBe(FRONT_DESK_AGENT_ID);
   });
 
+  it('OperationLog.actor 同样记专家（留痕两个字段都要锁，N-1 = 静默门）', async () => {
+    // 【首轮验收 F004-D1】acceptance 把 PendingAction.agentId **与**
+    // OperationLog.actor 并列写为「记实际干活的专家」，但交付物只给前者上了钉子。
+    // 变异实证：gate.ts 的 actor 写死为前台后，全仓 1341 条测试无一翻红——
+    // 违反的正是本批 spec §6.3 自己立的「机械钉覆盖面必须与它守护的那句话逐项对齐」。
+    const log = await prisma.operationLog.findFirst({
+      where: { tenantId, actor: { not: FRONT_DESK_AGENT_ID } },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(log, '专家干的活应留下 actor≠前台 的日志行').toBeTruthy();
+    expect(log!.actor, 'actor 必须是实际干活的专家').toBe('insight');
+  });
+
   it('雷达深链反查不再落回退分支（agentId → STAGE_AGENT 命中）', async () => {
     const pa = await prisma.pendingAction.findFirst({
       where: { tenantId, toolName: 'create_share_link' },

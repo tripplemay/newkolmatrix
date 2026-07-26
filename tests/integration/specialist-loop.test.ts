@@ -101,7 +101,7 @@ describe('时刻隔离在子 loop 内照旧（两道防线）', () => {
   // 照样绿——因为子 loop 的 ToolSet 本就只装目标人格的工具，越权调用先被
   // "工具不存在"挡掉，根本走不到执行侧那道。故如实命名为"越权不发生"，
   // 不声称测到了防线②（它在子 loop 里当前不可达，实现处已注明）。
-  it('越权调用不发生：洞察硬调交付独占工具 → 无副作用、不落 PendingAction', async () => {
+  it('越权调用不发生：洞察硬调**编排独占**工具 → 无副作用、无落库', async () => {
     const seen: SeenCall[] = [];
     const sentinel = installNoNetworkSentinel();
     let run;
@@ -110,9 +110,17 @@ describe('时刻隔离在子 loop 内照旧（两道防线）', () => {
         targetAgent: 'insight',
         question: '给这个项目放款',
         ctx: frontDeskCtx,
-        // payout 是 delivery 独占；洞察硬调它必须被执行侧拦
+        // 【首轮验收 D1：换样本】原先挑 payout，但它的 zod 要 dealId 而用例给了
+        // projectId —— 调用**卡在入参校验**，根本没走到隔离层，"不落 PendingAction"
+        // 恒真、与隔离无关。评估者把双防线同时摘掉后用入参合法的 create_project
+        // 实测：越权真的执行并落行，而原用例照样全绿。
+        // 换成 create_project（internal、入参合法、成功即落 Project 行）——
+        // 一旦隔离被击穿，下面的计数断言立刻能看见。
         model: scriptedGenerateModel(
-          [{ toolName: 'payout', input: { projectId } }, { text: '拿到结果。' }],
+          [
+            { toolName: 'create_project', input: { name: 'm47-越权探针' } },
+            { text: '拿到结果。' },
+          ],
           seen,
         ),
       });
@@ -120,13 +128,18 @@ describe('时刻隔离在子 loop 内照旧（两道防线）', () => {
       sentinel.restore();
     }
     expect(sentinel.calls, '零外呼').toEqual([]);
-    // 拦截以工具错误呈现，且错误信息就是那条同源常量
-    const errored = run.toolNames.includes('payout');
-    expect(errored, '调用发生了（否则下面断言无意义）').toBe(true);
-    const pa = await prisma.pendingAction.count({
-      where: { tenantId, toolName: 'payout' },
-    });
-    expect(pa, '被拦下的越权调用不得落 PendingAction').toBe(0);
+    expect(
+      run.toolNames.includes('create_project'),
+      '调用确实发生了（否则下面的计数断言毫无意义——这是本条的活性前提）',
+    ).toBe(true);
+    // 【鉴别力所在】create_project 一旦真执行就会落一行 Project。
+    // 隔离被击穿 → 这里立刻 +1；隔离在场 → 恒为 0。
+    expect(
+      await prisma.project.count({
+        where: { tenantId, name: 'm47-越权探针' },
+      }),
+      '越权工具真的执行了 —— 时刻隔离被击穿',
+    ).toBe(0);
     expect(TOOL_NOT_IN_SUBSET_MSG.length).toBeGreaterThan(0);
   });
 

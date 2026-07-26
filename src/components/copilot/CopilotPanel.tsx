@@ -3,7 +3,8 @@
 // Horizon 外壳右栏常驻 Copilot 面板，useChat 接 /api/agent（F005 流式 loop）。
 // - 消息气泡（还原设计稿 .cmsg：user 渐变右 / agent 浅色左）
 // - generative canvas：工具结果经 canvas-registry 渲染（search_kols → KOL 卡片流）
-// - 多人格切换：进不同 route 自动切人格；context key 变化 → 对话清空 + 新专家开场白（FR-12.4）
+// - **单一前台（M4.7 F003 起）**：受理人格恒为前台，进不同 route **不再**切人格；
+//   专家降为内部能力（前台经 consult_specialist 内部咨询），协作痕迹以 ConsultationNote 呈现
 //
 // ARCH-M05 F003 升级（原型 S3 19 元素）：
 // - cop-head 渐变随专家主题色（agent-theme 本地色表）+ dm 图标块 + 动态专家名/副标题
@@ -382,15 +383,19 @@ function CopilotChat({
   );
 }
 
-// 用 useSearchParams 读 ?env=（项目详情切环节专家；F007 迁移 kimi §6.1）——须 Suspense 包裹（Next 15）。
-// 旧深链 ?stage= 兜底读：ProjectDetail 会 router.replace 重写为 ?env=，兜底避免重写瞬态落默认人格。
+// 用 useSearchParams 读 ?env=（M4.7 F003 起：环节只作为**线索**进 system，不再选专家）
+// ——须 Suspense 包裹（Next 15）。旧深链 ?stage= 兜底读：ProjectDetail 会 router.replace
+// 重写为 ?env=，兜底避免重写瞬态丢失线索。
 function CopilotPanelInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const stage = searchParams.get('env') ?? searchParams.get('stage');
   const context = deriveContext(pathname ?? '/admin', stage);
   const contextKey = buildContextKey(context);
-  // key=contextKey（含 agentId，随 route/env/stage-专家 变化）→ 整个 chat remount（对话清空 + 新专家开场白，FR-12.4）
+  // key=contextKey（= route:projectId:env:agentId，**不含 stage**）→ 变化时整个 chat remount。
+  // 【M4.7 F003 后的实际行为，与旧注释相反】agentId 现已恒为前台，故**同一项目内切
+  // ?env= 不再 remount、对话不再清空**——切环节只是换了 system 里的位置线索。
+  // 跨项目 / 跨 route 仍会 remount（projectId、route 变了）。
   return <CopilotChat key={contextKey} context={context} stage={stage} />;
 }
 

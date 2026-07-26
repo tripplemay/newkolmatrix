@@ -54,6 +54,9 @@ export const CONSULT_SELF_MSG = '不能咨询你自己';
 export const CONSULT_BUDGET_EXHAUSTED_MSG =
   '本轮咨询次数已用尽（上限由 MAX_CONSULTS_PER_TURN 决定）——请用已拿到的结果作答，并如实告诉用户还有哪些没问到';
 
+/** 超时失败的可辨前缀（前台据此如实转达"没等到"，而非笼统说"失败"）。 */
+export const CONSULT_TIMEOUT_HINT = '专家未在时限内返回';
+
 /** 咨询失败留痕标记（线上归因用；测试与查询共用锚点）。 */
 export const CONSULT_FAILED_MARKER = 'consult_specialist:FAILED';
 
@@ -111,7 +114,17 @@ async function run(
   } catch (err) {
     // 【不抛穿】子 loop 炸了不该把整场会话带走（同知识段 D2 纪律：增强性能力
     // 失败不打死主链路）。返回结构化失败，让前台如实转达。
-    const reason = err instanceof Error ? err.message : String(err);
+    // 超时与一般失败要能分辨——线上归因时"网关挂死"和"工具报错"是两码事。
+    const isTimeout =
+      err instanceof Error &&
+      (err.name === 'TimeoutError' ||
+        err.name === 'AbortError' ||
+        /timeout|aborted/i.test(err.message));
+    const reason = isTimeout
+      ? `咨询超时（${CONSULT_TIMEOUT_HINT}）：${err instanceof Error ? err.message : String(err)}`
+      : err instanceof Error
+        ? err.message
+        : String(err);
     await logConsultFailure(input.targetAgent, reason, ctx);
     return {
       type: 'consultation',

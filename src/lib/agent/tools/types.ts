@@ -68,6 +68,12 @@ export interface ToolContext {
    * 传数字等于每次都拿到初始值，计数永远不增（同 F004 的 currentAgentId 教训）。
    */
   consultBudget?: { used: number; max: number };
+  /**
+   * 注入缝（M4.7 fix_round1 / F007）：覆盖专家子 loop 的墙钟闸。
+   * 缺省读 registry 的 `SPECIALIST_TIMEOUT_MS`。测真超时时给一个极短值，
+   * 不必让 CI 真等 60 秒——**传入即无条件使用**，同 model 注入缝纪律。
+   */
+  consultTimeoutMs?: number;
 }
 
 export interface ToolDefinition<TInput = unknown, TOutput = unknown> {

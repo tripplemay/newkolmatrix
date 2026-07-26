@@ -66,7 +66,7 @@ Agent 驱动产品的四根柱子。每柱一个明确的唯一入口，禁止�
 
 | 面 | as-built | 落点 |
 |---|---|---|
-| **步数预算** | 按人格差异化：`AgentPersona.maxSteps`（深链 `insight`/`orchestrator` = 10，其余 5）。**registry 是唯一真相源**，全仓 `stepCountIs(` 后不得跟数字字面量（git grep 回归钉死）。`maxDuration` 60→120 | `registry.ts` / `loop.ts` |
+| **步数预算** | 按人格差异化：`AgentPersona.maxSteps`（深链 `insight` = 10，其余 5——**M4.7 F006 起前台也是常规档**）。接力/咨询到深链专家时本轮预算按**链上最大档位**抬升（`chainBudget`），故主 loop 的 `stopWhen` 是谓词而非静态 `stepCountIs`；`stepCountIs(` 的唯一消费点是专家子 loop（入参为常量）。**registry 是唯一真相源**，全仓不得出现数字字面量（回归钉死）。`maxDuration` 60→120 | `registry.ts` / `loop.ts` / `specialist-loop.ts` |
 | **loop 遥测** | 每会话结束落一行 `OperationLog(kind=auto, summary` 以 `agent_loop` 起头`)`：agentId / finalAgentId / steps / maxSteps / **budgetHit** / finishReason / toolNames[]（含重复保序）/ personaSwitches / usage。**只记元数据不记正文**（载荷装配函数的入参形状就不接受正文）；fire-and-forget 但失败必须 `console.error` | `loop-telemetry.ts` |
 | **循环内接力** | `handoff_to`（internal，**仅 orchestrator 持有**）→ 落 `Handoff` 行 → `prepareStep` 把后续步的 system 段（目标人格 prompt + **重读条款**）与 `activeTools` 切到目标人格。当值人格从 `steps` 里解析（幂等，不靠外部可变状态） | `tools/handoff-to.ts` / `loop.ts` |
 | **时刻隔离（P1）** | 任一时刻 loop 只见当值人格子集。两道防线：① SDK `activeTools` 收窄模型视野（实测直接 `NoSuchTool` 拒绝）② **执行侧硬挡**（`toAiSdkTools` 的 `isToolActive`）——视野收窄 ≠ 执行禁止，模型凭历史消息里的工具名照样能发调用。**outbound 人格绑定不变**：payout 永远只在 delivery 子集 | `to-ai-sdk-tools.ts` |

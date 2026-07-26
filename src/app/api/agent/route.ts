@@ -21,16 +21,12 @@ import {
 import { describeGatewayError } from 'lib/ai/gateway';
 import { runAgentLoop } from 'lib/agent/loop';
 import {
-  defaultAgentForRoute,
   selectPersona,
   type CopilotContext,
   type CopilotEnv,
 } from 'lib/agent/persona-router';
-import {
-  DEFAULT_AGENT_ID,
-  isAgentId,
-  personaBoundary,
-} from 'lib/agent/registry';
+import { isStage } from 'lib/agent/stage-routing';
+import { FRONT_DESK_AGENT_ID, personaBoundary } from 'lib/agent/registry';
 
 export const runtime = 'nodejs';
 // M4.5 F002（P3）：60 → 120s。深链人格预算放到 10 步后，10 × 网关 P95 需要余量；
@@ -58,13 +54,17 @@ function resolveContext(body: unknown): CopilotContext {
   const env = ENVS.includes(raw.env as CopilotEnv)
     ? (raw.env as CopilotEnv)
     : 'default';
-  // agentId：显式指定优先且须合法，否则从 route 推导，最后回落默认（orchestrator）。
-  const explicit =
-    typeof raw.agentId === 'string' && isAgentId(raw.agentId)
-      ? raw.agentId
-      : null;
-  const agentId = explicit ?? defaultAgentForRoute(route) ?? DEFAULT_AGENT_ID;
-  return { route, projectId, env, agentId };
+  // M4.7 F003：**受理人格恒为前台**。此前这里是「显式指定优先 → 从 route 推导 →
+  // 回落默认」，于是页面决定了谁有发言权——用户在匹配页问 ROI 就被匹配 Agent 拒答，
+  // 让他自己去找洞察 Agent（生产实测的那次）。现在页面只作为线索（stage）进 system，
+  // 谁来受理不再由它决定。
+  //
+  // 客户端传来的 agentId 一律**不采信**（它本来也只是前端从路径推的，不是权限凭据）；
+  // 环节改由 stage 字段承载。defaultAgentForRoute / STAGE_AGENT 保留给雷达深链等
+  // 非对话用途，不在此处消费。
+  const stage =
+    typeof raw.stage === 'string' && isStage(raw.stage) ? raw.stage : null;
+  return { route, projectId, env, agentId: FRONT_DESK_AGENT_ID, stage };
 }
 
 export async function POST(req: Request): Promise<Response> {

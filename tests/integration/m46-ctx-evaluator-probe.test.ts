@@ -18,6 +18,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { LanguageModelV4CallOptions } from '@ai-sdk/provider';
 import { prisma } from '../../src/lib/db/prisma';
+import { FRONT_DESK_AGENT_ID } from '../../src/lib/agent/registry';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
 import type { ToolContext } from '../../src/lib/agent/tools/types';
 import {
@@ -172,7 +173,11 @@ describe('[Evaluator] F001 — 真 /api/agent route 全链（HTTP → resolveCon
     );
 
     expect(res.status).toBe(200);
-    expect(res.agentIdHeader).toBe('match');
+    // 【M4.7 F003 有意变更】受理人格恒为前台——页面/客户端不再能指定谁来回答
+    // （本批根因：页面路由决定发言权 → 环节人格拒答并让用户自己去找别的 Agent）。
+    // 本断言由"等于客户端指定的人格"改为"恒为前台"，**强度提高而非放宽**：
+    // 它现在守的是"客户端指定的 agentId 一律不采信"这条新红线。
+    expect(res.agentIdHeader).toBe(FRONT_DESK_AGENT_ID);
     expect(res.networkCalls, '真 route 路径同样零外呼').toEqual([]);
     expect(res.systems.length, '模型至少被调一次').toBeGreaterThan(0);
     expect(

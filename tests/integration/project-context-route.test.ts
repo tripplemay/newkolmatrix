@@ -17,6 +17,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { LanguageModelV4CallOptions } from '@ai-sdk/provider';
 import { prisma } from '../../src/lib/db/prisma';
+import { FRONT_DESK_AGENT_ID } from '../../src/lib/agent/registry';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
 import type { ToolContext } from '../../src/lib/agent/tools/types';
 import {
@@ -28,6 +29,11 @@ import {
   NO_ASK_PROJECT_CLAUSE,
   PROJECT_CONTEXT_HEADING,
 } from '../../src/lib/agent/project-context';
+import {
+  STAGE_HINT_HEADING,
+  STAGE_HINT_NOT_A_LIMIT,
+} from '../../src/lib/agent/stage-hint';
+import { getPersona } from '../../src/lib/agent/registry';
 
 /** vi.mock 工厂被提升到文件顶部 → 支点必须走 vi.hoisted。 */
 const seam = vi.hoisted(() => ({
@@ -158,7 +164,11 @@ describe('真 route POST /api/agent —— 项目上下文注入（D1）', () =>
     );
     expect(r.status).toBe(200);
     expect(r.networkCalls, '零外呼').toEqual([]);
-    expect(r.agentIdHeader).toBe('match');
+    // 【M4.7 F003 有意变更】受理人格恒为前台——页面/客户端不再能指定谁来回答
+    // （本批根因：页面路由决定发言权 → 环节人格拒答并让用户自己去找别的 Agent）。
+    // 本断言由"等于客户端指定的人格"改为"恒为前台"，**强度提高而非放宽**：
+    // 它现在守的是"客户端指定的 agentId 一律不采信"这条新红线。
+    expect(r.agentIdHeader).toBe(FRONT_DESK_AGENT_ID);
     expect(r.systems.length).toBeGreaterThan(0);
     expect(
       r.systems[0],
@@ -233,5 +243,82 @@ describe('真 route POST /api/agent —— 项目上下文注入（D1）', () =>
     expect(r.systems[1], '接手后的 system 缺当前项目').toContain(projectId);
     expect(r.systems[1]).toContain(NO_ASK_PROJECT_CLAUSE);
     expect(r.systems[1], '第二步 system 应已换人格').not.toBe(r.systems[0]);
+  });
+
+  // ── M4.7 F003：路由降级为线索 ───────────────────────────────────────────
+  it('🔑 环节页发起的会话，受理人格仍是前台（本批根因的正面断言）', async () => {
+    const r = await postAgent(
+      {
+        prompt: '帮我看看这个项目该推进什么，然后分析下 ROI',
+        context: {
+          route: `/admin/campaigns/${projectId}`,
+          projectId,
+          env: 'default',
+          // 客户端刻意指定环节人格——服务端一律不采信
+          agentId: 'match',
+          stage: 'match',
+        },
+      },
+      [{ text: '好的。' }],
+    );
+    expect(r.status).toBe(200);
+    expect(r.agentIdHeader, '受理人格恒为前台').toBe(FRONT_DESK_AGENT_ID);
+    // system 是前台的，不是匹配专家的
+    expect(r.systems[0]).toContain(getPersona(FRONT_DESK_AGENT_ID).isolation);
+    expect(
+      r.systems[0],
+      '前台必须看得见 consult_specialist——否则它又只能拒答',
+    ).toContain('consult_specialist');
+  });
+
+  it('线索段的语义锚点钉死：必须是「不限制」而非「只处理本环节」', () => {
+    // 【为什么要钉字面量】其余断言全部引用 STAGE_HINT_NOT_A_LIMIT 常量本身——
+    // 改常量等于两边一起改，是同义反复。变异实测（MUT-C）：把这句改成
+    // 「请只处理该环节范围内的问题，其他事让用户去找对应专家」——**本批要根治的
+    // 缺陷原样复发**——那些断言仍然全绿。M4.6 已经栽过一次，这里不再重蹈。
+    expect(STAGE_HINT_NOT_A_LIMIT).toContain('不限制');
+    expect(STAGE_HINT_NOT_A_LIMIT).toContain('照常咨询对应专家');
+    expect(
+      STAGE_HINT_NOT_A_LIMIT,
+      '不得出现把用户推去别处的措辞——那正是本批要消灭的体验',
+    ).not.toMatch(/只(处理|负责|做).{0,10}环节|去找对应专家(?!。?$)|自行前往/);
+  });
+
+  it('环节作为线索进 system，且明写「不限制你能做什么」', async () => {
+    const r = await postAgent(
+      {
+        prompt: 'x',
+        context: {
+          route: `/admin/campaigns/${projectId}`,
+          projectId,
+          stage: 'match',
+        },
+      },
+      [{ text: '好的。' }],
+    );
+    expect(r.systems[0]).toContain(STAGE_HINT_HEADING);
+    // 正向精确匹配那句「线索不是权限」——它一旦丢失或被改反，模型很可能又把
+    // 页面读成权限边界（M4.6 教训：否定式断言不可穷尽）
+    expect(r.systems[0]).toContain(STAGE_HINT_NOT_A_LIMIT);
+  });
+
+  it('不在环节页 → 不注入线索段（不注水，同项目段纪律）', async () => {
+    const r = await postAgent(
+      { prompt: 'x', context: { route: `/admin/campaigns/${projectId}`, projectId } },
+      [{ text: '好的。' }],
+    );
+    expect(r.systems[0]).not.toContain(STAGE_HINT_HEADING);
+    expect(r.systems[0].length, '人格段本体仍在（防整体为空的假通过）').toBeGreaterThan(50);
+  });
+
+  it('非法 stage 值不注水（客户端乱传不该产生段落）', async () => {
+    const r = await postAgent(
+      {
+        prompt: 'x',
+        context: { route: '/admin', stage: 'not-a-stage' },
+      },
+      [{ text: '好的。' }],
+    );
+    expect(r.systems[0]).not.toContain(STAGE_HINT_HEADING);
   });
 });

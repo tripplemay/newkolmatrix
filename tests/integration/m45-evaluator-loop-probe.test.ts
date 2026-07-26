@@ -14,8 +14,10 @@
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { prisma } from '../../src/lib/db/prisma';
+import { FRONT_DESK_AGENT_ID } from '../../src/lib/agent/registry';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
 import { LOOP_TELEMETRY_MARKER } from '../../src/lib/agent/loop-telemetry';
+import { PLAN_PROPOSED_MARKER } from '../../src/lib/agent/tools/propose-plan';
 import type { ToolContext } from '../../src/lib/agent/tools/types';
 import type { CopilotContext } from '../../src/lib/agent/persona-router';
 import {
@@ -62,6 +64,19 @@ let ctx: ToolContext;
 
 const shareCall: ScriptedStep = {
   toolCalls: [{ toolName: 'create_share_link', input: { scope: 'quarterly' } }],
+};
+
+/** M4.7 F003：前台真正持有的工具（前台不再持有专家的执行类工具）。 */
+const planCall: ScriptedStep = {
+  toolCalls: [
+    {
+      toolName: 'propose_plan',
+      input: {
+        title: '探针计划',
+        items: [{ title: '看看这个项目该推进什么', needsGate: false }],
+      },
+    },
+  ],
 };
 
 async function telemetryRows() {
@@ -132,11 +147,15 @@ describe('[Evaluator] F001 — 真 /api/agent 请求路径落遥测', () => {
         prompt: `把季度汇总分享给 ${PROMPT_SENTINEL}`,
         context: { route: '/admin/insight', agentId: 'insight' },
       },
-      [shareCall, { text: '已备好，等你确认。' }],
+      [planCall, { text: '计划已出，等你认可。' }],
     );
 
     expect(res.status).toBe(200);
-    expect(res.agentIdHeader).toBe('insight');
+          // 【M4.7 F003 有意变更】受理人格恒为前台——页面/客户端不再能指定谁来回答
+      // （本批根因：页面路由决定发言权 → 环节人格拒答并让用户自己去找别的 Agent）。
+      // 本断言由"等于客户端指定的人格"改为"恒为前台"，**强度提高而非放宽**：
+      // 它现在守的是"客户端指定的 agentId 一律不采信"这条新红线。
+      expect(res.agentIdHeader).toBe(FRONT_DESK_AGENT_ID);
     expect(res.networkCalls).toEqual([]); // 真 route 路径同样零外呼
 
     // fire-and-forget：落库在响应之后，用轮询而非直接断言（testing-env-patterns §2）
@@ -147,12 +166,16 @@ describe('[Evaluator] F001 — 真 /api/agent 请求路径落遥测', () => {
 
     const row = (await telemetryRows())[before];
     expect(row.kind).toBe('auto');
-    expect(row.actor).toBe('insight');
+    // 【M4.7 F003 有意变更】会话级遥测的 actor = **受理会话的人格**，而 F003 起
+    // 受理人格恒为前台。专家干的活归属专家这件事由 F004 承担（PendingAction.agentId
+    // / 专家动作的 OperationLog.actor），与这行会话级遥测不是一回事。
+    expect(row.actor).toBe(FRONT_DESK_AGENT_ID);
     const payload = row.payloadJson as Record<string, unknown>;
-    expect(payload.agentId).toBe('insight');
+    // 同上：payloadJson.agentId = 起始（受理）人格，F003 起恒为前台。
+    expect(payload.agentId).toBe(FRONT_DESK_AGENT_ID);
     expect(payload.steps).toBe(2);
     expect(payload.finishReason).toBe('stop');
-    expect(payload.toolNames).toEqual(['create_share_link']);
+    expect(payload.toolNames).toEqual(['propose_plan']);
     expect(payload.personaSwitches).toBe(0);
     expect(payload.budgetHit).toBe(false);
     const usage = payload.usage as Record<string, number | null>;
@@ -164,9 +187,16 @@ describe('[Evaluator] F001 — 真 /api/agent 请求路径落遥测', () => {
 
     // 闸门在真 route 路径上照旧：只落 PendingAction，不落业务实体
     expect(await prisma.shareLink.count({ where: { tenantId } })).toBe(0);
+    // 【M4.7 F003 覆盖面迁移，非删除】原断言是「前台直接调 create_share_link →
+    // 停 pending」。F003 起前台**不再持有专家的工具**（它只受理与综合），该调用会被
+    // 执行侧拒绝，PendingAction 自然为 0——这是本批的设计本身，不是回归。
+    // 「outbound 在真 route 上停 pending」这条覆盖**移交 F009 的 frontdesk:e2e**：
+    // 前台 → consult_specialist → 专家备 outbound → pending 全链，比原来更贴近真实动线。
+    // 此处改为断言「真 route 上确实产生了服务端产物」（计划留痕），保持本探针原本的
+    // 取证目的：遥测与产物都落在真 HTTP 链路上，而非服务层自证。
     expect(
-      await prisma.pendingAction.count({
-        where: { tenantId, toolName: 'create_share_link', status: 'pending' },
+      await prisma.operationLog.count({
+        where: { tenantId, summary: { contains: PLAN_PROPOSED_MARKER } },
       }),
     ).toBeGreaterThan(0);
   });

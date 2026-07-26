@@ -24,7 +24,7 @@
       "title": "路由降级为线索：页面不再决定谁有发言权",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "取消『页面路由决定谁来回答』——本批根因。defaultAgentForRoute 不再用于对话人格选取；页面上下文（项目 + 环节）作为线索进 system，不构成权限。",
       "acceptance": "对话人格恒为前台——**负向断言：项目环节页（如 `?env=match`）发起的会话，受理人格仍是前台**（真 route 路径实证，非服务层自证）；`STAGE_AGENT` / `defaultAgentForRoute` **保留**给雷达深链等非对话用途（grep 证未删、消费点仍在）；当前环节作为**线索**注入 system（沿 M4.6 `project-context.ts` 同款空值纪律：无环节不注水），且明写「这是用户当前所在位置，不限制你能做什么」；`X-Agent-Id` 恒为前台（语义注释明示）；无回归：工作区层会话行为零变化；集成测经**真 route** 核实（M4.6 D1 教训：服务层测试 ≠ HTTP 链测试）"
     },

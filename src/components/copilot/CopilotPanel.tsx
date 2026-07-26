@@ -21,18 +21,17 @@ import { DefaultChatTransport } from 'ai';
 import { MdCheck, MdSend, MdShield } from 'react-icons/md';
 import {
   buildContextKey,
-  defaultAgentForRoute,
   type CopilotContext,
 } from 'lib/agent/persona-router';
 import { WHITE } from 'lib/design-tokens';
 import {
   personaBoundary,
   isAgentId,
-  DEFAULT_AGENT_ID,
+  FRONT_DESK_AGENT_ID,
   type AgentId,
 } from 'lib/agent/registry';
 import { agentTheme } from 'lib/agent/agent-theme';
-import { STAGE_AGENT, isStage } from 'lib/agent/stage-routing';
+import { isStage } from 'lib/agent/stage-routing';
 import { useCopilotUi } from 'contexts/CopilotUiContext';
 import Button from 'components/common/Button';
 import ChatBubble from 'components/common/ChatBubble';
@@ -59,20 +58,24 @@ function deriveContext(
   const route = pathname || '/admin';
   // 项目详情 /admin/campaigns/[id]：projectId 从路径解析；?env= 指定环节 → 切该环节专家（F008 五环节唯一容器；F007 迁移 ?stage=→?env=）。
   // 命名歧义警示（architecture §6.1）：URL ?env= 指五环节（Stage）；下方 CopilotContext.env 是运行环境（default/sandbox/production），同名不同义。
+  // M4.7 F003：**受理人格恒为前台**——页面不再决定谁有发言权（本批根因）。
+  // 环节改以 stage 线索传给服务端，只影响 system 里"用户在看什么"，不影响权限。
   const projMatch = route.match(/^\/admin\/campaigns\/([^/]+)$/);
   if (projMatch && projMatch[1] !== undefined) {
-    const projectId = projMatch[1];
-    const agentId =
-      stageParam && isStage(stageParam)
-        ? STAGE_AGENT[stageParam]
-        : DEFAULT_AGENT_ID;
-    return { route, projectId, env: 'default', agentId };
+    return {
+      route,
+      projectId: projMatch[1],
+      env: 'default',
+      agentId: FRONT_DESK_AGENT_ID,
+      stage: stageParam && isStage(stageParam) ? stageParam : null,
+    };
   }
   return {
     route,
     projectId: null,
     env: 'default',
-    agentId: defaultAgentForRoute(route),
+    agentId: FRONT_DESK_AGENT_ID,
+    stage: null,
   };
 }
 

@@ -22,6 +22,13 @@ export interface CopilotContext {
   projectId: string | null;
   env: CopilotEnv;
   agentId: AgentId;
+  /**
+   * 用户当前所在的项目环节（M4.7 F003）——**线索，不是权限**。
+   *
+   * 它只进 system 段告诉模型"用户在看什么"，不再决定谁来受理（那正是本批要
+   * 根治的根因：页面路由决定谁有发言权）。为空 = 不在环节页，不注水。
+   */
+  stage?: string | null;
 }
 
 /** context key：route:projectId:env:agentId（架构稿 §4.3）。projectId 为空用 '-'。 */

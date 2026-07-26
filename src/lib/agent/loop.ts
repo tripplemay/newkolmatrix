@@ -24,6 +24,7 @@ import {
 import { buildToolContext } from './context';
 import { gameKnowledgeSection } from './knowledge-context';
 import { projectContextSection } from './project-context';
+import { stageHintSection } from './stage-hint';
 import {
   buildLoopTelemetryPayload,
   logLoopTelemetry,
@@ -183,9 +184,11 @@ export async function runAgentLoop(
 
   // M4.6 F001：当前项目上下文（ctx 已有，此前从未进入 system 段 → 模型只能反问用户要）。
   // 查一次复用给接力后的目标人格——项目身份与人格无关，不必每次切换重查。
-  const projectSection = copilot.projectId
-    ? await projectContextSection(copilot.projectId)
-    : '';
+  const projectSection =
+    (copilot.projectId ? await projectContextSection(copilot.projectId) : '') +
+    // M4.7 F003：环节线索拼在项目上下文之后（同一段位置，同一条空值纪律）。
+    // 明写"不限制你能做什么"——否则模型很可能又把位置读成权限边界。
+    stageHintSection(copilot.stage);
 
   const system = assembleSystem(
     persona,

@@ -6,6 +6,7 @@
 //   source: native（本批实装）| mcp（已规划扩展点：注册表结构支持 MCP 桥接，本批不实装 MCP client）
 
 import type { z } from 'zod';
+import type { LanguageModel } from 'ai';
 import type { Prisma } from '@prisma/client';
 import type { AgentId } from '../registry';
 import type { Harm } from '../gate/harm';
@@ -43,6 +44,22 @@ export interface ToolContext {
    * 以此为幂等键（P6 / §9.8）：crash 后重放不重复发信——日志至少一次、副作用恰好一次。
    */
   gateActionId?: string;
+  /**
+   * 注入缝：本次会话使用的语言模型（M4.7 F001，D-6 裁决 A）。
+   *
+   * 由 `runAgentLoop` 下传，供 `consult_specialist` 起子 loop 时复用同一个 model。
+   * **传入即无条件使用**——不得因凭据缺失改道回默认 caller（M4 教训：那会让
+   * 无凭据环境下的 mock 注入被静默改道，测的不是被测对象）。
+   *
+   * 为什么不让子 loop 直接 `chatModel()`：那样 L1 无法注入 mock，子 loop 只能
+   * 真外呼才测得到，等于放弃离线覆盖（spec D-6 的 B 方案，已否决）。
+   */
+  model?: LanguageModel;
+  /**
+   * 子 loop 嵌套深度（M4.7 F001）。前台为 0/空，专家子 loop 内为 1。
+   * `runSpecialistLoop` 据此拒绝二次嵌套——专家不能再咨询专家。
+   */
+  consultDepth?: number;
 }
 
 export interface ToolDefinition<TInput = unknown, TOutput = unknown> {

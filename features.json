@@ -6,7 +6,7 @@
       "title": "ToolContext model 注入缝 + 受限子 loop 执行器（深度守卫 + 时刻隔离）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "D-6 裁决 A：ToolContext 增可选 model，由 runAgentLoop 下传，子 loop 用 ctx.model ?? chatModel()。子 loop 执行器 = 目标人格 system + 目标人格工具子集，带深度守卫。",
       "acceptance": "ToolContext 增 `model?: LanguageModel`；runAgentLoop 把自己的 model 下传（**单一下传点**，grep 证无第二处）；**注入即无条件使用**——注入 mock model 后绝不回落 `chatModel()`（M4 教训：凭据降级只对默认 caller 生效；变异：把 `ctx.model ?? chatModel()` 改成凭据判定 → 红）；`runSpecialistLoop(targetAgent, question, ctx)` 用目标人格 systemPrompt + `personaToolSubset(target)`，**时刻隔离双保险照旧**（activeTools 收窄视野 + `isToolActive` 执行侧拦截）——**负向断言：子 loop 内调非目标人格工具被拒**（mock 测试床驱动）；**深度守卫：子 loop 内不得再起子 loop**（负向断言，撞守卫时如实报错不静默）；子 loop 步数上限读 registry 常量（F006 落地前用临时常量，不散落硬编码）；零外呼哨兵断言且**哨兵活性证明**在场；tsc + lint 绿"
     },

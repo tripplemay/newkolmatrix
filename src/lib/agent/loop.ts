@@ -169,13 +169,18 @@ export async function runAgentLoop(
 
   const { copilot, messages } = params;
   const persona = selectPersona(copilot);
-  const ctx =
+  // M4.7 F001（D-6 裁决 A）：本次会话用的 model 下传进 ctx，供 consult_specialist
+  // 起子 loop 时复用同一个——**这是唯一下传点**，别处不得再各自解析 model，
+  // 否则测试注入的 mock 只覆盖其中一条路径，另一条静默真外呼。
+  const model = params.model ?? chatModel();
+  const baseCtx =
     params.ctx ??
     (await buildToolContext({
       agentId: copilot.agentId,
       projectId: copilot.projectId,
       env: copilot.env,
     }));
+  const ctx: ToolContext = { ...baseCtx, model };
 
   // 收窄工具子集 = 该人格绑定的工具（不同人格看到不同工具）。
   const toolNames = personaToolSubset(persona);
@@ -241,8 +246,9 @@ export async function runAgentLoop(
   });
 
   const result = streamText({
-    // 注入缝：传入即无条件使用（不因凭据缺失改道）。
-    model: params.model ?? chatModel(),
+    // 注入缝：传入即无条件使用（不因凭据缺失改道）。与下传进 ctx 的是**同一个**
+    // model 实例（上方单一解析点），保证前台与子 loop 用的是同一条注入缝。
+    model,
     system,
     messages,
     tools,

@@ -87,7 +87,11 @@ export interface RunScriptedLoopOptions {
   fallbackStep?: ScriptedStep;
 }
 
-function usagePart(step: ScriptedStep): LanguageModelV4Usage {
+/**
+ * 构造 provider 层 usage（形状随 SDK 版本变过：inputTokens/outputTokens 都是对象
+ * 而非数字）。导出供 M4.7 的子 loop 测试复用——别再各写一份，写错只会在 tsc 里炸。
+ */
+export function usagePart(step: ScriptedStep = {}): LanguageModelV4Usage {
   const input = step.usage?.input ?? 10;
   const output = step.usage?.output ?? 5;
   return {

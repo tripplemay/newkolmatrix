@@ -3,10 +3,10 @@
   "user_goal": "单一前台：取消「页面路由决定谁来回答」，专家降为内部能力（子 Agent 调用）。用户始终对同一个助手说话，前台内部咨询专家后用一个声音作答。触发源 = 生产手测撞到「环节人格拒答并让用户自行去找别的 Agent」。红线不变：outbound 两步票据 / 时刻隔离 / 行动承诺诚实 / 例程零直通。",
   "total_features": 11,
   "completed_features": 11,
-  "fix_rounds": 1,
+  "fix_rounds": 2,
   "current_sprint": "M4.7-FRONTDESK",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-07-26T13:20",
+  "last_updated": "2026-07-27T04:15",
   "reference_docs": [
     "docs/specs/M4.7-FRONTDESK-spec.md",
     "docs/dev/agent-architecture.md",
@@ -23,39 +23,18 @@
   "role_assignments": null,
   "evaluator_feedback": null,
   "generator_handoff": {
-    "round": 1,
-    "date": "2026-07-26",
-    "round1_reports": [
-      "docs/test-reports/M4.7-FRONTDESK-verify-G1.md",
-      "docs/test-reports/M4.7-FRONTDESK-verify-G2.md",
-      "docs/test-reports/M4.7-FRONTDESK-verify-G3.md",
-      "docs/test-reports/M4.7-FRONTDESK-verify-G4.md",
-      "docs/test-reports/M4.7-FRONTDESK-adversarial.md"
+    "round": 2,
+    "date": "2026-07-27",
+    "round1_signoff": "docs/test-reports/M4.7-FRONTDESK-signoff.md（复验轮一：7 PASS + 4 PARTIAL）",
+    "fixes": [
+      "RV-1（F009，高）清态断言原先包在 cleanupStep 里 —— 而 cleanupStep 的契约就是吞掉异常绝不外抛，断言被它自己包裹的机制吃掉。移到 cleanupStep 之外直接抛。复现复验原变异（删 handoff 清理步骤）：修前 exit 0 静默留 2 行孤儿，修后报出 lHandoffs:2 并 ❌",
+      "RV-2（F007，中—高）生产默认闸零机械覆盖（摘掉两个默认 AbortSignal.timeout 后 1414 全绿，因所有超时用例都注入短闸）。补一条走生产默认路径的用例：让 mock 捕获它实际收到的 abortSignal，不注入时必须非空，再手动 abort 秒结束。复现原变异 → 2 条翻红",
+      "RV-3（F010，中）agent-architecture.md:41/:178 仍写主 loop stopWhen: stepCountIs(persona.maxSteps)，与同文档 :69 自相矛盾 → 两处翻牌为谓词 + 墙钟闸",
+      "RV-4（F010/F006，中）**我写了一句与实物相反的话**：registry 注释与 as-built 段都称「接力/咨询到深链专家时预算抬升」，实物 budgetChain.add 只在接力分支。核实后确认**实物是对的**（咨询开销在子 loop 内受 SPECIALIST_MAX_STEPS 约束，对前台只消耗 1 步，不需要抬），故修文档而非改代码"
     ],
-    "round1_verdict": "11/11 PARTIAL（首轮 evaluator_feedback 原文见 commit 6e8ba77 的 progress.json）。产品红线未被击穿；缺陷全在断言强度 / 交付卫生 / 文档漂移。",
-    "product_mechanisms_added": [
-      "F007 真超时闸：registry 增 SPECIALIST_TIMEOUT_MS / LOOP_TIMEOUT_MS（后者低于 route 的 maxDuration，让自家降级先于外部兜底）；子 loop 与主 loop 均上 abortSignal；consult_specialist 区分超时与一般失败（CONSULT_TIMEOUT_HINT）并同样留痕；ToolContext.consultTimeoutMs 为注入缝。测试换成**真的永不 resolve 的模型** + 短 abortSignal（上一版\"超时支\"是 mockRejectedValue，与抛错支同一条 catch）。",
-      "F006 撞顶告知：loop 增 onBudgetExhausted 回调 → route 往流里写 data-budget_notice；文案与锚点在 registry（budgetExhaustedNotice / BUDGET_NOTICE_ANCHOR）。撞顶时模型没有开口机会，prompt 条款救不了，只能服务端补。"
-    ],
-    "assertion_fixes": [
-      "F001 越权样本换 create_project（payout 的 zod 要 dealId 而用例给 projectId，卡在入参校验、与隔离无关）→ 验收当初的 MUT-5（双防线同时放宽）现在翻红",
-      "F003 线索段整段字面量精确匹配 → 验收记录的\"追加一句相反指令\"绕过现在翻红",
-      "F004 补 OperationLog.actor 钉子 → 验收当初\"1341 条无一翻红\"的变异现在翻红",
-      "F005 补链上机械断言（工具出口层：证据不足时 answer 不得含数值结论）+ 活性证明",
-      "F009 🔑 断言改经真 resolveContext（导出 resolveContextForTest），body 传 match 而期望前台（输入≠期望）；清理段补逐表残留断言",
-      "F011 S-RV1-2 压平后匹配且点号两侧允许空白；S-RV1-3 改行为级过滤器断言 → 两条记录在案的绕过路径现在都翻红"
-    ],
-    "hygiene_and_docs": [
-      "F002 architecture.md:1071 旧 isolation 串；并改为「以 registry 为单一真相源，本节不再逐字复述」",
-      "F003 CopilotPanel 三处注释（:6 / :384 / :392，其中 :392 与实物相反：contextKey 不含 stage 且 agentId 恒定 → 同项目内切 ?env= 不再 remount/清空对话）· route.ts X-Agent-Id 语义 · stage-hint 保留理由（defaultAgentForRoute 现仅 smoke 消费）",
-      "F006 consult-budget.test.ts 补清 Handoff（本文件泄漏协作痕迹行，违反本批自订清态纪律）+ 遥测增 budgetHitScope 区分前台/子 loop",
-      "F008 痕迹展示「问了什么」· 专家展示名改从 registry 取（原组件自带 AGENT_LABEL 映射 = 双份说法）· PersonaSwitchNote 语义随单一前台更新 · 补三条契约断言",
-      "F010 四处 as-built 反向漂移全部翻牌（resolveContext 解析链 / stopWhen 谓词 / §8.7 编排职责 / agent-architecture 开篇句）"
-    ],
-    "self_caught_during_fix": "F003 第一版整段匹配我又把期望串用常量拼出来——改常量两边一起改，绕过照样全绿（同类错误本会话第七次），改字面量才抓住。F011 的 S-RV1-2 第一版正则没允许点号两侧空白，压平后跨行写法照样溜过去。**两次都是用记录在案的绕过路径复测才发现的，不是写的时候想到的。**",
-    "known_limitation": "darwin 视觉基线 14/15 已重生；`project-match` 一张**无法在本机重生**——该用例断言 CI 空库下的空态文案，而本机 dev 库有真实种子数据（项目 xg 有 3 条 MatchPlan），页面是数据态。已在测试文件内如实登记；不为让本机绿去删真实种子数据。CI（空库 + seed:projects）是该用例的权威环境。另：本机 2 条 __smoke_outbound__ 遗留 pending 已按 S-RV1-6 登记的处置清除（重生本机基线的硬前置）。",
-    "l1_status": "tsc 0 · lint 绿 · test:unit 117 files / 1406 tests · build 绿 · agentloop:e2e + frontdesk:e2e 双绿（含新增逐表清态断言）",
-    "for_evaluator": "复验建议覆盖：两条产品机制是否真闭合（尤其超时闸——请自行用真挂死模型验，不要采信\"已加 abortSignal\"的声明）· 六条断言修复是否真有鉴别力（每条都该用首轮记录的原绕过路径复测）· 本轮是否引入新的交付卫生问题。另：m47-adv 的两条缺陷存在性探针已请其自行改为修复后契约，如未改完请如实记。"
+    "not_fixed": "R-8 / S-M47-G3-5 等 soft-watch 维持首轮登记的处置（R-8：不等式靠收紧子闸 60→45s 满足，把「挂死不降级」换成「正常请求误判超时」的风险，45s 同为无真实延迟数据支撑的猜测，须上线拿到数据与另两个常量一并校准）。",
+    "l1_status": "tsc 0 · lint 绿 · test:unit 119 files / 1417 tests · build 绿 · agentloop:e2e + frontdesk:e2e 双绿",
+    "for_evaluator": "本轮只动了 4 条：RV-1/RV-2 的断言与脚本、RV-3/RV-4 的文档与注释，产品代码仅 registry 注释。请重点核：① RV-1 的断言是否真的抛得出去（建议直接复现你上轮那条变异）② RV-2 的新用例是否真走生产默认路径而非又一条注入缝 ③ RV-4 的更正方向是否正确（我判定实物对、文档错，若你认为应改代码请指出）。"
   },
   "session_notes": {
     "Andy": "【M4.7-FRONTDESK planning 完成 → building · 2026-07-26 · 快车道】\n■ 用户 2026-07-26 一次性裁决：**D-1..D-7 全部按 spec 推荐执行**。\n  D-1=A（ctx.agentId 派生，留痕记实际干活的专家，顺带闭环 O-G2-1）· D-2=A（专家结论原样透传 + insufficientEvidence 结构化字段）· D-3=推荐值做成 registry 常量（每轮 2 专家 / 子 loop ≤3 步 / 前台 5 / 总顶 11，**数字是猜的，无真实延迟数据**，上线拿到数据再调）· D-4=A（失败如实说 + 留痕）· D-5=A（Handoff 表保留，咨询也落行，成为协作痕迹统一数据源）· D-6=A（ToolContext.model 注入缝）· D-7=A（复用 orchestrator 作前台）。\n■ 11 features。F011 是 backlog 顺手项收口——`BL-E2E-CLEANUP-PIN` 登记时写死的触发时机就是「下个改动 agentloop-e2e 清理段 / doc-freshness 的批次必须一并做」，本批 F009/F010 正好命中，不再往后推。范围克制：只做已登记的四条。\n■ acceptance 里把本日教训写成硬要求，不靠自觉：正向精确匹配 > 黑名单否定断言（F005/F011）· 变异须含「作者没想到的绕过路径」（F005）· 真 route 路径核实而非服务层自证（F003）· 软引用表逐表清 + 逐表断言残留（F009）· 机械钉覆盖面逐项对齐（F010）。\n■ 依赖序：F001 → F002 → 其余多数依赖 F002。F008(UI) 可与 F005/F006/F007 并行。F009/F010/F011 收尾。\n■ 视觉基线硬前置（S-RV1-6 / S-G5-3）：本机重生任何含 feed/雷达的基线前，必须先清 dev 租户 pending 与 e2e 标记行，否则基线把测试残留拍进产品基线。",

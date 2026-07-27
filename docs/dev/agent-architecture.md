@@ -38,7 +38,7 @@ Agent 驱动产品的四根柱子。每柱一个明确的唯一入口，禁止�
 
 - 入口 `src/app/api/agent/route.ts`（`runtime = 'nodejs'`，Prisma 不支持 edge）。
 - 单一 `/api/agent` 承载**所有专家**，不起独立进程（PRD §12.6 / FR-12.1）：route 只换人格 system prompt + 工具子集，端点不变。
-- 流程（**M4.5 F009 起 loop 装配抽到 `src/lib/agent/loop.ts`**，route 只留 HTTP 边界）：解析 body → `resolveContext`（服务端校验，不信任客户端范围）→ `runAgentLoop`（`selectPersona` → `buildToolContext` → `personaToolSubset` 收窄 → `toAiSdkTools` → `streamText({ model, system, messages, tools, activeTools, stopWhen: stepCountIs(persona.maxSteps), prepareStep, onEnd })`）→ `createUIMessageStream` 包一层（写人格切换事件）→ `createUIMessageStreamResponse`。
+- 流程（**M4.5 F009 起 loop 装配抽到 `src/lib/agent/loop.ts`**，route 只留 HTTP 边界）：解析 body → `resolveContext`（服务端校验，不信任客户端范围）→ `runAgentLoop`（`selectPersona` → `buildToolContext` → `personaToolSubset` 收窄 → `toAiSdkTools` → `streamText({ model, system, messages, tools, activeTools, stopWhen: 谓词（步数达**链上最大档位**即停，M4.7 F006）, abortSignal（墙钟闸）, prepareStep, onEnd })`）→ `createUIMessageStream` 包一层（写人格切换事件）→ `createUIMessageStreamResponse`。
 - **注入缝纪律**（`loop.ts` 的 `model` / `ctx` / `telemetryWriter`）：传入即**无条件使用**，不得因凭据缺失把注入的 model 改道回默认 caller——否则无凭据环境（CI）下 mock 测试会静默走进降级分支，测的不是被测对象。
 - **system 装配序（as-built）**：`persona.systemPrompt` + **当前项目上下文段** + 知识段 + 工具指引。
 - **当前项目上下文段（M4.6-CTX F001 as-built）**：`src/lib/agent/project-context.ts` 的 `projectContextSection(projectId)` → `【当前上下文】用户正在项目 {id}（{name}） 的页面上与你对话。` + 「不要向用户索要项目 ID」指令。**为什么需要它**：13 个工具把 `projectId` 当**模型入参**，而 `ctx.projectId` 此前从不进 system 段 → 模型无从得知，只能反问用户要（生产实测缺陷）。`ctx.projectId` 空 → 不注入（工作区层不注水）；取名失败 → 只写 id 不编造名字且不抛（增强性注入不打死主链路）。接力后的目标人格共用同一段（`systemForAgent` 同参）。
@@ -66,7 +66,7 @@ Agent 驱动产品的四根柱子。每柱一个明确的唯一入口，禁止�
 
 | 面 | as-built | 落点 |
 |---|---|---|
-| **步数预算** | 按人格差异化：`AgentPersona.maxSteps`（深链 `insight` = 10，其余 5——**M4.7 F006 起前台也是常规档**）。接力/咨询到深链专家时本轮预算按**链上最大档位**抬升（`chainBudget`），故主 loop 的 `stopWhen` 是谓词而非静态 `stepCountIs`；`stepCountIs(` 的唯一消费点是专家子 loop（入参为常量）。**registry 是唯一真相源**，全仓不得出现数字字面量（回归钉死）。`maxDuration` 60→120 | `registry.ts` / `loop.ts` / `specialist-loop.ts` |
+| **步数预算** | 按人格差异化：`AgentPersona.maxSteps`（深链 `insight` = 10，其余 5——**M4.7 F006 起前台也是常规档**）。**接力**到深链专家时本轮预算按**链上最大档位**抬升（`chainBudget`）；**咨询不抬也不需要抬**——咨询开销在子 loop 内、受 `SPECIALIST_MAX_STEPS` 约束，对前台只消耗 1 步，故主 loop 的 `stopWhen` 是谓词而非静态 `stepCountIs`；`stepCountIs(` 的唯一消费点是专家子 loop（入参为常量）。**registry 是唯一真相源**，全仓不得出现数字字面量（回归钉死）。`maxDuration` 60→120 | `registry.ts` / `loop.ts` / `specialist-loop.ts` |
 | **loop 遥测** | 每会话结束落一行 `OperationLog(kind=auto, summary` 以 `agent_loop` 起头`)`：agentId / finalAgentId / steps / maxSteps / **budgetHit** / finishReason / toolNames[]（含重复保序）/ personaSwitches / usage。**只记元数据不记正文**（载荷装配函数的入参形状就不接受正文）；fire-and-forget 但失败必须 `console.error` | `loop-telemetry.ts` |
 | **循环内接力** | `handoff_to`（internal，**仅 orchestrator 持有**）→ 落 `Handoff` 行 → `prepareStep` 把后续步的 system 段（目标人格 prompt + **重读条款**）与 `activeTools` 切到目标人格。当值人格从 `steps` 里解析（幂等，不靠外部可变状态） | `tools/handoff-to.ts` / `loop.ts` |
 | **时刻隔离（P1）** | 任一时刻 loop 只见当值人格子集。两道防线：① SDK `activeTools` 收窄模型视野（实测直接 `NoSuchTool` 拒绝）② **执行侧硬挡**（`toAiSdkTools` 的 `isToolActive`）——视野收窄 ≠ 执行禁止，模型凭历史消息里的工具名照样能发调用。**outbound 人格绑定不变**：payout 永远只在 delivery 子集 | `to-ai-sdk-tools.ts` |
@@ -79,7 +79,7 @@ Agent 驱动产品的四根柱子。每柱一个明确的唯一入口，禁止�
 
 - **受理人格恒为前台**（`FRONT_DESK_AGENT_ID` = orchestrator，registry 单一真相源）。客户端传来的 `agentId` 一律不采信；页面改以 `stage` 线索进 system，明写「不限制你能做什么」。`STAGE_AGENT` / `defaultAgentForRoute` 保留给雷达深链等非对话用途
 - **专家降为内部能力**：前台经 `consult_specialist` 起受限子 loop（`runSpecialistLoop`），拿回结构化结果后用一个声音作答。对话身份自始至终是前台，界面上专家以可展开的协作痕迹呈现（`ConsultationNote`，canvas 路由键 `type:'consultation'`）
-- **成本上限**（registry 单一真相源，**数字是猜的**，无真实延迟数据，上线拿到数据再调）：`MAX_CONSULTS_PER_TURN=2` · `SPECIALIST_MAX_STEPS=3` · 前台 `maxSteps=5`。接力/咨询到深链专家时本轮预算按**链上最大档位**抬升（`chainBudget`），`stopWhen` 因此是谓词而非静态 `stepCountIs`
+- **成本上限**（registry 单一真相源，**数字是猜的**，无真实延迟数据，上线拿到数据再调）：`MAX_CONSULTS_PER_TURN=2` · `SPECIALIST_MAX_STEPS=3` · 前台 `maxSteps=5`。**接力**到深链专家时本轮预算按**链上最大档位**抬升（`chainBudget`）；**咨询不抬也不需要抬**——咨询开销在子 loop 内、受 `SPECIALIST_MAX_STEPS` 约束，对前台只消耗 1 步，`stopWhen` 因此是谓词而非静态 `stepCountIs`
 - **留痕归属**：`ctx.agentId` 按当值人格派生（`toAiSdkTools` 的 `currentAgentId` 回调），`PendingAction.agentId` / `OperationLog.actor` 记**实际干活的专家**（闭环 M4.5 的 O-G2-1/O-G2-2）
 - **诚实透传**：子 loop 产出 `insufficientEvidence` + `insufficientReasons`（判据复用 `domain/roi-compute.ts` 的 `basis` 三态），前台挂 `FRONT_DESK_HONESTY_CLAUSE`——不得改写数值/状态/证据充分性，证据不足时不得给出任何数值结论
 - **失败降级**：子 loop 抛错 → 结构化失败（`ok:false` + 原因）而非抛穿，并落 `CONSULT_FAILED_MARKER` 留痕；前台须如实说"问了但没拿到结果"，不得用猜测填补
@@ -175,7 +175,7 @@ POST /api/agent（柱二 route.ts, runtime=nodejs）
   │  buildToolContext（单租户 dev tenant, D4）
   │  personaToolSubset → toAiSdkTools（收窄子集）
   ▼
-streamText agent loop（stopWhen: stepCountIs(persona.maxSteps)：深链 10 / 其余 5，chatModel=deepseek-v3 via aigcgateway）
+streamText agent loop（stopWhen: 谓词——步数达**链上最大档位**即停（M4.7 F006）；深链 10 / 其余 5；另有墙钟闸 abortSignal，chatModel=deepseek-v3 via aigcgateway）
   │  模型自主决定调用工具
   ▼
 executeTool（柱一唯一入口, execute.ts）

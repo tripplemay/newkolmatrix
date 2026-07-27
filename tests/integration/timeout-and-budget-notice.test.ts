@@ -119,6 +119,41 @@ describe('F007 — 真超时闸（不是抛错支改名）', () => {
     expect(SPECIALIST_TIMEOUT_MS).toBeLessThan(LOOP_TIMEOUT_MS);
   });
 
+  it('🔒 RV-2：**生产默认路径**真的带闸（不注入任何 signal）', async () => {
+    // 【复验 RV-2】本批头号产品机制的**生产路径**此前零机械覆盖：摘掉
+    // specialist-loop 与 loop 的两个默认 AbortSignal.timeout（保留测试注入缝）后
+    // **1414 条全绿**——仓内每条超时用例都注入短闸，没有一条走生产默认。
+    //
+    // 【怎么在不等 45 秒的前提下验生产默认】让 mock 模型把它**实际收到的**
+    // abortSignal 捕获下来：不注入时它必须非空（= 默认闸真的挂上了），
+    // 然后手动 abort 让用例秒结束。断言的是"生产路径确实传了一个会超时的 signal"。
+    let captured: AbortSignal | null = null;
+    const model = new MockLanguageModelV4({
+      doGenerate: (options) =>
+        new Promise<LanguageModelV4GenerateResult>((_res, rej) => {
+          const sig = (options as { abortSignal?: AbortSignal }).abortSignal;
+          captured = sig ?? null;
+          if (!sig) return rej(new Error('生产默认路径没有传 abortSignal'));
+          sig.addEventListener('abort', () => rej(sig.reason), { once: true });
+          // 立刻手动中止，避免真等 SPECIALIST_TIMEOUT_MS
+          setTimeout(() => (sig as AbortSignal & { _t?: unknown }) && rej(new Error('手动结束')), 50);
+        }),
+    });
+    await expect(
+      runSpecialistLoop({
+        targetAgent: 'insight',
+        question: 'ROI？',
+        // **不传 abortSignal、不设 ctx.consultTimeoutMs** —— 走生产默认
+        ctx: { tenantId, agentId: FRONT_DESK_AGENT_ID, projectId, env: 'default' },
+        model,
+      }),
+    ).rejects.toThrow();
+    expect(
+      captured,
+      '生产默认路径必须给模型一个 abortSignal —— 没有它就只能等 undici 的 ~301s',
+    ).not.toBeNull();
+  });
+
   it('子 loop 真挂死 → 在时限内被 abort（不是等 undici 的 ~301s）', async () => {
     const started = Date.now();
     await expect(

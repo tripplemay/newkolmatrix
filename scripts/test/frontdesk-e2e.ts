@@ -231,24 +231,6 @@ async function main(): Promise<void> {
     );
     // 【显式决定：留不删】mock 分享通道的标记行 ref/projectId 皆 null，三把键都不命中。
     // 沿 M4.5 spec §9 S-M45-1 既定口径：append-only，保留不删，但**报账**。
-    // 【首轮验收：只清不断 = 假信心】变异实证：故意留 2 行孤儿，脚本仍 exit 0。
-    // 清完必须**逐表断言残留为 0**，否则清理写没写对无人知晓。
-    await cleanupStep('清态断言（逐表，残留非 0 即失败）', async () => {
-      const [logs, handoffs, pas, projects] = await Promise.all([
-        prisma.operationLog.count({
-          where: { tenantId, projectId: fxProject.id },
-        }),
-        prisma.handoff.count({ where: { tenantId, projectId: fxProject.id } }),
-        prisma.pendingAction.count({ where: { id: { in: createdPA } } }),
-        prisma.project.count({ where: { id: fxProject.id } }),
-      ]);
-      const leftover = { logs, handoffs, pas, projects };
-      if (logs || handoffs || pas || projects) {
-        throw new Error(`清态断言失败，仍有残留：${JSON.stringify(leftover)}`);
-      }
-      console.log('  ✓ 清态断言：夹具残留逐表为 0');
-    });
-
     await cleanupStep('SHARE_CREATED 留痕计账（不删，只报账）', async () => {
       const after = await prisma.operationLog.count({
         where: { tenantId, summary: { contains: SHARE_CREATED_MARKER } },
@@ -259,6 +241,24 @@ async function main(): Promise<void> {
         } 行 —— 显式决定，非泄漏`,
       );
     });
+
+    // 【RV-1 修正】清态断言**必须在 cleanupStep 之外**。
+    // 复验实测：把它包在 cleanupStep 里 = 被 cleanupStep 的契约（吞掉异常绝不外抛）
+    // 吃掉——删掉 handoff 清理步骤后脚本照样 exit 0、留 2 行孤儿，只多一行没人消费
+    // 的 stderr 警告。断言写在会吞异常的包装器里，等于没写。
+    const [lLogs, lHandoffs, lPas, lProjects] = await Promise.all([
+      prisma.operationLog.count({ where: { tenantId, projectId: fxProject.id } }),
+      prisma.handoff.count({ where: { tenantId, projectId: fxProject.id } }),
+      prisma.pendingAction.count({ where: { id: { in: createdPA } } }),
+      prisma.project.count({ where: { id: fxProject.id } }),
+    ]);
+    if (lLogs || lHandoffs || lPas || lProjects) {
+      // 直接抛：清理没做干净必须让脚本红，而不是打一行警告了事
+      throw new Error(
+        `清态断言失败，夹具仍有残留：${JSON.stringify({ lLogs, lHandoffs, lPas, lProjects })}`,
+      );
+    }
+    console.log('  ✓ 清态断言：夹具残留逐表为 0（在 cleanupStep 之外，抛得出去）');
   }
 }
 

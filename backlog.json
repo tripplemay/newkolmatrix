@@ -49,5 +49,15 @@
     ],
     "confirmed_at": "2026-07-26",
     "priority": "high"
+  },
+  {
+    "id": "BL-AGENT-COST-CALIBRATE",
+    "title": "agent 成本/超时五个常量按真实延迟校准（上线后）",
+    "description": "M4.7 的五个常量全部**无实测数据支撑**，是在 mock 验收下猜的：MAX_CONSULTS_PER_TURN=2 · SPECIALIST_MAX_STEPS=3 · 前台 maxSteps=5（spec D-3 已如实登记）· SPECIALIST_TIMEOUT_MS=45s · LOOP_TIMEOUT_MS=110s。其中 45s 是被不等式（MAX_CONSULTS × 子闸 < 主闸）从 60s 收紧来的——等于把「挂死不降级」的风险换成「正常请求被误判超时」的风险，3 步子 loop × 网关 P95 的余量因此变薄（复验 R-8 / RV-6 登记）。上线拿到真实延迟分布（含 P95）后五个一并校准；校准时须保持该不等式成立。",
+    "decisions": [
+      "M4.7 复验登记：方向对、取值是猜的，属 L2 未验证面，不在本批解决"
+    ],
+    "confirmed_at": "2026-07-27",
+    "priority": "high"
   }
 ]

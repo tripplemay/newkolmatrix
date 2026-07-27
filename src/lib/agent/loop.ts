@@ -90,8 +90,11 @@ export function loopBudget(persona: AgentPersona): number {
 /**
  * 链上最大档位（M4.7 F006 / D-3 裁决）。
  *
- * 【为什么不是"起始人格档位"】前台是常规档（5）；它接力/咨询到深链专家（insight，10）
+ * 【为什么不是"起始人格档位"】前台是常规档（5）；它**接力**到深链专家（insight，10）
  * 时若仍按 5 停，等于把深链分析截断在一半——用户看到的是"答到一半戛然而止"。
+ * 【咨询不进这个链，也不需要进】咨询的开销发生在子 loop 内、受 SPECIALIST_MAX_STEPS
+ * 约束，对前台只消耗 1 步。复验实测指出此处原文写作"接力/咨询"，与实物相反
+ *（`budgetChain.add` 只在接力分支），已更正。
  * 【为什么不是"当值人格档位"】那会随接力往下跳（深链→常规 = 10 降到 5），
  * 可能当场截停。取最大值是两者里唯一不会中途缩水的口径。
  */
@@ -243,7 +246,8 @@ export async function runAgentLoop(
     knowledgeSection,
     projectSection,
   );
-  // 本轮预算：随接力/咨询把链上出现过的人格纳入，取最大档位（D-3 裁决）。
+  // 本轮预算：随**接力**把链上出现过的人格纳入，取最大档位（D-3 裁决）。
+  // 咨询不进这个链（开销在子 loop 内，对前台只消耗 1 步）——见 chainBudget 头注。
   const budgetChain = new Set<AgentId>([persona.id]);
   const maxSteps = loopBudget(persona);
   const currentBudget = () => chainBudget(budgetChain);

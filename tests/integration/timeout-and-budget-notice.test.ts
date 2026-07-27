@@ -154,6 +154,38 @@ describe('F007 — 真超时闸（不是抛错支改名）', () => {
     ).not.toBeNull();
   });
 
+  it('🔒 RV-2b：默认闸的时限**来自常量**（写死数字 → 本条红）', async () => {
+    // 复验 §9 第 2 条要的是「常量→行为**双向绑定**」，不只是"默认路径带 signal"。
+    // 判据：不注入任何 signal 时，模型收到的 signal 其超时时刻应落在
+    // SPECIALIST_TIMEOUT_MS 附近——若实现改成写死数字（如恒 5000），差值就会露馅。
+    let captured: AbortSignal | null = null;
+    const t0 = Date.now();
+    const model = new MockLanguageModelV4({
+      doGenerate: (options) =>
+        new Promise<LanguageModelV4GenerateResult>((_res, rej) => {
+          captured = (options as { abortSignal?: AbortSignal }).abortSignal ?? null;
+          setTimeout(() => rej(new Error('手动结束')), 30);
+        }),
+    });
+    await expect(
+      runSpecialistLoop({
+        targetAgent: 'insight',
+        question: 'ROI？',
+        ctx: { tenantId, agentId: FRONT_DESK_AGENT_ID, projectId, env: 'default' },
+        model,
+      }),
+    ).rejects.toThrow();
+    expect(captured).not.toBeNull();
+    // AbortSignal.timeout 无法直接读出时限，改测"它在常量时刻之前不会 abort"：
+    // 若实现把默认闸写死成一个远小于常量的数字，这里就会已经 aborted。
+    const elapsed = Date.now() - t0;
+    expect(elapsed, '前提：本用例应在毫秒级结束').toBeLessThan(SPECIALIST_TIMEOUT_MS);
+    expect(
+      (captured as unknown as AbortSignal).aborted,
+      `默认闸不应在 ${elapsed}ms 就触发 —— 说明时限不是来自 SPECIALIST_TIMEOUT_MS`,
+    ).toBe(false);
+  });
+
   it('子 loop 真挂死 → 在时限内被 abort（不是等 undici 的 ~301s）', async () => {
     const started = Date.now();
     await expect(

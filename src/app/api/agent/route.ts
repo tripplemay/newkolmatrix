@@ -141,8 +141,6 @@ export async function POST(req: Request): Promise<Response> {
       // 暴露人格身份 + 边界（F007 对话面顶部常驻显示 duty + 否定式护栏用）。
       // 【P9 语义】值 = **起始人格**：一轮会话内可能经 handoff_to 换人，切换史只在流内事件里。
       headers: {
-        // M4.7 F003 起**恒为前台**：受理人格不再由页面/客户端决定，
-        // 故该头不再承载「这轮是谁在答」——专家参与经流内 consultation 痕迹呈现。
         // M4.7 F003 起**恒为前台**：受理人格不再由页面/客户端决定，该头因此不再
         // 承载「这轮是谁在答」——专家的参与经流内 consultation 痕迹呈现。
         'X-Agent-Id': startPersona.id,

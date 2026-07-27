@@ -87,6 +87,14 @@ export const SPECIALIST_MAX_STEPS = 3;
  * （对抗复核同时更正了两处：自托管 standalone 下 `maxDuration=120` 是死配置、
  *   不构成平台截断；且该暴露**不是子 loop 专属**，主 loop 同样无自限。）
  */
+/**
+ * 【取值无实测数据支撑，待 L2 校准】45s 与 `LOOP_TIMEOUT_MS` 一样是**猜的**——
+ * 全批验收皆 mock，没有真网关延迟样本（spec D-3 已如实登记同一情况）。
+ * 且它是被 R-3 的不等式（`MAX_CONSULTS_PER_TURN × 本值 < LOOP_TIMEOUT_MS`）
+ * 从 60s **收紧**来的：等于把"挂死不降级"的风险换成了"正常请求被误判超时"的风险，
+ * 3 步子 loop × 网关 P95 的余量因此变薄。
+ * 上线拿到真实延迟后须与另两个成本常量一并校准 → backlog `BL-AGENT-COST-CALIBRATE`。
+ */
 export const SPECIALIST_TIMEOUT_MS = 45_000;
 
 /**

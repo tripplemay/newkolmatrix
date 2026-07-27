@@ -165,6 +165,11 @@ describe('C3 · 受理人格的真相源在哪一层', () => {
       expect(run.loop.persona.id).toBe('match');
       expect(run.loop.toolNames).not.toContain('consult_specialist');
       expect(run.networkCalls).toEqual([]);
+      // 【同 CI 假红根因】遥测是 fire-and-forget，写入落在本调用返回之后的
+      // 几毫秒内；不等它落完就进 afterAll 清理，慢机上会被删后迟到的那行打红。
+      // AgentLoopRun.telemetry 正是为「测试可确定性等待」而留的句柄。
+      await run.loop.telemetry;
+
     } finally {
       sentinel.restore();
     }
@@ -318,6 +323,10 @@ describe('C2 · 前台撞顶的用户可见面', () => {
       };
       expect(run.steps).toBe(DEFAULT_MAX_STEPS);
       expect(run.text).toBe('');
+      // 【同 CI 假红根因】遥测是 fire-and-forget，写入落在本调用返回之后的
+      // 几毫秒内；不等它落完就进 afterAll 清理，慢机上会被删后迟到的那行打红。
+      // AgentLoopRun.telemetry 正是为「测试可确定性等待」而留的句柄。
+      await run.loop.telemetry;
     } finally {
       sentinel.restore();
     }
@@ -390,6 +399,11 @@ describe('C2 · 前台撞顶的用户可见面', () => {
         expect(notice).not.toContain(claim);
       }
       expect(run.networkCalls).toEqual([]);
+      // 【同 CI 假红根因】遥测是 fire-and-forget，写入落在本调用返回之后的
+      // 几毫秒内；不等它落完就进 afterAll 清理，慢机上会被删后迟到的那行打红。
+      // AgentLoopRun.telemetry 正是为「测试可确定性等待」而留的句柄。
+      await run.loop.telemetry;
+
     } finally {
       sentinel.restore();
     }

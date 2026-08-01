@@ -34,7 +34,8 @@
         "name": "next"
       }
     ],
-    "strict": true
+    "strict": true,
+    "ignoreDeprecations": "5.0"
   },
   "exclude": [
     "node_modules",

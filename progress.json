@@ -1,8 +1,8 @@
 {
-  "status": "reverifying",
+  "status": "fixing",
   "user_goal": "单一前台：取消「页面路由决定谁来回答」，专家降为内部能力（子 Agent 调用）。用户始终对同一个助手说话，前台内部咨询专家后用一个声音作答。触发源 = 生产手测撞到「环节人格拒答并让用户自行去找别的 Agent」。红线不变：outbound 两步票据 / 时刻隔离 / 行动承诺诚实 / 例程零直通。",
   "total_features": 11,
-  "completed_features": 11,
+  "completed_features": 7,
   "fix_rounds": 2,
   "current_sprint": "M4.7-FRONTDESK",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
@@ -21,7 +21,31 @@
     "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": null,
+  "evaluator_feedback": {
+    "round": "reverify-2",
+    "date": "2026-07-27",
+    "evaluator": "Andy/evaluator-subagent（隔离上下文 · 复验轮二）",
+    "tested_sha": "2ad0946",
+    "report": "docs/test-reports/M4.7-FRONTDESK-signoff.md（§11-§20 为轮二；轮一 §0-§10 原样保留）",
+    "verdict": "7 PASS · 4 PARTIAL（F006 / F007 / F009 / F010）→ 不予签收。产品红线经 6 条独立变异逐条实测未被击穿；卡点全在测试鉴别力与文档一致性 —— 轮一 §9 七条最小修复清单只有 3 条真闭环。",
+    "partial": {
+      "F006": "撞顶机制真闭合（MUT-4 → RED(5)，真浏览器实测告知渲染到用户眼前）。但 §9 第 3 条（必修）未闭环 —— registry.ts:205-207 这个「单一真相源」旁边仍写着实现并不具备的「咨询抬预算」，且它是 §9 点名的第一处。S-M47-G3-5 落库口径仍未决。",
+      "F007": "子 loop 生产默认闸已有钉（MUT-A → RED ✅）。但 §9 第 2 条（必修）三项子要求只满足一项：主 loop 生产默认闸零覆盖（MUT-B → 1418 全绿）；常量→行为双向绑定未做到（MUT-C / MUT-D 均 1418 全绿），而 MUT-C 正是 commit 声称会翻红的那条。",
+      "F009": "RV-1 的原变异真闭环（EXIT=1 ✅）；但 acceptance 字面要求的「OperationLog 逐表清 + 逐表断言残留」仍不成立 —— 清理用三把键、断言只守一把，实测删掉另一把 → exit 0 且真漏 3 行闸门留痕，脚本照旧打印「残留逐表为 0」（BP-2）。另 BP-1 漏 shareLink。",
+      "F010": "RV-3 真闭环 ✅。但同一句 as-built 反向陈述在 architecture.md:943 / :947 原样留着 —— 与轮一 D-G4-9 ③、轮一 RV-3 定性第三次同族，且这次在更权威的定稿里；acceptance #8 要求的「含 docs/ 范围」的批末复核判据若真跑过就必然命中。"
+    },
+    "fix_list": [
+      "1. RV-4 收尾（F006 + F010，必修）—— 把 registry.ts:205-207、docs/dev/architecture.md:943、:947（附 tests/unit/agent-step-budget.test.ts:35）四处「咨询抬预算」改成与实物一致。判据落终态：grep -rn \"咨询/接力|接力/咨询\" src/ docs/ tests/ | grep -v test-reports 必须 0 命中（loop.ts:96 那条自述历史的除外，请改写措辞避开）。",
+      "2. RV-2 收尾（F007，必修）—— ① 给主 loop 的生产默认闸补一条与 MUT-A 同款的用例（mock 捕获它实际收到的 abortSignal，不注入时必须非空），修完用 MUT-B 复证翻红；② 做出真正的常量→行为双向绑定（例如 vi.mock registry 把常量换成 30ms，断言默认闸在该时刻真的 abort），修完用 MUT-C（写死 45_000）与 MUT-D（常量改 3s）双双复证翻红；③ 建议顺手删掉 RV-2b 或重写 —— 它现在提供的信息量是零，留着会造成「已覆盖」的错觉。",
+      "3. F009 清态断言收尾（必修）—— 让断言的键集合 ⊇ 清理步骤的键集合（operationLog 三把键各断一次 + shareLink 差集断一次），修完用 BP-1 / BP-2 复证 exit ≠ 0。建议做成「清理步骤登记表 → 逐项自动生成断言」，从结构上杜绝子集漂移。",
+      "4. S-RV2-9（中）—— 要么把 m47-rv-probe 落盘串进 test:visual 前置，要么让 rv-budget-notice.spec.ts 自产字节；在此之前不得把它计入 CI 覆盖。",
+      "5. S-RV2-10（中）—— 把「跑完 loop 自动 await telemetry」下沉到 tests/support/agent-loop-testbed.ts，而不是逐文件补；修完连跑 ≥10 次全量并核孤儿行净增为 0（绿不等于没漏）。",
+      "6. RV-7 收尾（低）—— route.ts:53 与 registry.ts:80-89 的悬空 JSDoc。",
+      "7. 交 Planner 裁决（不属修复）—— ① S-RV2-5 的规则冲突（S-M45-1「留不删」vs §4.5 重生序「重生前先清」）；② S-RV2-8（主 loop 超时的用户面告知 + 留痕）是否开为下批 feature；③ S-M47-G3-5 的落库口径。",
+      "8. 交付纪律（必做，非代码）—— 修完请把 progress.json.generator_handoff 与实物对齐（轮二它漏记 3 条已修、错标 R-8 未修）；commit 正文里对「已修 / 已验证 / 已移除」的陈述请以 git show --stat 与 grep 自查一遍再写。"
+    ],
+    "discipline_note": "前置纪律（本批第三次踩同一个坑，请写进修复动作本身）：「让复验记录的那条原变异翻红」不等于「这条断言有鉴别力」。每条修完请自问一句：我能不能在 5 分钟内想出第二条绕过？想得出就还没修完。"
+  },
   "generator_handoff": {
     "round": 2,
     "date": "2026-07-27",

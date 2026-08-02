@@ -51,7 +51,7 @@
       "title": "成本硬上限 + 撞顶诚实告知（registry 单一真相源）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "D-3 裁决：每轮最多咨询 2 个专家、单个子 loop ≤3 步、前台 5 步、总顶 11。数字无真实延迟数据支撑，故做成 registry 配置常量，上线拿到数据再调。",
       "acceptance": "三个上限均为 **registry 导出常量**（`MAX_CONSULTS_PER_TURN=2` / `SPECIALIST_MAX_STEPS=3` / 前台 `maxSteps=5`），**grep 证全仓无第二处数字字面量**；超出咨询数 → 工具如实拒绝并说明原因（不静默吞、不假装咨询过）；**撞任一上限时必须诚实告知「未答完 + 还差什么」**——变异钉死：去掉诚实条款或伪造完成文案 → 红（同 M4.5 F002 长链诚实回归口径）；遥测 `OperationLog(kind=auto)` 增 `consultCount` 与 `budgetHit` 区分前台/子 loop（只记元数据，不记正文，隐私哨兵串断言）；改常量值 → 实际行为同步改（双向绑定实证，非文档自证）"
     },
@@ -60,7 +60,7 @@
       "title": "咨询失败降级：如实说，不假装",
       "priority": "medium",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "D-4 裁决 A：子 loop 抛错/超时 → 前台如实说明「问了但没拿到结果 + 原因」，给出自己能给的部分，绝不假装咨询过、不用猜测填补。",
       "acceptance": "子 loop 抛错 / 超时 → `consult_specialist` 返回结构化失败结果（`ok:false` + reason），**不抛穿导致整场会话炸**（同知识段 D2 纪律）；前台 system 含条款「咨询失败时如实说明，不得用自己的猜测填补，不得宣称咨询过并得到结论」+ 正向锚点钉；失败**必须落 OperationLog**（线上可归因）；变异：静默降级为前台自答 / 失败不留痕 → 均须翻红；集成测覆盖抛错与超时两支"
     },
@@ -78,7 +78,7 @@
       "title": "测试床支持嵌套 loop + frontdesk:e2e 全链",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "现有测试床只驱动单层 loop。嵌套后需能脚本化指定前台脚本 + 每个专家子 loop 的脚本。",
       "acceptance": "测试床支持**嵌套脚本化**（前台逐步 tool-call + 每个 targetAgent 的子 loop 逐步脚本，可复用夹具）；`npm run frontdesk:e2e` 全链：项目环节页发起 → 前台受理（非环节人格）→ 咨询专家 A + B（≤2）→ 专家备 outbound → **停 pending 副作用零发生** → 逐项 confirm+execute → 留痕归属为专家（F004）→ 遥测含 consultCount；**零外呼零真实副作用**断言 + 哨兵活性证明；**清理段承 M4.5 教训**：每步各自 try/catch 不得再抛、id 入清理清单前先过滤、软引用表（OperationLog/Handoff）逐表清 + 逐表断言残留（M4.6 D3 教训：只断言 tenant 残留 = 假信心）"
     },
@@ -87,7 +87,7 @@
       "title": "文档翻牌 + doc-freshness 扩断言",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "architecture.md:1086「子 Agent 调用（演进）」状态列翻 as-built；agent-architecture.md 补前台形态段；doc-freshness 随之扩。",
       "acceptance": "`architecture.md:1086` 两形态表的「子 Agent 调用」状态由「未实装」翻为 as-built（含实装位置指针）；`agent-architecture.md` 补「单一前台 + 子 Agent 调用」段（含成本上限、留痕归属、失败降级三条 as-built 事实）；§8.6 名册段随前台职责变更同步；doc-freshness **扩断言**：新工具入表 / 前台职责文案 / 三个成本常量值 = registry 实物；**S-M46-7 一并收口**——装配序钉的覆盖面补齐「工具指引」段，与文档句 4 段逐项对齐（当初登记的触发时机就是「下个动 doc-freshness 的批次」）；批末新鲜度复核用**不带左括号且含 docs/ 范围**的判据（M4.5 教训）"
     },

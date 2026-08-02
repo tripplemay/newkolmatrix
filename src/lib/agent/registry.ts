@@ -86,8 +86,7 @@ export const SPECIALIST_MAX_STEPS = 3;
  * 「我问了但没拿到结果」——D-4 承诺的失败降级在挂死场景根本不可达。
  * （对抗复核同时更正了两处：自托管 standalone 下 `maxDuration=120` 是死配置、
  *   不构成平台截断；且该暴露**不是子 loop 专属**，主 loop 同样无自限。）
- */
-/**
+ *
  * 【取值无实测数据支撑，待 L2 校准】45s 与 `LOOP_TIMEOUT_MS` 一样是**猜的**——
  * 全批验收皆 mock，没有真网关延迟样本（spec D-3 已如实登记同一情况）。
  * 且它是被 R-3 的不等式（`MAX_CONSULTS_PER_TURN × 本值 < LOOP_TIMEOUT_MS`）

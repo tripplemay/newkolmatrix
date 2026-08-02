@@ -50,16 +50,16 @@ async function toModelMessages(body: unknown): Promise<ModelMessage[]> {
   return [{ role: 'user', content: prompt }];
 }
 
-/** 从请求解析 copilot context（服务端解析/校验，不信任客户端范围——架构稿 §4.3）。 */
 /**
- * 请求体 → CopilotContext。**导出仅供测试**（M4.7 fix_round1 / F009）：
- * 它是「客户端说什么」到「服务端认什么」的唯一接缝，此前未导出、零用例，
- * e2e 里那条 🔑 断言因此只能读测试自己传的值 = 同义反复。
+ * `resolveContext` 的**测试出口**（M4.7 fix_round1 / F009）：它是「客户端说什么」到
+ * 「服务端认什么」的唯一接缝，此前未导出、零用例，e2e 里那条 🔑 断言因此只能读
+ * 测试自己传的值 = 同义反复。行为与 `resolveContext` 完全一致，不另起解析路径。
  */
 export function resolveContextForTest(body: unknown): CopilotContext {
   return resolveContext(body);
 }
 
+/** 从请求解析 copilot context（服务端解析/校验，不信任客户端范围——架构稿 §4.3）。 */
 function resolveContext(body: unknown): CopilotContext {
   const raw = (body as { context?: Record<string, unknown> })?.context ?? {};
   const route = typeof raw.route === 'string' ? raw.route : '/admin';

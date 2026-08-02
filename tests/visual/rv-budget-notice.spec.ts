@@ -42,13 +42,24 @@ async function replay(
   await input.press('Enter');
 }
 
-// 【入库须知】本 spec 依赖 m47-rv-probe.test.ts 落盘的真字节。若编排方决定收编，
-// 请把「先跑 vitest 落盘」串进 test:visual 的前置；在字节缺席时本 spec **自动 skip**，
-// 不会把 CI 打红（但那时它也不提供任何保护——skip ≠ 通过）。
-test.skip(
-  () => !existsSync(BODY_DUMP) || !existsSync(BODY_DUMP_NONE),
-  '缺少真字节样本：先跑 npx vitest run tests/integration/m47-rv-probe.test.ts',
-);
+/* 【S-RV2-9 收口 · 复验轮二 §14.1】本 spec 依赖 m47-rv-probe.test.ts 落盘的真字节。
+   收编时那句「需把落盘串进 test:visual 前置，否则 skip ≠ 保护」没有被执行，结果它在
+   CI 里**恒 skip** —— R-2 唯一的渲染层钉子提供零保护（实测：抽掉字节样本 → 2 skipped）。
+
+   两处一起改才算收口：
+   ① `test:visual` / `test:visual:update` 现在先跑 `test:visual:fixtures` 落盘（package.json）；
+   ② 字节缺席不再静默 skip，而是**当场红**——前置真跑了就一定有字节，没有字节说明
+      前置被人拆了或落盘失败，那正是需要有人看见的事，不是可以跳过的事。
+   本地想单跑本 spec：先 `npm run test:visual:fixtures`（或直接跑 `npm run test:visual`）。 */
+test.beforeAll(() => {
+  const missing = [BODY_DUMP, BODY_DUMP_NONE].filter((p) => !existsSync(p));
+  if (missing.length) {
+    throw new Error(
+      `缺少真字节样本 ${missing.join(' / ')} —— test:visual 的前置 ` +
+        '`npm run test:visual:fixtures` 没跑成。skip 掉等于这条钉子不存在，故直接红。',
+    );
+  }
+});
 
 test('撞顶告知真的渲染到用户眼前（真 route 字节 → 真浏览器）', async ({
   page,

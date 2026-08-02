@@ -157,7 +157,7 @@
 
 **建议写入：** `framework/patterns/web-runtime-patterns.md` §4（视觉基线章节）
 
-**状态：** 待确认
+**状态：** ✅ **已沉淀 v1.0.13（2026-08-02 用户 Accept）** → `patterns/web-runtime-patterns.md` §4.6（相对时间标签基线自然翻红）
 
 ## [2026-07-25] Andy/Generator+编排 — 来源：M4-INSIGHT（fixing round1 CI 红 + 文档翻牌两轮 PARTIAL）
 
@@ -170,7 +170,7 @@
 
 **建议写入：** 坑 1 → `patterns/testing-env-patterns.md`（或 ai-action-contract.md 注入缝节）；规律 2 → `memory/role-context/planner.md`「批内文档新鲜度」段升级 + `patterns/audit-methodology.md`；坑 3 → `patterns/testing-env-patterns.md`
 
-**状态：** 待确认
+**状态：** ✅ **已沉淀 v1.0.13（2026-08-02 用户 Accept）** → 坑1 → `testing-env-patterns.md` §10 · 规律2 → `role-context/planner.md`「批内文档新鲜度」+ `audit-methodology.md` §8 · 坑3 → `testing-env-patterns.md` §12
 
 ## [2026-07-25] Andy/Generator — 来源：M4.5-AGENT-LOOP（building 期两次 CI 红 + 视觉基线覆盖面误判）
 
@@ -188,7 +188,7 @@
 
 **建议写入：** 坑 1 → `patterns/web-runtime-patterns.md`（构建期专属失效节）；坑 2 → `patterns/testing-env-patterns.md`；坑 3 → `patterns/web-runtime-patterns.md` §4 视觉基线节；规律 4 → `patterns/ai-action-contract.md`（agent loop 可测性节）或新起 `patterns/agent-loop-patterns.md`
 
-**状态：** 待确认
+**状态：** ✅ **已沉淀 v1.0.13（2026-08-02 用户 Accept）** → 坑1 → `web-runtime-patterns.md` §8 · 坑2 → `testing-env-patterns.md` §11 · 坑3 → `web-runtime-patterns.md` §4.7 · 规律4 → **新建** `patterns/agent-loop-patterns.md` §1
 
 ## [2026-07-25] Andy/编排者 + Evaluator — 来源：M4.5-AGENT-LOOP 首轮 fan-out 验收 + 一轮 fixing + 复验
 
@@ -206,7 +206,7 @@
 
 **建议写入：** 规律 1 → `patterns/testing-env-patterns.md` §9 扩写（或新起 e2e 脚本节）；规律 2 → `patterns/audit-methodology.md`（断言强度分级）；规律 3 → `patterns/audit-methodology.md` + `memory/role-context/evaluator.md`「0 findings 活性证明」段补文档面实例；坑 4 → `framework/patterns/README.md` 索引表角色列（**须用户确认后才改**）
 
-**状态：** 待确认
+**状态：** ✅ **已沉淀 v1.0.13（2026-08-02 用户 Accept）** → 规律1 → `testing-env-patterns.md` §9.1 · 规律2 → `audit-methodology.md` §7 · 规律3 → `audit-methodology.md` §8 + `role-context/evaluator.md` · 坑4 → `patterns/README.md` 角色列改 **Generator/Evaluator** + 触发条件补清理段（用户 2026-08-02 确认）
 
 ## [2026-07-26] Andy/Generator + Evaluator — 来源：M4.6-CTX（生产实测缺陷修复，一轮 fixing）
 
@@ -224,4 +224,24 @@
 
 **建议写入：** 规律 1、2、3 → `patterns/audit-methodology.md`（断言强度分级 + 「先证明能看见目标」升为硬步骤）+ `memory/role-context/generator.md`「回归测试沉淀」段补一句；坑 4 → `patterns/agent-loop-patterns.md`（若采纳 M4.5 提案新建该文件）或 `patterns/ai-action-contract.md`
 
-**状态：** 待确认
+**状态：** ✅ **已沉淀 v1.0.13（2026-08-02 用户 Accept）** → 规律1/2/3 → `audit-methodology.md` §7 四条硬规则 + `role-context/generator.md`「回归测试沉淀」· 坑4 → `patterns/agent-loop-patterns.md` §2
+
+## [2026-08-02] Andy/Generator + Evaluator — 来源：M4.7-FRONTDESK（三轮验收 + 三轮复验，26 条独立变异）
+
+**类型：** 新规律 ×3 + 新坑 ×1 + 纪律 ×1
+
+**内容：**
+
+1. **as-built 陈述必须钉成双向行为——只钉一个方向 = 半个钉子。**「接力抬预算、咨询不抬」这句话，第一次只改文档措辞；复验实测删掉接力分支的 `budgetChain.add` 后**全量无一条会红**（函数级用例只证明函数本身对，证不了它被接在哪个分支）。补了正向 loop 级用例后，轮三又加测反方向（把「咨询也抬」写进 `prepareStep` → RED(3)）才补齐。自检：「文档里这句话的**否定半句**，谁在守？」
+
+2. **结构性修法也有自己的失效模式，必须再压一层且两层不重叠。** 清态断言的键集合是清理清单的真子集 → 改成登记表（`where` 只写一次同时派生删除与断言）杜绝键漂移；但**删掉整条登记时断言跟着消失**，实测仍 exit 0。故第二层必须刻意**不从登记表派生**（整表行数回基线普查）。判据：删键 → 第一层红；删整条 → 第二层红。
+
+3. **收编他人写的测试钉必须核到 CI 那一层。** 渲染层钉子依赖另一个测试落盘的字节样本，收编时没把落盘串进 `test:visual` 前置 → 它在 CI 里**恒 skip**，提供零保护，而报告里看起来是「已覆盖」。核法：读 `.github/workflows/*.yml` 确认跑的是哪条命令，以及 skip 条件在 CI 环境下是否成立。
+
+4. **（新坑）`next build` 之后必须重启 standalone server。** 旧进程在 :3000 活着且**能正常响应 200**，但 chunk 指纹指向已被新 build 覆盖的文件 → 客户端 JS 加载失败、React 不 hydrate，表现为**整套视觉基线连同交互类用例一起翻红**，极易被误读成「我的改动打红了视觉门」。已随 S-RV2-5 裁决写入 `web-runtime-patterns.md` §4.5。
+
+5. **（纪律，evaluator 点名建议）交付叙述与实物不符：本批连续三轮共 4 例。** 形态一致——commit 正文 / `generator_handoff` 对「已修 / 已验证 / 已移除」的陈述，被复验以 `git show --stat`、`git log -L`、实跑逐条证伪（含「我上轮只改了 X 与 Y 两处」而那次提交根本没有 X；含「摘掉某行全量无一条会红」而实测有 1 条会红）。**这不是能力问题而是流程缺口：写「已修」之前没有用机械手段自查一遍。** 建议入铁律或 generator.md：**commit 正文与 handoff 里每一句「已修 / 已验证 / 已移除 / 全绿」，落笔前必须有对应的一条命令输出作依据**（`git show --stat` / `grep` / 实跑），拿不出就改成「未核」。
+
+**建议写入：** 规律 1 → `patterns/agent-loop-patterns.md` §3（已写）· 规律 2 → `patterns/audit-methodology.md` §7 末段（已写）· 规律 3 → `patterns/audit-methodology.md` §7 末段（已写）· 坑 4 → `patterns/web-runtime-patterns.md` §4.5（已写，随用户裁决）· **纪律 5 → 待用户裁定写入 `harness-rules.md` 铁律 或 `role-context/generator.md`**
+
+**状态：** 1-4 已随本次 Accept 沉淀；**第 5 条待确认**（它涉及铁律层，未擅改）

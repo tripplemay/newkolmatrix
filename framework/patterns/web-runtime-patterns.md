@@ -172,6 +172,7 @@ tests/visual/fonts/          # woff2 + 改写 src: 指向本地的 CSS
 ```bash
 lsof -ti :3000 | xargs kill 2>/dev/null   # 1. 清残活（dev / 旧 standalone 一律杀）
 lsof -ti :3000 || echo port-free           # 2. 确认真的空了
+# 2.5 清测试残留（见下方「数据态优先级」）：dev 租户 pending 与 e2e append-only 标记行
 # 3. 让 playwright 自起 webServer——env 在当前 shell 显式控制（如伪造网关凭据造空态）
 npm run test:visual:update
 # 4. 事后核 DB 无副作用写入（真网关残活会经 lazy 生成落库）
@@ -179,7 +180,42 @@ npm run test:visual:update
 
 **自检：** 重生跑完问一句「这批截图是谁渲染的？」——答不上（没确认过端口归属）就等于没重生。
 
-**来源：** KOLMatrix M2-A F008（12 张基线污染返工 + proposed-learnings 2026-07-22 用户 Accept）。
+**数据态优先级裁决（v1.0.13 — KOLMatrix M4.7 复验轮二/轮三 S-RV2-5，2026-08-02 用户裁决）：**
+「e2e 标记行 append-only 留不删」（M4.5 spec §9 / S-M45-1）与本节重生序的「重生前先清 dev 租户」
+在本机会互斥——e2e 跑完 today 基线就翻红。**裁决：留不删只约束 e2e 脚本自身的运行期行为
+（脚本不得删这些留痕，它们是协作痕迹样本）；不约束人工重生基线前的清理动作，重生序优先。**
+即：跑 `test:visual:update` 之前该清就清，清完再跑 e2e 让它重新 append。
+CI 不受此影响（visual job 是空库 + seed，不跑任何 `*:e2e`）。
+残留的根因——基线与 dev 租户数据态耦合——未消解，已入 backlog（`BL-VISUAL-DATA-ISOLATION`）。
+
+**新触发形态（v1.0.13 — KOLMatrix M4.7 fix_round3 实证）：`next build` 之后必须重启 standalone。**
+旧进程在 :3000 活着且**能正常响应 200**，但它的 chunk 指纹指向已被新 build 覆盖的文件 →
+客户端 JS 加载失败、React 不 hydrate。表现为**整套视觉基线连同交互类用例一起翻红**，
+极易被误读成「我的改动打红了视觉门」。第 1 步的「一律杀」因此不只针对 dev server：
+**凡跑过 `next build`，之前起的 standalone 也必须杀掉重起。**
+
+**来源：** KOLMatrix M2-A F008（12 张基线污染返工 + proposed-learnings 2026-07-22 用户 Accept）；
+数据态优先级与 build-after-serve 形态来自 M4.7-FRONTDESK（2026-08-02）。
+
+### 4.6 基线含**相对时间标签**时，本地会随时间自然翻红（v1.0.13 — KOLMatrix M3-B F012 沉淀）
+
+**坑：** 视觉基线里若包含「N 小时前」这类相对时间 + 长寿命本地 dev DB，
+mac 基线会随「重生时刻 → 断言时刻」的自然流逝翻红。
+M3-B 实测：feed 三行由 17:10 产生，20:00 重生标「2 小时前」、20:30 断言变「3 小时前」→ **4366px 差异**。
+
+**为什么容易误判：** CI 用 fresh DB 故不受影响 → 表现为「本地红、CI 绿」，
+极易被当成环境玄学而反复重生。
+
+**做法二选一：** 基线环境用**固定夹具时间**（seed 时写死 `createdAt`），或把该区域 **mask** 掉。
+
+### 4.7 `fullPage: false` 的视口基线对「新加在页面下方的卡」零覆盖（v1.0.13 — KOLMatrix M4.5 F006 沉淀）
+
+**坑：** 想把新构件并进既有基线页，实测新卡落在**折叠线以下**——
+基线文件更新了（diff 有变化、CI 也绿），但新卡**一个像素也没被守住**。
+
+**规律：** 给新构件加视觉覆盖时，先确认它是否在截图范围内；
+不在就**另起确定性预览页**（或该页改 `fullPage: true`），
+别只更新一张看不见它的基线——那是最典型的「有钉子、零保护」。
 
 ---
 
@@ -240,6 +276,22 @@ export async function executeTool(name, input, ctx) {
 
 **来源：** KOLMatrix M3-A-REACH-CRM round1（fix_round1 修复：executeTool 自带幂等注册，任何路由冷进程直达不缺工具）。
 
+## 8. 模块循环导入**只在生产构建期炸**（vitest / dev 全绿）（v1.0.13 — KOLMatrix M4.5 F004 沉淀）
+
+**坑：** `tools/propose-plan.ts` 从 `./index` 导入 `ensureNativeToolsRegistered`，
+而 `index.ts` 反向 import 该工具并在模块顶层调用注册——
+vitest 与 `next dev` 下模块求值顺序**恰好安全**，只有 `next build` 的 prerender 阶段 TDZ 崩
+（`ReferenceError: Cannot access 'l' before initialization`）。
+
+**规律：** **装配入口**（把所有实现聚合起来并在顶层执行副作用的模块）
+**不得被它聚合的成员反向 import**；需要「确保已初始化」的场景交给唯一执行入口（同 §7）。
+
+**落地：** 目录级扫描的回归测试（KOLMatrix：`tests/unit/tool-module-cycles.test.ts`），新成员自动纳入。
+
+**纪律：** 此类失效**延迟暴露**，本地全绿不能作为通过依据——**改动模块图后必须本地跑一次 `npm run build`**。
+
+---
+
 ## 版本历史
 
 | 日期 | 修订 | 来源 |
@@ -251,3 +303,4 @@ export async function executeTool(name, input, ctx) {
 | 2026-07-22 | §4.2 补充（收敛声明须逐份 diff 副本——借绿的上游）+ §6 RSC 直读 DB 页面必须 force-dynamic | KOLMatrix M1-C F005 / F001（v1.0.9） |
 | 2026-07-22 | §4.5 重生前必查 :3000 无残活 dev server（v1.0.11） | KOLMatrix M2-A F008 |
 | 2026-07-25 | §7 注册不得依赖入口模块图副作用——消费点显式幂等注册（v1.0.12） | KOLMatrix M3-A round1 冷进程注册表空 |
+| 2026-08-02 | §4.5 数据态优先级裁决（重生序优先于 append-only）+ build 后须重启 standalone · §4.6 相对时间标签基线自然翻红 · §4.7 `fullPage:false` 对折叠线以下零覆盖 · §8 模块循环只在 build 期炸（v1.0.13）| KOLMatrix M3-B F012 / M4.5 F004·F006 / M4.7-FRONTDESK |

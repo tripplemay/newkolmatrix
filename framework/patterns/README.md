@@ -13,7 +13,8 @@
 | [i18n-namespace-add-checklist.md](i18n-namespace-add-checklist.md) | 新增 i18n 命名空间或已有命名空间扩展 ≥5 keys | Planner / Generator |
 | [material-symbols-pattern.md](material-symbols-pattern.md) | 项目使用字体图标子集（Material Symbols 等自托管 woff2） | Generator / Evaluator |
 | [web-runtime-patterns.md](web-runtime-patterns.md) | 引入 alpha/beta/rc 依赖；反向代理后构造对外绝对 URL；**引入/调整视觉回归基线（字体、阈值、空数据夹具）；抽取设计 token 常量（Tailwind JIT 双域）** | Generator |
-| [testing-env-patterns.md](testing-env-patterns.md) | L1/L2 验收命中 Prisma / Node 版本 / jsdom / Playwright E2E / 字体子集 / RLS 查询 / **Next.js UI 实测（dev vs standalone）** | Evaluator |
-| [audit-methodology.md](audit-methodology.md) | 批次形态为盘点/对照/扫描而非实现（一致性审计、死代码盘点、安全审计、上线前 audit、PRD 偏差核对），典型为 Evaluator-only 批次；**复验阶段判断「原测试转绿」能否作为修复证据（§5-§6）** | Planner / Evaluator |
+| [testing-env-patterns.md](testing-env-patterns.md) | L1/L2 验收命中 Prisma / Node 版本 / jsdom / Playwright E2E / 字体子集 / RLS 查询 / **Next.js UI 实测（dev vs standalone）**；**新增或修改 e2e / smoke / 验收脚本的清理段（§9 / §9.1）**；**写带注入缝的可测函数（§10）** | **Generator** / Evaluator |
+| [audit-methodology.md](audit-methodology.md) | 批次形态为盘点/对照/扫描而非实现（一致性审计、死代码盘点、安全审计、上线前 audit、PRD 偏差核对），典型为 Evaluator-only 批次；**复验阶段判断「原测试转绿」能否作为修复证据（§5-§6）**；**写任何「守住某条约束」的断言前（§7 断言强度分级）** | Planner / **Generator** / Evaluator |
+| [agent-loop-patterns.md](agent-loop-patterns.md) | 实装或验收「模型多步调工具」的 loop：`stopWhen` / 子 loop / 人格接力 / 步数与墙钟预算 / loop 遥测 / 工具子集隔离（单次 prompt→JSON 的 AI action 不适用，见 ai-action-contract.md） | 三角色 |
 
 **加载纪律：** 这些文件不进 T0/T1 启动加载。Planner 起草 spec、Generator 开工、Evaluator 验收时按上表触发条件命中才读对应文件——与 `.auto-memory/` T2 层同一原则。

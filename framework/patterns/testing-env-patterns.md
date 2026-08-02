@@ -182,6 +182,66 @@ PORT=3000 node .next/standalone/server.js
 
 **来源：** KOLMatrix M3-A-REACH-CRM round1（today feed 基线污染误判）+ M4-INSIGHT O2（marker 保留的后果实测）。
 
+### 9.1 清理段自身绝不可再抛——它一抛就同时干掉「首因可见」与「环境干净」（v1.0.13 — M4.5 F010 沉淀）
+
+**反面：** `pendingIds` 先 push 后 assert，闸门红线一回归就把 `undefined` 塞进 `deleteMany({ in: [...] })`，
+Prisma 拒绝 → `finally` 整段中断 → 原始 `ASSERT FAIL` 被二次抛错**盖掉**，同时 dev 库残留污染
+下一个隔离 evaluator 的视觉基线。**而 e2e 失败在 fixing 轮里是常态，那正是清理最该生效的时刻。**
+
+**三条施工要求：**
+1. 清理段**每步独立 try/catch 只告警**（`cleanupStep` 包装器），整段绝不外抛；
+2. 入删除清单的 id **必先过滤** undefined/null；
+3. **清理键不得依赖「被测行为正确」才存在的字段**——本例 `gateLogId` 在闸门回归时恒 null、
+   `projectId` 因 scope=quarterly 恒 null，两把键同时落空。**跑前 id 基线差集**才是不受被测代码影响的键。
+
+**但清态断言必须写在包装器之外。** 把断言包进 `cleanupStep` = 被它「吞掉异常绝不外抛」的契约吃掉，
+断言写在会吞异常的包装器里等于没写（M4.7 实测：删清理步后脚本照常 exit 0，只多一行没人消费的 stderr）。
+
+**清单与断言必须同源，且要两层。** 见 [audit-methodology.md §7](audit-methodology.md) 末段：
+登记表（`where` 只写一次，同时派生删除与断言）挡键漂移；再压一层**不从登记表派生**的整表普查挡整条被删。
+
+**来源：** KOLMatrix M4.5-AGENT-LOOP F010 首轮 PARTIAL + M4.7-FRONTDESK 复验轮二/轮三 F009。
+
+---
+
+## 10. 注入缝的 caller 必须无条件调用——环境降级只对**默认** caller 生效（v1.0.13 — M4-INSIGHT 沉淀）
+
+**坑：** `draftWeeklyReport` 在无凭据时**忽略注入的 mock caller**直接走降级分支 →
+本地（`.env` 有凭据）测试全绿、CI（无凭据）三条断言红。
+
+**规律：** `fn(input, ctx, llm = defaultCaller)` 形态的注入缝，
+环境判定（凭据 / 开关 / feature flag）必须包在 `llm === defaultCaller` 条件内。
+否则测试注入被**静默改道**，且只在与开发机环境相异的 CI 暴露——本地全绿不构成通过依据。
+
+**同族：** agent loop 的 `model` / `ctx` 注入缝同理，见 [agent-loop-patterns.md §1](agent-loop-patterns.md)。
+
+**来源：** KOLMatrix M4-INSIGHT F006（CI run 30119127279）。
+
+---
+
+## 11. `git grep` 类断言只搜「已跟踪」文件 → 新文件未 commit 时恒空绿（v1.0.13 — M4.5 沉淀）
+
+**坑：** 「全仓无批量确认端点」的架构约束断言本地绿、入库后 CI 才红——
+新文件此前不在 git 索引里，`git grep` 根本看不见它；且文件头把反面教材端点名写进了注释。
+
+**规律：** 以 `git grep` 为证据的架构约束断言：
+1. 必须**滤掉注释行**（否则文件头的反面教材会自己把断言打红，或诱使你放宽模式）；
+2. **本地首次绿不算数**——要么 `git add` 后再跑，要么改用文件系统读取（`readFileSync` / 目录扫描）。
+
+**来源：** KOLMatrix M4.5-AGENT-LOOP F007。
+
+---
+
+## 12. 测试钉「恰好 N 条」的全量清单会连坐后续批次的合法扩展（v1.0.13 — M4-INSIGHT 沉淀）
+
+**坑：** M4 F011 注册 `weekly-draft` 例程后，`kol-sync` 测试里
+`expect(names).toEqual([恰 3 条])` 无辜翻红——它守的根本不是这次改动。
+
+**规律：** 清单**本身不是验收对象**时，断言写「目标项在场 + 既有前缀序稳定」而非全量相等。
+全量相等只用于**清单即验收对象**的场景（如 doc-freshness 的「文档声称 N 件 = 实物 N 件」）。
+
+**来源：** KOLMatrix M4-INSIGHT F011。
+
 ---
 
 ## 版本历史
@@ -191,3 +251,4 @@ PORT=3000 node .next/standalone/server.js
 | 2026-07-09 | v1.0 重构：自 `harness/evaluator.md` §13-§16 / §18-§19 原文迁出成独立 pattern 文件 | 框架 v1.0 目录分层 |
 | 2026-07-21 | §7 Next.js UI 实测走 standalone 不走 `next dev`（devtools × RSC manifest 冲突） | KOLMatrix ARCH-M05 |
 | 2026-07-25 | §8 闸门类回归必须含 HTTP 全链 + §9 mock 清态按业务标记清（v1.0.12） | KOLMatrix M3-A round1 critical ×2（+ M4 O2 补充证据） |
+| 2026-08-02 | §9.1 清理段绝不可再抛（+ 断言须在包装器之外、两层同源）· §10 注入缝 caller 无条件调用 · §11 `git grep` 断言恒空绿 · §12「恰好 N 条」清单连坐（v1.0.13）| KOLMatrix M4 / M4.5 / M4.7 |

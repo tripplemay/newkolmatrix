@@ -22,6 +22,8 @@ type: feedback
 - 批次内若有「口径权威文档」（架构定稿、契约规范）作为**首个** feature 交付，后续 feature 的实装会**反向漂移**它（已实装的仍标「演进目标」、计数过期）
 - 拆 features 时对策二选一：批末排一条**文档刷新 feature**，或在 acceptance 里给该文档加「批末新鲜度复核」clause
 - 大批次（≥10 features）两者都上；反面案例 ARCH-M05 FIX-2（architecture.md 三处批内漂移）
+- **acceptance 里的判据要从「批末 grep 复核」升级为「新增/扩展 doc-freshness 断言」**——人工 grep 已证不可靠（同坑三连踩：M3-B F012 → M4 issue-1..4 → M4 复验 issue-5）。grep 判据须不带左括号且含 `docs/` 范围，并先验活（`patterns/audit-methodology.md` §8）
+- **凡涉及「模型自主性」的 acceptance**（自己发现入参 / 自己选专家 / 自己决定要不要咨询），必须显式标注它归 L1 装配层断言还是归 L2 真模型——mock 测试床对这类缺陷是结构性盲区（`patterns/agent-loop-patterns.md` §2；反面：M4.5 11/11 PASS 上线首轮即撞到）
 
 ## 角色分配
 

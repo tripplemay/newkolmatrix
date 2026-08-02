@@ -33,6 +33,11 @@ type: feedback
 
 缺这三道，「真修干净」与「检测器死了 / 豁免被放宽」无法区分。
 
+**文档面实例（v1.0.13 — M4.5 沉淀）：** 第 3 道的「全仓 grep = 0」自己也要先验活——
+构造一个已知命中项确认模式能抓到它。反面：批末复核用 `stepCountIs(`（带左括号）且不搜 `docs/`，
+而代码写 `stepCountIs(5)`、文档写 `stepCountIs 5`——模式差一个字符就全盲，文档漂移活过整个批次。
+详见 `framework/patterns/audit-methodology.md` §8。
+
 ## 计数不符先逐站点追溯，再判定（v1.0.6 — FE-REFACTOR 沉淀）
 
 acceptance 写的数量与实测用量对不上时，**默认不是缺陷**——先逐站点追溯。FE-REFACTOR 三次「数字对不上」（Badge 6→5、刻度 13→9、gray-500 11→7）全部证实为上游组件抽取去重的**正确收敛**。

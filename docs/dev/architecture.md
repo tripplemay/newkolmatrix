@@ -940,11 +940,11 @@ export interface ToolContext {
 
 #### 8.3.2 步数预算与 loop 遥测（✅ M4.5 F001/F002）
 
-**步数预算按人格差异化**（U2）。唯一真相源 = `AgentPersona.maxSteps`（`registry.ts`）。**M4.7 F006 起主 loop 的 `stopWhen` 是谓词**（`steps.length >= currentBudget()`）而非静态 `stepCountIs`——预算要随接力/咨询按**链上最大档位**抬升（`chainBudget`），静态值抬不起来；`stepCountIs(` 的唯一消费点是专家子 loop（入参 `SPECIALIST_MAX_STEPS` 常量）。**全仓不得出现第二处硬编码步数**（回归测试 `tests/unit/agent-step-budget.test.ts` 钉死）。
+**步数预算按人格差异化**（U2）。唯一真相源 = `AgentPersona.maxSteps`（`registry.ts`）。**M4.7 F006 起主 loop 的 `stopWhen` 是谓词**（`steps.length >= currentBudget()`）而非静态 `stepCountIs`——预算要随**接力**按**链上最大档位**抬升（`chainBudget`），静态值抬不起来；**咨询不抬预算**（开销在专家子 loop 内、受 `SPECIALIST_MAX_STEPS` 约束，对前台只消耗 1 步，故不入 `budgetChain`）；`stepCountIs(` 的唯一消费点是专家子 loop（入参 `SPECIALIST_MAX_STEPS` 常量）。**全仓不得出现第二处硬编码步数**（回归测试 `tests/unit/agent-step-budget.test.ts` 钉死）。
 
 | 档位 | 常量 | 值 | 人格 | 定档依据 |
 |---|---|---|---|---|
-| 深链 | `EXTENDED_MAX_STEPS` | 10 | `insight` | ROI 追问天然多轮（对比→找缺口→再查→起草）。**M4.7 F006 起前台（orchestrator）降为常规档**：它只受理→咨询→综合，深链需求由「取链上最大档位」承担——咨询/接力到深链专家时本轮预算自动抬到链上最大值（`chainBudget`），不必让前台长期背着 10 步的爆炸半径 |
+| 深链 | `EXTENDED_MAX_STEPS` | 10 | `insight` | ROI 追问天然多轮（对比→找缺口→再查→起草）。**M4.7 F006 起前台（orchestrator）降为常规档**：它只受理→咨询→综合，深链需求由「取链上最大档位」承担——**接力**到深链专家时本轮预算自动抬到链上最大值（`chainBudget`；**咨询不抬**，它在子 loop 内自限），不必让前台长期背着 10 步的爆炸半径 |
 | 常规 | `DEFAULT_MAX_STEPS` | 5 | 其余 6 人格（含前台） | 动线是「查一步→答」到「查两步→起草→答」，5 步够用且限制爆炸半径 |
 
 停止条件 = 单上限 + loop 天然收敛（末步无 tool call 即止）——组合停止条件在天然收敛面前是过度设计（P3）。**M4.7 F006 起该上限现算自链上最大档位**（谓词形态），不再是装配时定死的静态值。`maxDuration` 随之 60→120s（10 步 × 网关 P95 需要余量；self-host standalone 无平台上限）。

@@ -203,8 +203,11 @@ const PERSONA_SEED: Array<Omit<AgentPersona, 'systemPrompt'>> = [
       'consult_specialist',
     ],
     // M4.7 F006（D-3）：前台自己不干活，只受理→咨询→综合，5 步够用。
-    // 深链需求由「取链上最大档位」承担：咨询/接力到深链专家（insight）时，
-    // 本轮预算自动抬到链上最大值——不必让前台一直背着 10 步的爆炸半径。
+    // 深链需求由「取链上最大档位」承担：**接力**到深链专家（insight）时，本轮预算
+    // 自动抬到链上最大值——不必让前台一直背着 10 步的爆炸半径。
+    // 【咨询不抬预算】咨询的开销发生在专家子 loop 内、受 SPECIALIST_MAX_STEPS 约束，
+    // 对前台只消耗 1 步，故不入 budgetChain（实物：`loop.ts` 的 `budgetChain.add`
+    // 只在 prepareStep 的接力分支）。此处曾写成与实物相反的陈述，复验轮二更正。
     maxSteps: DEFAULT_MAX_STEPS,
   },
   {

@@ -32,7 +32,8 @@ function gitGrep(pattern: string, pathspec: string[]): string[] {
 
 // M4.7 F006（D-3 裁决）：**前台（orchestrator）从深链档降为常规档**。
 // 它自己不干活，只受理→咨询→综合，5 步够用；深链需求由「取链上最大档位」承担——
-// 咨询/接力到 insight 时本轮预算自动抬到 10，不必让前台长期背着 10 步的爆炸半径。
+// **接力**到 insight 时本轮预算自动抬到 10（咨询不抬：开销在子 loop 内自限），
+// 不必让前台长期背着 10 步的爆炸半径。
 const DEEP_CHAIN_AGENTS = ['insight'];
 
 describe('F002 步数预算档位（U2 人格差异化）', () => {

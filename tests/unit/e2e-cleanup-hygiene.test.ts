@@ -214,10 +214,30 @@ describe('S-RV1-2 收口：跨行写法也算裸 deleteMany', () => {
         naked,
         `${path} 清理段出现裸 deleteMany（含跨行写法）——它一抛就掩盖首因并跳过后续清理`,
       ).toEqual([]);
-      expect(
-        (block.match(/cleanupStep\(/g) ?? []).length,
-        '正向证据：清理段确实在用 cleanupStep',
-      ).toBeGreaterThanOrEqual(5);
+
+      /* 正向证据：清理确实是**逐步**的（一个大 try 包住全部 = 一抛全掉）。
+         两种合法形态各算各的粒度：
+         ① 逐条写 cleanupStep(...)          → 数字面调用数
+         ② 登记表驱动（frontdesk-e2e，F009 轮二）→ 数 entry(...) 登记条数，
+            并额外要求那张表**确实经 cleanupStep 消费**，否则等于绕开了逐步契约。 */
+      const literalSteps = (block.match(/cleanupStep\(/g) ?? []).length;
+      const registered = (flatten(src).match(/entry\(\s*'/g) ?? []).length;
+      const tableDriven = /for \(const step of cleanupPlan\)/.test(block);
+      if (tableDriven) {
+        expect(
+          block,
+          '登记表必须经 cleanupStep 消费——直接调 step.purge() 就绕开了逐步 try/catch',
+        ).toContain('cleanupStep(step.label, step.purge)');
+        expect(
+          registered,
+          '正向证据：清理登记表的条数（每条 = 一把清理键 + 它自己的残留断言）',
+        ).toBeGreaterThanOrEqual(5);
+      } else {
+        expect(
+          literalSteps,
+          '正向证据：清理段确实在用 cleanupStep',
+        ).toBeGreaterThanOrEqual(5);
+      }
     });
   }
 });

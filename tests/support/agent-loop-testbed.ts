@@ -315,6 +315,23 @@ export async function runScriptedLoop(
     const toolNames = steps.flatMap((s) => s.toolCalls.map((c) => c.toolName));
     const toolResults = await loop.result.toolResults;
 
+    /* ── 遥测落库等待（S-RV2-10，复验轮二 §14.2）────────────────────────────
+       遥测是 fire-and-forget：`onEnd` 里 `void logLoopTelemetry(...).then(settle)`，
+       落库发生在本调用返回之后的几毫秒内。测试若不等它就进 afterAll 删租户，
+       慢机上会被**删后迟到**的那一行打红——或更糟：删得比它快，留下一行孤儿
+       `OperationLog`（tenantId 指向已不存在的租户），断言绿但库脏。
+
+       上一轮是逐文件补 `await run.loop.telemetry`，实测只覆盖了 2 个文件，同族竞态
+       在 `m47-g3-evaluator-probe` 仍被抓到翻红。**下沉到测试床**：所有走
+       runScriptedLoop 的用例自动获得确定性等待，新写的用例不必记得补这一句。
+       （`logLoopTelemetry` 内部 catch 落库异常后仍 settle，故此处不会挂死；
+         异常路径根本走不到这里——上面 for-await 会先抛出去。）
+
+       **只在走默认 writer 时等**：注入了 telemetryWriter 的用例根本不落库，没有
+       孤儿行可言；而其中有一条专门证明「writer 永不 resolve 也不阻塞会话」——
+       无条件等会把那条正面证明变成死等（本次实测：5s 超时红）。               */
+    if (!opts.telemetryWriter) await loop.telemetry;
+
     return {
       steps: steps.length,
       finishReason: await loop.result.finishReason,

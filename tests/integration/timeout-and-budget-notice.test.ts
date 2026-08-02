@@ -12,7 +12,7 @@
 // catch，只是 Error message 改了个名。这一版用**真的永不 resolve 的模型** + 极短
 // abortSignal 驱动，测的是真超时路径。
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { MockLanguageModelV4 } from 'ai/test';
 import type { LanguageModelV4GenerateResult } from '@ai-sdk/provider';
@@ -26,6 +26,7 @@ import {
   budgetExhaustedNotice,
 } from '../../src/lib/agent/registry';
 import { runSpecialistLoop } from '../../src/lib/agent/specialist-loop';
+import { runAgentLoop } from '../../src/lib/agent/loop';
 import { executeTool } from '../../src/lib/agent/execute';
 import {
   CONSULT_FAILED_MARKER,
@@ -154,36 +155,115 @@ describe('F007 — 真超时闸（不是抛错支改名）', () => {
     ).not.toBeNull();
   });
 
-  it('🔒 RV-2b：默认闸的时限**来自常量**（写死数字 → 本条红）', async () => {
-    // 复验 §9 第 2 条要的是「常量→行为**双向绑定**」，不只是"默认路径带 signal"。
-    // 判据：不注入任何 signal 时，模型收到的 signal 其超时时刻应落在
-    // SPECIALIST_TIMEOUT_MS 附近——若实现改成写死数字（如恒 5000），差值就会露馅。
+  it('🔒 RV-2c：**主 loop** 生产默认路径真的带闸（不注入任何 signal）', async () => {
+    // 【复验轮二 §13.2】上一版只补了子 loop 那一条：摘掉 loop.ts:294 的默认
+    // AbortSignal.timeout（保留 params.abortSignal 注入缝）后**1418 条全绿**——
+    // 主 loop 的生产默认闸此前零覆盖。而挂死暴露**不是子 loop 专属**
+    //（registry.ts:87-88 已如实登记），主 loop 同样无自限。
+    //
+    // 手法同 RV-2：让 mock 把它**实际收到的** abortSignal 捕获下来，不注入时必须非空，
+    // 然后手动了断，避免真等 LOOP_TIMEOUT_MS（110s）。
     let captured: AbortSignal | null = null;
-    const t0 = Date.now();
     const model = new MockLanguageModelV4({
-      doGenerate: (options) =>
-        new Promise<LanguageModelV4GenerateResult>((_res, rej) => {
-          captured = (options as { abortSignal?: AbortSignal }).abortSignal ?? null;
-          setTimeout(() => rej(new Error('手动结束')), 30);
-        }),
+      doStream: async (options) => {
+        captured = (options as { abortSignal?: AbortSignal }).abortSignal ?? null;
+        if (!captured) throw new Error('主 loop 生产默认路径没有传 abortSignal');
+        throw new Error('手动结束（signal 已捕获）');
+      },
     });
-    await expect(
-      runSpecialistLoop({
-        targetAgent: 'insight',
-        question: 'ROI？',
-        ctx: { tenantId, agentId: FRONT_DESK_AGENT_ID, projectId, env: 'default' },
+    const sentinel = installNoNetworkSentinel();
+    try {
+      const loop = await runAgentLoop({
+        copilot: {
+          route: '/admin',
+          projectId,
+          env: 'default',
+          agentId: FRONT_DESK_AGENT_ID,
+        },
+        messages: [{ role: 'user', content: '挂着别回' }],
         model,
-      }),
-    ).rejects.toThrow();
-    expect(captured).not.toBeNull();
-    // AbortSignal.timeout 无法直接读出时限，改测"它在常量时刻之前不会 abort"：
-    // 若实现把默认闸写死成一个远小于常量的数字，这里就会已经 aborted。
-    const elapsed = Date.now() - t0;
-    expect(elapsed, '前提：本用例应在毫秒级结束').toBeLessThan(SPECIALIST_TIMEOUT_MS);
+        ctx: { tenantId, agentId: FRONT_DESK_AGENT_ID, projectId, env: 'default' },
+        // **不传 abortSignal** —— 走生产默认
+      });
+      // 模型这一步就抛，流以 error 片了断。这里只负责把它消费干净——
+      // 判据是「模型收到的 signal」，不是抛不抛。
+      // （不 await loop.telemetry：onEnd 在异常路径不触发，那个 promise 永不 resolve，
+      //   loop.ts:166-168 的注释正是为此写的。同理也不会落遥测行，无孤儿风险。）
+      try {
+        for await (const _ of loop.result.fullStream) void _;
+      } catch {
+        /* 预期内 */
+      }
+    } finally {
+      sentinel.restore();
+    }
     expect(
-      (captured as unknown as AbortSignal).aborted,
-      `默认闸不应在 ${elapsed}ms 就触发 —— 说明时限不是来自 SPECIALIST_TIMEOUT_MS`,
-    ).toBe(false);
+      captured,
+      '主 loop 生产默认路径必须给模型一个 abortSignal —— 没有它挂死时只能等 undici 的 ~301s',
+    ).not.toBeNull();
+  }, 30_000);
+
+  it('🔒 RV-2b（重写）：默认闸的时限真的**读常量**（写死数字 → 本条红）', async () => {
+    // 【为什么重写】上一版判据是 `captured.aborted === false` + `elapsed < 常量`，
+    // 而用例 ~30ms 就手动结束——任何 ≥50ms 的默认闸都满足它，包括写死的 45s、
+    // 写死的 5s、以及被改小的常量。复验轮二实测：写死 45_000 与常量改 3s **双双全绿**，
+    // 它比 RV-2 多提供的信息量是零（`captured` 非空 RV-2 已经断言过）。
+    //
+    // 【真双向绑定】把常量本身换成 30ms 再走生产默认路径：闸若读常量，模型 30ms 后
+    // 被 abort、用例毫秒级结束；闸若写死数字（不读常量），这里会一直挂到用例超时。
+    vi.resetModules();
+    vi.doMock('../../src/lib/agent/registry', async () => {
+      const actual = await vi.importActual<
+        typeof import('../../src/lib/agent/registry')
+      >('../../src/lib/agent/registry');
+      return { ...actual, SPECIALIST_TIMEOUT_MS: 30 };
+    });
+    try {
+      const { runSpecialistLoop: freshRun } = await import(
+        '../../src/lib/agent/specialist-loop'
+      );
+      const t0 = Date.now();
+      await expect(
+        freshRun({
+          targetAgent: 'insight',
+          question: 'ROI？',
+          // 不注入 abortSignal、不设 ctx.consultTimeoutMs —— 时限只能来自常量
+          ctx: {
+            tenantId,
+            agentId: FRONT_DESK_AGENT_ID,
+            projectId,
+            env: 'default',
+          },
+          model: stallingModel(), // 只在 abort 时才了断
+        }),
+        '常量被换成 30ms 后仍未在秒级内 abort = 默认闸没读常量（写死数字）',
+      ).rejects.toThrow();
+      expect(
+        Date.now() - t0,
+        '闸的时限必须跟着常量走',
+      ).toBeLessThan(5_000);
+    } finally {
+      vi.doUnmock('../../src/lib/agent/registry');
+      vi.resetModules();
+    }
+  }, 20_000);
+
+  it('🔒 RV-2d：常量取值的**下界**也有钉（收紧方向此前完全不设防）', () => {
+    // 【复验轮二 §13.2】唯一守住取值的是 R-3 不等式（MAX_CONSULTS × 子闸 < 主闸），
+    // 它只挡**放大**方向；把 45s 改成 3s 全绿。而 BL-AGENT-COST-CALIBRATE 指向的
+    // 正是"上线后要调这个值"——调错方向没有任何钉子会响，代价是把「挂死不降级」
+    // 换成「正常请求被误判超时」（registry.ts:93-95 已如实登记这层风险）。
+    //
+    // 【下界怎么来的】它同样**不是实测值**，是一道护栏：子 loop 允许 3 步
+    //（SPECIALIST_MAX_STEPS），低于本值意味着平均每步不到几秒就掐断，正常请求几乎必被
+    // 误判。真要往下调，必须先有真实延迟样本 → BL-AGENT-COST-CALIBRATE，并同步改这里。
+    const FLOOR_MS = 20_000;
+    expect(
+      SPECIALIST_TIMEOUT_MS,
+      `子闸 ${SPECIALIST_TIMEOUT_MS}ms 低于护栏 ${FLOOR_MS}ms —— 收紧到这个量级会把正常请求判成超时；` +
+        '如确需下调，请带上实测延迟数据一并改本护栏（BL-AGENT-COST-CALIBRATE）',
+    ).toBeGreaterThanOrEqual(FLOOR_MS);
+    // 上界仍由 R-3 不等式那条用例守（放大方向），此处只补下界，两边合起来才是一个区间。
   });
 
   it('子 loop 真挂死 → 在时限内被 abort（不是等 undici 的 ~301s）', async () => {

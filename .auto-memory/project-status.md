@@ -21,8 +21,7 @@ type: project
 ## 需求池 / 待人类
 - backlog 5 条：`BL-COST-CAP` · `BL-AGENT-ROUTINE` · `BL-TOOL-STREAM-OUTPUT` · **`BL-E2E-CLEANUP-PIN`**（断言强度升级：行为级 / 正向精确匹配 / 钉子覆盖面对齐——源码级正则与黑名单否定断言均已被 evaluator 实测绕过）· **`BL-TENANT-SCOPE-PROJECTREF`**（三口径项目解析收口 tenantId，实测可跨租户取名，**M5 前必须收口**）。下批候选：**M5**（真实认证+RLS / 真 partner / reach·conversions 真回传源 / 真实公开分享页）· **M3-C**（真入站收信 + send_bulk_outreach）· soft-watch 小批
 - L2 未消耗：模型自主接力/追问质量 · 渐进渲染真流表现（mock 测试床不发 tool-input-delta）· 浏览器内真实渲染（persona_switch 换头 / 聚合卡逐项确认动线）· draft_report 全程降级验收
-- soft-watch 续记：F003-low-1 · 洞察侧栏徽标恢复 · O2 + **S-M45-1**（e2e 每跑净增标记 OperationLog，**留不删**是显式决定，spec §9 写定）· O11 · O-G2-1（接力后 `ctx.agentId` 仍为起始人格）· S-G5-4（BATCH_EMPTY_MSG 死分支）· 无 `.nvmrc`
-- proposed-learnings：M3-A 4 条已沉淀 ✅ v1.0.12；**M3-B 1 + M4 3 + M4.5 4 + M4.6 4 = 12 条挂起待确认**
+- soft-watch 续记：F003-low-1 · 洞察侧栏徽标恢复 · O2 + **S-M45-1**（e2e 每跑净增标记 OperationLog，**留不删**是显式决定，spec §9 写定）· O11 · O-G2-1（接力后 `ctx.agentId` 仍为起始人格）· S-G5-4（BATCH_EMPTY_MSG 死分支）· 无 `.nvmrc`。proposed-learnings：M3-A 4 条已沉淀 ✅ v1.0.12；**M3-B 1 + M4 3 + M4.5 4 + M4.6 4 = 12 条挂起待确认**
 
 ## 关键技术坑（M4 → M4.6 新证）
 - 注入缝 LLM caller 必须无条件调用 · 测试钉「恰好 N 条」清单会连坐后续扩展 · 新基线 CI 首推必红走 update-visual-baselines workflow

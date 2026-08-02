@@ -15,8 +15,7 @@ type: project
 
 ## 已上线
 - `https://newkol.guangai.ai` 跑 **M4 + M4.5 @ `fd751ad5cd0e1de306a2f59c17344e7ba26e2be2`**（2026-07-26 部署，用户授权后由主实例触发；上一版 M3-B `49308c1a…` 即回滚点）
-- 部署实况：migrate one-shot Started→Exited 正常（M4 的 3 表 + 1 枚举已应用，M4.5 零新增迁移）· db/app 均 Healthy · 公网独立复核 `/api/health` = `{"ok":true}`、`/` 307→`/admin/today` 200
-- ⚠️ image_tag 必须完整 40 位 SHA；compose 是 VPS 人工副本（本次未改 compose、无新增必需 env）
+- 部署实况：migrate one-shot 正常 · db/app 均 Healthy · 公网复核 `/api/health` ok、`/` 307→`/admin/today` 200。⚠️ image_tag 必须完整 40 位 SHA；compose 是 VPS 人工副本
 - **上线后未做的事**：M4/M4.5 全部为 L1 验收（mock，零外呼），真网关面在生产是首次曝光——模型自主接力质量 / 渐进渲染真流 / `draft_report` 真实生成 / 聚合确认真实 fetch 链，均待人工手测确认
 
 ## 需求池 / 待人类

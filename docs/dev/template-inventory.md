@@ -14,6 +14,30 @@ FE-AUDIT spec §4 D6.4：项目无 RTL 需求，保留不接线。
 
 `auth/variants/{CenteredAuthLayout, DefaultAuthLayout, PricingAuthLayout}/index` · `footer/{FooterAuthCentered, FooterAuthDefault}` · `navbar/NavbarAuth`
 
+### B.1 M5-AUTH-RLS F002 port 登记（2026-08-04，spec D-10 §2.1）
+
+| 项目落点 | 模板实源（只读基线 `db4rDjuaSCqaEFW9XcFo_horizon-tailwind-react-nextjs-pro-3.0.0/horizon-tailwind-react-nextjs-pro-main/`） | 形态 |
+|---|---|---|
+| `src/app/login/page.tsx` | `src/app/auth/sign-in/default/page.tsx` | **port + fork**（删第三方登录钮、文案中文化、接真 signIn） |
+| `src/app/signup/page.tsx` | `src/app/auth/sign-up/default/page.tsx` | **port + fork**（删第三方登录钮、姓名两列→团队名/称呼、接 F005 注册端点） |
+| `src/components/auth/variants/DefaultAuthLayout/index.tsx` | 同路径（仓内既有库存） | **接线，零改动**（B 组从 dead-in-repo 转为可达） |
+| `src/components/footer/FooterAuthDefault.tsx` | 同路径（仓内既有库存） | **接线 + fork**：版权署名 Horizon UI → KOLMatrix（品牌替换）；四条 vendor 链接目标未改，待产品页就位后重指 |
+| `src/components/fields/InputField.tsx` · `src/components/checkbox/index.tsx` | 同路径（C 组库存） | **接线，零改动** |
+
+> fork 改动点逐条写在各文件头注释（port-guide §2.4 留痕要求）。**未引入任何新 UI 库、未新增 Chakra 面**（spec §2.2）；
+> 第三方登录（Google）钮按 spec §2.3「本批无 OAuth」删除，其余卡片布局 / 输入态样式原样保留。
+>
+> **品牌区两处按 port-guide §2.4「品牌替换」改**（结构零改动，只换品牌内容，两处均在文件头留痕）：
+> ① 右侧渐变面板原铺模板素材 `public/img/auth/auth.png`（图上印着 Horizon UI logo 与 horizon-ui.com 引流位）
+> → 换成仓内既有 KOLMatrix 记号（KM 方块 + KOL/Matrix 双字重，与 sidebar 品牌区同款，未新建素材）；
+> ② 页脚版权署名 Horizon UI → KOLMatrix。**页脚四条 vendor 链接（Support / License / Terms of Use / Blog，
+> 指向 simmmple.com 与 blog.horizon-ui.com）未改**——本批无对应产品页，删即「简化模板区块」（§2.3 禁）；
+> 待产品支持页 / 条款页就位后重指，此项已在 F002 commit 正文与交接中登记待裁。
+>
+> **port 后矩阵实测（`node scripts/test/fe-audit-component-matrix.mjs` 复跑对账）：**
+> used-as-is 6 → **8**（+InputField、checkbox）· forked-modified 5 → **7**（+DefaultAuthLayout、FooterAuthDefault）·
+> dead-in-repo 77 → **73**。（本文件开头的 78 是 FE-AUDIT F001 时点快照，此后多批已陆续接线；以复跑值为准。）
+
 ## C. M0.5 采纳候选（25 个 · 保留并优先复用，禁止在 common/ 重新发明）
 
 | 组 | 组件 | M0.5 消费点（预判） |

@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "M5-AUTH-RLS:真实认证(Auth.js v5 Credentials+JWT / 开放注册即建租户 / middleware 全站鉴权 401)+ 真 PG RLS 多租户隔离(非特权角色 kol_app + 23 表 policy default-deny + $extends 租户变量注入,覆盖 pgvector raw SQL)。执行形态:本地异构首跑(evaluator=codex local-cli,generator=主上下文默认映射)。红线:403 闸门语义不碰 / 无隐式回落 dev 租户 / 登录注册 fail-closed 限速 / 审计只记元数据。",
   "total_features": 13,
-  "completed_features": 4,
+  "completed_features": 7,
   "fix_rounds": 0,
   "current_sprint": "M5-AUTH-RLS",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-04T10:10",
+  "last_updated": "2026-08-04T21:00",
   "reference_docs": [
     "docs/specs/M5-AUTH-RLS-spec.md",
     "docs/dev/architecture.md",

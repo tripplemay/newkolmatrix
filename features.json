@@ -33,7 +33,7 @@
       "title": "会话租户注入:context.ts EXTENSION POINT 兑现 + systemContext 显式路径",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-3:buildToolContext 从会话解析 {tenantId, actor};删模块级缓存 _devTenantId;scheduler/scripts 走显式 systemContext(tenantSlug)。",
       "acceptance": "`buildToolContext` 从会话取 tenantId/actor(HTTP 面 29 route + admin pages 全收敛,tsc 强制);**模块级缓存 `_devTenantId` 删除**(grep 0 命中);**无隐式回落**:无会话且未显式传租户 → throw(负向断言,不默认 dev——静默跨租户是本 feature 最大风险);`systemContext(tenantSlug)` 显式路径就位;既有 vitest 测试床显式传 ctx 不受影响(全量回归绿);变异:给无会话路径加回落 dev → 负向红"
     },
@@ -42,7 +42,7 @@
       "title": "开放注册:注册即建租户",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-4:/signup 事务内建 Tenant + owner User。防滥用与空态明示。",
       "acceptance": "注册事务:Tenant(name=输入)+User(email 唯一,bcrypt)原子建(部分失败零残留,行为级测试);email 唯一冲突 → 明确 4xx 不 500;zod 密码强度(≥10 位含字母数字,负向用例);注册后自动登录并落 OperationLog(元数据 only:email 域名+结果,**不含密码任何形态**——隐私断言串);新租户首屏空态明示不算缺陷(spec 语义,登记测试注释);变异:把建租户挪出事务 → 原子性测试红"
     },
@@ -51,7 +51,7 @@
       "title": "登录/注册 fail-closed 限速 + 审计留痕",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-4:复用 checkRateLimit。登录 5/min/IP + 5min block;注册 3/min/IP。fail-closed。",
       "acceptance": "限速维度 IP(clientIpOf 复用);阈值为导出常量;**fail-closed**(限流存储异常 → 拒绝而非放行,行为级测试驱动异常路径,注释明示与既有 fail-open 面的区别是显式设计);超限 → 429 + 用户可读文案;不设 escape hatch(安全敏感面,spec 明示);登录成/败、注册、限速触发均落 OperationLog(元数据 only);变异:fail-closed 改 fail-open → 红;摘留痕 → 红"
     },

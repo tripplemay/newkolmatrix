@@ -1,68 +1,122 @@
 {
-  "batch": "M4.8-HARDEN",
+  "batch": "M5-AUTH-RLS",
   "features": [
     {
       "id": "F001",
-      "title": "findProjectByRef / projectContextSection 收口 tenantId(含 S-RV3-3 携带)",
+      "title": "Auth.js v5 Credentials + JWT 装配 + User expand 迁移",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "spec D-1:findProjectByRef(ref, tenantId) 必选参数收口;跨租户 ref 视同不存在 → 段落降级 id-only(名字不漏)。调用链 loop.ts:238 / specialist-loop.ts:147 传 ctx 的 tenantId。",
-      "acceptance": "`findProjectByRef(ref, tenantId)` tenantId 为**必选参数**(无默认值,tsc 保证全调用点显式传);where 含 tenantId 与 OR 同层;`projectContextSection(projectId, tenantId)` 同步;**行为级负向测试**:自建第二租户 project(id/publicId/slug 三口径逐一试),以主租户 tenantId 解析 → 均 null,段落 label 为 id-only 且**不含跨租户项目名**(正向精确断言段落全串);正向回归:同租户三口径照常返回名、降级纪律(DB 故障只写 id)不回退;变异证活:摘掉 where 的 tenantId 条件 → 负向测试红;**S-RV3-3 携带**:project-context-route 测试文件本批被动 ⇒ 顺手补真 route POST 用例的遥测等待同步点(清态断言前等待默认 writer 落库,镜像 runScriptedLoop 下沉点的条件语义),并在 backlog 该子项销账;第二租户入清理登记表、逐表断言残留、净增 0;tsc + lint 绿,agentloop:e2e / frontdesk:e2e 无回归"
+      "status": "pending",
+      "description": "spec D-1:邮箱+密码,JWT 会话(无 adapter 表)。User 加 passwordHash(expand 迁移,bcrypt cost 12)。AUTH_SECRET 接线(dev .env / CI / VPS 前置文档)。",
+      "acceptance": "next-auth v5 依赖入 package.json;`/api/auth/*` 路由就位;User 迁移为纯 expand(只加列,不动既有行);authorize 用 bcrypt 比对;JWT 携带 { userId, tenantId } 且 session 回调透出;**401 语义钉**:认证失败恒 401,全仓 grep 无新 403(403 已锁闸门语义,architecture:1450);登录成功/失败行为级测试(错密码/不存在用户同一错误文案,不泄露用户存在性——负向断言);seed 增 dev 测试用户(已知凭据,仅 dev/CI,prod 不建,条件判断钉住);变异:authorize 改明文比对 → 红;tsc/lint 绿"
     },
     {
       "id": "F002",
-      "title": "gameKnowledgeSection 收口 tenantId",
+      "title": "登录/注册页 Horizon port + 视觉基线",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "spec D-2:knowledge-context.ts:64 三口径解析补 tenantId;跨租户 → 知识段空(与无知识同款,不注水)。",
-      "acceptance": "`gameKnowledgeSection(projectId, tenantId, kinds)` tenantId 必选;where 含 tenantId;**行为级负向测试**:第二租户 project 带 gameId + 知识链头,跨租户查 → 返回 ''(不注水、不抛错,D2 纪律:增强性注入不得打死主链路);正向:同租户知识段照常渲染;调用点 3 处(loop.ts:232 / loop.ts:262 / specialist-loop.ts:149)同步传参;变异证活:摘 tenantId 条件 → 负向测试红;夹具租户复用 F001 清理登记表;tsc 0 error"
+      "status": "pending",
+      "description": "spec D-10:按 template-port-guide 定位模板 sign-in 实源 port /login 与 /signup,登记 template-inventory。",
+      "acceptance": "§2.1 原型=Horizon 模板 sign-in(port 后在 docs/dev/template-inventory.md 登记来源路径);§2.2 只用模板 scaffold 既有原语,不引入新 UI 库;§2.3 不得简化:卡片布局/品牌区/输入态样式保留,不得新增第三方登录按钮;§2.4 视觉基线:login+signup 两页 × 两视口(1512×982/430×932)PNG 入库且 CI visual job 覆盖(核到 ci.yml 命令链,M4.7 规律 3);表单错误态(401/限速/校验失败)有用户可读文案且渲染实测;两页未登录可达(middleware 豁免联动 F003)"
     },
     {
       "id": "F003",
-      "title": "全仓三口径解析普查钉(census,与修复点解耦)",
+      "title": "src/middleware.ts 鉴权边界(从零建)",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "spec D-3:防「新增三口径解析点不带 tenantId」回流。census 独立扫描,不从 F001/F002 修复点清单派生(两层失效模式不重叠,M4.7 规律 2)。",
-      "acceptance": "新增 census 测试:扫描 src/ 全部 `prisma.project.findFirst` 三口径(id+publicId+slug OR)调用点,断言每处 where 含 tenantId;**扫描逻辑必须覆盖多行 OR 格式**(set-goal.ts:63 形态,先验活:对该文件普查须命中);**不从修复点清单派生**——新增未收口点无需登记即红;当前实物 8 处全过(spec D-3 表);豁免清单为空且写死在断言内(要豁免必须显式改断言并留注释);变异证活:临时加一处无 tenantId 三口径解析(含单行与多行两种格式各一)→ 均红;删掉 F001 修复(摘 tenantId)→ census 也红(两层同时守)"
+      "status": "pending",
+      "description": "spec D-2:全站粗闸。豁免清单显式写死;API 401 JSON / 页面 redirect /login。",
+      "acceptance": "豁免清单为导出常量并**单测钉全集**(恰等于:/api/health · /api/signals/inbound · /api/auth/* · /login · /signup · Next 静态;扩豁免必须改断言);未登录访问任一非豁免 API → 401 JSON(逐类抽测:actions/agent/projects/delivery 各≥1);未登录访问 /admin/* → redirect /login;已登录 → 原行为零变化(回归);webhook svix 路径不受影响(实测签名链仍通);变异:摘 middleware matcher 某段 → 对应 401 测试红;豁免清单塞 /api/projects → 钉红"
     },
     {
       "id": "F004",
-      "title": "主 loop 超时:onLoopTimeout 回调 + 流内告知 + OperationLog 留痕",
+      "title": "会话租户注入:context.ts EXTENSION POINT 兑现 + systemContext 显式路径",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "spec D-4:镜像 onBudgetExhausted 三件套(loop 回调 / route 写 data-timeout_notice + 一行留痕 / registry 文案常量)。S-RV2-8 兑现。",
-      "acceptance": "loop 增 `onLoopTimeout` 可选回调,超时触发(按 signal.reason 判 TimeoutError,注入 signal 与默认 signal 两路都挂监听——注入 30ms signal 驱动测试,零外呼);**负向断言三条**:正常完成 / budget 截停 / 非超时 abort 均不误响;route 写 `data-timeout_notice` data part,文案为 registry 导出常量(正向精确锚点钉全串,语义=如实说明超时未答完+可重试,不假装答完);**OperationLog 一行失败留痕**(kind=auto,只记元数据 agentId/elapsedMs/steps,不含 prompt/正文——隐私哨兵串断言);回调抛错不打死会话(budget 同款纪律);变异证活:摘 abort 监听 → 红;摘 OperationLog 写入 → 红;改文案避开锚点 → 红"
+      "status": "pending",
+      "description": "spec D-3:buildToolContext 从会话解析 {tenantId, actor};删模块级缓存 _devTenantId;scheduler/scripts 走显式 systemContext(tenantSlug)。",
+      "acceptance": "`buildToolContext` 从会话取 tenantId/actor(HTTP 面 29 route + admin pages 全收敛,tsc 强制);**模块级缓存 `_devTenantId` 删除**(grep 0 命中);**无隐式回落**:无会话且未显式传租户 → throw(负向断言,不默认 dev——静默跨租户是本 feature 最大风险);`systemContext(tenantSlug)` 显式路径就位;既有 vitest 测试床显式传 ctx 不受影响(全量回归绿);变异:给无会话路径加回落 dev → 负向红"
     },
     {
       "id": "F005",
-      "title": "CopilotPanel 流级 error/abort 渲染 + timeout notice 渲染 + 浏览器级钉",
-      "priority": "medium",
+      "title": "开放注册:注册即建租户",
+      "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "spec D-5:useChat 解构 error、流级错误分支、data-timeout_notice 渲染;浏览器级钉镜像 rv-budget-notice,fixture 串进 CI(M4.7 规律 3)。",
-      "acceptance": "useChat 解构 `error` 并渲染流级错误分支(data-testid=\"stream-error\",样式镜像 budget-notice amber 卡);`data-timeout_notice` part 渲染(data-testid=\"timeout-notice\");**浏览器级钉**:tests/visual 新增 rv-timeout-notice 用例(镜像 rv-budget-notice.spec.ts),fixture 字节样本由 vitest 前置落盘并串进 `test:visual:fixtures`;**核到 CI 层**:实读 .github/workflows/ci.yml 核证 visual job 命令链真跑 fixtures 前置,核证记录写进交付叙述(附命令输出,铁律 13);样本缺失时用例必须红而非 skip(S-RV2-9 同款:beforeAll 抛);两视口实测;无超时/无错误会话渲染零变化(回归断言)"
+      "status": "pending",
+      "description": "spec D-4:/signup 事务内建 Tenant + owner User。防滥用与空态明示。",
+      "acceptance": "注册事务:Tenant(name=输入)+User(email 唯一,bcrypt)原子建(部分失败零残留,行为级测试);email 唯一冲突 → 明确 4xx 不 500;zod 密码强度(≥10 位含字母数字,负向用例);注册后自动登录并落 OperationLog(元数据 only:email 域名+结果,**不含密码任何形态**——隐私断言串);新租户首屏空态明示不算缺陷(spec 语义,登记测试注释);变异:把建租户挪出事务 → 原子性测试红"
     },
     {
       "id": "F006",
-      "title": "budgetHitScope 扩 'specialist'/'both'(四象限双向钉)",
+      "title": "登录/注册 fail-closed 限速 + 审计留痕",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "spec D-6:S-M47-G3-5 兑现。loop-telemetry budgetHitScope 四值化,主 loop 聚合 consultation 产物 budgetHit。",
-      "acceptance": "`budgetHitScope: 'front' | 'specialist' | 'both' | 'none'`(类型 + 派生逻辑);聚合判据:仅专家撞 → 'specialist',仅前台 → 'front',都撞 → 'both',都没 → 'none';**四象限行为测试各一条,双向钉**(专家撞顶必须落 'specialist';专家没撞不得误报——M4.7 规律 1 正反两方向);loop-telemetry.ts:80 docblock「记在各自 consultation 产物」句同步改写;LOOP_TELEMETRY_VERSION 是否 bump 由 Generator 按 payload 兼容性实物判并在 commit 正文说明依据(铁律 13);变异证活:聚合摘 specialist 分支 → 红;反方向把咨询也计入 front → 红"
+      "status": "pending",
+      "description": "spec D-4:复用 checkRateLimit。登录 5/min/IP + 5min block;注册 3/min/IP。fail-closed。",
+      "acceptance": "限速维度 IP(clientIpOf 复用);阈值为导出常量;**fail-closed**(限流存储异常 → 拒绝而非放行,行为级测试驱动异常路径,注释明示与既有 fail-open 面的区别是显式设计);超限 → 429 + 用户可读文案;不设 escape hatch(安全敏感面,spec 明示);登录成/败、注册、限速触发均落 OperationLog(元数据 only);变异:fail-closed 改 fail-open → 红;摘留痕 → 红"
     },
     {
       "id": "F007",
-      "title": "文档翻牌 + doc-freshness 扩断言(含 S-RV3-4 携带)",
+      "title": "非特权 DB 角色 kol_app 三环境落地 + BYPASSRLS 哨兵",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "spec 批内文档新鲜度规则:批末文档刷新。S-RV3-4 触发条件命中:段级覆盖补齐。",
-      "acceptance": "agent-architecture.md / architecture.md 就本批 as-built 同步(timeout notice 机制、budgetHitScope 四值、findProjectByRef 租户契约);doc-freshness 扩断言:budgetHitScope 枚举值 = 实物、timeout 文案常量入表;**S-RV3-4 携带**:architecture.md 两形态表**表头单元格** + agent-architecture.md「M4.7 新增工具(1 件)」句纳入断言(段级覆盖对齐,S-M46-7 同款纪律),变异:改坏表头单元格 → 红、改坏新增工具句 → 红;批末新鲜度复核判据不带左括号且含 docs/ 范围(M4.5 教训),先验活;backlog 的 BL-E2E-CLEANUP-PIN 条目内 S-RV3-3(project-context-route 部分)/S-RV3-4 两子项销账更新"
+      "status": "pending",
+      "description": "spec D-5:RLS 硬前置。迁移仍走特权 kol,应用运行时切 kol_app。",
+      "acceptance": "幂等角色创建 SQL(NOSUPERUSER NOBYPASSRLS + GRANT DML)落 scripts/db/;dev compose 接线(init 或 bootstrap);CI workflow:建角色步 + 应用测试用 kol_app 连接串;deploy.md 追加 prod 人工前置段(pgdata 上执行 SQL + VPS .env 键);**运行时哨兵**:应用启动断言当前连接 rolbypassrls=false(kol_app 连接下绿、特权连接下红——双向实测);迁移连接保持特权(prisma migrate 走 kol,验证迁移仍可跑);变异:哨兵断言摘除 → 专项钉红"
+    },
+    {
+      "id": "F008",
+      "title": "RLS 迁移:23 表 policy + default-deny",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "description": "spec D-6:ENABLE RLS + USING/WITH CHECK (tenant_id = current_setting('app.tenant_id', true));Tenant 表按 id 隔离。",
+      "acceptance": "迁移覆盖全部 23 张带 tenantId 表 + Tenant(计数断言=schema 实物,防漏表);USING 与 WITH CHECK 双侧;**default-deny 行为级证明**:kol_app 连接未设变量 → SELECT 零行(逐表抽测 ≥5 张 + 全表计数普查);设变量 → 仅见本租户行;特权连接不受影响(既有测试全量回归绿);迁移为 expand 零数据改动,回滚安全注释明示;变异:某表 policy 改 USING(true) → 该表负向测试红"
+    },
+    {
+      "id": "F009",
+      "title": "Prisma $extends 租户变量注入(全查询面覆盖)",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "description": "spec D-7:单例 client extension 每操作事务内 set_config。锁行为不锁机制,机制歧义走 pre-impl 提审。",
+      "acceptance": "经单例 client 的任意查询(含 $transaction 20+ 处与 raw SQL 7 处)在 kol_app 连接下只见当前租户行(pgvector 检索路径专项实测:search_kols 跨租户零泄漏);未注入租户上下文 → 零行不报错(与 F008 default-deny 衔接);interactive $transaction 内变量作用域正确(SET LOCAL 事务界,跨事务不残留——负向:后续无租户查询不得复用上一事务变量);3 处散装 new PrismaClient() 收敛或显式标注特权用途(grep 终态);性能:全量 vitest 时长不劣化 >20%(记录前后数字);变异:摘 set_config 注入 → F011 负向套件红"
+    },
+    {
+      "id": "F010",
+      "title": "scheduler/scripts 系统上下文收敛",
+      "priority": "medium",
+      "executor": "generator",
+      "status": "pending",
+      "description": "spec D-3 双路之无会话面:scheduler 4 处 + scripts 9 处经 systemContext;与 F004 联动收口。",
+      "acceptance": "scheduler(lib/jobs/scheduler.ts 4 处)与 scripts 9 处全部显式传租户(kol-sync 例程按现语义作用于 dev 租户,显式写明而非隐式);例程冒烟不回归;grep getDevTenantId 终态清单与 F004 口径一致(仅 systemContext 实现与测试夹具);变异:某 script 摘显式租户 → throw(F004 负向复用)"
+    },
+    {
+      "id": "F011",
+      "title": "RLS 负向验证套件(双租户双层双证)+ S-M48-2 处置",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "description": "spec D-8:专用 kol_app 连接;API 层与 DB 层各证;census 降二线 + 正则拓宽。",
+      "acceptance": "双真租户夹具(A/B 各带代表性数据,独一前缀,清理登记表+不从登记表派生的整表普查两层);**API 层**:A 会话请求 B 资源(项目/行动/物料逐类)→ 404/零行,B 数据不出现在响应字节(正向精确);**DB 层**:kol_app + set_config A → raw SQL 直查 B 租户行 = 0;BYPASSRLS 哨兵在套件内断言;census 钉正则拓宽 findMany/findFirstOrThrow(S-M48-2 evaluator 点名修法)并加注释降二线但保留运行;变异:F008 policy 改 USING(true) / F009 摘注入 → 本套件对应红(与实现层变异互证)"
+    },
+    {
+      "id": "F012",
+      "title": "e2e / visual 鉴权适配",
+      "priority": "medium",
+      "executor": "generator",
+      "status": "pending",
+      "description": "spec D-8:seed 测试用户;playwright storageState;两套 e2e 脚本带会话;CI 前置。",
+      "acceptance": "playwright 全局 setup 登录一次落 storageState,既有视觉用例零改动跑通(本机与 CI);agentloop:e2e / frontdesk:e2e 走真 route 处带会话(登录步入脚本,清理纪律不变);CI workflow 前置链核证(实读 yml,M4.7 规律 3);本机既有 2 条已登记基线翻红项身份不变(不新增翻红);未登录跑 e2e → 明确失败信息而非静默空跑(负向)"
+    },
+    {
+      "id": "F013",
+      "title": "文档翻牌 + doc-freshness 扩 + deploy.md 前置段 + backlog 记账",
+      "priority": "high",
+      "executor": "generator",
+      "status": "pending",
+      "description": "批末文档刷新(13 features ≥10 → 独立文档 feature + acceptance 复核双上,批内新鲜度规则)。",
+      "acceptance": "architecture.md 翻牌:选型表:86 · :215 边界声明 · :282 · :1450(401 语义随实装更新)· :1594 NFR-S9(RLS 已启用)· :1829 ADR-04 兑现标记;agent-architecture.md 相关段同步;deploy.md 部署前置段(F007 prod 人工步 + AUTH_SECRET + **R16 备份建议置段首**);doc-freshness 扩断言:认证选型行/RLS 状态句/middleware 豁免清单计数 = 实物,变异证活(改坏各 → 红);批末新鲜度复核判据不带左括号含 docs/ 范围先验活;backlog:新增 BL-AUTH-EMAIL-VERIFY、S-M48-2 销账完成态、BL-VISUAL-DATA-ISOLATION 补记与本批 seed 测试用户关系"
     }
   ]
 }

@@ -33,7 +33,7 @@
       "title": "主 loop 超时:onLoopTimeout 回调 + 流内告知 + OperationLog 留痕",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-4:镜像 onBudgetExhausted 三件套(loop 回调 / route 写 data-timeout_notice + 一行留痕 / registry 文案常量)。S-RV2-8 兑现。",
       "acceptance": "loop 增 `onLoopTimeout` 可选回调,超时触发(按 signal.reason 判 TimeoutError,注入 signal 与默认 signal 两路都挂监听——注入 30ms signal 驱动测试,零外呼);**负向断言三条**:正常完成 / budget 截停 / 非超时 abort 均不误响;route 写 `data-timeout_notice` data part,文案为 registry 导出常量(正向精确锚点钉全串,语义=如实说明超时未答完+可重试,不假装答完);**OperationLog 一行失败留痕**(kind=auto,只记元数据 agentId/elapsedMs/steps,不含 prompt/正文——隐私哨兵串断言);回调抛错不打死会话(budget 同款纪律);变异证活:摘 abort 监听 → 红;摘 OperationLog 写入 → 红;改文案避开锚点 → 红"
     },
@@ -42,7 +42,7 @@
       "title": "CopilotPanel 流级 error/abort 渲染 + timeout notice 渲染 + 浏览器级钉",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-5:useChat 解构 error、流级错误分支、data-timeout_notice 渲染;浏览器级钉镜像 rv-budget-notice,fixture 串进 CI(M4.7 规律 3)。",
       "acceptance": "useChat 解构 `error` 并渲染流级错误分支(data-testid=\"stream-error\",样式镜像 budget-notice amber 卡);`data-timeout_notice` part 渲染(data-testid=\"timeout-notice\");**浏览器级钉**:tests/visual 新增 rv-timeout-notice 用例(镜像 rv-budget-notice.spec.ts),fixture 字节样本由 vitest 前置落盘并串进 `test:visual:fixtures`;**核到 CI 层**:实读 .github/workflows/ci.yml 核证 visual job 命令链真跑 fixtures 前置,核证记录写进交付叙述(附命令输出,铁律 13);样本缺失时用例必须红而非 skip(S-RV2-9 同款:beforeAll 抛);两视口实测;无超时/无错误会话渲染零变化(回归断言)"
     },
@@ -51,7 +51,7 @@
       "title": "budgetHitScope 扩 'specialist'/'both'(四象限双向钉)",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-6:S-M47-G3-5 兑现。loop-telemetry budgetHitScope 四值化,主 loop 聚合 consultation 产物 budgetHit。",
       "acceptance": "`budgetHitScope: 'front' | 'specialist' | 'both' | 'none'`(类型 + 派生逻辑);聚合判据:仅专家撞 → 'specialist',仅前台 → 'front',都撞 → 'both',都没 → 'none';**四象限行为测试各一条,双向钉**(专家撞顶必须落 'specialist';专家没撞不得误报——M4.7 规律 1 正反两方向);loop-telemetry.ts:80 docblock「记在各自 consultation 产物」句同步改写;LOOP_TELEMETRY_VERSION 是否 bump 由 Generator 按 payload 兼容性实物判并在 commit 正文说明依据(铁律 13);变异证活:聚合摘 specialist 分支 → 红;反方向把咨询也计入 front → 红"
     },

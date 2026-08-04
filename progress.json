@@ -15,12 +15,46 @@
   "docs": {
     "spec": "specs/M4.8-HARDEN-spec.md",
     "test_cases": null,
-    "signoff": null,
+    "signoff": "test-reports/M4.8-HARDEN-signoff.md",
     "framework_reviewed": false
   },
   "role_assignments": null,
   "mode_intent": null,
-  "evaluator_feedback": null,
+  "evaluator_feedback": {
+    "summary": "M4.8-HARDEN 首轮验收 7/7 PASS（被测 SHA c9236af）：租户三口径收口在行为级与 census 两层同时钉住（我的两条「第二条绕过」变异使双层同红）、超时可观测三件套判据严（判据放宽/隐私夹带变异当场被抓）、budgetHitScope 四象限双向钉、文档新鲜度在源码侧与文档侧漂移各自翻红。无阻断缺陷；6 条非阻断观察 + 5 条 soft-watch 见报告。",
+    "evaluated_sha": "c9236af1cc65cc64a0e7ecd50f15c86def0428d9",
+    "round": "verifying",
+    "pass_count": 7,
+    "partial_count": 0,
+    "fail_count": 0,
+    "l1_status": {
+      "tsc": "0 error",
+      "lint": "No ESLint warnings or errors",
+      "vitest": "123 files / 1469 tests passed（HEAD 净树）；加 evaluator 新增探针后 124/1470",
+      "agentloop_e2e": "PASS（零外呼·零真实副作用）",
+      "frontdesk_e2e": "PASS（两层清态断言绿）",
+      "playwright": "19 passed / 2 failed —— 两条 failed = M4.7 已登记的同两条本机项（today 基线数据态耦合 / workbench env=match），无新增视觉回归"
+    },
+    "mutations_run": 22,
+    "issues": [],
+    "non_blocking_observations": [
+      "I-1 dev 库净增 2 行建造期孤儿 OperationLog（2026-08-04T04:04，payload v1）；HEAD 代码不复现（我 04:37 之后多轮跑测零新增）",
+      "I-2 铁律13：commit 7877b85 正文『124 files / 1469 passed』与净树实测 123 files 差一（tests 数一致）",
+      "I-3 census 四种写法可绕过：findMany / findFirstOrThrow / where 提常量 / 点号后空格",
+      "I-4 F004 第四条误报路径（模型抛错收场的 settle 兜底）原无钉，摘掉后 8/8 全绿 —— 已由 evaluator 补钉 tests/integration/m48-eval-probe.test.ts（HEAD 绿 / 变异体红）",
+      "I-5 摘 onLoopTimeout 的 try/catch 时断言不红，靠 vitest unhandled-error 使 exit=1 拦住",
+      "I-6 backlog 两子项销账文本写于立项 commit 51599ff（落笔早于实物），本批 feature commit 未触及 backlog.json"
+    ],
+    "soft_watch": [
+      "S-M48-1 孤儿留痕清理",
+      "S-M48-2 census 绕过面拓宽",
+      "S-M48-3 计数类交付叙述需机械依据",
+      "S-M48-4 回调抛错钉未落在断言上",
+      "S-M48-5 backlog 销账时序"
+    ],
+    "side_effects": "产品代码零改动（变异逐条还原并 git diff --quiet 核证）；evaluator 新增 4 个产物文件；自建测试数据零 DB 写入；孤儿行净增 0（我的活动）；零外呼、零 L2",
+    "report": "docs/test-reports/M4.8-HARDEN-signoff.md"
+  },
   "generator_handoff": null,
   "session_notes": {
     "Andy": "【M4.8-HARDEN planning · 2026-08-03/04 · 快车道】done 收尾:纪律 5 经用户裁决入铁律 13(v1.6.5,41e2c26,generator.md 各副本同步);resolver 在 registry-less 项目硬退的问题排入 proposed-learnings(db8712d)。规划要点:① backlog 两条 high 同批(租户收口 + 超时可观测),spec 起草前逐条实物核证——backlog 登记有漂移(set-goal 等实为多行 OR 已带 tenantId,真缺口只有 project-context.ts:36 / knowledge-context.ts:64 两处),以 spec D-3 表为准;② BL-E2E-CLEANUP-PIN 的 S-RV3-4(F007)与 S-RV3-3 之 project-context-route 部分(F001)触发条件命中,按 2026-08-02 用户裁决携带进本批;③ 跨租户负向测试需自建第二租户,清理登记表 + 净增 0 纪律照 M4.7 口径;④ F004 判超时须按 signal.reason 区分 TimeoutError 与用户中断,R-1 误报教训在案。spec lock = 用户 2026-08-04 实答批准。",

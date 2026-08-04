@@ -105,7 +105,7 @@
       "title": "e2e / visual 鉴权适配",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-8:seed 测试用户;playwright storageState;两套 e2e 脚本带会话;CI 前置。",
       "acceptance": "playwright 全局 setup 登录一次落 storageState,既有视觉用例零改动跑通(本机与 CI);agentloop:e2e / frontdesk:e2e 走真 route 处带会话(登录步入脚本,清理纪律不变);CI workflow 前置链核证(实读 yml,M4.7 规律 3);本机既有 2 条已登记基线翻红项身份不变(不新增翻红);未登录跑 e2e → 明确失败信息而非静默空跑(负向)"
     },

@@ -90,6 +90,15 @@ export const PERSONA_SWITCH_PART = 'data-persona_switch';
  * 于是告知**到不了用户眼前**——写进流不等于用户看得见。
  */
 export const BUDGET_NOTICE_PART = 'data-budget_notice';
+/**
+ * 超时告知（M4.8 F004 / D-4）。服务端在主 loop 撞墙钟闸时写这条 data part——
+ * 那一刻流被 abort，模型同样没有开口的机会，用户端此前只剩 start + abort + [DONE]。
+ *
+ * 【为什么渲染分支与写入端同 commit】仓内不变式钉（m47-adv-probe P7b）：route 往流里
+ * 写的每一种 data part，面板都必须有渲染分支——"写进流 ≠ 用户看得见"（R-2 的原话）。
+ * 写入端单独落地即当场翻红，故这两行不能等到下一个 commit。
+ */
+export const TIMEOUT_NOTICE_PART = 'data-timeout_notice';
 
 /**
  * 从消息流里解析**当值人格**（P9）：取最后一次 persona_switch 事件的 to。
@@ -133,6 +142,19 @@ function MessageParts({
           input?: unknown;
           data?: PersonaSwitchData & { notice?: string };
         };
+        // M4.8 F004：超时告知——与撞顶告知同一条纪律（服务端补的那一句必须到得了眼前）
+        if (part.type === TIMEOUT_NOTICE_PART) {
+          const notice = (part.data as { notice?: string } | undefined)?.notice;
+          return notice ? (
+            <div
+              key={i}
+              data-testid="timeout-notice"
+              className="my-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+            >
+              {notice}
+            </div>
+          ) : null;
+        }
         // M4.7 F006：撞顶告知——服务端补的那一句必须真的渲染出来（R-2）
         if (part.type === BUDGET_NOTICE_PART) {
           const notice = (part.data as { notice?: string } | undefined)?.notice;

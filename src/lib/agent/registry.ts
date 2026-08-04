@@ -126,6 +126,28 @@ export function budgetExhaustedNotice(steps: number, consultCount: number): stri
 /** 撞顶告知的语义锚点（测试钉字面量，防被改成"已为你完成"之类）。 */
 export const BUDGET_NOTICE_ANCHOR = '我没答完就到步数上限了';
 
+/**
+ * 超时中断告知文案（M4.8 F004 / D-4）。主 loop 撞 `LOOP_TIMEOUT_MS` 时服务端补这一句。
+ *
+ * 【为什么必须由服务端补 —— 与撞顶告知同一条纪律】超时那一刻流被 abort，模型
+ * 同样没有开口的机会：BL-LOOP-TIMEOUT-VISIBILITY 实测，用户端拿到的响应体只有
+ * `start` + `abort` + `[DONE]`，**零告知**；写在 system 里的任何条款都救不了。
+ *
+ * 【不假装答完】只说「中断了 / 没能查完 / 可以再问一次」——行动承诺诚实红线：
+ * 系统里没发生的事一个字也不能说成发生了，"超时"更不能被措辞粉饰成"办好了"。
+ */
+export function loopTimeoutNotice(elapsedMs: number, steps: number): string {
+  const seconds = Math.max(1, Math.round(elapsedMs / 1000));
+  return (
+    `本次回答超时中断了（等了 ${seconds} 秒，跑了 ${steps} 步还没跑完）。` +
+    '上面是我已经查到的部分；没有的话就是我还没来得及作答。' +
+    '你可以把问题拆小一点，或者稍后再问我一次。'
+  );
+}
+
+/** 超时告知的语义锚点（测试钉字面量，防被改成"已为你完成"之类）。 */
+export const LOOP_TIMEOUT_NOTICE_ANCHOR = '本次回答超时中断了';
+
 const BASE_SYSTEM = [
   '你是 KOLMatrix 专家 Agent 编队的一员，服务单角色营销操盘手。基于工具返回的真实数据作答，不编造。',
   // M2-C F003 —— 行动承诺诚实条款（产品级，全人格生效；触发源 = 用户实证的幻觉编排事故）：

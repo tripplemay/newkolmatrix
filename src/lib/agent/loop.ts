@@ -129,6 +129,18 @@ export interface AgentLoopParams {
    * 所以任何写在 system 里的条款都救不了；只能由服务端在流里补一句。
    */
   onBudgetExhausted?: (event: BudgetExhaustedEvent) => void;
+  /**
+   * 墙钟超时回调（M4.8 F004 / D-4）。主 loop 撞 `LOOP_TIMEOUT_MS`（或注入的短闸）
+   * 被掐断时触发一次。
+   *
+   * 【为什么必须是机制而不是 prompt 条款】与 `onBudgetExhausted` 同一个根因：
+   * 超时那一刻流被 abort，模型没有开口的机会——BL-LOOP-TIMEOUT-VISIBILITY 实测
+   * 用户端只剩 start + abort + [DONE]，**零告知、OperationLog 零行**。
+   *
+   * 【只有真 abort-by-timeout 才响】用户主动中断（AbortError / 自定义 reason）、
+   * 正常收敛、撞步数上限都不得误响 —— 判据见 `isTimeoutAbort` 与 `settled`。
+   */
+  onLoopTimeout?: (event: LoopTimeoutEvent) => void;
 }
 
 /** 撞顶事件（F006）：本轮用满了预算，答案很可能不完整。 */
@@ -141,6 +153,35 @@ export interface BudgetExhaustedEvent {
   agentId: AgentId;
   /** 已经咨询过几个专家（前台场景下有用） */
   consultCount: number;
+}
+
+/** 超时事件（F004）：本轮被墙钟闸掐断，答案很可能没答完。 */
+export interface LoopTimeoutEvent {
+  /** 从 loop 起跑到被掐断经过了多久（毫秒） */
+  elapsedMs: number;
+  /** 当值人格——告诉用户是谁没说完 */
+  agentId: AgentId;
+  /** 被掐断时已经跑完几步 */
+  steps: number;
+  /**
+   * 留痕作用域（route 层写 OperationLog 需要 —— OperationLog.tenantId 是必填列）。
+   * **只是作用域，不含任何正文**：消息内容 / 工具入参 / 工具产物一概不进事件。
+   */
+  tenantId: string;
+  projectId: string | null;
+}
+
+/**
+ * 是不是**超时**导致的 abort（F004 判据纪律 / R-1 同款教训：判据宽一格就误报）。
+ *
+ * Node 实测：`AbortSignal.timeout()` 的 reason 是 `DOMException{name:'TimeoutError'}`；
+ * 用户主动 `controller.abort()` 是 `DOMException{name:'AbortError'}`；
+ * `controller.abort(new Error(...))` 则是那个自定义对象。后两者都**不是超时**，
+ * 误报会让用户看到一句「本次回答超时中断了」而其实是他自己关掉了页面。
+ */
+export function isTimeoutAbort(reason: unknown): boolean {
+  if (typeof reason !== 'object' || reason === null) return false;
+  return (reason as { name?: unknown }).name === 'TimeoutError';
 }
 
 /** 人格切换事件（P9 流内 data part 的载荷同源）。 */
@@ -289,6 +330,48 @@ export async function runAgentLoop(
     settleTelemetry = resolve;
   });
 
+  // ── 墙钟超时告知（M4.8 F004 / D-4）──────────────────────────────────────
+  // 闸本身早就在（下方 abortSignal），缺的是"闸响了谁来说一声"：此前超时只把流
+  // abort 掉，用户端零告知、运维零留痕（BL-LOOP-TIMEOUT-VISIBILITY）。
+  //
+  // 【为什么挂在 signal 上而不是用 SDK 的 onAbort】signal 的 abort 事件是平台保证
+  // 一定派发的，且**同步**派发；SDK 回调依赖流被消费到那一步。注入闸与默认闸走
+  // 同一条监听（测试注入 30ms signal 即可驱动，不必真等 110 秒）。
+  const abortSignal = params.abortSignal ?? AbortSignal.timeout(LOOP_TIMEOUT_MS);
+  const startedAt = Date.now();
+  /** 已跑完的步数（onStepEnd 实录；掐断时如实报，不四舍五入成"跑完了"）。 */
+  let completedSteps = 0;
+  /**
+   * 会话是否已落定。**这一层必须有**：默认闸是一个 110s 的定时器，正常 3 秒答完的
+   * 会话在 107 秒后照样会 abort —— 不挡住它，每一次成功会话都会在两分钟后凭空多出
+   * 一条"超时"留痕，和一句写进已关闭的流里的告知。
+   */
+  let settled = false;
+  const markSettled = () => {
+    settled = true;
+  };
+  abortSignal.addEventListener(
+    'abort',
+    () => {
+      // 判据一：只有真 abort-by-timeout 才响（用户中断 / 自定义 reason 一律不响）
+      if (!isTimeoutAbort(abortSignal.reason)) return;
+      // 判据二：会话已落定的不响
+      if (settled) return;
+      try {
+        params.onLoopTimeout?.({
+          elapsedMs: Date.now() - startedAt,
+          agentId: track.current,
+          steps: completedSteps,
+          tenantId: ctx.tenantId,
+          projectId: ctx.projectId ?? null,
+        });
+      } catch (err) {
+        console.error('[agent/loop] loop_timeout 回调异常（已忽略）:', err);
+      }
+    },
+    { once: true },
+  );
+
   const result = streamText({
     // 注入缝：传入即无条件使用（不因凭据缺失改道）。与下传进 ctx 的是**同一个**
     // model 实例（上方单一解析点），保证前台与子 loop 用的是同一条注入缝。
@@ -304,8 +387,12 @@ export async function runAgentLoop(
     // 墙钟闸（F007 fix 连带）：对抗复核实测，产品侧此前**全链无自限**——挂死时
     // 只能等 undici 的 ~301s 兜底（自托管 standalone 下 maxDuration=120 是死配置，
     // 不构成截断）。设在 route 的 maxDuration 之下，让我们自己的降级先生效。
-    abortSignal: params.abortSignal ?? AbortSignal.timeout(LOOP_TIMEOUT_MS),
+    abortSignal,
     maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
+    // F004：步数实录。掐断时报的是**已跑完**几步，不是模型开了几个头。
+    onStepEnd: () => {
+      completedSteps += 1;
+    },
     // F005 循环内接力（P1 时刻隔离）：一旦发生过 handoff_to，后续每一步的 system 段与
     // 工具视野都切到目标人格。无接力 → 返回 undefined（沿用外层配置，零行为变化）。
     prepareStep: async ({ steps }) => {
@@ -333,6 +420,7 @@ export async function runAgentLoop(
     },
     // F001 遥测：会话结束落一行元数据（**不含正文**，见 loop-telemetry.ts 隐私边界）。
     onEnd: (event) => {
+      markSettled(); // F004：会话已落定 —— 此后闸到点也不得再报超时
       const usage = event.usage as {
         inputTokens?: number;
         outputTokens?: number;
@@ -389,6 +477,12 @@ export async function runAgentLoop(
       );
     },
   });
+
+  // F004：异常收场（模型抛错等）时 `onEnd` 不触发，而定时闸还在走——不在这里补一刀，
+  // 一个早就失败的会话会在 110 秒后被报成"超时"。两个 handler 都指向 markSettled：
+  // 落定即落定，成败无关。**不会与真超时抢跑**：abort 的 listener 是同步派发的，
+  // 而这里的 promise 回调是微任务，恒在其后。
+  void result.finishReason.then(markSettled, markSettled);
 
   return { persona, ctx, system, toolNames, maxSteps, result, telemetry };
 }

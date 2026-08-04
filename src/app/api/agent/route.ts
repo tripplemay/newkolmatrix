@@ -26,9 +26,11 @@ import {
   type CopilotEnv,
 } from 'lib/agent/persona-router';
 import { isStage } from 'lib/agent/stage-routing';
+import { logLoopTimeout } from 'lib/agent/loop-timeout-log';
 import {
   budgetExhaustedNotice,
   FRONT_DESK_AGENT_ID,
+  loopTimeoutNotice,
   personaBoundary,
 } from 'lib/agent/registry';
 
@@ -117,6 +119,27 @@ export async function POST(req: Request): Promise<Response> {
               type: 'data-budget_notice',
               data: { steps, consultCount, notice: budgetExhaustedNotice(steps, consultCount) },
             });
+          },
+          // M4.8 F004（D-4）：撞墙钟闸时同样往流里补一句 —— 此前超时的响应体只有
+          // start + abort + [DONE]，用户端**零告知**、运维**零留痕**（BL-LOOP-TIMEOUT-
+          // VISIBILITY）。两件事在这里一并做：告知给用户，留痕给运维。
+          onLoopTimeout: ({ elapsedMs, agentId, steps, tenantId, projectId }) => {
+            writer.write({
+              type: 'data-timeout_notice',
+              data: {
+                elapsedMs,
+                agentId,
+                steps,
+                // 文案与 registry 同源（前端不硬编码，防漂移）
+                notice: loopTimeoutNotice(elapsedMs, steps),
+              },
+            });
+            // fire-and-forget：留痕不得阻塞（也不得打死）响应流；
+            // 落库失败在 logLoopTimeout 内 console.error，不静默。
+            void logLoopTimeout(
+              { tenantId, projectId },
+              { agentId, elapsedMs, steps },
+            );
           },
           onPersonaSwitch: ({ from, to, atStep }) => {
             writer.write({

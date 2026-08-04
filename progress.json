@@ -1,93 +1,30 @@
 {
-  "status": "done",
-  "user_goal": "单一前台：取消「页面路由决定谁来回答」，专家降为内部能力（子 Agent 调用）。用户始终对同一个助手说话，前台内部咨询专家后用一个声音作答。触发源 = 生产手测撞到「环节人格拒答并让用户自行去找别的 Agent」。红线不变：outbound 两步票据 / 时刻隔离 / 行动承诺诚实 / 例程零直通。",
-  "total_features": 11,
-  "completed_features": 11,
-  "fix_rounds": 3,
-  "current_sprint": "M4.7-FRONTDESK",
+  "status": "building",
+  "user_goal": "M4.8-HARDEN:租户作用域收口(findProjectByRef / knowledge-context 补 tenantId + 全仓三口径普查钉,M5 硬前提)+ 主 loop 超时可观测(用户面告知 + OperationLog 留痕 + 面板流级 error/abort 渲染)+ budgetHitScope 区分前台/专家撞顶。红线不变:遥测只记元数据 / 行动承诺诚实(超时如实说) / 测试零外呼零真实副作用。",
+  "total_features": 7,
+  "completed_features": 0,
+  "fix_rounds": 0,
+  "current_sprint": "M4.8-HARDEN",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-02T16:10",
+  "last_updated": "2026-08-04T03:07",
   "reference_docs": [
-    "docs/specs/M4.7-FRONTDESK-spec.md",
+    "docs/specs/M4.8-HARDEN-spec.md",
     "docs/dev/agent-architecture.md",
-    "docs/dev/architecture.md",
-    "docs/test-reports/M4.6-CTX-signoff.md",
-    "docs/test-reports/M4.5-AGENT-LOOP-signoff-2026-07-25.md"
+    "docs/test-reports/M4.7-FRONTDESK-signoff.md"
   ],
   "docs": {
-    "spec": "specs/M4.7-FRONTDESK-spec.md",
+    "spec": "specs/M4.8-HARDEN-spec.md",
     "test_cases": null,
-    "signoff": "test-reports/M4.7-FRONTDESK-signoff.md",
+    "signoff": null,
     "framework_reviewed": false
   },
   "role_assignments": null,
-  "evaluator_feedback": {
-    "round": 3,
-    "date": "2026-08-02",
-    "tested_sha": "9a68165",
-    "executor": "Andy/evaluator-subagent（隔离上下文 · 复验轮三）",
-    "authorization": "L1 only（L2 未授权、未执行）",
-    "report": "docs/test-reports/M4.7-FRONTDESK-signoff.md §21-§29",
-    "summary": "轮二 §19 六条最小修复清单逐条真闭环，且每一条我都先自行找第二条绕过再判：RV-4 加测反方向（把「咨询也抬预算」写进 loop → RED(3)）、F009 加测同一条 entry 内收窄 where、RV-2 加测主闸写死数字与常量落在护栏带内改值。产品红线经我 12 条独立变异（覆盖 11 条 feature 各自核心机制）逐条翻红；全量 119 files / 1422 tests 连跑 5 次全绿、孤儿行净增 0；真浏览器里撞顶告知再次亲眼看到渲染出来。11/11 PASS，予以签收。",
-    "pass_count": 11,
-    "partial_count": 0,
-    "fail_count": 0,
-    "issues": [],
-    "verdicts": {
-      "F001": "PASS — F001-M 执行侧防线短路 → RED(1)",
-      "F002": "PASS — F002-M 给前台塞 outbound → RED(7)，正向精确匹配当场响",
-      "F003": "PASS — F003-M 让 route 重新按 stage 推导人格 → RED(9)，含真 route 字节三条",
-      "F004": "PASS — F004-M gate.ts 5 处 actor 写死前台 → RED(2)",
-      "F005": "PASS — F005-M insufficientEvidence 恒 false → RED(3)；acceptance #5 字面项仍是 L2 缺口",
-      "F006": "PASS（轮二 PARTIAL → 闭环）— RV-4 终态 grep 0 命中 + 语义面 11 处逐条读过；E1 摘 budgetChain.add → RED(2)，E2 反方向让咨询也抬预算 → RED(3)；F006-Ma RED(4) / F006-Mb RED(9)",
-      "F007": "PASS（轮二 PARTIAL → 闭环）— E3 主闸摘默认闸 RED(1)、E4 子闸写死 45_000 RED(1)、E5 常量 45s→3s RED(1)（轮二三条均 1418 全绿）；旧零信息量 RV-2b 已删（grep 复核）。残留 E6/E7 登记 S-RV3-1/2",
-      "F008": "PASS — F008-M 咨询不落 Handoff → RED(2)；S-RV2-9 经三层核证含 CI 确实走 npm run test:visual；本机视觉 15 passed / 2 failed 均为已登记本机项",
-      "F009": "PASS（轮二 PARTIAL → 闭环）— BP-A / BP-B 双双 EXIT=1（轮二均 EXIT=0 且真漏行），我另设计的 BP-C 实测零泄漏；卫生钉 H1/H2 双路 fail-closed；13 次全量跑孤儿净增 0",
-      "F010": "PASS（轮二 PARTIAL → 闭环）— architecture.md:943/:947 反向陈述已改齐；三道 doc 钉逐条证活：F010-Ma / F010-Mb / F006-Ma / F010-Mc 各 RED",
-      "F011": "PASS — F011-Ma/Mb 复现轮一登记的两条原绕过形态 → 各 RED(2)"
-    },
-    "l1_status": "tsc 0 error · next lint 无告警 · vitest 119 files / 1422 tests 全绿（连跑 5 次）· next build EXIT=0 · frontdesk:e2e 绿（两层清态断言均通过）· agentloop:e2e 绿 · test:visual 15 passed / 2 failed（两条已登记本机项）+ 前置 test:visual:fixtures 2 passed",
-    "mutations_run": 26,
-    "signoff_preconditions": [
-      "S-RV2-5：S-M45-1「e2e 标记行留不删」与 spec §4.5「视觉基线重生前先清 dev 租户」的规则冲突，Planner 在 done 阶段二选一或明确优先级",
-      "S-RV2-8：主 loop 撞 LOOP_TIMEOUT_MS 时「用户零告知 + 运维零留痕」是否开为下批 feature（我的建议：开，并顺手给 CopilotPanel 补 error/abort 渲染分支）",
-      "S-M47-G3-5：budgetHitScope 是否补 'specialist'（F006 acceptance「区分前台/子 loop」是否要求落到 OperationLog 层）",
-      "把 S-RV3-1 / S-RV3-5 两句兜底写进 BL-AGENT-COST-CALIBRATE / BL-E2E-CLEANUP-PIN"
-    ],
-    "new_soft_watch": [
-      "S-RV3-1：主 loop 墙钟闸只有「闸在不在」的钉、没有「闸读不读常量」的钉（E6 写死 110_000 → 1422 全绿）→ 归 BL-AGENT-COST-CALIBRATE",
-      "S-RV3-2：SPECIALIST_TIMEOUT_MS 在 [20_000, LOOP_TIMEOUT_MS/MAX_CONSULTS) 区间内改值无行为后果（E7 45s→25s 全绿）——护栏给的是区间不是点，属设计必然",
-      "S-RV3-3：遥测等待下沉点在 runScriptedLoop，只覆盖走测试床的用例；走真 route POST 的 m47-rv-probe 与 project-context-route 仍无同步点 → 归 BL-E2E-CLEANUP-PIN",
-      "S-RV3-4：doc 钉是行级不是段级——architecture.md:1087 表头单元格与 agent-architecture.md:89「M4.7 新增工具」句改坏了不会红（两条变异均 GREEN）；acceptance 要求的三项均已证活，故不驱动 PARTIAL",
-      "S-RV3-5：frontdesk-e2e 第二层整表普查的表清单是手写的 5 张，schema 里带 tenantId 的模型有 23 个；扩 e2e 覆盖面时必须同步扩 census 清单",
-      "S-RV3-6：交付叙述与实物不符第四例——handoff fixes[0]「摘掉 budgetChain.add 全量无一条会红」，我在 2ad0946 上确定性复现 m45-g2-evaluator-probe 翻红。下一批接手者必须继续自行取证"
-    ],
-    "l2_gaps": "L2-1 真模型是否照条款办 · L2-2 三个成本常量在真网关下是否合理 · L2-3 两个超时闸取值 · L2-4 真模型自主选专家的质量 · L2-5 生产「单一前台」真实体验（上线前应人工复测原始故障场景）· L2-6 主 loop 墙钟超时在真网关下的可达性。六条本轮零消耗，既不判 FAIL 也不当作已验证",
-    "side_effects": "dev 租户 project 4→4 / handoff 0→0 / shareLink 2→2 / pending 0→0；operationLog 103→110（+7 全为 append-only SHARE_CREATED 标记，S-M45-1 显式留不删）。我变异跑漏出的 1 行 shareLink + 3 行闸门 operationLog + 1 个 test-tenant 租户已逐条清回并二次核证。既有孤儿 4 opLog + 2 shareLink（2026-07-26/27，早于我到场）未处置。两个变异 worktree 已 remove + prune；产品代码/视觉基线/docs/dev 零改动；未新增任何入库测试产物"
-  },
-  "generator_handoff": {
-    "round": 3,
-    "date": "2026-08-02",
-    "round2_signoff": "docs/test-reports/M4.7-FRONTDESK-signoff.md §11-§20（复验轮二：7 PASS + 4 PARTIAL）",
-    "fixes": [
-      "§19-1 RV-4（F006+F010，必修）—— 4 处「咨询抬预算」改齐：registry.ts:205-210（轮二点名的第一处，此前一字未改）· architecture.md:943 / :947（轮一漏点，在更权威的定稿里）· agent-step-budget.test.ts:35 注释；loop.ts:96 的自述历史改写措辞避开判据。判据落终态实跑：grep -rn '咨询/接力|接力/咨询' src/ docs/ tests/ | grep -v test-reports → **0 命中**。【第二条绕过一并堵上】改文档不等于这句话被守住：实测删掉 loop.ts:304 的 budgetChain.add(target) 全量无一条会红（chainBudget 的函数级用例证不了它被接在接力分支上），故补一对对称的 loop 级用例（consult-budget.test.ts）：接力 insight → 跑满 10 步；咨询 insight → 仍停 5 步。自验该变异 → RED(1)。",
-      "§19-2 RV-2（F007，必修）—— 三项子要求补齐：① RV-2c 新增，主 loop 生产默认闸（mock 捕获 doStream 实收的 abortSignal，不注入时必须非空）② RV-2b 整条重写为真双向绑定（vi.doMock 把 SPECIALIST_TIMEOUT_MS 换成 30ms 再走生产默认路径）③ 旧 RV-2b 已删除（不是保留改名）。另补 RV-2d：常量取值的**下界护栏**——R-3 不等式只挡放大方向，收紧方向此前完全不设防。变异复证（本次实跑）：MUT-A RED(2) · MUT-B RED(1) · MUT-C RED(1) · MUT-D RED(1)，后三条修前均全绿。",
-      "§19-3 F009 清态断言（必修）—— 两层，失效模式刻意不重叠：第一层清理登记表（CleanupEntry + entry()，where 只写一次同时派生 deleteMany 与 count，子集漂移在结构上写不出来）；第二层整表普查（**不从登记表派生**，因为只有第一层时把整条 entry 删掉断言会跟着消失——我实测仍 exit 0）。变异复证：删 shareLink 条 → EXIT=1（净增 1）· 删 operationLog(ref) 条 → EXIT=1（净增 4/允许 1）· 删 handoff 条 → EXIT=1（净增 2）。三条修前均 exit 0 且真漏行。",
-      "§19-4 S-RV2-9（中）—— package.json 新增 test:visual:fixtures，test:visual / :update 先跑它落盘；rv-budget-notice.spec.ts 的 test.skip 改为 beforeAll 直接抛（前置真跑了就一定有字节，没有字节说明前置被拆了，那正是要有人看见的事）。自验：抽掉字节样本 → 1 failed / 1 did not run（修前 2 skipped）；样本在场 → 真浏览器 2 passed。CI visual job 已有 Postgres+migrate+seed，跑得动该 vitest 前置。",
-      "§19-5 S-RV2-10（中）—— 遥测等待下沉到 runScriptedLoop（逐文件补必然漏，轮二实测只覆盖 2 个文件）。只在走默认 writer 时等：注入 telemetryWriter 的用例不落库，其中一条专门证明「writer 永不 resolve 也不阻塞会话」，无条件等会把那条正面证明变成死等（实测 5s 超时红，据此加的条件）。按 evaluator 口径连跑 **10/10 次全量**，孤儿普查每次皆 {handoff:0, operationLog:4, pendingAction:0, shareLink:2, project:0} → **净增 0**。连带把 e2e-cleanup-hygiene 的 S-RV1-2 正向证据随登记表形态同步（表驱动时数 entry( 条数 ≥5，并额外要求登记表确经 cleanupStep 消费；自验绕开 cleanupStep 直调 purge → 红）。",
-      "§19-6 RV-7（低）—— route.ts 两段 JSDoc 各自归位到所描述的符号；registry.ts:80-97 本轮新增的「待校准」块与前一段合并（它把前段挤成了悬空块）。"
-    ],
-    "not_fixed": [
-      "§19-7 交 Planner 裁决（不属修复，我不越界决定）：① S-RV2-5 规则冲突（S-M45-1「留不删」vs §4.5 重生序「重生前先清」）② S-RV2-8（主 loop 撞 LOOP_TIMEOUT_MS 时用户零告知 + 运维零留痕）是否开为下批 feature ③ S-M47-G3-5 落库口径。**已在对话中向用户明示，等裁决**。",
-      "既有孤儿行 4 opLog + 2 shareLink（2026-07-26/27 产生，非本轮）仍在 dev 库，S-RV2-10 的登记未销；本轮只保证净增 0。",
-      "本机视觉门仍是 15 passed / 2 failed，两条与轮二同款且均为已登记项（today 基线的 append-only 耦合 S-RV2-5 · 本机 env=match 数据态）。"
-    ],
-    "l1_status": "tsc 0 error · next lint 无告警 · vitest 119 files / **1422 tests 全绿**（轮二基线 1418，本轮净增 4 条）· next build EXIT=0 · agentloop:e2e 绿 · frontdesk:e2e 绿（两层清态断言均通过）· playwright 15 passed / 2 failed（同轮二的两条已登记本机项）",
-    "for_evaluator": "本轮全部是**覆盖面与文档**的修复，产品代码只动了注释与 JSDoc 归位（registry.ts / loop.ts / route.ts），零行为改动——请以 git show --stat 复核这句话。重点复核建议：① 我的两条新 loop 级用例（consult-budget.test.ts「接力抬/咨询不抬」）是否真有鉴别力，建议直接复现我用的变异：摘 loop.ts:304 的 budgetChain.add ② RV-2c/RV-2b/RV-2d 三条是否还留有第二条绕过——尤其 RV-2d 的下界 20_000ms 是我拍的护栏值，不是实测值，若你认为该值本身需要裁决请点出 ③ F009 第二层普查是否会与并发跑的其他用例互相干扰（我只在单跑 frontdesk:e2e 下验过；全量跑时它不参与）④ 踩坑提示：本机跑 playwright 前若刚 next build 过，必须重启 serve-standalone 进程，否则旧进程的 chunk 指纹对不上、React 不 hydrate，会伪装成一片基线翻红（我这轮踩到并复现确认）。"
-  },
+  "mode_intent": null,
+  "evaluator_feedback": null,
+  "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M4.7-FRONTDESK fix_round3 · 2026-08-02 · 快车道】\n■ 接手时状态机与实物脱节：轮二 evaluator 报告（+448 行，7 PASS/4 PARTIAL）已写完但**未提交、未落盘**——progress.json 仍 status=reverifying / 11 完成 / evaluator_feedback=null。先做机械转录（f3e62b0）：报告入库、4 条回 pending、status→fixing、结论原样写入 evaluator_feedback（未改写未软化），再进 Generator。\n■ 本轮修 §19 的 1-6（第 7 条交 Planner，第 8 条即本条纪律）。每条都按 evaluator 的纪律自问「第二条绕过」，并**真的找到了两条**：(a) RV-4 只改文档的话，摘掉 budgetChain.add 全量无一条会红 → 补对称 loop 级用例；(b) F009 的登记表虽杜绝子集漂移，但删掉整条 entry 时断言跟着消失、实测仍 exit 0 → 再压一层与登记表无关的整表普查。两层失效模式不重叠是刻意设计。\n■ 变异全部亲手复证：MUT-A/B/C/D 四条（RV-2）· BP shareLink/operationLog(ref)/handoff 三条（F009）· budgetChain.add 一条（RV-4）· 绕开 cleanupStep 一条（卫生钉）· 抽掉字节样本一条（S-RV2-9）。修前状态与 evaluator 记录一致。\n■ 环境坑（新证，值得记）：**next build 之后必须重启 serve-standalone**，否则旧进程的 chunk 指纹对不上、页面不 hydrate，表现为整套视觉基线连同 rv-budget-notice 一起翻红——极易被误读成「我的改动打红了视觉门」。我在这上面浪费了一轮排查。\n■ dev 库卫生：变异跑漏进 dev 的 2 handoff / 2 shareLink / 6 gate 留痕已按 ref/projectId 悬空逐条清回，pending 仍为 0；append-only 标记行按 S-M45-1 保留。既有 4+2 孤儿（7-26/27）非本轮产生，留给 S-RV2-10 登记。",
-    "Reviewer": "【M4.7-FRONTDESK 复验轮三 · 2026-08-02 · Andy/evaluator-subagent 隔离上下文】\n■ 被测 9a68165。fix_round3 的产品代码改动经 git diff 逐行核过：3 个文件、全是注释与 JSDoc 归位，零行为改动——「覆盖面与文档修复」这句声明成立。\n■ 本轮纪律：每条 §19 都不只复用它点名的变异，先自己找第二条绕过再判。真找到并加测了三条作者没做的：(a) RV-4 的反方向——把「咨询也抬预算」写进 prepareStep → RED(3)，两个方向都钉住才叫「这句话被守住」；(b) F009 的第三形态——不删 entry 只把 where 收窄，实测该键冗余、零泄漏；(c) RV-2 的主闸写死数字（E6，GREEN）与常量落在护栏带内改值（E7，GREEN），两条登记为 S-RV3-1/2。\n■ 证伪了一处交付叙述：handoff 称「摘掉 budgetChain.add 全量无一条会红」，我在 2ad0946 隔离 worktree 上确定性复现出 m45-g2-evaluator-probe 翻红（还原后 18/18 绿）。补 consult-budget.test.ts 这件事本身是对的（原钉子钉的是诚实条款不是预算档位，且不覆盖反方向），但理由陈述不成立 → S-RV3-6，连续第四例。\n■ 我主动查的一层作者没证的东西：S-RV2-9 的收口是否真的到得了 CI——ci.yml:154 visual job 跑的是 `npm run test:visual`（不是 npx playwright test），前置确实被串上；且 m47-rv-probe 用自建租户不碰 dev，不会给 CI 引入 S-RV2-5 同款基线漂移。\n■ 副作用：F003-M 变异让 m47-adv-route-probe 文件级失败、afterAll 没跑完，留下 test-tenant-m47-advroute-75972 + 1 project；BP-A/BP-B 各漏 1 行 shareLink / 3 行闸门留痕。全部已逐条清回 + 二次核证。既有 4 opLog + 2 shareLink 孤儿（7-26/27）未动，是 S-RV2-10 的历史物证。\n■ 交 Planner 的三条裁决（S-RV2-5 / S-RV2-8 / S-M47-G3-5）我沿轮二定性不判 PARTIAL，但写成了签收前提（signoff §27.1 + evaluator_feedback.signoff_preconditions）——done 阶段没落实这三条，等于验收没闭环。",
+    "Andy": "【M4.8-HARDEN planning · 2026-08-03/04 · 快车道】done 收尾:纪律 5 经用户裁决入铁律 13(v1.6.5,41e2c26,generator.md 各副本同步);resolver 在 registry-less 项目硬退的问题排入 proposed-learnings(db8712d)。规划要点:① backlog 两条 high 同批(租户收口 + 超时可观测),spec 起草前逐条实物核证——backlog 登记有漂移(set-goal 等实为多行 OR 已带 tenantId,真缺口只有 project-context.ts:36 / knowledge-context.ts:64 两处),以 spec D-3 表为准;② BL-E2E-CLEANUP-PIN 的 S-RV3-4(F007)与 S-RV3-3 之 project-context-route 部分(F001)触发条件命中,按 2026-08-02 用户裁决携带进本批;③ 跨租户负向测试需自建第二租户,清理登记表 + 净增 0 纪律照 M4.7 口径;④ F004 判超时须按 signal.reason 区分 TimeoutError 与用户中断,R-1 误报教训在案。spec lock = 用户 2026-08-04 实答批准。",
+    "Reviewer": null,
     "Mark": null
   },
   "lane": "fast"

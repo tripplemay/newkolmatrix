@@ -32,24 +32,15 @@
   {
     "id": "BL-E2E-CLEANUP-PIN",
     "title": "断言强度升级：行为级 / 正向精确匹配 / 钉子覆盖面对齐",
-    "description": "M4.5 复验登记（signoff §8.1 S-RV1-1/2/3）：fix_round1 给 agentloop-e2e 清理段加的三条断言都是源码级正则，已被 evaluator 实测绕过并复证等价于原缺陷（catch 改 return Promise.reject / 跨行 await prisma.x ⏎ .deleteMany( / .filter(() => true)）。做法：导出 cleanupStep 并加行为级单测（喂一个必抛的 fn，断言 await cleanupStep(...) 正常 resolve），行为断言天然免疫写法绕过。同批顺手项：e2e 越权负向断言收紧为「错误确实来自 create_project」（S-G5-6）；全人格「名单内工具名必在注册表」通用断言（O-G3-3）。 【M4.6 复验追加】S-M46-6：expectNoFabricatedName 的「占位名黑名单 + 括注正则」不可穷尽，实测两种编造形态绕过（`${id} 星辰出海计划` / `${id}【王者荣耀出海】`）→ 改正向精确匹配（断言恰等于固定全串）。S-M46-7：doc-freshness 的装配序钉比对 4 段文档句却只钉 3 段实物，工具指引段挪位即静默漂移 → 纳入 order 数组与文档句逐项对齐。S-M46-5：e2e-cleanup-hygiene 守门只覆盖 scripts/test/agentloop-e2e.ts，覆盖不到 vitest 集成测的夹具清理（软引用表不级联，漏清即留孤儿行）。 【M4.7 复验轮三追加 S-RV3-5】frontdesk-e2e 第二层整表普查的表清单是**手写的 5 张**（shareLink/operationLog/pendingAction/handoff/project），而 schema 里带 tenantId 的模型有 23 个。当前 e2e 链路只触达这 5 张（evaluator 逐条核过脚本里的 prisma.* 调用），故非现存缺口；但**下次扩 frontdesk:e2e 覆盖面时（如真邮件 outbound → OutreachThread/OutreachMessage）必须同步扩 census 清单**。【S-RV3-3】遥测等待的下沉点在 runScriptedLoop，只覆盖走测试床的用例；走真 route POST 的 m47-rv-probe 与 project-context-route 仍是「跑完就删租户」形态，下一个动这两个文件的批次顺手补。【S-RV3-4】doc 钉覆盖面仍是行级而非段级：architecture.md 两形态表的**表头单元格**与 agent-architecture.md「M4.7 新增工具（1 件）」句改坏了不会红，下一个动 doc-freshness 的批次纳入（同 S-M46-7 的覆盖面对齐纪律）。",
+    "description": "M4.5 复验登记（signoff §8.1 S-RV1-1/2/3）：fix_round1 给 agentloop-e2e 清理段加的三条断言都是源码级正则，已被 evaluator 实测绕过并复证等价于原缺陷（catch 改 return Promise.reject / 跨行 await prisma.x ⏎ .deleteMany( / .filter(() => true)）。做法：导出 cleanupStep 并加行为级单测（喂一个必抛的 fn，断言 await cleanupStep(...) 正常 resolve），行为断言天然免疫写法绕过。同批顺手项：e2e 越权负向断言收紧为「错误确实来自 create_project」（S-G5-6）；全人格「名单内工具名必在注册表」通用断言（O-G3-3）。 【M4.6 复验追加】S-M46-6：expectNoFabricatedName 的「占位名黑名单 + 括注正则」不可穷尽，实测两种编造形态绕过（`${id} 星辰出海计划` / `${id}【王者荣耀出海】`）→ 改正向精确匹配（断言恰等于固定全串）。S-M46-7：doc-freshness 的装配序钉比对 4 段文档句却只钉 3 段实物，工具指引段挪位即静默漂移 → 纳入 order 数组与文档句逐项对齐。S-M46-5：e2e-cleanup-hygiene 守门只覆盖 scripts/test/agentloop-e2e.ts，覆盖不到 vitest 集成测的夹具清理（软引用表不级联，漏清即留孤儿行）。 【M4.7 复验轮三追加 S-RV3-5】frontdesk-e2e 第二层整表普查的表清单是**手写的 5 张**（shareLink/operationLog/pendingAction/handoff/project），而 schema 里带 tenantId 的模型有 23 个。当前 e2e 链路只触达这 5 张（evaluator 逐条核过脚本里的 prisma.* 调用），故非现存缺口；但**下次扩 frontdesk:e2e 覆盖面时（如真邮件 outbound → OutreachThread/OutreachMessage）必须同步扩 census 清单**。【S-RV3-3（残余）】遥测等待的下沉点在 runScriptedLoop，只覆盖走测试床的用例；走真 route POST 的 **m47-rv-probe** 仍是「跑完就删租户」形态（project-context-route 部分已由 M4.8-HARDEN F001 携带），下一个动该文件的批次顺手补。【S-RV3-4 → 已由 M4.8-HARDEN F007 携带】",
     "decisions": [
       "M4.5 复验裁定不阻断本批（非 acceptance 项、零产品面），但触发时机写死：下一个改动 scripts/test/agentloop-e2e.ts 清理段的批次必须一并做",
       "M4.6 复验裁定不阻断（断言强度上限，非产品缺陷），但两条都给了一行可根治的修法，下批顺手做",
-      "M4.7 复验轮三（2026-08-02 用户裁决）：S-RV3-3/4/5 三条并入本条，触发时机同既有口径（下一个动到对应文件的批次必须一并做）"
+      "M4.7 复验轮三（2026-08-02 用户裁决）：S-RV3-3/4/5 三条并入本条，触发时机同既有口径（下一个动到对应文件的批次必须一并做）",
+      "M4.8-HARDEN 立项（2026-08-04）：S-RV3-4 随 F007、S-RV3-3 的 project-context-route 部分随 F001 携带消化；m47-rv-probe 部分与本条主体保留"
     ],
     "confirmed_at": "2026-07-25",
     "priority": "medium"
-  },
-  {
-    "id": "BL-TENANT-SCOPE-PROJECTREF",
-    "title": "三口径项目解析收口 tenantId 作用域（7 处 + 新增导出）",
-    "description": "M4.6 复验实测（signoff §4.1）：新导出的 findProjectByRef 无 tenantId 条件，而 copilot.projectId 是客户端可控的（route.ts 直接取 body.context.projectId，不校验归属）——实测可让 system 段吐出另一租户的项目名。单租户 dev 下无实际影响，且工具执行仍按 ctx.tenantId 作用域（跨租户 id 填进工具会 PROJECT_NOT_FOUND），故当时不判缺陷。但它是「新代码一律走这里」的可复用口径，被任何持有 ctx 的工具复用即静默丢租户隔离。全仓 8 个三口径解析点中 6 个带 tenantId，缺的是 knowledge-context.ts:62 与本新增点。另 S-M46-2：内联点实测 7 处（admin/campaigns/[id]/page.tsx:37 · api/match/refresh/route.ts:25 · projects/set-goal.ts:60 · knowledge-context.ts:62 · tools/compute-health.ts:51 · tools/evaluate-creator.ts:54 · tools/match-plan.ts:58），而非注释所称三处。",
-    "decisions": [
-      "M4.6 复验登记：M5（真实认证 + RLS）之前必须收口；任何工具复用 findProjectByRef 时立即收口"
-    ],
-    "confirmed_at": "2026-07-26",
-    "priority": "high"
   },
   {
     "id": "BL-AGENT-COST-CALIBRATE",
@@ -71,15 +62,5 @@
     ],
     "confirmed_at": "2026-08-02",
     "priority": "medium"
-  },
-  {
-    "id": "BL-LOOP-TIMEOUT-VISIBILITY",
-    "title": "主 loop 超时的用户面告知 + 运维留痕（S-RV2-8）+ budgetHitScope 补 'specialist'（S-M47-G3-5）",
-    "description": "【已裁决为下批 feature，2026-08-02】① S-RV2-8：主 loop 撞 LOOP_TIMEOUT_MS 时响应体只有 start+abort+[DONE]，**用户零告知**；OperationLog 零行，**运维也归不了因**。且 CopilotPanel 对 abort/error 均无渲染分支、useChat 未解构 error —— 任何流级错误当前都不可见。做法：比照 onBudgetExhausted 补一条超时告知 data part + 一行失败留痕，顺手给面板补 error/abort 渲染分支（evaluator 三轮列为 soft-watch 首位）。② S-M47-G3-5：budgetHitScope 目前只有 'front' | 'none'，子 loop 撞顶不落 OperationLog（现已在 loop-telemetry.ts docblock 如实登记「记在各自 consultation 产物的 budgetHit 上」）；补 'specialist' 让线上能区分前台撞顶与专家子 loop 撞顶。两条同属可观测面，同批做边际成本低。注意：本条 acceptance 须含「用户面告知真的渲染到眼前」的浏览器级钉（同 R-2 口径，别只钉写进流）。",
-    "decisions": [
-      "M4.7 复验轮三签收前提（2026-08-02 用户裁决）：S-RV2-8 开为下批 feature；S-M47-G3-5 补 'specialist' 与之同批"
-    ],
-    "confirmed_at": "2026-08-02",
-    "priority": "high"
   }
 ]

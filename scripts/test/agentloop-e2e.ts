@@ -30,6 +30,10 @@ import { PLAN_PROPOSED_MARKER } from '../../src/lib/agent/tools/propose-plan';
 import { acknowledgePlan } from '../../src/lib/agent/plan-ack';
 import { SHARE_CREATED_MARKER } from '../../src/lib/ops/share';
 import { runScriptedLoop } from '../../tests/support/agent-loop-testbed';
+import {
+  assertSessionTenant,
+  loginE2ESession,
+} from '../../tests/support/auth-session';
 import { TOOL_NOT_IN_SUBSET_MSG } from '../../src/lib/agent/to-ai-sdk-tools';
 import type { ToolContext } from '../../src/lib/agent/tools/types';
 
@@ -83,7 +87,19 @@ async function main(): Promise<void> {
     '[agentloop-e2e] 循环放开面闭环开始（模型：mock；外呼：零；对外副作用：mock 分享通道）',
   );
   getNativeToolNames();
+
+  /* ── 【M5-AUTH-RLS F012】登录步：先拿到真登录态，再动任何数据 ──────────────
+     本脚本在**进程内**直调服务层（真 loop / 真闸门 / 真两步票据），不出 HTTP，
+     故 F003 的 middleware 不在链路上——「没有登录态」在这里的失败形态不是 307 而是
+     **静默空跑**。故显式走一遍真 authorize（与 /api/auth 的 Credentials provider
+     同一函数、同一依赖装配）：凭据不可用当场抛，且抛在建夹具之前（失败路径不留脏数据）。 */
+  const session = await loginE2ESession();
+  console.log(
+    `[agentloop-e2e] 登录态就绪：${session.email}（tenant=${session.tenantId}）`,
+  );
+
   const ctx = await buildToolContext({ agentId: 'orchestrator' });
+  assertSessionTenant(session, ctx.tenantId);
   const tenantId = ctx.tenantId;
 
   const fxProject = await prisma.project.create({

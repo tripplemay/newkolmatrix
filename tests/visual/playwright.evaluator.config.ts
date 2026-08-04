@@ -8,7 +8,13 @@
 // 以保证比对的是同一组 13 张 {arg}-darwin 基线、同一确定性口径。
 //
 // 用法：BASE=http://127.0.0.1:3300 npx playwright test -c tests/visual/playwright.evaluator.config.ts
+//
+// M5-AUTH-RLS F012：与根配置同步补登录态前置（setup 项目 + storageState）。
+// 不补则 F003 middleware 落地后本配置跑出来的每条 admin/preview 用例都是 307 红，
+// 「验收专用配置」会变成一个只能证明「没登录」的配置。
+// 并发跑多份实例时用 PW_STORAGE_STATE=<各自路径> 隔离（默认落点见 tests/support/auth-session.ts）。
 import { defineConfig, devices } from '@playwright/test';
+import { STORAGE_STATE_PATH } from '../support/auth-session';
 
 export default defineConfig({
   testDir: '.',
@@ -22,9 +28,15 @@ export default defineConfig({
     viewport: { width: 1512, height: 982 },
   },
   projects: [
+    { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'], viewport: { width: 1512, height: 982 } },
+      dependencies: ['setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1512, height: 982 },
+        storageState: STORAGE_STATE_PATH,
+      },
     },
   ],
 });

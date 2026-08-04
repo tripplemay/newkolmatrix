@@ -20,6 +20,9 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /playwright/.cache/
+# M5-AUTH-RLS F012：登录态 storageState（含真实会话 JWT cookie）——生成产物且是凭据材料，
+# 双重理由不入库。落点常量在 tests/support/auth-session.ts，repo-hygiene 单测钉。
+/tests/.auth/
 # vitest 覆盖率报告（M1-A-BRIEF fixing-1）。
 # 与上面三条同一约定：生成产物忽略，刻意基线（tests/screenshots/baseline/*.png）入库。
 # 此前漏登记，导致 acceptance 要求接入 CI 的 `npm run test:unit:coverage` 每跑一次

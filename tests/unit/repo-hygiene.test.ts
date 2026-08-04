@@ -32,6 +32,13 @@ const GENERATED_DIRS = [
   { dir: 'coverage', probe: 'coverage/index.html', tool: 'vitest --coverage' },
   { dir: 'test-results', probe: 'test-results/.last-run.json', tool: 'playwright' },
   { dir: 'playwright-report', probe: 'playwright-report/index.html', tool: 'playwright' },
+  // M5-AUTH-RLS F012：登录态 storageState。除「产物不入库」外还多一层理由——
+  // 文件里是一张真实会话 JWT cookie，入库等于把可复用的凭据材料推上远端。
+  {
+    dir: 'tests/.auth',
+    probe: 'tests/.auth/storage-state.json',
+    tool: 'playwright auth.setup',
+  },
 ];
 
 describe('生成产物不得入库（.gitignore 已成文的仓库约定）', () => {

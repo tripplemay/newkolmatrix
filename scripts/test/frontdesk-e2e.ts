@@ -31,6 +31,10 @@ import { CONSULT_FAILED_MARKER } from '../../src/lib/agent/tools/consult-special
 import { SHARE_CREATED_MARKER } from '../../src/lib/ops/share';
 import { runScriptedLoop } from '../../tests/support/agent-loop-testbed';
 import { resolveContextForTest } from '../../src/app/api/agent/route';
+import {
+  assertSessionTenant,
+  loginE2ESession,
+} from '../../tests/support/auth-session';
 import type { ToolContext } from '../../src/lib/agent/tools/types';
 
 import { cleanupStep } from './cleanup-step';
@@ -76,7 +80,19 @@ async function main(): Promise<void> {
   delete process.env.AIGCGATEWAY_API_KEY;
   getNativeToolNames();
 
+  /* ── 【M5-AUTH-RLS F012】登录步：先拿到真登录态，再动任何数据 ──────────────
+     本脚本在**进程内**直调服务层（真 loop / 真闸门），不出 HTTP，故 F003 的
+     middleware 不在链路上——正因如此，「没有登录态」在这里的失败形态不是 307 而是
+     **静默空跑**：照样能拿到 dev 租户 ctx，照样全绿，测的却是一个没有会话的世界。
+     故显式走一遍真 authorize（与 /api/auth 的 Credentials provider 同一函数、同一
+     依赖装配）：凭据不可用当场抛，且抛在建夹具之前（失败路径不留脏数据）。 */
+  const session = await loginE2ESession();
+  console.log(
+    `[frontdesk-e2e] 登录态就绪：${session.email}（tenant=${session.tenantId}）`,
+  );
+
   const base = await buildToolContext({ agentId: FRONT_DESK_AGENT_ID });
+  assertSessionTenant(session, base.tenantId);
   const tenantId = base.tenantId;
 
   /* ── 整表普查基线（第二层，**刻意不从登记表派生**）─────────────────────────

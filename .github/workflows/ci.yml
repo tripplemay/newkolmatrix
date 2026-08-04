@@ -131,6 +131,11 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/kolmatrix?schema=public
+      # M5-AUTH-RLS F012：视觉套件的登录前置需要能签会话。standalone 产物恒
+      # NODE_ENV=production（server.js 第 5 行写死），此时 resolveAuthSecret 不提供回落值，
+      # 缺 AUTH_SECRET → 登录请求 500 → auth.setup 红 → 整个视觉门红。
+      # 这里是**一次性 CI 库的临时值**，与任何生产凭据无关（生产 secret 走 VPS .env，见 deploy.md）。
+      AUTH_SECRET: ci-visual-job-ephemeral-secret-not-for-production
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -147,6 +152,10 @@ jobs:
       # M2-B F004【P6】：创作者库/抽屉基线确定性夹具（2 行固定 publicId Kol，双状态）
       - name: Seed visual kol fixtures
         run: npx tsx scripts/seed/visual-kols.ts
+      # M5-AUTH-RLS F012：storageState 登录前置的账号来源（dev 租户测试用户 + 口令摘要）。
+      # 须排在 canonical-projects 之后——dev tenant 由那一步 upsert 建出。
+      - name: Seed dev test user (playwright storageState 登录前置)
+        run: npx tsx scripts/seed/dev-user.ts
       - run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"

@@ -35,6 +35,9 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/kolmatrix?schema=public
+      # M5-AUTH-RLS F012：重生环境须与断言环境同构——ci.yml visual job 有什么前置，这里就得有什么。
+      # 缺 AUTH_SECRET → auth.setup 登录 500 → 一张基线也重生不出来。一次性 CI 值，非生产凭据。
+      AUTH_SECRET: ci-visual-job-ephemeral-secret-not-for-production
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -51,6 +54,9 @@ jobs:
       # M2-B F004【P6】：与 ci.yml visual job 同一夹具（基线重生与断言同态）
       - name: Seed visual kol fixtures
         run: npx tsx scripts/seed/visual-kols.ts
+      # M5-AUTH-RLS F012：与 ci.yml visual job 同一登录前置（无测试用户 → 登录失败 → 无从重生）
+      - name: Seed dev test user (playwright storageState 登录前置)
+        run: npx tsx scripts/seed/dev-user.ts
       - run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"

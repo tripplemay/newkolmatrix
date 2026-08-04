@@ -149,7 +149,11 @@ export async function runSpecialistLoop(
         await projectContextSection(subCtx.projectId, subCtx.tenantId)
       : '');
   const knowledgeSection = subCtx.projectId
-    ? await gameKnowledgeSection(subCtx.projectId, target.knowledgeKinds)
+    ? await gameKnowledgeSection(
+        subCtx.projectId,
+        subCtx.tenantId,
+        target.knowledgeKinds,
+      )
     : '';
 
   const system =

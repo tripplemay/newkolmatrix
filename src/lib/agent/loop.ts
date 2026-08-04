@@ -229,7 +229,12 @@ export async function runAgentLoop(
   // ⑤层知识注入（M1-D F005）：经 Project.gameId 查链头按 persona.knowledgeKinds 拼知识段；
   // ctx.projectId 为空 / 人格未声明 kinds / 无知识 → 空串跳过（不注水）。
   const knowledgeSection = copilot.projectId
-    ? await gameKnowledgeSection(copilot.projectId, persona.knowledgeKinds)
+    ? // M4.8 F002：知识段同样按租户作用域解析（projectId 客户端可控）。
+      await gameKnowledgeSection(
+        copilot.projectId,
+        ctx.tenantId,
+        persona.knowledgeKinds,
+      )
     : '';
 
   // M4.6 F001：当前项目上下文（ctx 已有，此前从未进入 system 段 → 模型只能反问用户要）。
@@ -263,7 +268,11 @@ export async function runAgentLoop(
     if (cached) return cached;
     const target = getPersona(id);
     const knowledge = copilot.projectId
-      ? await gameKnowledgeSection(copilot.projectId, target.knowledgeKinds)
+      ? await gameKnowledgeSection(
+          copilot.projectId,
+          ctx.tenantId,
+          target.knowledgeKinds,
+        )
       : '';
     // 接力后的目标人格同样要看得见当前项目（复用同一装配函数与同一 projectSection——
     // 不在这里另拼一份，否则两条路径必然漂移）。

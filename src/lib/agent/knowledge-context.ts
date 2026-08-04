@@ -6,7 +6,7 @@
 // 红线→合规、strategy 三类全量）。无知识 / 无关联游戏 → 返回空串（不注水）。
 //
 // 纯渲染与取数分离：renderKnowledgeSection 纯函数（单测口径）；gameKnowledgeSection 负责
-// DB 取数（project 三口径 OR 解析，沿 compute-health D8 先例）。
+// DB 取数（project 三口径 OR 解析**按 tenantId 作用域**，沿 compute-health D8 先例）。
 
 import { prisma } from 'lib/db/prisma';
 import { getKnowledgeHeads } from 'lib/knowledge/query';
@@ -50,17 +50,24 @@ export function renderKnowledgeSection(
 
 /**
  * 按项目取知识段：projectId（id / publicId / slug 三口径）→ Project.gameId → 链头（kinds 过滤）。
- * 任一环节缺失（项目不存在 / 未关联游戏 / 无知识 / kinds 未声明）→ 空串。
+ * 任一环节缺失（项目不存在 / **跨租户** / 未关联游戏 / 无知识 / kinds 未声明）→ 空串。
  * 取数失败也返回空串（知识注入是增强，不得打死对话主链路，D2）。
+ *
+ * 【M4.8-HARDEN F002：tenantId 必选】此前三口径解析**无 tenantId 条件**，而 projectId
+ * 一路来自客户端可控的 `body.context.projectId`——别的租户的游戏知识（受众切片、卖点、
+ * 合规红线）会被拼进 system 段。跨租户 → 返回 `''`，与「无知识」同款行为：不注水、
+ * 不抛错（增强性注入不得打死主链路）。必选而非可选：漏传的新调用点必须编译不过。
  */
 export async function gameKnowledgeSection(
   projectId: string,
+  tenantId: string,
   kinds: KnowledgeKindValue[] | undefined,
 ): Promise<string> {
   if (!kinds || kinds.length === 0) return '';
   try {
     const project = await prisma.project.findFirst({
       where: {
+        tenantId,
         OR: [{ id: projectId }, { publicId: projectId }, { slug: projectId }],
       },
       select: { gameId: true, game: { select: { name: true } } },

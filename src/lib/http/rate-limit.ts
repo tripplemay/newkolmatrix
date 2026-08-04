@@ -67,6 +67,47 @@ export function checkRateLimit(
   return { allowed: false, retryAfterSec };
 }
 
+/* ------------------------------------------------------------------ *
+ * 封禁窗口（M5-AUTH-RLS F006）：登录面「5/min + 超限封 5 分钟」需要的两件事
+ * ------------------------------------------------------------------ */
+
+/**
+ * 【为什么不能用 checkRateLimit 当「是否封禁中」的探针】
+ * checkRateLimit 的第一次调用**总是放行并建桶**（窗口内首次 = allowed）。
+ * 拿它去「看一眼有没有被封」，那一眼自己就会打上标记——首次访问即自封。
+ * 故封禁需要一读一写两个显式动作：`blockStatus`（只读，不建桶不计数）+ `blockKey`（打标）。
+ * 两者与计数限流共用同一个 buckets Map（同一份内存、同一次 resetRateLimit 清空）。
+ */
+
+/** 只读：key 是否仍在封禁窗口内。不建桶、不计数。 */
+export function blockStatus(
+  bucket: string,
+  key: string,
+  blockMs: number,
+  now: number = Date.now(),
+): { blocked: boolean; retryAfterSec: number } {
+  const cur = buckets.get(`${bucket}\n${key}`);
+  if (!cur) return { blocked: false, retryAfterSec: 0 };
+  const elapsed = now - cur.windowStart;
+  if (elapsed >= blockMs) return { blocked: false, retryAfterSec: 0 };
+  return {
+    blocked: true,
+    retryAfterSec: Math.max(1, Math.ceil((blockMs - elapsed) / 1000)),
+  };
+}
+
+/**
+ * 打上封禁标记（窗口起点 = now）。重复调用会**刷新**起点——
+ * 封禁期内继续硬撞的 IP 因此被持续压住，这是刻意的。
+ */
+export function blockKey(
+  bucket: string,
+  key: string,
+  now: number = Date.now(),
+): void {
+  buckets.set(`${bucket}\n${key}`, { windowStart: now, count: 1 });
+}
+
 /** 测试辅助：清空全部窗口状态（仅测试使用）。 */
 export function resetRateLimit(): void {
   buckets.clear();

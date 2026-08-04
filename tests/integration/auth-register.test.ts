@@ -19,6 +19,7 @@ import {
 } from '../../src/lib/auth/register';
 import { AUTH_AUDIT_ACTOR, AUTH_AUDIT_MARKER } from '../../src/lib/auth/audit';
 import { verifyPassword } from '../../src/lib/auth/password';
+import { resetRateLimit } from '../../src/lib/http/rate-limit';
 
 const TAG = `f005-${process.pid}`;
 /** 独一无二的口令与邮箱本地部分——隐私断言在全表上搜这两个串。 */
@@ -50,10 +51,22 @@ async function tagCounts(): Promise<{
   };
 }
 
+/**
+ * F006 之后端点带 fail-closed 限速（3/min/IP，取不到 IP 即拒）。本文件测的是注册**语义**，
+ * 限速本身由 tests/integration/auth-rate-limit.test.ts 专门覆盖，故这里：
+ *   ① 带上 x-forwarded-for（不带 = 429，那是限速的正确行为，不是本文件要验的东西）；
+ *   ② 每次请求前清空限速窗口（多数用例一条就要发 2-3 次注册，会正常撞上 3/min）。
+ */
+const PROBE_IP = '203.0.113.201';
+
 function registerRequest(body: unknown): Request {
+  resetRateLimit();
   return new Request('http://test.local/api/auth/register', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'x-forwarded-for': PROBE_IP,
+    },
     body: typeof body === 'string' ? body : JSON.stringify(body),
   });
 }
@@ -94,8 +107,14 @@ afterAll(async () => {
   /**
    * 第二层（**不从登记表派生**）：按留痕内容普查——任何写到「我从没登记过的租户」上的
    * 认证留痕都会在这里露出来（登记表只保证"登记了的都清了"，挡不住写歪的那一行）。
+   *
+   * **先量后清**：量到了照样红（本轮有漏），但把行删掉，免得这一轮的残留把后面每一轮
+   * 都染红——那会让「红」失去指向本轮的意义（实测踩过：一次 429 留下的两行让下一轮无辜翻红）。
    */
   const strayLogs = await prisma.operationLog.count({
+    where: { summary: { contains: 'probe-domain.example' } },
+  });
+  await prisma.operationLog.deleteMany({
     where: { summary: { contains: 'probe-domain.example' } },
   });
   await prisma.$disconnect();

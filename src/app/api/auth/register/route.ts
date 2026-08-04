@@ -15,6 +15,12 @@
 //
 // 运行时 = nodejs（Prisma + bcrypt）。
 
+import { prisma } from 'lib/db/prisma';
+import { writeAuthAudit } from 'lib/auth/audit';
+import {
+  authRateLimitVerdict,
+  RATE_LIMITED_MESSAGE,
+} from 'lib/auth/rate-limit';
 import {
   EMAIL_TAKEN_MESSAGE,
   registerAccount,
@@ -26,6 +32,30 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request): Promise<Response> {
   try {
+    // F006：fail-closed 限速（3/min/IP，无 escape hatch）。**在解析入参之前**——
+    // 限速的意义之一就是不让攻击者用请求体消耗服务端资源。
+    const verdict = authRateLimitVerdict('register', req);
+    if (!verdict.allowed) {
+      const body = (await req.clone().json().catch((): null => null)) as {
+        email?: unknown;
+      } | null;
+      await writeAuthAudit(
+        {
+          event: 'register',
+          result: 'rate_limited',
+          email: typeof body?.email === 'string' ? body.email : null,
+        },
+        prisma,
+      );
+      return Response.json(
+        { error: RATE_LIMITED_MESSAGE },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(verdict.retryAfterSec) },
+        },
+      );
+    }
+
     const parsed = registerInputSchema.safeParse(
       await req.json().catch((): null => null),
     );

@@ -40,7 +40,46 @@ const seam = vi.hoisted(() => ({
   ctx: null as unknown,
   script: [] as unknown[],
   models: [] as Array<{ doStreamCalls: unknown[] }>,
+  /** 本次请求触发的遥测落库 promise（S-RV3-3 同步点，见下方 vi.mock 头注）。 */
+  telemetryWrites: [] as Array<Promise<unknown>>,
+  /** 其中已 settle 的条数——用来证明同步点真的等到了（而非「碰巧落得快」）。 */
+  telemetrySettled: 0,
 }));
+
+/* ── 遥测落库同步点（S-RV3-3 携带，M4.8-HARDEN F001）───────────────────────
+   遥测是 fire-and-forget：loop 的 onEnd 里 `void logLoopTelemetry(...)`，落库发生在
+   POST 返回**之后**的几毫秒内。runScriptedLoop 已把等待下沉到测试床（`if
+   (!opts.telemetryWriter) await loop.telemetry`），但本文件走的是**真 route POST**
+   ——route 不暴露 loop.telemetry 句柄，那条下沉点覆盖不到。后果与 S-RV2-10 同族：
+   afterAll 删租户跑赢落库 → 留一行 tenantId 指向已不存在租户的孤儿 OperationLog，
+   而残留断言（跑在删除之后、落库之前）照样绿 —— 「已清干净」的假信心。
+
+   做法：包一层 logLoopTelemetry **只做观测**（真实现照常执行，默认 writer 照常落库），
+   把每次调用的 promise 收集起来，postAgent 返回前 await 干净。
+   **镜像测试床的条件语义**：注入了自定义 writer 的调用不进队列（那种调用不落库，
+   没有孤儿行可言；无条件等会把「writer 永不 resolve 也不阻塞会话」类用例变成死等）。 */
+vi.mock('../../src/lib/agent/loop-telemetry', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../src/lib/agent/loop-telemetry')>();
+  return {
+    ...actual,
+    logLoopTelemetry: (
+      ...args: Parameters<typeof actual.logLoopTelemetry>
+    ): Promise<boolean> => {
+      const p = actual.logLoopTelemetry(...args);
+      // args[2] = 注入的 writer；缺省（走默认 writer 真落库）才需要等。
+      if (args[2] === undefined) {
+        seam.telemetryWrites.push(
+          p.then((r) => {
+            seam.telemetrySettled += 1;
+            return r;
+          }),
+        );
+      }
+      return p;
+    },
+  };
+});
 
 // route → runAgentLoop 不带 model / ctx（那正是真实请求路径），故从模块层替换。
 // 被测对象仍是产品的 route + loop 装配本体。
@@ -86,6 +125,8 @@ function systemOf(call: unknown): string {
 async function postAgent(body: unknown, script: ScriptedStep[]) {
   seam.script = script;
   seam.models = [];
+  seam.telemetryWrites = [];
+  seam.telemetrySettled = 0;
   const sentinel = installNoNetworkSentinel();
   try {
     const res = await POST(
@@ -96,7 +137,15 @@ async function postAgent(body: unknown, script: ScriptedStep[]) {
       }),
     );
     const text = await res.text(); // 读完 = 流走完
+    // 遥测落库同步点：流走完 ≠ 遥测已落库（fire-and-forget）。等干净再让用例往下走，
+    // 否则 afterAll 的删除会与落库赛跑（详见文件顶部 vi.mock 头注）。
+    // logLoopTelemetry 内部 catch 落库异常后仍 resolve，故此处不会挂死。
+    await Promise.all(seam.telemetryWrites);
+    // pending 必须在**同步点之后、返回之前**这一刻量：这正是用例继续往下跑
+    // （乃至 afterAll 开删）的时刻。摘掉上面那句 await，此处即量到未落库的条数。
     return {
+      telemetryWrites: seam.telemetryWrites.length,
+      pendingTelemetry: seam.telemetryWrites.length - seam.telemetrySettled,
       status: res.status,
       agentIdHeader: res.headers.get('X-Agent-Id'),
       text,
@@ -149,6 +198,40 @@ afterAll(async () => {
 });
 
 describe('真 route POST /api/agent —— 项目上下文注入（D1）', () => {
+  // ── S-RV3-3 携带（M4.8-HARDEN F001）────────────────────────────────────
+  // 光有 postAgent 里那句 await 是「注释级保证」——这条让同步点一旦丢失就有东西会红。
+  //
+  // 【断言对象为什么是 pendingTelemetry 而不是 OperationLog 行数】先写的是
+  // 「返回后行数 > 返回前」，实测**摘掉那句 await 照样 3/3 全绿**——插入本来就常常
+  // 赢过后面那个 count，行数断言测不出同步点在不在（正是断言强度分级里「看似行为级、
+  // 实则测了别的东西」那一类）。改成钉**同步点自身的机械事实**：postAgent 返回时刻，
+  // 本请求收集到的遥测 promise 必须全部已 settle，pending 恒为 0。
+  it('遥测同步点：postAgent 返回时本请求的遥测落库已 settle（S-RV3-3）', async () => {
+    const before = await prisma.operationLog.count({ where: { tenantId } });
+    const r = await postAgent(
+      {
+        prompt: '遥测同步点探针',
+        context: {
+          route: `/admin/campaigns/${projectId}`,
+          projectId,
+          env: 'default',
+        },
+      },
+      [{ text: '好的。' }],
+    );
+    expect(r.status).toBe(200);
+    expect(
+      r.telemetryWrites,
+      '本请求应有一次走默认 writer 的遥测落库（无则同步点无从谈起，也说明观测缝没接上）',
+    ).toBeGreaterThan(0);
+    expect(
+      r.pendingTelemetry,
+      'postAgent 返回时仍有遥测未落库 → afterAll 删租户会与它赛跑（留 tenantId 指向已删租户的孤儿行）',
+    ).toBe(0);
+    const after = await prisma.operationLog.count({ where: { tenantId } });
+    expect(after, '遥测行确实落到库里（不是被静默吞掉）').toBeGreaterThan(before);
+  });
+
   it('项目页请求：模型第一步实际收到的 system 含 projectId + 项目名 + 不要索要条款', async () => {
     const r = await postAgent(
       {

@@ -15,6 +15,7 @@ import { prisma } from '../../src/lib/db/prisma';
 import { getPersona } from '../../src/lib/agent/registry';
 import { buildLoopSystem } from '../../src/lib/agent/loop';
 import { runScriptedLoop } from '../support/agent-loop-testbed';
+import { cleanupStep } from '../../scripts/test/cleanup-step';
 import {
   NO_ASK_PROJECT_CLAUSE,
   PROJECT_CONTEXT_HEADING,
@@ -53,6 +54,16 @@ function expectNoFabricatedName(section: string, projectId: string): void {
 let tenantId: string;
 let projectId: string;
 
+// ── 第二租户（M4.8-HARDEN F001 跨租户负向面）──────────────────────────────
+// 跨租户断言必须有一个**真实存在、三口径齐全**的别家项目：否则「解析得 null」
+// 可能只是因为 ref 本身是编的（假通过）。故 slug 显式给、publicId 由默认值生成，
+// 三个口径逐一试。
+const OTHER_SLUG = `test-tenant-m48-ctx-${process.pid}`;
+const OTHER_PROJECT_NAME = `M4.8 别家租户项目 ${process.pid}`;
+const OTHER_PROJECT_SLUG = `m48-other-proj-${process.pid}`;
+let otherTenantId: string;
+let otherProject: { id: string; publicId: string; slug: string | null };
+
 beforeAll(async () => {
   const tenant = await prisma.tenant.create({
     data: { slug: SLUG, name: `M4.6 CTX 夹具 ${process.pid}` },
@@ -62,6 +73,19 @@ beforeAll(async () => {
     data: { tenantId, name: PROJECT_NAME },
   });
   projectId = project.id;
+
+  const other = await prisma.tenant.create({
+    data: { slug: OTHER_SLUG, name: `M4.8 跨租户夹具 ${process.pid}` },
+  });
+  otherTenantId = other.id;
+  const op = await prisma.project.create({
+    data: {
+      tenantId: otherTenantId,
+      name: OTHER_PROJECT_NAME,
+      slug: OTHER_PROJECT_SLUG,
+    },
+  });
+  otherProject = { id: op.id, publicId: op.publicId, slug: op.slug };
 });
 
 afterAll(async () => {
@@ -69,22 +93,51 @@ afterAll(async () => {
   // 首轮验收 D3 实测：本文件两条 runScriptedLoop 用例每跑泄 2 行 OperationLog（遥测）
   // + 1 行 Handoff（接力）到「租户已不存在」的孤儿状态；而原 afterAll 只断言
   // tenant 残留 0 —— 给出「已清干净」的假信心。故逐表按 tenantId 清 + 逐表断言。
-  await prisma.handoff.deleteMany({ where: { tenantId } });
-  await prisma.operationLog.deleteMany({ where: { tenantId } });
-  await prisma.pendingAction.deleteMany({ where: { tenantId } });
-  await prisma.project.deleteMany({ where: { tenantId } });
-  await prisma.tenant.deleteMany({ where: { id: tenantId } });
+  //
+  // 【M4.8 F001 扩】清理登记表纳入第二租户；并新增**按 projectId 的孤儿普查**：
+  // 跨租户用例会以「主租户 tenantId + 别家 projectId」落遥测行，那种行按 tenantId
+  // 清得掉，但一旦将来清理表漏一张，按 tenantId 的断言看不见它引用的别家项目。
+  // 清理段本身用 cleanupStep 包（自身绝不再抛，否则会掩盖首因并跳过后续清理）。
+  const tenantIds = [tenantId, otherTenantId].filter(Boolean);
+  const projectIds = [projectId, otherProject?.id].filter(Boolean) as string[];
+  await cleanupStep('handoff', () =>
+    prisma.handoff.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+  );
+  await cleanupStep('operationLog', () =>
+    prisma.operationLog.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+  );
+  await cleanupStep('pendingAction', () =>
+    prisma.pendingAction.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+  );
+  await cleanupStep('project', () =>
+    prisma.project.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+  );
+  await cleanupStep('tenant', () =>
+    prisma.tenant.deleteMany({ where: { id: { in: tenantIds } } }),
+  );
+
   const [logs, handoffs, pas, projects, tenants] = await Promise.all([
-    prisma.operationLog.count({ where: { tenantId } }),
-    prisma.handoff.count({ where: { tenantId } }),
-    prisma.pendingAction.count({ where: { tenantId } }),
-    prisma.project.count({ where: { tenantId } }),
-    prisma.tenant.count({ where: { slug: SLUG } }),
+    prisma.operationLog.count({ where: { tenantId: { in: tenantIds } } }),
+    prisma.handoff.count({ where: { tenantId: { in: tenantIds } } }),
+    prisma.pendingAction.count({ where: { tenantId: { in: tenantIds } } }),
+    prisma.project.count({ where: { tenantId: { in: tenantIds } } }),
+    prisma.tenant.count({ where: { slug: { in: [SLUG, OTHER_SLUG] } } }),
   ]);
   expect(
     { logs, handoffs, pas, projects, tenants },
     '夹具残留（含软引用表——只查 tenant 会漏掉孤儿行）',
   ).toEqual({ logs: 0, handoffs: 0, pas: 0, projects: 0, tenants: 0 });
+
+  // 净增 0 的第二口径：任何**引用夹具项目**的软引用行都不许留（哪怕它挂在别的 tenantId 上）
+  const [logsByProject, handoffsByProject, pasByProject] = await Promise.all([
+    prisma.operationLog.count({ where: { projectId: { in: projectIds } } }),
+    prisma.handoff.count({ where: { projectId: { in: projectIds } } }),
+    prisma.pendingAction.count({ where: { projectId: { in: projectIds } } }),
+  ]);
+  expect(
+    { logsByProject, handoffsByProject, pasByProject },
+    '按 projectId 的孤儿普查（跨租户用例会写「主租户 tenantId + 别家 projectId」的行）',
+  ).toEqual({ logsByProject: 0, handoffsByProject: 0, pasByProject: 0 });
 });
 
 describe('projectContextSection —— 段落内容', () => {
@@ -101,7 +154,7 @@ describe('projectContextSection —— 段落内容', () => {
   });
 
   it('含项目 id + 项目名 + 「不要向用户索要」指令', async () => {
-    const section = await projectContextSection(projectId);
+    const section = await projectContextSection(projectId, tenantId);
     expect(section).toContain(PROJECT_CONTEXT_HEADING);
     expect(section, '必须含真实 projectId（工具入参要用它）').toContain(
       projectId,
@@ -114,7 +167,7 @@ describe('projectContextSection —— 段落内容', () => {
 
   it('项目查不到时降级为「只写 id，不编造名字」且不抛', async () => {
     const ghost = 'proj-does-not-exist-m46';
-    const section = await projectContextSection(ghost);
+    const section = await projectContextSection(ghost, tenantId);
     // 段落照常注入——projectId 本身来自 ctx，不依赖 DB；查不到的只是名字。
     expect(section).toContain(ghost);
     expect(section).toContain(NO_ASK_PROJECT_CLAUSE);
@@ -135,7 +188,7 @@ describe('projectContextSection —— 段落内容', () => {
       vi.spyOn(prisma.project, 'findFirst').mockRejectedValue(
         new Error('m46 模拟 DB 故障'),
       );
-      const section = await projectContextSection(projectId);
+      const section = await projectContextSection(projectId, tenantId);
       expect(section, '降级不得退化成「什么都不说」——那等于缺陷复发').toContain(
         PROJECT_CONTEXT_HEADING,
       );
@@ -168,16 +221,114 @@ describe('projectContextSection —— 段落内容', () => {
   });
 
   it('三口径解析：id / publicId / slug 任一都能认到同一个项目', async () => {
-    const byId = await findProjectByRef(projectId);
+    const byId = await findProjectByRef(projectId, tenantId);
     expect(byId?.id).toBe(projectId);
     expect(byId?.name).toBe(PROJECT_NAME);
+  });
+});
+
+// ── M4.8-HARDEN F001：租户作用域收口 ────────────────────────────────────────
+// 【缺陷正身】`findProjectByRef` 原来**没有 tenantId 条件**，而 `copilot.projectId`
+// 是客户端可控的（route 直接取 body.context.projectId，不校验归属）——M4.6 验收实测
+// 可让 system 段吐出**另一个租户的项目名**。单租户 dev 下无实际影响，但这是「新代码
+// 一律走这里」的可复用口径，任何持有 ctx 的调用方复用即静默丢租户隔离。
+//
+// 【断言强度】负向只写「返回 null / 段落不含别家名」是不够的——ref 打错字也会得到
+// 同样的 null（假通过）。故每条负向都配一条**同 ref、别家租户下解析得到**的正向自证。
+describe('跨租户作用域（M4.8-HARDEN F001）', () => {
+  /** 三口径 ref 逐一试——收口漏一个口径（例如只给 id 加条件）也必须红。 */
+  function otherRefs(): Array<{ kind: string; ref: string }> {
+    return [
+      { kind: 'id', ref: otherProject.id },
+      { kind: 'publicId', ref: otherProject.publicId },
+      { kind: 'slug', ref: otherProject.slug as string },
+    ];
+  }
+
+  it('自证夹具：三个 ref 在**它自己的租户**下都解析得到（否则下面的 null 是假通过）', async () => {
+    for (const { kind, ref } of otherRefs()) {
+      const hit = await findProjectByRef(ref, otherTenantId);
+      expect(hit?.id, `${kind} 口径在自己租户下应解析得到`).toBe(
+        otherProject.id,
+      );
+      expect(hit?.name).toBe(OTHER_PROJECT_NAME);
+    }
+  });
+
+  it('以主租户 tenantId 解析别家项目的三个口径 → 均 null（视同不存在）', async () => {
+    for (const { kind, ref } of otherRefs()) {
+      expect(
+        await findProjectByRef(ref, tenantId),
+        `${kind} 口径跨租户可解析 = 租户隔离缺口`,
+      ).toBeNull();
+    }
+  });
+
+  it('段落降级为 id-only：跨租户项目名一个字都不许出现（整段正向精确匹配）', async () => {
+    for (const { kind, ref } of otherRefs()) {
+      const section = await projectContextSection(ref, tenantId);
+      expect(section, `${kind}：段落必须照常注入（不是整段消失）`).toContain(
+        PROJECT_CONTEXT_HEADING,
+      );
+      expect(section, `${kind}：ref 本身来自 ctx，照常给`).toContain(ref);
+      expect(
+        section,
+        `${kind}：别家租户的项目名进了 system 段 —— 缺陷正身`,
+      ).not.toContain(OTHER_PROJECT_NAME);
+      // 整段 toBe：任何形式的名字泄漏（含括注、占位、拼接）都会红
+      expectNoFabricatedName(section, ref);
+    }
+  });
+
+  it('真 loop 装配路径：模型实际收到的 system 里不含别家租户的项目名', async () => {
+    // 断言对象是 systemPerStep（模型那一步真正收到的正文）——不是我们以为拼进去的。
+    // ctx.tenantId = 主租户，copilot.projectId = 别家项目 id（正是客户端可伪造的形态）。
+    const run = await runScriptedLoop({
+      copilot: {
+        route: `/admin/campaigns/${otherProject.id}`,
+        projectId: otherProject.id,
+        env: 'default',
+        agentId: 'match',
+      },
+      ctx: {
+        tenantId,
+        agentId: 'match',
+        projectId: otherProject.id,
+        env: 'default',
+      },
+      prompt: '这个项目该推进什么？',
+      script: [{ text: '好的。' }],
+    });
+    expect(run.networkCalls, '零外呼').toEqual([]);
+    expect(run.systemPerStep.length).toBeGreaterThan(0);
+    expect(
+      run.systemPerStep[0],
+      '别家租户的项目名出现在模型收到的 system 里 —— 跨租户泄漏',
+    ).not.toContain(OTHER_PROJECT_NAME);
+    // 正面：段落本身仍在（防「整段没注入」造成的假通过）
+    expect(run.systemPerStep[0]).toContain(PROJECT_CONTEXT_HEADING);
+    expect(run.systemPerStep[0]).toContain(otherProject.id);
+  });
+
+  it('正向回归：同租户三口径照常返回名（收口不得把自家项目也挡掉）', async () => {
+    const self = await prisma.project.findUniqueOrThrow({
+      where: { id: projectId },
+      select: { id: true, publicId: true, slug: true },
+    });
+    for (const ref of [self.id, self.publicId, self.slug].filter(
+      Boolean,
+    ) as string[]) {
+      const hit = await findProjectByRef(ref, tenantId);
+      expect(hit?.id, `自家租户的 ${ref} 应照常解析`).toBe(projectId);
+      expect(hit?.name).toBe(PROJECT_NAME);
+    }
   });
 });
 
 describe('buildLoopSystem —— 装配层事实（缺陷正身）', () => {
   it('项目页：system 含当前 projectId 且含「不要索要」条款', async () => {
     const persona = getPersona('match');
-    const section = await projectContextSection(projectId);
+    const section = await projectContextSection(projectId, tenantId);
     const system = buildLoopSystem(persona, persona.tools, '', section);
     expect(
       system,
@@ -276,7 +427,7 @@ describe('buildLoopSystem —— 装配层事实（缺陷正身）', () => {
 
   it('装配顺序：项目上下文在人格 prompt 之后、工具清单之前', async () => {
     const persona = getPersona('match');
-    const section = await projectContextSection(projectId);
+    const section = await projectContextSection(projectId, tenantId);
     const system = buildLoopSystem(persona, persona.tools, '', section);
     const iPersona = system.indexOf(persona.duty);
     const iProject = system.indexOf(PROJECT_CONTEXT_HEADING);

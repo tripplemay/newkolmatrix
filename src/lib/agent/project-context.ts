@@ -25,15 +25,29 @@ export const PROJECT_CONTEXT_HEADING = '【当前上下文】';
 /**
  * 三口径解析（id / publicId / slug）—— 与知识段、match_plan、compute_health 同款口径。
  *
- * 抽成导出供后续复用：仓内目前另有三处内联同款 OR（`knowledge-context.ts:62`
- * `match-plan.ts:61` `compute-health.ts` D8 先例）。本批不改那三处（bug 修复批次
- * 范围克制），登记为 soft-watch；新代码一律走这里，不再各写一遍。
+ * 抽成导出供后续复用：新代码一律走这里，不再各写一遍。
+ *
+ * 【M4.8-HARDEN F001：tenantId 是必选参数，不是可选】此前本函数**无 tenantId 条件**，
+ * 而 `copilot.projectId` 是客户端可控的（route.ts 直接取 `body.context.projectId`
+ * 不校验归属）——M4.6 验收实测可让 system 段吐出**另一个租户的项目名**。单租户 dev
+ * 下没有实际影响，但它是「新代码一律走这里」的可复用口径，任何持有 ctx 的调用方复用
+ * 即静默丢掉租户隔离。
+ *
+ * 做成必选（无默认值）是刻意的：可选参数 = 留一道静默门——漏传的调用点照样编译通过，
+ * 于是缺陷以「某个新调用点忘了传」的形式复发。必选则由 tsc 保证全调用点显式传。
+ *
+ * 跨租户 ref 的行为 = **视同不存在**（返回 null），沿用下方降级纪律：段落只写 id，
+ * 名字不出现。不抛错、不打死会话。
  */
 export async function findProjectByRef(
   ref: string,
+  tenantId: string,
 ): Promise<{ id: string; name: string } | null> {
   return prisma.project.findFirst({
-    where: { OR: [{ id: ref }, { publicId: ref }, { slug: ref }] },
+    where: {
+      tenantId,
+      OR: [{ id: ref }, { publicId: ref }, { slug: ref }],
+    },
     select: { id: true, name: true },
   });
 }
@@ -42,16 +56,22 @@ export async function findProjectByRef(
  * 当前项目上下文段。`projectId` 为空时调用方不该调本函数（工作区层页面不注水，
  * 与知识段同款空值纪律）。
  *
- * 降级：取名失败（DB 故障 / 项目不存在）→ **只写 id，不编造名字**，段落照常注入。
- * 项目标识本身来自 ctx，不依赖 DB；只有「名字」需要查库。所以取名失败不该让模型
- * 退回到「反问用户」的老路，更不该把整个会话打死（同知识段 D2 纪律：增强性注入
- * 不得打死主链路）。
+ * 降级：取名失败（DB 故障 / 项目不存在 / **跨租户 ref**）→ **只写 id，不编造名字**，
+ * 段落照常注入。项目标识本身来自 ctx，不依赖 DB；只有「名字」需要查库。所以取名失败
+ * 不该让模型退回到「反问用户」的老路，更不该把整个会话打死（同知识段 D2 纪律：
+ * 增强性注入不得打死主链路）。
+ *
+ * `tenantId` 必选（M4.8-HARDEN F001）：跨租户的 projectId 走「查不到」这条既有降级路径，
+ * 于是别的租户的项目**名字**永远不会进 system 段。
  */
-export async function projectContextSection(projectId: string): Promise<string> {
+export async function projectContextSection(
+  projectId: string,
+  tenantId: string,
+): Promise<string> {
   let name: string | null = null;
   let resolvedId = projectId;
   try {
-    const project = await findProjectByRef(projectId);
+    const project = await findProjectByRef(projectId, tenantId);
     if (project) {
       resolvedId = project.id;
       name = project.name;

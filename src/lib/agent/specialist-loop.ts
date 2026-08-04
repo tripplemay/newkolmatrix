@@ -144,7 +144,10 @@ export async function runSpecialistLoop(
 
   const projectSection =
     params.projectSection ??
-    (subCtx.projectId ? await projectContextSection(subCtx.projectId) : '');
+    (subCtx.projectId
+      ? // M4.8 F001：子 loop 同样按租户作用域解析（subCtx 由 ...ctx 展开，tenantId 在）。
+        await projectContextSection(subCtx.projectId, subCtx.tenantId)
+      : '');
   const knowledgeSection = subCtx.projectId
     ? await gameKnowledgeSection(subCtx.projectId, target.knowledgeKinds)
     : '';

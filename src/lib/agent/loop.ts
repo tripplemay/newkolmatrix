@@ -234,8 +234,12 @@ export async function runAgentLoop(
 
   // M4.6 F001：当前项目上下文（ctx 已有，此前从未进入 system 段 → 模型只能反问用户要）。
   // 查一次复用给接力后的目标人格——项目身份与人格无关，不必每次切换重查。
+  // M4.8 F001：projectId 是**客户端可控**的（route 直接取 body.context.projectId），
+  // 故解析必须带 ctx.tenantId——跨租户 ref 视同不存在（段落降级为 id-only）。
   const projectSection =
-    (copilot.projectId ? await projectContextSection(copilot.projectId) : '') +
+    (copilot.projectId
+      ? await projectContextSection(copilot.projectId, ctx.tenantId)
+      : '') +
     // M4.7 F003：环节线索拼在项目上下文之后（同一段位置，同一条空值纪律）。
     // 明写"不限制你能做什么"——否则模型很可能又把位置读成权限边界。
     stageHintSection(copilot.stage);

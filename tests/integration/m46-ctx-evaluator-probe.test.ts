@@ -257,7 +257,8 @@ describe('[Evaluator] F001 — 取名失败降级：DB 故障半边（作者用�
 
   it('DB 故障时段落照常注入（只写 id、不编造名字、不抛）', async () => {
     boom();
-    const section = await projectContextSection(projectId);
+    // M4.8-HARDEN F001：签名收口为 (projectId, tenantId)，此处只补参数，探针语义不变。
+    const section = await projectContextSection(projectId, tenantId);
     expect(section, '段落被整段丢弃 = 降级退化成「什么都不说」，缺陷复发').toContain(
       PROJECT_CONTEXT_HEADING,
     );

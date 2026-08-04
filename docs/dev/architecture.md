@@ -675,13 +675,16 @@ PostgreSQL **16** + pgvector（dev：`docker-compose.dev.yml`，宿主端口 543
 > 10、8 模型 vs 实物 17、2 迁移 vs 实物 7——快照形态只记结构性事实，字段级语义看实物注释）。
 > 任何其他章节的字段描述与实物冲突时，以实物为准并即刻修订本文（R13）。
 >
-> 迁移（`prisma/migrations/`，10 条）：`20260718000000_init`（建表 + pgvector 扩展）·
+> 迁移（`prisma/migrations/`，11 条）：`20260718000000_init`（建表 + pgvector 扩展）·
 > `20260720000000_pendingaction_input` · `20260721184633_m1a_project_domain_fields_and_oplog_project_payload` ·
 > `20260722082147_pending_action_project_agent` · `20260722120709_m1d_material_gameknowledge` ·
 > `20260722161835_m2a_match_three_tables` · `20260723115700_m3a_reach_four_tables_gate7_contact_email` ·
 > `20260723235106_m3b_delivery_four_tables`（M3-B F001，expand-only：四表 + 五枚举，既有表零改动）·
 > `20260724183013_m4_insight_three_tables`（M4 F001，expand-only：三表 + 一枚举，既有表零改动；含单向回滚说明）·
-> `20260804070538_m5_user_password_hash`（M5 F001，expand-only：`User.passwordHash` 单列 nullable，既有行零改动）。
+> `20260804070538_m5_user_password_hash`（M5 F001，expand-only：`User.passwordHash` 单列 nullable，既有行零改动）·
+> `20260804180000_m5_rls_tenant_isolation`（M5 F008，expand-only：23 张带 tenantId 的表 + `Tenant` 各
+> `ENABLE ROW LEVEL SECURITY` + `tenant_isolation` policy（USING/WITH CHECK 双侧认 `current_setting('app.tenant_id', true)`），
+> 零表结构改动、零数据改动；不加 FORCE，故表 owner / SUPERUSER 连接行为完全不变）。
 
 **枚举（17 个，与实物逐字一致）**
 

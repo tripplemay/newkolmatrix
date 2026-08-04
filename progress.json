@@ -1,12 +1,12 @@
 {
-  "status": "verifying",
+  "status": "done",
   "user_goal": "M4.8-HARDEN:租户作用域收口(findProjectByRef / knowledge-context 补 tenantId + 全仓三口径普查钉,M5 硬前提)+ 主 loop 超时可观测(用户面告知 + OperationLog 留痕 + 面板流级 error/abort 渲染)+ budgetHitScope 区分前台/专家撞顶。红线不变:遥测只记元数据 / 行动承诺诚实(超时如实说) / 测试零外呼零真实副作用。",
   "total_features": 7,
   "completed_features": 7,
   "fix_rounds": 0,
   "current_sprint": "M4.8-HARDEN",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-04T04:40",
+  "last_updated": "2026-08-04T05:30",
   "reference_docs": [
     "docs/specs/M4.8-HARDEN-spec.md",
     "docs/dev/agent-architecture.md",
@@ -21,44 +21,50 @@
   "role_assignments": null,
   "mode_intent": null,
   "evaluator_feedback": {
-    "summary": "M4.8-HARDEN 首轮验收 7/7 PASS（被测 SHA c9236af）：租户三口径收口在行为级与 census 两层同时钉住（我的两条「第二条绕过」变异使双层同红）、超时可观测三件套判据严（判据放宽/隐私夹带变异当场被抓）、budgetHitScope 四象限双向钉、文档新鲜度在源码侧与文档侧漂移各自翻红。无阻断缺陷；6 条非阻断观察 + 5 条 soft-watch 见报告。",
-    "evaluated_sha": "c9236af1cc65cc64a0e7ecd50f15c86def0428d9",
-    "round": "verifying",
+    "round": 1,
+    "date": "2026-08-04",
+    "tested_sha": "c9236af",
+    "executor": "Andy/evaluator-subagent（隔离上下文 · 首轮）",
+    "authorization": "L1 only（L2 未授权、零执行零外呼）",
+    "report": "docs/test-reports/M4.8-HARDEN-signoff.md",
+    "summary": "7/7 PASS，无阻断项。每条判定基于 evaluator 自跑命令/自读 diff/自建变异（22 条实跑，含对每条 acceptance 的「第二条绕过」加测）。两条 backlog 在行为层兑现，钉子结构满足仓内纪律（正向精确匹配/两层不重叠/双向钉/核到 CI 层/登记表外再压普查）。发现 F004 第四条误报路径原无钉，evaluator 已补钉并双向证活（I-4 闭合）。6 条非阻断观察 + 5 条 soft-watch 登记，其中 I-1（2 行建造期孤儿留痕，HEAD 不复现）与 I-6（backlog 记账时序）建议本批内闭合。",
     "pass_count": 7,
     "partial_count": 0,
     "fail_count": 0,
-    "l1_status": {
-      "tsc": "0 error",
-      "lint": "No ESLint warnings or errors",
-      "vitest": "123 files / 1469 tests passed（HEAD 净树）；加 evaluator 新增探针后 124/1470",
-      "agentloop_e2e": "PASS（零外呼·零真实副作用）",
-      "frontdesk_e2e": "PASS（两层清态断言绿）",
-      "playwright": "19 passed / 2 failed —— 两条 failed = M4.7 已登记的同两条本机项（today 基线数据态耦合 / workbench env=match），无新增视觉回归"
-    },
-    "mutations_run": 22,
     "issues": [],
-    "non_blocking_observations": [
-      "I-1 dev 库净增 2 行建造期孤儿 OperationLog（2026-08-04T04:04，payload v1）；HEAD 代码不复现（我 04:37 之后多轮跑测零新增）",
-      "I-2 铁律13：commit 7877b85 正文『124 files / 1469 passed』与净树实测 123 files 差一（tests 数一致）",
-      "I-3 census 四种写法可绕过：findMany / findFirstOrThrow / where 提常量 / 点号后空格",
-      "I-4 F004 第四条误报路径（模型抛错收场的 settle 兜底）原无钉，摘掉后 8/8 全绿 —— 已由 evaluator 补钉 tests/integration/m48-eval-probe.test.ts（HEAD 绿 / 变异体红）",
-      "I-5 摘 onLoopTimeout 的 try/catch 时断言不红，靠 vitest unhandled-error 使 exit=1 拦住",
-      "I-6 backlog 两子项销账文本写于立项 commit 51599ff（落笔早于实物），本批 feature commit 未触及 backlog.json"
+    "verdicts": {
+      "F001": "PASS — tenantId 必选+同层 where；跨租户三口径负向含自证夹具与真 loop systemPerStep；E1/E2 双层红；S-RV3-3 同步点自带活钉（E16 证活）",
+      "F002": "PASS — 签名收口，跨租户返 '' 不抛；自证夹具排除假通过；E3 双层红",
+      "F003": "PASS — 独立扫描不从修复点派生（塞入全新违规点当场点名）；豁免空且硬编码；终态经独立 grep 复核 9 处全带 tenantId；4 种写法绕过面登记 S-M48-2",
+      "F004": "PASS — 两路同一条监听、三条负向各带前提活性断言；E5（判据放宽）/E6（隐私夹带）当场抓住；第四条误报路径 evaluator 补钉双向证活",
+      "F005": "PASS — evaluator 自跑 4 passed 两视口；CI 命令链实读核证；样本缺席实测红非 skip；「文案数据驱动」探针证明面板未硬编码",
+      "F006": "PASS — 四象限+反方向+落库层再钉；E8/E9 各 2 红；v bump 依据经复核消费端成立",
+      "F007": "PASS — 文档逐句对实物核证一致；源码侧（E10）与文档侧（E11/E12/E13）漂移四条变异全红；批末复核判据重跑且先验活；S-M48-5 非阻断"
+    },
+    "l1_status": "tsc 0 error · next lint 无告警 · vitest 全量 123 files/1469（净树）+ evaluator 补钉后 124/1470 · agentloop:e2e 绿 · frontdesk:e2e 绿（两层清态含整表普查）· playwright 19 passed/2 failed（两条均为已登记本机项，身份与 M4.7 完全一致，+4 为新增 rv-timeout-notice）· test:visual:fixtures 2 files/4 tests · build 成功",
+    "mutations_run": 22,
+    "observations": [
+      "I-1：dev 库 2 行建造期孤儿 OperationLog（2026-08-04T04:04，waitForLogSettle 落地前留下，HEAD 不复现）→ 待清理",
+      "I-2：7877b85 正文 vitest files 计数 124 vs 实测 123（tests 数一致）→ 铁律 13 备查（S-M48-3）",
+      "I-3：census 四种写法绕过面 → S-M48-2",
+      "I-4：F004 第四条误报路径原无钉 → evaluator 已补钉闭合",
+      "I-5：回调抛错用例靠 vitest unhandled-error exit 1 拦，未落断言 → S-M48-4",
+      "I-6：backlog 销账文本写于立项 commit（落笔早于实物）→ done 收尾改写完成态（S-M48-5）"
     ],
-    "soft_watch": [
-      "S-M48-1 孤儿留痕清理",
-      "S-M48-2 census 绕过面拓宽",
-      "S-M48-3 计数类交付叙述需机械依据",
-      "S-M48-4 回调抛错钉未落在断言上",
-      "S-M48-5 backlog 销账时序"
+    "new_soft_watch": [
+      "S-M48-1：dev 库 2 行建造期孤儿留痕，立即或下次视觉基线重生前清（与 BL-VISUAL-DATA-ISOLATION 重生序同族）",
+      "S-M48-2：census 只认 .project.findFirst——findMany/findFirstOrThrow 一行正则可拓宽，where 提常量/点号空格属源码级固有边界 → 归 BL-E2E-CLEANUP-PIN；M5 RLS 落地后降二线",
+      "S-M48-3：交付叙述计数类陈述同样需机械依据（本批 files 数差一实例）",
+      "S-M48-4：回调抛错类用例的失败信号未落断言（现状 exit 1 可拦）→ 下一个动 loop-timeout-notice.test.ts 的批次顺手",
+      "S-M48-5：backlog 销账落笔早于实物 → 本批 done 收尾闭合"
     ],
-    "side_effects": "产品代码零改动（变异逐条还原并 git diff --quiet 核证）；evaluator 新增 4 个产物文件；自建测试数据零 DB 写入；孤儿行净增 0（我的活动）；零外呼、零 L2",
-    "report": "docs/test-reports/M4.8-HARDEN-signoff.md"
+    "l2_gaps": "LOOP_TIMEOUT_MS 真网关可达性（M4.7 L2-6 承接）· 成本常量校准（BL-AGENT-COST-CALIBRATE，S-RV3-1 先补钉再改值硬前置）· 超时告知真慢响应端到端 · M4.6/M4.7/M4.8 生产部署与真网关复测。均未授权零执行",
+    "side_effects": "产品代码零改动（变异全部还原并 git diff --quiet 核证）；新增 4 个 evaluator 产物（2 测试钉/探针 + 2 只读取证脚本）；验收活动 DB 净增 0 孤儿；dev opLog 115→118（+3 为两套 e2e 的 append-only 标记行，S-M45-1 留不删）；零外呼"
   },
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M4.8-HARDEN planning · 2026-08-03/04 · 快车道】done 收尾:纪律 5 经用户裁决入铁律 13(v1.6.5,41e2c26,generator.md 各副本同步);resolver 在 registry-less 项目硬退的问题排入 proposed-learnings(db8712d)。规划要点:① backlog 两条 high 同批(租户收口 + 超时可观测),spec 起草前逐条实物核证——backlog 登记有漂移(set-goal 等实为多行 OR 已带 tenantId,真缺口只有 project-context.ts:36 / knowledge-context.ts:64 两处),以 spec D-3 表为准;② BL-E2E-CLEANUP-PIN 的 S-RV3-4(F007)与 S-RV3-3 之 project-context-route 部分(F001)触发条件命中,按 2026-08-02 用户裁决携带进本批;③ 跨租户负向测试需自建第二租户,清理登记表 + 净增 0 纪律照 M4.7 口径;④ F004 判超时须按 signal.reason 区分 TimeoutError 与用户中断,R-1 误报教训在案。spec lock = 用户 2026-08-04 实答批准。",
-    "Reviewer": null,
+    "Andy": "【M4.8-HARDEN 全批次 · 2026-08-03/04 · 快车道】planning→building→verifying→done 单会话走完，fix_rounds=0（首轮 7/7 PASS 签收）。■ 编排形态：building 两域串行派发 generator-restricted subagent（租户域/超时域，loop.ts 调用点交叠故不并行），F007 由主上下文亲执；verifying 收敛为单 evaluator subagent（spec D-7 原写 fan-out，census/清态断言对共享 dev 库并发敏感，编排调整已向用户明示）。■ 我踩的坑（已入 project-status 技术坑）：F007 变异还原用 git checkout 把未提交的文档编辑一并抹掉，重做后改 cp 备份还原。■ evaluator 中途撞 API 证书瞬断一次，SendMessage 续跑无损。■ done 收尾已做：evaluator_feedback 原样转录、S-M48-5 销账改完成态（backlog 引用实现 commit）、S-M48-1/2/4 归属登记、project-status 覆盖写。■ 留给人类：I-1 两行建造期孤儿 opLog 的 delete（我未做——DB ops 需授权）、M4.6/4.7/4.8 三批未部署、proposed-learnings 1 条待确认（resolver registry-less 硬退）。■ 下批候选：M5 / M3-C / BL-COST-CAP。",
+    "Reviewer": "【M4.8-HARDEN 首轮验收 · 2026-08-04 · Andy/evaluator-subagent 隔离上下文】完整叙述见 signoff §0-§10。要点：22 条自建变异/探针全实跑；每条 acceptance 都自问第二条绕过（tenantId 挪进 OR 分支 / 善意回落 / 判据放宽一格 / 隐私夹带）；发现 F004 第四条误报路径（模型抛错收场）无钉并已补钉双向证活；census 四种写法绕过面、交付叙述 files 计数差一、回调抛错失败信号未落断言等 6 条观察全部非阻断登记。副作用：产品代码零改动（git diff --quiet 逐条核证）、验收净增 0 孤儿、+3 行 e2e append-only 标记（S-M45-1 留不删）。",
     "Mark": null
   },
   "lane": "fast"

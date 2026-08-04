@@ -27,7 +27,7 @@ import ProjectAvatar from 'components/project/ProjectAvatar';
 import { ENV_META } from 'components/project/env-meta';
 import { stageHref } from 'lib/agent/stage-routing';
 import { prisma } from 'lib/db/prisma';
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { computeHealth, type HealthBand } from 'lib/domain/health';
 import { parseProjectGoal } from 'lib/data/schemas/project';
 import { formatBudget, formatGoalText } from 'lib/display/project-format';
@@ -54,7 +54,7 @@ function Pill({
 }
 
 export default async function CampaignsPage() {
-  const tenantId = await getDevTenantId();
+  const tenantId = await requireSessionTenantId();
   const rows = await prisma.project.findMany({
     where: { tenantId },
     include: { game: true },

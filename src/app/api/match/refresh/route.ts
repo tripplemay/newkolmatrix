@@ -7,7 +7,7 @@
 // 静默降级刻意不同——主动触发者需要知道失败）。
 
 import { prisma } from 'lib/db/prisma';
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { generateCandidates } from 'lib/match/generate-candidates';
 import { buildMatchPlans } from 'lib/match/build-plans';
 
@@ -21,7 +21,7 @@ export async function POST(req: Request): Promise<Response> {
       return Response.json({ error: '缺少 projectId 参数' }, { status: 400 });
     }
 
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
     const project = await prisma.project.findFirst({
       where: { tenantId, OR: [{ slug: projectId }, { id: projectId }, { publicId: projectId }] },
       select: { id: true },

@@ -137,8 +137,12 @@ export async function loginE2ESession(
 /**
  * 会话租户 == 执行上下文租户。
  *
- * 现状（F004 未落地）下 buildToolContext 仍解析 dev tenant，本断言恒真；F004 把
- * ToolContext 接到会话之后，它就变成真闸——两边一旦漂移，e2e 当场红而不是默默跨租户跑。
+ * F004 落地后的**准确语义**：进程内 e2e 没有 HTTP 会话，ctx 走的是显式路径
+ * `systemContext(DEV_TENANT_SLUG)`（脚本自己指名夹具租户）。故本断言比对的是
+ * **两个独立来源**——「登录测试用户解析出的租户」与「夹具显式指名的 dev 租户」；
+ * 两者漂移（如 seed 用户被建到别的租户）时当场红，而不是让 e2e 拿着 A 的会话去验 B 的数据。
+ * 它**不**证明「HTTP 面的 ctx 来自会话」——那条归 route 层，由 middleware（F003）与
+ * tests/unit/session-tenant-context.test.ts（F004 负向断言）分别守。
  */
 export function assertSessionTenant(
   session: E2ESession,

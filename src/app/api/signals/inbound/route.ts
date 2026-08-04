@@ -8,7 +8,7 @@
 // 运行时 = nodejs（Prisma + svix crypto）。
 
 import { Webhook, type WebhookRequiredHeaders } from 'svix';
-import { getDevTenantId } from 'lib/agent/context';
+import { DEV_TENANT_SLUG, systemTenantId } from 'lib/agent/context';
 import {
   checkRateLimit,
   clientIpOf,
@@ -109,7 +109,11 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   try {
-    const tenantId = await getDevTenantId();
+    // M5-AUTH-RLS F004（spec D-3 无会话面）：webhook 自鉴权（svix 签名）、无浏览器会话，
+    // 故走**显式**系统租户路径而不是会话。**已知限制**：回传源当前只对应 dev 租户——
+    // 真 partner / 真回传源的多租户路由属 M5 伞下另批（spec §3 明列不做）。
+    // 显式写出来是刻意的：读这一行就知道信号落到哪个租户，而不是藏在一个函数名里。
+    const tenantId = await systemTenantId(DEV_TENANT_SLUG);
     const result = await ingestDeliverySignal(normalized.signal, { tenantId });
     return Response.json({ ok: true, ...result });
   } catch (err) {

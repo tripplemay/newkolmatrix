@@ -18,7 +18,10 @@ import {
 } from '../../src/lib/agent/gate/gate';
 import { isPendingEnvelope } from '../../src/lib/agent/gate/harm';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
-import { buildToolContext } from '../../src/lib/agent/context';
+import {
+  DEV_TENANT_SLUG,
+  systemContext,
+} from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
 import { DISTRIBUTED_MARKER, RELEASED_MARKER } from '../../src/lib/ops/partner';
 import { loadDeliveryCheck } from '../../src/lib/delivery/check';
@@ -40,7 +43,7 @@ async function main(): Promise<void> {
     '[delivery-e2e] 交付闭环开始（资金/分发模式：mock 恒定——本批零真实资金动作，无 REAL 分支）',
   );
   getNativeToolNames();
-  const ctx = await buildToolContext({ agentId: 'delivery' });
+  const ctx = await systemContext(DEV_TENANT_SLUG, { agentId: 'delivery' });
   const reachCtx = { ...ctx, agentId: 'reach' as const };
 
   // ── 夹具：合成 KOL + 项目（P1：不触碰任何真实 KOL 行；m3b-* 前缀，spec §7 白名单）──

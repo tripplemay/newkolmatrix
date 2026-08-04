@@ -22,7 +22,10 @@ import {
 } from '../../src/lib/agent/gate/gate';
 import { isPendingEnvelope } from '../../src/lib/agent/gate/harm';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
-import { buildToolContext } from '../../src/lib/agent/context';
+import {
+  DEV_TENANT_SLUG,
+  systemContext,
+} from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
 import { SHARE_CREATED_MARKER } from '../../src/lib/ops/share';
 import { loadProjectSpend } from '../../src/lib/insight/metric-snapshot';
@@ -51,7 +54,7 @@ async function main(): Promise<void> {
     }）`,
   );
   getNativeToolNames();
-  const ctx = await buildToolContext({ agentId: 'insight' });
+  const ctx = await systemContext(DEV_TENANT_SLUG, { agentId: 'insight' });
 
   // ── 夹具：合成项目 + KOL + released Payout（spend 真源；m4-* 前缀不触碰真实行）──
   const fxKol = await prisma.kol.create({

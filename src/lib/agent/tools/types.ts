@@ -22,6 +22,11 @@ export type ToolSource = 'native' | 'mcp';
  */
 export interface ToolContext {
   tenantId: string;
+  /**
+   * 操作者标识（M5-AUTH-RLS F004 / spec D-3）：会话面 = 登录邮箱，无会话面 = system:<slug>。
+   * **只用于留痕**（OperationLog.actor），不参与任何权限判定——认证 ≠ 授权（D26 延续无 RBAC）。
+   */
+  actor?: string;
   /** 当前人格身份（F006 persona router 注入；架构稿 §5.2 ToolContext.agentId）。 */
   agentId: AgentId;
   /** 当前项目（单角色单租户下可空；架构稿 §4.3）。 */

@@ -3,14 +3,14 @@
 // 读 F002 Handoff 表（F006 编排框架落盘的真实交接）。运行时 = nodejs（Prisma）。
 
 import { prisma } from 'lib/db/prisma';
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { describeGatewayError } from 'lib/ai/gateway';
 
 export const runtime = 'nodejs';
 
 export async function GET(): Promise<Response> {
   try {
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
     const rows = await prisma.handoff.findMany({
       where: { tenantId },
       orderBy: { createdAt: 'desc' },

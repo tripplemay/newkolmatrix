@@ -9,7 +9,6 @@
 // 失败静默降级空态（CI 无库安全，delivery/reach/match 先例同款）。
 
 import { prisma } from 'lib/db/prisma';
-import { getDevTenantId } from 'lib/agent/context';
 import { parseProjectGoal } from 'lib/data/schemas/project';
 import { loadProjectSpend } from 'lib/insight/metric-snapshot';
 import { computeRoi, compareGoal } from 'lib/domain/roi-compute';
@@ -138,12 +137,19 @@ export async function assembleInsightSurface(
   }
 }
 
-/** RSC 入口：dev tenant 解析 + 失败静默降级空态（CI 无库安全，delivery/reach/match 先例同款）。 */
+/**
+ * RSC 入口：失败静默降级空态（CI 无库安全，delivery/reach/match 先例同款）。
+ *
+ * M5-AUTH-RLS F004（spec D-3）：租户**由调用方显式传入**，不在这里解析。
+ * 理由是本函数吞异常降级空态——把会话解析放进 try 里，未登录会渲染成「空白页面」
+ * 而不是报错，正是 D-3 要杜绝的静默失败（区别只在于它静默成空而不是静默跨租户）。
+ */
 export async function loadInsightSurfaceData(
   projectId: string,
+  opts: { tenantId: string },
 ): Promise<InsightSurfaceData> {
+  const { tenantId } = opts;
   try {
-    const tenantId = await getDevTenantId();
     return await assembleInsightSurface(projectId, tenantId);
   } catch (err) {
     console.error('[insight/surface] 组装失败，降级空态:', err);

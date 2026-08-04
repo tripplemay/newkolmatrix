@@ -25,6 +25,19 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { LanguageModel } from 'ai';
 
+// M5-AUTH-RLS F004：GET /api/actions 的租户改从登录会话解析（buildToolContext）。
+// 本探针直调 route handler，进程里没有 Next 请求作用域 → 显式注入会话身份。
+// 语义映射保持不变：**有 dev 种子 = 有会话（200）；无 dev 种子 = 无会话（失败关闭）**，
+// 下方两条 route 层用例的 hasDevTenant 分支因此原样成立（且额外覆盖了未登录不吐细节）。
+const sessionSeam = vi.hoisted(() => ({ tenantId: '', actor: 'g5-probe@test.local' }));
+vi.mock('lib/auth/session-tenant', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../src/lib/auth/session-tenant')
+  >();
+  const { makeSessionTenantMock } = await import('../support/session-mock');
+  return makeSessionTenantMock(actual, sessionSeam);
+});
+
 // route.ts 用裸导入 'lib/agent/loop'（baseUrl=src）；mock 必须命中同一解析结果。
 vi.mock('lib/agent/loop', async (importOriginal) => {
   const actual = await importOriginal<typeof import('lib/agent/loop')>();
@@ -94,8 +107,10 @@ beforeAll(async () => {
   ctx = { tenantId, agentId: 'orchestrator', projectId, env: 'default' };
   injected.ctx = ctx;
   // 不用 getDevTenantId()——它在缺租户时**抛错**；这里只是探测，不该炸。
-  hasDevTenant =
-    (await prisma.tenant.findUnique({ where: { slug: 'dev' } })) !== null;
+  const devTenant = await prisma.tenant.findUnique({ where: { slug: 'dev' } });
+  hasDevTenant = devTenant !== null;
+  // 会话租户 = dev 租户（route 读的就是它）；无 dev 种子时留空串 = 未登录
+  sessionSeam.tenantId = devTenant?.id ?? '';
 });
 
 afterAll(async () => {

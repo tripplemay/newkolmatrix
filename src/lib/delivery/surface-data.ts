@@ -5,7 +5,6 @@
 // 失败静默降级空表（CI 无库安全，reach/match 先例同款）。
 
 import { prisma } from 'lib/db/prisma';
-import { getDevTenantId } from 'lib/agent/context';
 import { describeGaps, loadProjectDeliveryChecks } from 'lib/delivery/check';
 import {
   EMPTY_DELIVERY_SURFACE,
@@ -28,11 +27,13 @@ function noteOf(
   return gapSummary || null;
 }
 
+/** M5-AUTH-RLS F004：租户由 RSC 调用方显式传入（同 loadInsightSurfaceData 的理由）。 */
 export async function loadDeliverySurfaceData(
   projectId: string,
+  opts: { tenantId: string },
 ): Promise<DeliverySurfaceData> {
+  const { tenantId } = opts;
   try {
-    const tenantId = await getDevTenantId();
     const checks = await loadProjectDeliveryChecks(projectId, { tenantId });
     if (checks.length === 0) return EMPTY_DELIVERY_SURFACE;
 

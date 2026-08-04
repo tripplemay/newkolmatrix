@@ -3,14 +3,14 @@
 // 薄封装 lib/projects/create.ts——与 create_project 工具共用同一服务（单一真相源）。
 // internal 动作（D27 无确认框）；留痕由服务层事务承担。运行时 = nodejs（Prisma）。
 
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { createProject, createProjectInputSchema } from 'lib/projects/create';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request): Promise<Response> {
   try {
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
     const parsed = createProjectInputSchema.safeParse(
       await req.json().catch((): null => null),
     );

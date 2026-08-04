@@ -6,7 +6,7 @@
 // 运行时 = nodejs（Prisma + 磁盘 + 网关调用）。
 
 import { prisma } from 'lib/db/prisma';
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { parseMaterial } from 'lib/knowledge/parse';
 import { toMaterialDto } from 'lib/knowledge/dto';
 
@@ -19,7 +19,7 @@ export async function POST(
 ): Promise<Response> {
   try {
     const { id } = await params;
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
 
     // 素材必须存在且属当前租户（不信任路径参数）
     const material = await prisma.material.findFirst({

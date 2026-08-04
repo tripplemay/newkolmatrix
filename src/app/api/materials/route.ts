@@ -9,7 +9,7 @@
 // 运行时 = nodejs（Prisma + 磁盘 IO）。
 
 import { prisma } from 'lib/db/prisma';
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { materialTypeSchema } from 'lib/data/schemas/knowledge';
 import { rateLimitUpload } from 'lib/knowledge/rate-limit';
 import { saveMaterialFile, removeMaterialFile } from 'lib/knowledge/storage';
@@ -23,7 +23,7 @@ export const runtime = 'nodejs';
 
 export async function POST(req: Request): Promise<Response> {
   try {
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
 
     // P8：tenantId 维度 10 req/min，fail-open + DISABLE_UPLOAD_RATELIMIT escape
     const limit = rateLimitUpload(tenantId);
@@ -107,7 +107,7 @@ export async function POST(req: Request): Promise<Response> {
 
 export async function GET(req: Request): Promise<Response> {
   try {
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
     const gameId = new URL(req.url).searchParams.get('gameId');
     if (!gameId) {
       return Response.json({ error: '缺少 gameId 查询参数' }, { status: 400 });

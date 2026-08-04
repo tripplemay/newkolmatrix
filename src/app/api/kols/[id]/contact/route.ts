@@ -8,7 +8,7 @@
 // ⚠️ P1：真实 KOL 行不得写入测试地址（验收仅夹具行 / VK-FULL 白名单行）。
 
 import { z } from 'zod';
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import {
   normalizeContactEmailInput,
   setKolContactEmail,
@@ -43,7 +43,7 @@ export async function PATCH(
       return Response.json({ error: normalized.error }, { status: 400 });
     }
 
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
     const result = await setKolContactEmail(tenantId, id, normalized.value);
     if (result.ok === false) {
       return Response.json({ error: '创作者不存在' }, { status: 404 });

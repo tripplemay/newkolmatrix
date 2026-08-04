@@ -16,7 +16,10 @@
 // 运行：npm run frontdesk:e2e   退出码：0=全绿 / 1=任一失败。
 
 import { prisma } from '../../src/lib/db/prisma';
-import { buildToolContext } from '../../src/lib/agent/context';
+import {
+  DEV_TENANT_SLUG,
+  systemContext,
+} from '../../src/lib/agent/context';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
 import {
   FRONT_DESK_AGENT_ID,
@@ -91,7 +94,7 @@ async function main(): Promise<void> {
     `[frontdesk-e2e] 登录态就绪：${session.email}（tenant=${session.tenantId}）`,
   );
 
-  const base = await buildToolContext({ agentId: FRONT_DESK_AGENT_ID });
+  const base = await systemContext(DEV_TENANT_SLUG, { agentId: FRONT_DESK_AGENT_ID });
   assertSessionTenant(session, base.tenantId);
   const tenantId = base.tenantId;
 

@@ -13,7 +13,10 @@
 //
 // 运行：npm run agentloop:e2e   退出码：0=全绿 / 1=任一失败。
 
-import { buildToolContext } from '../../src/lib/agent/context';
+import {
+  DEV_TENANT_SLUG,
+  systemContext,
+} from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
 import { getPersona } from '../../src/lib/agent/registry';
@@ -98,7 +101,7 @@ async function main(): Promise<void> {
     `[agentloop-e2e] 登录态就绪：${session.email}（tenant=${session.tenantId}）`,
   );
 
-  const ctx = await buildToolContext({ agentId: 'orchestrator' });
+  const ctx = await systemContext(DEV_TENANT_SLUG, { agentId: 'orchestrator' });
   assertSessionTenant(session, ctx.tenantId);
   const tenantId = ctx.tenantId;
 

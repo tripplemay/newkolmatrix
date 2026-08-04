@@ -5,7 +5,7 @@
 // commit_quote 闸门）。internal 动作（人工标记可被后续事实覆盖修正，无确认框——D27 边界）。
 // 运行时 = nodejs（Prisma）。
 
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import {
   applyManualOverride,
   manualOverrideInputSchema,
@@ -24,7 +24,7 @@ export async function POST(req: Request): Promise<Response> {
         { status: 400 },
       );
     }
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
     const result = await applyManualOverride(parsed.data, {
       tenantId,
       actor: 'operator', // UI 入口 = 人直接操作

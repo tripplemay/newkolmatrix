@@ -5,7 +5,7 @@
 // 运行时 = nodejs（Prisma）。
 
 import { z } from 'zod';
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { adoptWeeklyReport } from 'lib/insight/weekly-report';
 import { insightRateLimitGuard } from 'lib/insight/http';
 
@@ -28,7 +28,7 @@ export async function POST(req: Request): Promise<Response> {
         { status: 400 },
       );
     }
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
     const r = await adoptWeeklyReport(parsed.data.reportId, { tenantId });
     return Response.json({
       reportId: r.reportId,

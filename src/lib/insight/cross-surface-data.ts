@@ -8,7 +8,6 @@
 // 失败静默降级空态（CI 无库安全）。
 
 import { prisma } from 'lib/db/prisma';
-import { getDevTenantId } from 'lib/agent/context';
 import { loadTenantProjectSpends } from 'lib/insight/metric-snapshot';
 import { computeRoi } from 'lib/domain/roi-compute';
 import {
@@ -112,10 +111,15 @@ export async function assembleCrossInsight(
   };
 }
 
-/** RSC 入口：dev tenant 解析 + 失败静默降级空态（CI 无库安全）。 */
-export async function loadCrossInsightData(): Promise<CrossInsightData> {
+/**
+ * RSC 入口：失败静默降级空态（CI 无库安全）。
+ * M5-AUTH-RLS F004：租户由调用方显式传入（同 loadInsightSurfaceData 的理由）。
+ */
+export async function loadCrossInsightData(opts: {
+  tenantId: string;
+}): Promise<CrossInsightData> {
+  const { tenantId } = opts;
   try {
-    const tenantId = await getDevTenantId();
     return await assembleCrossInsight(tenantId);
   } catch (err) {
     console.error('[insight/cross-surface] 组装失败，降级空态:', err);

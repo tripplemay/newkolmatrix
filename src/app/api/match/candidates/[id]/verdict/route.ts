@@ -6,7 +6,7 @@
 // 运行时 = nodejs（Prisma）。
 
 import { z } from 'zod';
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { setCandidateVerdict } from 'lib/match/verdict';
 
 export const runtime = 'nodejs';
@@ -21,7 +21,7 @@ export async function POST(
 ): Promise<Response> {
   try {
     const { id } = await params;
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
 
     const parsed = bodySchema.safeParse(
       await req.json().catch((): null => null),

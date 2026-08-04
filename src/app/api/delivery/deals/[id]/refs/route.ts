@@ -4,7 +4,7 @@
 // 登记即把对应条件置 met + 推进 Deal 状态（signed / escrowed）——服务层同一事务完成。
 // 运行时 = nodejs（Prisma）；P9 限流 30/min/IP fail-open。
 
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { registerRefsSchema } from 'lib/data/schemas/delivery';
 import {
   badRequest,
@@ -26,7 +26,7 @@ export async function POST(
     const { id } = await params;
     const parsed = registerRefsSchema.safeParse(await parseJsonBody(req));
     if (!parsed.success) return badRequest(parsed.error);
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
     const result = await registerDealRefs(id, parsed.data, {
       tenantId,
       actor: 'operator',

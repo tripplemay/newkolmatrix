@@ -28,7 +28,10 @@ import {
 } from '../../src/lib/agent/orchestrator';
 import { registerTool } from '../../src/lib/agent/tools/registry';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
-import { buildToolContext } from '../../src/lib/agent/context';
+import {
+  DEV_TENANT_SLUG,
+  systemContext,
+} from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
 
 function assert(cond: boolean, msg: string): void {
@@ -116,7 +119,7 @@ async function main(): Promise<void> {
   );
 
   // ── (2) 一次 handoff：创建 → 落表 → 接收方重读 ──
-  const ctx = await buildToolContext({ agentId: 'match' });
+  const ctx = await systemContext(DEV_TENANT_SLUG, { agentId: 'match' });
   const projectId = `__orch_smoke_proj_${Date.now()}`;
   const created = await createHandoff(ctx, {
     projectId,

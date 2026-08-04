@@ -13,7 +13,7 @@ import ProjectDetail, {
   type ProjectDetailData,
 } from 'components/project/ProjectDetail';
 import { prisma } from 'lib/db/prisma';
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { computeHealth, type HealthResult } from 'lib/domain/health';
 import { parseProjectGoal } from 'lib/data/schemas/project';
 import { formatBudget, formatGoalText } from 'lib/display/project-format';
@@ -33,7 +33,7 @@ export default async function ProjectDetailPage({
   const { id } = await params;
   const { env, stage } = await searchParams;
 
-  const tenantId = await getDevTenantId();
+  const tenantId = await requireSessionTenantId();
   const row = await prisma.project.findFirst({
     where: { tenantId, OR: [{ slug: id }, { id }, { publicId: id }] },
   });
@@ -50,11 +50,11 @@ export default async function ProjectDetailPage({
     // M2-A F005：match 面数据组装（含 P2 首访 lazy；失败静默降级空态，CI 安全）
     const match = await loadMatchSurfaceData(row.id, row.cur as Stage);
     // M3-A F008：reach 面数据组装（thread ∪ approved 组合成员；失败静默降级空表）
-    const reach = await loadReachSurfaceData(row.id);
+    const reach = await loadReachSurfaceData(row.id, { tenantId });
     // M3-B F009：delivery 台账组装（deliveryCheck 真值 + Payout released；失败降级空表）
-    const delivery = await loadDeliverySurfaceData(row.id);
+    const delivery = await loadDeliverySurfaceData(row.id, { tenantId });
     // M4 F009：insight 对照账本组装（roi.compute/attribution.gaps 真值 + WeeklyReport；失败降级空态）
-    const insight = await loadInsightSurfaceData(row.id);
+    const insight = await loadInsightSurfaceData(row.id, { tenantId });
     // M3-B F010：→delivery / →insight 守卫判据（canEnter ctx；守卫纯函数，存在性 RSC 查好传入）
     const dealStatuses = await prisma.deal.findMany({
       where: { tenantId, projectId: row.id },

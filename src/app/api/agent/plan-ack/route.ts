@@ -6,7 +6,7 @@
 // 运行时 = nodejs（Prisma）。
 
 import { z } from 'zod';
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { agentRateLimitGuard } from 'lib/agent/http';
 import { acknowledgePlan, PLAN_NOT_FOUND_MSG } from 'lib/agent/plan-ack';
 
@@ -29,7 +29,7 @@ export async function POST(req: Request): Promise<Response> {
         { status: 400 },
       );
     }
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
     const result = await acknowledgePlan(parsed.data.planId, { tenantId });
     return Response.json(result);
   } catch (error) {

@@ -5,7 +5,7 @@
 // 响应带重算后的 deliveryCheck 结果——调用方立刻知道这次核验有没有把 ready 变过来。
 // 运行时 = nodejs（Prisma）；P9 限流 30/min/IP fail-open。
 
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { verifyDeliverableSchema } from 'lib/data/schemas/delivery';
 import {
   badRequest,
@@ -27,7 +27,7 @@ export async function PATCH(
     const { id } = await params;
     const parsed = verifyDeliverableSchema.safeParse(await parseJsonBody(req));
     if (!parsed.success) return badRequest(parsed.error);
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
     const result = await verifyDeliverable(id, parsed.data, {
       tenantId,
       actor: 'operator',

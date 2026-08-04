@@ -5,7 +5,22 @@
 // 夹具自建自清（同 pending-action-columns 范式）：dev tenant 不存在则建（CI 无 seed），
 // 本测试创建的 Game/Material/文件全部清理，不污染 dev 数据。
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+
+// M5-AUTH-RLS F004：/api/materials 的租户改从登录会话解析（`requireSessionTenantId`）。
+// 本测试直调 route handler（无 Next 请求作用域）→ 显式注入会话身份；注入即无条件使用。
+// 注入的租户 = 下方夹具解析/创建的 dev 租户，端点视角与修复前完全一致。
+const sessionSeam = vi.hoisted(() => ({
+  tenantId: '',
+  actor: 'materials-int@test.local',
+}));
+vi.mock('lib/auth/session-tenant', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../src/lib/auth/session-tenant')
+  >();
+  const { makeSessionTenantMock } = await import('../support/session-mock');
+  return makeSessionTenantMock(actual, sessionSeam);
+});
 import path from 'node:path';
 import { mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -69,6 +84,7 @@ beforeAll(async () => {
     tenantId = t.id;
     createdDevTenant = true;
   }
+  sessionSeam.tenantId = tenantId; // 端点的会话租户 = 夹具 dev 租户
   const game = await prisma.game.create({
     data: { tenantId, name: 'F002 集成测试夹具游戏' },
   });

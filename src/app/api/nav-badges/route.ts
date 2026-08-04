@@ -4,14 +4,14 @@
 // 失败 → 5xx；客户端（sidebar）按 D2 徽标全隐藏不抛错。
 // 运行时 = nodejs（Prisma）。
 
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { getNavBadgeCounts } from 'lib/nav/badge-counts';
 
 export const runtime = 'nodejs';
 
 export async function GET(): Promise<Response> {
   try {
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
     const counts = await getNavBadgeCounts(tenantId);
     return Response.json(counts);
   } catch (error) {

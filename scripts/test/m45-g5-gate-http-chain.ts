@@ -8,7 +8,8 @@
 // 本脚本让 confirmAndExecuteSequentially 的传输层直驱**真的 route handler**，把这段补上。
 //
 // 【前置】本机 Postgres localhost:5434 已起（`npm run db:up`）；`npx prisma generate` 已跑。
-// 【副作用与清态】route handler 用 buildToolContext()（硬编码 dev 租户，无注入缝）→ 本脚本
+// 【副作用与清态】route handler 的租户来自登录会话（M5-AUTH-RLS F004）；本脚本是进程内直调、
+// 无会话，故显式走 systemContext(DEV_TENANT_SLUG) 指名 dev 租户 → 本脚本
 // **不可避免地**在 dev 租户造 1 件 pending 并真的执行（mock 分享通道，零真实公开暴露）。
 // 故：跑前拍快照 → 跑完按 id 差集精确回删 → 复拍快照核证与跑前完全一致（含 SHARE_CREATED
 // 标记行——§9 那条「清态不能只按 ref=PA.id 清」的坑本脚本正面处理）。
@@ -16,7 +17,10 @@
 // 运行：node --env-file=.env --import tsx scripts/test/m45-g5-gate-http-chain.ts   退出码 0=全绿
 
 import { prisma } from '../../src/lib/db/prisma';
-import { buildToolContext } from '../../src/lib/agent/context';
+import {
+  DEV_TENANT_SLUG,
+  systemContext,
+} from '../../src/lib/agent/context';
 import { executeTool } from '../../src/lib/agent/execute';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
 import { isPendingEnvelope } from '../../src/lib/agent/gate/harm';
@@ -71,7 +75,7 @@ async function main(): Promise<void> {
   delete process.env.AIGCGATEWAY_BASE_URL; // 零外呼：本脚本不碰模型
   delete process.env.AIGCGATEWAY_API_KEY;
   getNativeToolNames();
-  const ctx = await buildToolContext({ agentId: 'insight' });
+  const ctx = await systemContext(DEV_TENANT_SLUG, { agentId: 'insight' });
   const tenantId = ctx.tenantId;
   const before = await snapshot(tenantId);
   console.log(

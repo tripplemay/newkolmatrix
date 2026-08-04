@@ -4,7 +4,7 @@
 // 弹窗——路由是 approve-plan 服务的薄封装，批准语义（单选事务 + S10 推进）全在服务层。
 // 运行时 = nodejs（Prisma）。
 
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { approvePlan } from 'lib/match/approve-plan';
 
 export const runtime = 'nodejs';
@@ -15,7 +15,7 @@ export async function POST(
 ): Promise<Response> {
   try {
     const { id } = await params;
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
 
     const result = await approvePlan(id, { tenantId });
 

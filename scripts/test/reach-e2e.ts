@@ -20,7 +20,10 @@ import {
 import { isPendingEnvelope } from '../../src/lib/agent/gate/harm';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
 import { SENT_MARKER } from '../../src/lib/ops/email';
-import { buildToolContext } from '../../src/lib/agent/context';
+import {
+  DEV_TENANT_SLUG,
+  systemContext,
+} from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
 
 function assert(cond: boolean, msg: string): void {
@@ -39,7 +42,7 @@ async function main(): Promise<void> {
     `[reach-e2e] E2E 闭环开始（投递模式：${REAL_MODE ? `REAL → ${TEST_EMAIL}` : 'mock 不外呼'}）`,
   );
   getNativeToolNames();
-  const ctx = await buildToolContext({ agentId: 'reach' });
+  const ctx = await systemContext(DEV_TENANT_SLUG, { agentId: 'reach' });
 
   // ── 夹具：合成 KOL + 项目（P1：不触碰任何真实 KOL 行）──
   const fxKol = await prisma.kol.create({

@@ -24,7 +24,10 @@ import { HARM_LABEL, isPendingEnvelope } from '../../src/lib/agent/gate/harm';
 import { getTool, registerTool } from '../../src/lib/agent/tools/registry';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
 import { SENT_MARKER } from '../../src/lib/agent/tools/send-outreach';
-import { buildToolContext } from '../../src/lib/agent/context';
+import {
+  DEV_TENANT_SLUG,
+  systemContext,
+} from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
 import type { ToolContext } from '../../src/lib/agent/tools/types';
 
@@ -126,7 +129,7 @@ async function main(): Promise<void> {
     execute: async () => ({ ok: true }),
   });
 
-  const ctx = await buildToolContext({ agentId: 'reach' });
+  const ctx = await systemContext(DEV_TENANT_SLUG, { agentId: 'reach' });
   const createdPA: string[] = [];
 
   // ── F003 夹具：合成 KOL（contactEmail=测试地址）+ 项目（结束后清理；不触碰真实 KOL 行，P1）──

@@ -366,8 +366,9 @@ describe('E7 空态与降级', () => {
   });
 
   it('loadInsightSurfaceData 对未知项目降级空态（RSC 入口不抛）', async () => {
-    await expect(loadInsightSurfaceData('no-such-project')).resolves.toEqual(
-      EMPTY_INSIGHT_SURFACE,
-    );
+    // M5-AUTH-RLS F004：租户改由调用方显式传入（RSC 在降级 try 之外解析会话）
+    await expect(
+      loadInsightSurfaceData('no-such-project', { tenantId }),
+    ).resolves.toEqual(EMPTY_INSIGHT_SURFACE);
   });
 });

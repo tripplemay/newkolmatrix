@@ -4,7 +4,7 @@
 
 import { Suspense } from 'react';
 import CreatorsClient from 'components/creators/CreatorsClient';
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { loadCreatorsPageData } from 'lib/creators/page-data';
 
 // RSC 直读 DB 必须显式动态渲染（v1.0.9 §6：默认静态预渲染会把查询冻结进构建期快照，
@@ -17,7 +17,7 @@ export default async function CreatorsPage({
   searchParams: Promise<{ platform?: string; category?: string }>;
 }) {
   const { platform, category } = await searchParams;
-  const tenantId = await getDevTenantId();
+  const tenantId = await requireSessionTenantId();
   const data = await loadCreatorsPageData(tenantId, { platform, category });
 
   return (

@@ -13,7 +13,23 @@
 // 夹具隔离（并行纪律）：租户 slug 带 G4 + pid；dev 租户上只创建带 G4 标记的留痕行，
 // 用完按 id 精确删除并核证零残留。
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
+// M5-AUTH-RLS F004：POST /api/agent/plan-ack 的租户改从登录会话解析。本探针直调 route
+// handler（无 Next 请求作用域）→ 显式注入会话身份，注入即无条件使用。
+// 注入的租户 = 下方 ensureDevTenant/getDevTenantId 解析到的那个，端点视角与修复前一致；
+// 「跨租户不可认可」那条因此仍是真闸（会话在 dev，计划在夹具租户）。
+const sessionSeam = vi.hoisted(() => ({
+  tenantId: '',
+  actor: 'g4-probe@test.local',
+}));
+vi.mock('lib/auth/session-tenant', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../src/lib/auth/session-tenant')
+  >();
+  const { makeSessionTenantMock } = await import('../support/session-mock');
+  return makeSessionTenantMock(actual, sessionSeam);
+});
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { prisma } from '../../src/lib/db/prisma';
@@ -49,8 +65,9 @@ let devTenantCreatedByProbe = false;
  * 保证 dev 租户在场（沿仓内既定套路「谁建谁删」：materials-upload / knowledge-injection /
  * knowledge-parse 三处同款）。
  *
- * 【为什么这条 happy path 只能在 dev 租户上跑】被测的 `POST /api/agent/plan-ack` 在
- * `route.ts:32` **硬调 `getDevTenantId()`**——租户不是入参。要验端点 200 这条路，
+ * 【为什么这条 happy path 只能在 dev 租户上跑】被测的 `POST /api/agent/plan-ack` 租户
+ * 不是入参：M5-AUTH-RLS F004 之前硬调 `getDevTenantId()`，之后改为从登录会话解析
+ * （`requireSessionTenantId()`，本文件注入的会话租户 = dev）。要验端点 200 这条路，
  * 计划就必须落在它解析得到的那个租户里。
  *
  * 【为什么不用「缺租户就 skip」】那会让本探针最有价值的一条证据（端点 happy path，
@@ -107,6 +124,7 @@ beforeAll(async () => {
   // 仍走产品自己的解析函数（与 route 内部同一条路径）——不绕开它，
   // 否则「端点解析到的就是这个租户」这一环就没被验到。
   devTenantId = await getDevTenantId();
+  sessionSeam.tenantId = devTenantId; // 端点的会话租户 = dev（同修复前的端点视角）
   const t = await prisma.tenant.create({
     data: { slug: FIXTURE_SLUG, name: `M4.5 G4 探针租户 ${process.pid}` },
   });

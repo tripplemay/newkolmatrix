@@ -9,6 +9,7 @@
 
 import KnowledgeWorkbench from 'components/knowledge/KnowledgeWorkbench';
 import { getKnowledgePageData } from 'lib/knowledge/page-data';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,7 @@ export default async function KnowledgePage({
   searchParams: Promise<{ game?: string }>;
 }) {
   const { game } = await searchParams;
-  const games = await getKnowledgePageData();
+  const tenantId = await requireSessionTenantId(); // M5-AUTH-RLS F004（spec D-3）
+  const games = await getKnowledgePageData({ tenantId });
   return <KnowledgeWorkbench games={games} initialGame={game} />;
 }

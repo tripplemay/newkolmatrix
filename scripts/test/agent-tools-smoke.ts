@@ -9,7 +9,10 @@
 import { executeTool } from '../../src/lib/agent/execute';
 import { isPendingEnvelope } from '../../src/lib/agent/gate/harm';
 import { registerTool, getTool } from '../../src/lib/agent/tools/registry';
-import { buildToolContext } from '../../src/lib/agent/context';
+import {
+  DEV_TENANT_SLUG,
+  systemContext,
+} from '../../src/lib/agent/context';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
 import { prisma } from '../../src/lib/db/prisma';
 import { z } from 'zod';
@@ -21,7 +24,7 @@ function assert(cond: boolean, msg: string): void {
 
 async function main(): Promise<void> {
   console.log('[agent-smoke] 工具层 executeTool 验证开始');
-  const ctx = await buildToolContext();
+  const ctx = await systemContext(DEV_TENANT_SLUG);
 
   // 注册表 + 二分
   const names = getNativeToolNames();

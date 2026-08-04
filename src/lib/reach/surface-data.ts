@@ -7,7 +7,6 @@
 // 失败静默降级空表（CI 无库安全，page.tsx match 先例同款）。
 
 import { prisma } from 'lib/db/prisma';
-import { getDevTenantId } from 'lib/agent/context';
 import { inferCrmStatus } from 'lib/domain/crm-infer';
 import { formatPlat } from 'lib/display/match-format';
 import {
@@ -29,11 +28,13 @@ function formatAt(d: Date): string {
   });
 }
 
+/** M5-AUTH-RLS F004：租户由 RSC 调用方显式传入（同 loadInsightSurfaceData 的理由）。 */
 export async function loadReachSurfaceData(
   projectId: string,
+  opts: { tenantId: string },
 ): Promise<ReachSurfaceData> {
+  const { tenantId } = opts;
   try {
-    const tenantId = await getDevTenantId();
 
     const [threads, approvedPlan] = await Promise.all([
       prisma.outreachThread.findMany({

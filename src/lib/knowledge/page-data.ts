@@ -5,7 +5,6 @@
 // 脏数据 → null → 空数组走「待解析」占位，D2 绝不打死页面）。
 
 import { prisma } from 'lib/db/prisma';
-import { getDevTenantId } from 'lib/agent/context';
 import { getKnowledgeHeads } from 'lib/knowledge/query';
 import { toMaterialDto } from 'lib/knowledge/dto';
 import {
@@ -32,8 +31,11 @@ function structuredOf<T>(
   return (parsed && pick(parsed)) || [];
 }
 
-export async function getKnowledgePageData(): Promise<KnowledgeGameData[]> {
-  const tenantId = await getDevTenantId();
+/** M5-AUTH-RLS F004：租户由 RSC 调用方显式传入（会话解析在 page 层，见 spec D-3）。 */
+export async function getKnowledgePageData(opts: {
+  tenantId: string;
+}): Promise<KnowledgeGameData[]> {
+  const { tenantId } = opts;
   const now = new Date();
 
   const games = await prisma.game.findMany({

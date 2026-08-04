@@ -6,7 +6,7 @@
 // zod 校验逐字段 400 明示（targetExposure 非负整数 / ISO 日期 / periodStart<periodEnd）——
 // 「参数错误」这种一句话回执让人无从改起，逐条列出才有用。
 
-import { getDevTenantId } from 'lib/agent/context';
+import { requireSessionTenantId } from 'lib/auth/session-tenant';
 import { setProjectGoal, setProjectGoalInputSchema } from 'lib/projects/set-goal';
 
 export const runtime = 'nodejs';
@@ -33,7 +33,7 @@ export async function PATCH(
         { status: 400 },
       );
     }
-    const tenantId = await getDevTenantId();
+    const tenantId = await requireSessionTenantId();
     const r = await setProjectGoal(tenantId, id, parsed.data, {
       actor: 'operator', // UI 入口 = 人直接操作
     });

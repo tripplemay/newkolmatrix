@@ -6,7 +6,7 @@
       "title": "findProjectByRef / projectContextSection 收口 tenantId(含 S-RV3-3 携带)",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-1:findProjectByRef(ref, tenantId) 必选参数收口;跨租户 ref 视同不存在 → 段落降级 id-only(名字不漏)。调用链 loop.ts:238 / specialist-loop.ts:147 传 ctx 的 tenantId。",
       "acceptance": "`findProjectByRef(ref, tenantId)` tenantId 为**必选参数**(无默认值,tsc 保证全调用点显式传);where 含 tenantId 与 OR 同层;`projectContextSection(projectId, tenantId)` 同步;**行为级负向测试**:自建第二租户 project(id/publicId/slug 三口径逐一试),以主租户 tenantId 解析 → 均 null,段落 label 为 id-only 且**不含跨租户项目名**(正向精确断言段落全串);正向回归:同租户三口径照常返回名、降级纪律(DB 故障只写 id)不回退;变异证活:摘掉 where 的 tenantId 条件 → 负向测试红;**S-RV3-3 携带**:project-context-route 测试文件本批被动 ⇒ 顺手补真 route POST 用例的遥测等待同步点(清态断言前等待默认 writer 落库,镜像 runScriptedLoop 下沉点的条件语义),并在 backlog 该子项销账;第二租户入清理登记表、逐表断言残留、净增 0;tsc + lint 绿,agentloop:e2e / frontdesk:e2e 无回归"
     },
@@ -15,7 +15,7 @@
       "title": "gameKnowledgeSection 收口 tenantId",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-2:knowledge-context.ts:64 三口径解析补 tenantId;跨租户 → 知识段空(与无知识同款,不注水)。",
       "acceptance": "`gameKnowledgeSection(projectId, tenantId, kinds)` tenantId 必选;where 含 tenantId;**行为级负向测试**:第二租户 project 带 gameId + 知识链头,跨租户查 → 返回 ''(不注水、不抛错,D2 纪律:增强性注入不得打死主链路);正向:同租户知识段照常渲染;调用点 3 处(loop.ts:232 / loop.ts:262 / specialist-loop.ts:149)同步传参;变异证活:摘 tenantId 条件 → 负向测试红;夹具租户复用 F001 清理登记表;tsc 0 error"
     },
@@ -24,7 +24,7 @@
       "title": "全仓三口径解析普查钉(census,与修复点解耦)",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-3:防「新增三口径解析点不带 tenantId」回流。census 独立扫描,不从 F001/F002 修复点清单派生(两层失效模式不重叠,M4.7 规律 2)。",
       "acceptance": "新增 census 测试:扫描 src/ 全部 `prisma.project.findFirst` 三口径(id+publicId+slug OR)调用点,断言每处 where 含 tenantId;**扫描逻辑必须覆盖多行 OR 格式**(set-goal.ts:63 形态,先验活:对该文件普查须命中);**不从修复点清单派生**——新增未收口点无需登记即红;当前实物 8 处全过(spec D-3 表);豁免清单为空且写死在断言内(要豁免必须显式改断言并留注释);变异证活:临时加一处无 tenantId 三口径解析(含单行与多行两种格式各一)→ 均红;删掉 F001 修复(摘 tenantId)→ census 也红(两层同时守)"
     },

@@ -465,6 +465,19 @@ export async function runAgentLoop(
         // R-6：遥测与用户面用**同一个** trulyTruncated，不各算各的——
         // 同一事实两套口径会让线上的"撞顶率"系统性偏高。
         truncated: trulyTruncated,
+        // M4.8 F006（D-6 / S-M47-G3-5）：本轮**咨询产物**里有没有专家撞顶。
+        // 判据走结构而非工具名（同 detectInsufficientEvidence 口径）：consultation
+        // 产物的 budgetHit。此前它只活在流里，落库层查不到——线上因此答不出
+        // 「答得不完整是前台没跑完还是专家没跑完」。
+        specialistBudgetHit: event.steps.some((s) =>
+          s.toolResults.some((r) => {
+            const out = r.output as
+              | { type?: string; budgetHit?: unknown }
+              | null
+              | undefined;
+            return out?.type === 'consultation' && out.budgetHit === true;
+          }),
+        ),
         usage: {
           inputTokens: usage.inputTokens,
           outputTokens: usage.outputTokens,

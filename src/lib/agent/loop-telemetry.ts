@@ -22,8 +22,17 @@ import type { AgentId } from './registry';
 /** 遥测行的 summary 前缀——查询锚点（`summary startsWith` 即可捞出全部 loop 遥测）。 */
 export const LOOP_TELEMETRY_MARKER = 'agent_loop';
 
-/** 载荷版本号：字段形状演进时 +1，历史行可按版本分支解析。 */
-export const LOOP_TELEMETRY_VERSION = 1;
+/**
+ * 载荷版本号：字段形状演进时 +1，历史行可按版本分支解析。
+ *
+ * 【v1 → v2（M4.8 F006）】`budgetHitScope` 从二值扩到四值。**必须 bump 的理由不是
+ * "多了两个取值"，而是 `'none'` 这个取值的含义变了**：v1 的 `'none'` 只表示"前台没撞顶"
+ * ——它对专家撞没撞顶一无所知（子 loop 的 budgetHit 当时只记在 consultation 产物里）；
+ * v2 的 `'none'` 表示"前台和专家都没撞"。同一个字面值，两种事实：线上按 scope 统计
+ * "专家撞顶率"时，若把 v1 的 `'none'` 行与 v2 的一起算，分母会把一批**未知**当成**否**。
+ * 版本号在这里的作用就是让那批历史行可以被显式排除。
+ */
+export const LOOP_TELEMETRY_VERSION = 2;
 
 export interface LoopTelemetryUsage {
   inputTokens: number | null;
@@ -51,9 +60,16 @@ export interface LoopTelemetryPayload {
   personaSwitches: number;
   /** 本轮咨询了几个专家（M4.7 F006）。只记数量，不记问题正文。 */
   consultCount?: number;
-  budgetHitScope: 'front' | 'none';
+  /**
+   * 撞顶发生在哪一层（M4.8 F006 扩四值）。
+   * 'front' 只前台撞 / 'specialist' 只专家撞 / 'both' 都撞 / 'none' 都没撞。
+   */
+  budgetHitScope: BudgetHitScope;
   usage: LoopTelemetryUsage;
 }
+
+/** 撞顶层级（M4.8 F006 / D-6：S-M47-G3-5 兑现）。 */
+export type BudgetHitScope = 'front' | 'specialist' | 'both' | 'none';
 
 export interface LoopTelemetryInput {
   agentId: AgentId;
@@ -75,12 +91,28 @@ export interface LoopTelemetryInput {
    */
   truncated?: boolean;
   /**
-   * M4.7 fix_round1：撞顶发生在哪一层。
-   * 'front' = 前台自己用满步数（用户端会收到 budget_notice）；
-   * 'none'  = 未撞顶。子 loop 的撞顶记在各自 consultation 产物的 budgetHit 上，
-   * 不混进会话级遥测——两者口径不同，混在一起线上无法归因。
+   * M4.8 F006（D-6 / S-M47-G3-5）：本轮的**咨询产物里有没有专家撞顶**。
+   *
+   * 【它替换了什么陈述】此处原文写着「子 loop 的撞顶记在各自 consultation 产物的
+   * `budgetHit` 上，不混进会话级遥测」——那是 M4.7 的实物，也是 M4.7 签收时挂着的
+   * 缺口（S-M47-G3-5）：产物只活在流里，**落库层查不到**，线上因此无从回答
+   * 「这次答得不完整，是前台没跑完还是专家没跑完」。现在由主 loop 在 onEnd 聚合
+   * 一次（结构判据：consultation 产物的 budgetHit），落进会话级遥测的 scope 里。
+   *
+   * 【为什么不混进 `budgetHit`】`budgetHit` 是**会话级**「前台被截停」的口径，
+   * 用户面的 budget_notice 与它同源（R-6 钉死）。专家撞顶不该让它翻真——
+   * 那会让"用户看到了未答完告知"与"遥测记了撞顶"再次分家。分层只进 scope。
    */
-  budgetHitScope?: 'front' | 'none';
+  specialistBudgetHit?: boolean;
+  /**
+   * M4.7 fix_round1 / M4.8 F006：撞顶发生在哪一层。
+   * 'front' = 只有前台自己用满步数（用户端会收到 budget_notice）；
+   * 'specialist' = 只有被咨询的专家撞了子 loop 上限（前台自然收敛，用户端**无**告知，
+   *   但答案里那段专家结论是截断的——这正是此前落库层看不见的那一类）；
+   * 'both' = 两层都撞；'none' = 都没撞。
+   * 调用方不传（旧调用点）时由 `truncated` / `specialistBudgetHit` 派生。
+   */
+  budgetHitScope?: BudgetHitScope;
   usage?: {
     inputTokens?: number;
     outputTokens?: number;
@@ -96,6 +128,10 @@ function num(x: number | undefined): number | null {
 export function buildLoopTelemetryPayload(
   input: LoopTelemetryInput,
 ): LoopTelemetryPayload {
+  // R-6：与用户面同一判据（步数用满**且末步仍在要工具**）。旧调用点未传 truncated 时
+  // 退回步数判据并保持原语义。
+  const frontHit = input.truncated ?? input.steps >= input.maxSteps;
+  const specialistHit = input.specialistBudgetHit ?? false;
   const inputTokens = num(input.usage?.inputTokens);
   const outputTokens = num(input.usage?.outputTokens);
   const totalTokens =
@@ -109,15 +145,24 @@ export function buildLoopTelemetryPayload(
     finalAgentId: input.finalAgentId ?? input.agentId,
     steps: input.steps,
     maxSteps: input.maxSteps,
-    // R-6：与用户面同一判据。调用方未传（旧调用点）时退回步数判据并保持原语义。
-    budgetHit: input.truncated ?? input.steps >= input.maxSteps,
+    // R-6：与用户面同一判据（会话级 = 前台那一层，不含专家）。
+    budgetHit: frontHit,
     finishReason: input.finishReason,
     toolNames: [...input.toolNames],
     toolCallCount: input.toolNames.length,
     personaSwitches: input.personaSwitches ?? 0,
     consultCount: input.consultCount ?? 0,
+    // M4.8 F006：四象限。显式给了 scope 就用给的（留给未来的非 loop 调用点），
+    // 否则由两层各自的判据派生——两层是**独立**事实，不是一个布尔的两种说法。
     budgetHitScope:
-      (input.truncated ?? input.steps >= input.maxSteps) ? 'front' : 'none',
+      input.budgetHitScope ??
+      (frontHit && specialistHit
+        ? 'both'
+        : frontHit
+        ? 'front'
+        : specialistHit
+        ? 'specialist'
+        : 'none'),
     usage: { inputTokens, outputTokens, totalTokens },
   };
 }

@@ -315,3 +315,80 @@ describe('M4.7 单一前台 as-built（新工具 / 前台职责 / 成本常量�
     );
   });
 });
+
+describe('M4.8 加固 as-built（F007 · 含 S-RV3-4 段级钉）', () => {
+  const TELEMETRY_SRC = readFileSync('src/lib/agent/loop-telemetry.ts', 'utf8');
+  const REGISTRY_SRC = readFileSync('src/lib/agent/registry.ts', 'utf8');
+
+  it('budgetHitScope 枚举值 = 实物（两份文档的枚举行与源码 union 集合相等）', () => {
+    const m = TELEMETRY_SRC.match(/export type BudgetHitScope =([^;]+);/);
+    expect(
+      m,
+      'loop-telemetry.ts 缺 BudgetHitScope 导出（改名须同步本测试）',
+    ).toBeTruthy();
+    const actual = [...m![1].matchAll(/'([a-z]+)'/g)].map((x) => x[1]);
+    expect(actual.length, '实物 union 取值数').toBeGreaterThanOrEqual(4);
+    for (const doc of [
+      { text: AGENT_DOC, label: 'agent-architecture.md' },
+      { text: DOC, label: 'architecture.md' },
+    ]) {
+      const line = doc.text
+        .split('\n')
+        .find((l) => l.includes('budgetHitScope'));
+      expect(line, `${doc.label} 缺 budgetHitScope 枚举行`).toBeTruthy();
+      const quoted = [...line!.matchAll(/'([a-z]+)'/g)].map((x) => x[1]);
+      expect(
+        new Set(quoted),
+        `${doc.label} 枚举行与实物 union 不一致（文档：${quoted.join(',')} / 实物：${actual.join(',')}）`,
+      ).toEqual(new Set(actual));
+    }
+  });
+
+  it('超时告知文案函数与留痕 marker = 实物（改名/改 marker 忘翻文档 → 红）', async () => {
+    // 绑实物：函数与 marker 必须真实存在——若源码改名，这里先红，逼文档同批翻牌
+    expect(
+      REGISTRY_SRC,
+      'registry.ts 缺 loopTimeoutNotice 导出（改名须同步文档与本测试）',
+    ).toContain('export function loopTimeoutNotice');
+    const { LOOP_TIMEOUT_MARKER } = await import(
+      '../../src/lib/agent/loop-timeout-log'
+    );
+    for (const doc of [
+      { text: AGENT_DOC, label: 'agent-architecture.md' },
+      { text: DOC, label: 'architecture.md' },
+    ]) {
+      expect(doc.text, `${doc.label} 缺超时文案函数名`).toContain(
+        'loopTimeoutNotice',
+      );
+      expect(doc.text, `${doc.label} 缺超时留痕 marker`).toContain(
+        LOOP_TIMEOUT_MARKER,
+      );
+    }
+  });
+
+  it('S-RV3-4a：两形态表表头单元格钉（段级——改坏表头不再静默）', () => {
+    const pinned =
+      '| 维度 | 工具级共享（主用） | 子 Agent 调用（**M4.7 F001/F002 已实装**） |';
+    const hit = DOC.split('\n').some((l) => l.trim() === pinned);
+    expect(
+      hit,
+      `architecture.md 两形态表表头与钉住的全串不符（S-RV3-4：表头单元格改坏此前不会红）。若表头合法演进，同步改本钉：${pinned}`,
+    ).toBe(true);
+  });
+
+  it('S-RV3-4b：「M4.7 新增工具（N 件）」句钉（计数=句内清单自洽 + 工具在注册表）', () => {
+    const line = AGENT_DOC.split('\n').find((l) =>
+      l.includes('M4.7 新增工具'),
+    );
+    expect(line, 'agent-architecture.md 缺「M4.7 新增工具」句').toBeTruthy();
+    const m = line!.match(/M4\.7 新增工具（(\d+) 件）/);
+    expect(m, '句式漂移：缺「（N 件）」计数（S-RV3-4：此句改坏此前不会红）').toBeTruthy();
+    const count = Number(m![1]);
+    const tools = [...line!.matchAll(/`([a-z_]+)`/g)].map((x) => x[1]);
+    expect(tools.length, '句内工具清单数量与「（N 件）」不一致').toBe(count);
+    const registered = getNativeToolNames();
+    for (const t of tools) {
+      expect(registered, `句内工具 ${t} 不在注册表实物中`).toContain(t);
+    }
+  });
+});

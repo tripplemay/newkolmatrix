@@ -67,7 +67,7 @@ Agent 驱动产品的四根柱子。每柱一个明确的唯一入口，禁止�
 | 面 | as-built | 落点 |
 |---|---|---|
 | **步数预算** | 按人格差异化：`AgentPersona.maxSteps`（深链 `insight` = 10，其余 5——**M4.7 F006 起前台也是常规档**）。**接力**到深链专家时本轮预算按**链上最大档位**抬升（`chainBudget`）；**咨询不抬也不需要抬**——咨询开销在子 loop 内、受 `SPECIALIST_MAX_STEPS` 约束，对前台只消耗 1 步，故主 loop 的 `stopWhen` 是谓词而非静态 `stepCountIs`；`stepCountIs(` 的唯一消费点是专家子 loop（入参为常量）。**registry 是唯一真相源**，全仓不得出现数字字面量（回归钉死）。`maxDuration` 60→120 | `registry.ts` / `loop.ts` / `specialist-loop.ts` |
-| **loop 遥测** | 每会话结束落一行 `OperationLog(kind=auto, summary` 以 `agent_loop` 起头`)`：agentId / finalAgentId / steps / maxSteps / **budgetHit** / finishReason / toolNames[]（含重复保序）/ personaSwitches / usage。**只记元数据不记正文**（载荷装配函数的入参形状就不接受正文）；fire-and-forget 但失败必须 `console.error` | `loop-telemetry.ts` |
+| **loop 遥测** | 每会话结束落一行 `OperationLog(kind=auto, summary` 以 `agent_loop` 起头`)`：agentId / finalAgentId / steps / maxSteps / **budgetHit**（口径=前台被截停，与用户面告知同源）/ **budgetHitScope**（'front' | 'specialist' | 'both' | 'none'，M4.8 F006 起聚合专家子 loop 撞顶，载荷 v=2）/ finishReason / toolNames[]（含重复保序）/ toolCallCount / personaSwitches / consultCount / usage。**只记元数据不记正文**（载荷装配函数的入参形状就不接受正文）；fire-and-forget 但失败必须 `console.error`。**超时独立留痕**（M4.8 F004）：主 loop 撞 `LOOP_TIMEOUT_MS` → `summary` 以 `agent_timeout` 起头的一行（marker 独立，不混进 `agent_loop` 查询；只记 agentId/elapsedMs/steps）+ 流内 `data-timeout_notice`（文案 `loopTimeoutNotice`，registry 单一真相源） | `loop-telemetry.ts` / `loop-timeout-log.ts` |
 | **循环内接力** | `handoff_to`（internal，**仅 orchestrator 持有**）→ 落 `Handoff` 行 → `prepareStep` 把后续步的 system 段（目标人格 prompt + **重读条款**）与 `activeTools` 切到目标人格。当值人格从 `steps` 里解析（幂等，不靠外部可变状态） | `tools/handoff-to.ts` / `loop.ts` |
 | **时刻隔离（P1）** | 任一时刻 loop 只见当值人格子集。两道防线：① SDK `activeTools` 收窄模型视野（实测直接 `NoSuchTool` 拒绝）② **执行侧硬挡**（`toAiSdkTools` 的 `isToolActive`）——视野收窄 ≠ 执行禁止，模型凭历史消息里的工具名照样能发调用。**outbound 人格绑定不变**：payout 永远只在 delivery 子集 | `to-ai-sdk-tools.ts` |
 | **准备并行度** | 「已备好 N 件待确认」聚合卡：利害逐条列全不折叠（D28）；「依次确认」= 前端**逐项**调既有两步票据端点，**无批量端点**（一个 batch 端点会立刻成为闸门绕过面） | `lib/gate/batch-confirm.ts` / `PendingBatchCard` |
@@ -91,6 +91,12 @@ Agent 驱动产品的四根柱子。每柱一个明确的唯一入口，禁止�
 **M4.5 新增工具（本批 5 件）**：`compute_roi_portfolio`（跨项目 ROI 对比，insight）· `propose_plan`（行动计划卡 + 计划留痕，orchestrator+insight）· `handoff_to`（循环内接力，orchestrator 独占）· `check_compliance`（合规红线核查单，compliance 首件）· 认可端点 `POST /api/agent/plan-ack`（**留痕不解锁执行权**，回归钉死）。
 
 **测试床（F009）**：`tests/support/agent-loop-testbed.ts` 用 AI SDK 官方 `ai/test` 的 `MockLanguageModelV4` 脚本化 tool-call 序列，驱动**与 /api/agent 同一个** `runAgentLoop`——机械面（步数上限截停 / 子集收窄 / pending 停驻 / 接力切换）全部离线可测，零外呼（fetch 哨兵）。E2E 闭环：`npm run agentloop:e2e`。
+
+### M4.8 加固（as-built）
+
+- **超时可观测（F004/F005，S-RV2-8 兑现）**：主 loop 撞 `LOOP_TIMEOUT_MS` → `onLoopTimeout` 回调（判据两道：`signal.reason` 为 TimeoutError **且**会话未落定——正常收敛 / budget 截停 / 用户中断均不响）→ route 写 `data-timeout_notice`（文案 `loopTimeoutNotice`，registry 单一真相源：如实说「超时中断 / 已答部分 / 可重试」，不假装答完）+ `agent_timeout` 一行留痕（见上表遥测行）。面板侧 `useChat` 解构 `error`：流级失败渲染 `stream-error` 卡，超时告知渲染 `timeout-notice` 卡（浏览器级钉 `tests/visual/rv-timeout-notice.spec.ts`，字节样本经 `test:visual:fixtures` 前置落盘）
+- **租户作用域收口（F001-F003，BL-TENANT-SCOPE-PROJECTREF 兑现）**：`findProjectByRef(ref, tenantId)` 与 `gameKnowledgeSection(projectId, tenantId, kinds)` 的 tenantId 为**必选参数**——跨租户 ref 视同不存在（项目段降级 id-only、知识段空串，别家租户项目名不进 system）。全仓项目三口径（id/publicId/slug）解析点由 census 普查钉守护（`tests/unit/project-scope-census.test.ts`：独立扫描不从修复点派生，豁免清单空，多行 OR 同样命中）
+- **budgetHitScope 四值化（F006，S-M47-G3-5 兑现）**：见上表遥测行；`budgetHit` 保持「前台被截停」口径不变，专家撞顶只进 scope——「用户看到告知」与「遥测记撞顶」不分家
 
 ---
 

@@ -106,7 +106,7 @@ KOLMatrix 不是「CRUD-over-REST + AI 挂件」，而是以「工具结果协�
 
 - **AI 唯一出口**：aigcgateway（OpenAI 兼容 baseURL），chat（tool-calling）+ embedding 双链路；密钥全走 env。默认 chat=`deepseek-v3`、embedding=`bge-m3`（`src/lib/ai/gateway.ts` 常量，env 可覆盖）。
 - **数据现状**：`scripts/seed/data/kol-seed-enriched-final.csv` **2,524 条**真实 KOL（含表头 2,525 行）入 git 可复现；Apify 采集、外购评估 API、平台一方 API 均后期。
-- **租户与认证**：单租户硬编码 dev tenant（`slug='dev'`，schema 带 `tenantId` 占位），无真实认证；RLS 与认证是 M5 已知下游。
+- **租户与认证**：单租户硬编码 dev tenant（`slug='dev'`，schema 带 `tenantId` 占位），无真实认证；RLS 与认证是 M5 已知下游。**M4.8 起项目三口径解析（id/publicId/slug）全仓收口 `tenantId` 作用域**（`findProjectByRef` / `gameKnowledgeSection` tenantId 必选 + census 普查钉 `tests/unit/project-scope-census.test.ts`），RLS 落地前的应用层保证。
 - **资金边界**：合同/支付走 partner（电子签 + Stripe escrow）；本系统只做触发条件 + 闸门 + 状态追溯，不碰资金与税务。
 - **已交付地基**：DS-FOUNDATION（admin 外壳 / 色阶注入 / 深浅色 / 路由表 / 构建门）· **AGENT-FOUNDATION（M0：Prisma schema + pgvector + seed + gateway + 四柱 + 编排框架 + AI→人闸门）** · GO-LIVE（生产全栈化：db 容器 + migrate one-shot + `/api/health`）· FE-REFACTOR（前端整肃 + 视觉基线）。
 
@@ -951,9 +951,11 @@ export interface ToolContext {
 
 **放开步数的前提是看得见**。每次会话结束落一行 `OperationLog(kind=auto)` 遥测（`lib/agent/loop-telemetry.ts`，`summary` 以 `agent_loop` 起头）：
 
-- `payloadJson` = `{v, agentId, finalAgentId, steps, maxSteps, budgetHit, finishReason, toolNames[]（含重复保序）, toolCallCount, personaSwitches, usage}`
+- `payloadJson` = `{v(=2), agentId, finalAgentId, steps, maxSteps, budgetHit, finishReason, toolNames[]（含重复保序）, toolCallCount, personaSwitches, consultCount, budgetHitScope('front'|'specialist'|'both'|'none'), usage}`
 - **只记元数据，不记正文**（P2）：消息内容、工具入参、工具产物一律不落——体积与隐私（消息里有联系方式与报价）。载荷装配函数的入参形状本身就不接受正文，不靠调用方自觉过滤
 - `budgetHit` 让「撞上限的会话」可直接经 `payloadJson path ['budgetHit']` 查询捞出，无需解析 `finishReason` 语义
+- **budgetHitScope 四值**（M4.8 F006，载荷 v 1→2）：`'specialist'` = 只有被咨询的专家撞子 loop 上限（用户端无告知——`budgetHit` 保持「前台被截停」口径与用户面同源，专家撞顶只进 scope）。线上据此区分「前台没跑完」与「专家没答完」；v bump 依据 = `'none'` 语义收紧（v1 对专家撞没撞一无所知，v2 = 两层都没撞），历史行可按 v 排除
+- **超时独立留痕**（M4.8 F004，S-RV2-8 兑现）：主 loop 撞 `LOOP_TIMEOUT_MS` → 流内 `data-timeout_notice`（文案 `loopTimeoutNotice`，registry 单一真相源，如实说「超时中断 / 已答部分 / 可重试」）+ `summary` 以 `agent_timeout` 起头的一行（`lib/agent/loop-timeout-log.ts`，marker 独立不混进 `agent_loop` 查询；只记 agentId/elapsedMs/steps）。面板流级 `stream-error` / `timeout-notice` 卡随 M4.8 F005
 - 落库 fire-and-forget（不阻塞流式响应），**失败必须 `console.error`**（M3-A logEvent silent-fail 教训）
 
 长链放大幻觉风险，故诚实条款配**长链变异回归**（`tests/integration/long-chain-honesty.test.ts`）：≥8 步链上「工具只返回 pending 而文本宣称已发出/已完成」必须翻红，剥离条款 / 伪造成功文案 / 隐去待确认提示三个变异体各挂一条。

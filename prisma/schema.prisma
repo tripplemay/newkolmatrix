@@ -44,6 +44,11 @@ model User {
   name      String?
   createdAt DateTime @default(now())
 
+  /// M5-AUTH-RLS F001（spec D-1）：bcrypt(cost 12) 摘要。**只存摘要，任何形态的明文口令不得落库/落日志**。
+  /// nullable = expand 迁移不动既有行（历史 dev 用户无口令 → 不可用凭据登录，authorize 直接判否）。
+  /// D26 延续：仍无 role / scope 字段——认证 ≠ 授权，本批不引入 RBAC。
+  passwordHash String?
+
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])

@@ -40,6 +40,12 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/unit/**/*.test.ts', 'tests/integration/**/*.test.ts'],
+    // M5-AUTH-RLS F001：next-auth / @auth/core 必须走 vite 转换而非 Node 原生 ESM。
+    // 根因：next-auth 的 `import { NextRequest } from "next/server"` 依赖打包器的扩展名补全，
+    // 而 next 的 package.json **没有 exports 字段**（next-auth 源码里就有这条 @ts-expect-error 注释），
+    // Node 原生 ESM 解析器因此报 `Cannot find module .../next/server`。
+    // inline 后由 vite 解析，认证链路的集成测试（tests/integration/auth-signin-http.test.ts）才能直驱真 handlers。
+    server: { deps: { inline: ['next-auth', '@auth/core'] } },
     coverage: {
       provider: 'v8',
       // spec F001 原写 include:['src/lib/**']。实测该范围整体行覆盖仅 6.2%（24/387）——

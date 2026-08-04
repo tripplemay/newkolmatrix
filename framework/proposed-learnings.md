@@ -242,9 +242,9 @@
 
 5. **（纪律，evaluator 点名建议）交付叙述与实物不符：本批连续三轮共 4 例。** 形态一致——commit 正文 / `generator_handoff` 对「已修 / 已验证 / 已移除」的陈述，被复验以 `git show --stat`、`git log -L`、实跑逐条证伪（含「我上轮只改了 X 与 Y 两处」而那次提交根本没有 X；含「摘掉某行全量无一条会红」而实测有 1 条会红）。**这不是能力问题而是流程缺口：写「已修」之前没有用机械手段自查一遍。** 建议入铁律或 generator.md：**commit 正文与 handoff 里每一句「已修 / 已验证 / 已移除 / 全绿」，落笔前必须有对应的一条命令输出作依据**（`git show --stat` / `grep` / 实跑），拿不出就改成「未核」。
 
-**建议写入：** 规律 1 → `patterns/agent-loop-patterns.md` §3（已写）· 规律 2 → `patterns/audit-methodology.md` §7 末段（已写）· 规律 3 → `patterns/audit-methodology.md` §7 末段（已写）· 坑 4 → `patterns/web-runtime-patterns.md` §4.5（已写，随用户裁决）· **纪律 5 → 待用户裁定写入 `harness-rules.md` 铁律 或 `role-context/generator.md`**
+**建议写入：** 规律 1 → `patterns/agent-loop-patterns.md` §3（已写）· 规律 2 → `patterns/audit-methodology.md` §7 末段（已写）· 规律 3 → `patterns/audit-methodology.md` §7 末段（已写）· 坑 4 → `patterns/web-runtime-patterns.md` §4.5（已写，随用户裁决）· **纪律 5 → `harness-rules.md` 铁律 13（2026-08-03 用户裁决）**
 
-**状态：** 1-4 已随本次 Accept 沉淀；**第 5 条待确认**（它涉及铁律层，未擅改）
+**状态：** ✅ 全部已沉淀 —— 1-4 随 v1.0.13 Accept；第 5 条已沉淀 **v1.6.5**（2026-08-03 用户裁决入铁律 13 + generator.md 各副本呼应）
 
 ## [2026-08-03] Andy/Coordinator — 来源：M4.7 done 边界启动 /plan
 

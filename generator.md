@@ -184,6 +184,8 @@ gh run watch $RUN ; gh run view $RUN --json conclusion -q .conclusion
 - Evaluator 需要执行哪些 executor:evaluator 功能
 - 已知的注意事项（脚本用法、环境变量、预期产出物路径）
 
+**交付叙述纪律（铁律 13）：** `generator_handoff` 与 commit 正文中每一句「已修 / 已验证 / 已移除 / 全绿」，落笔前必须有对应的一条命令输出作依据（`git show --stat` / `grep` / 实跑）；拿不出就如实写「未核」。
+
 ## 完成标准
 - **building 模式：** 所有 `executor:generator` 的功能 status 均为 "completed"（`executor:evaluator` 功能保持 pending，由 Evaluator 处理）→ 将 progress.json status 改为 "verifying"
 - **fixing 模式：** 所有被标为 FAIL/PARTIAL 的 `executor:generator` 功能已修复 → 将 progress.json status 改为 "reverifying"，fix_rounds +1

@@ -5,6 +5,15 @@
 
 ---
 
+## v1.6.5 — 2026-08-03（铁律 13：交付叙述必须有机械依据）
+
+**来源：** `newkolmatrix` M4.7-FRONTDESK 复验轮三 evaluator 点名建议（连续三轮共 4 例交付叙述与实物不符，均被 `git show --stat` / `git log -L` / 实跑逐条证伪），用户裁决入铁律。
+
+- `harness-rules.md` 新增铁律 13：commit 正文 / `generator_handoff` / 验收报告中每句「已修 / 已验证 / 已移除 / 全绿」类陈述，落笔前必须有对应的一条命令输出作依据；拿不出就如实写「未核」。
+- `generator.md` §8 Handoff 增呼应条；`role-context/generator.md` 增「交付叙述纪律」段（root / framework 副本按铁律 7 同步更新）。
+
+---
+
 ## v1.6.4 — 2026-08-03（PostToolUse dispatch 配置 pinning）
 
 **来源：** `newkolmatrix` 接入 v1.6.3 的独立验收。

@@ -21,10 +21,19 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-kol}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kol_dev_password}
       POSTGRES_DB: ${POSTGRES_DB:-kolmatrix}
+      # M5-AUTH-RLS F007：非特权应用角色 kol_app 的口令（initdb 钩子读它）。
+      KOL_APP_PASSWORD: ${KOL_APP_PASSWORD:-kol_app_dev_password}
     ports:
       - '127.0.0.1:5434:5432'
     volumes:
       - newkolmatrix-dev-pgdata:/var/lib/postgresql/data
+      # M5-AUTH-RLS F007（spec D-5）：全新数据卷首次初始化时建 kol_app（NOSUPERUSER NOBYPASSRLS）。
+      # ⚠️ initdb 钩子只在 pgdata 为空时跑；**库已存在时这两条挂载不会有任何作用**，
+      #    对既有库请跑 `npm run db:app-role`（scripts/db/bootstrap-app-role.sh，幂等）。
+      # .sql 刻意挂到 /opt 而不是 initdb 目录：放 initdb 目录会被 entrypoint 当普通 SQL 直接执行，
+      # 而它需要 -v app_password 变量，裸跑会语法错误、初始化整体失败。
+      - ./scripts/db/initdb/10-create-app-role.sh:/docker-entrypoint-initdb.d/10-create-app-role.sh:ro
+      - ./scripts/db/create-app-role.sql:/opt/kolmatrix/db/create-app-role.sql:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-kol} -d ${POSTGRES_DB:-kolmatrix}']
       interval: 5s

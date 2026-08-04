@@ -98,6 +98,35 @@ push main → ci.yml 自动检查 + build-push.yml 自动推 app + tools 两镜�
 >    的 endpoint 有效（共享同一 Resend 账号 = 双端点各收全量事件；本项目 ingest 按
 >    providerMessageId 只落自家消息的事件，他项目事件 matched=0 不落库）。
 
+> ⚠️ **M5-AUTH-RLS 部署前置人工步（F007 / spec D-5 §6）——本批动的是生产访问面，按序做完再部署**：
+> 0. **先做 R16 备份**（architecture.md:1871）。本批是首个改动生产鉴权与数据可见性的批次，
+>    RLS policy 一旦启用，配错角色的表现是「查得到 / 查不到」而不是报错，回退需要可用备份兜底。
+> 1. **建非特权应用角色 `kol_app`**（幂等，可反复跑；prod pgdata 已存在，compose 的 initdb
+>    钩子对它永远不触发，所以只能人工执行一次）：
+>    ```bash
+>    scp scripts/db/create-app-role.sql scripts/db/bootstrap-app-role.sh deploysvr:/opt/apps/newkolmatrix/db/
+>    ssh deploysvr
+>    cd /opt/apps/newkolmatrix
+>    # 口令自取强随机值并写进同目录 .env 的 KOL_APP_PASSWORD（不入 git）
+>    docker exec -i newkolmatrix-db psql -U kol -d kolmatrix \
+>      -v ON_ERROR_STOP=1 -v app_password="<KOL_APP_PASSWORD>" -f - < db/create-app-role.sql
+>    # 自证（期望 f | f | t）：
+>    docker exec newkolmatrix-db psql -U kol -d kolmatrix \
+>      -c "SELECT rolsuper, rolbypassrls, rolcanlogin FROM pg_roles WHERE rolname='kol_app';"
+>    ```
+> 2. **VPS `.env` 追加键**（`/opt/apps/newkolmatrix/.env`，人工，绝不入 git）：
+>    - `AUTH_SECRET=<openssl rand -base64 32>`（M5 F001：production 下缺失即启动抛错，刻意不回落）
+>    - `KOL_APP_PASSWORD=<上一步用的口令>`
+>    - `DATABASE_URL_APP=postgresql://kol_app:<KOL_APP_PASSWORD>@db:5432/kolmatrix?schema=public`
+> 3. **迁移连接保持特权不变**：`migrate` 服务仍用 `DATABASE_URL`（kol）。建表与建 policy 需要
+>    owner 权限，切到 kol_app 会让 `prisma migrate deploy` 直接失败。
+> 4. **应用运行时切换 kol_app 是一个显式开关**：`DB_APP_ROLE_RUNTIME=1`。
+>    ⚠️ **在租户变量注入（spec D-7 / F009）落地之前不要打开**——非特权连接下 RLS 生效，
+>    而 policy 认的是会话变量 `app.tenant_id`；没有注入就打开，应用每条查询都会得零行
+>    （不报错的"没数据"）。未打开时应用仍走特权连接，启动日志会持续告警「RLS 不生效」，
+>    这是刻意留的可见状态，不是噪声。
+> 5. compose 若有变更，照例先 `scp docker-compose.prod.yml deploysvr:/opt/apps/newkolmatrix/`（VPS 是人工副本）。
+
 - **迁移/seed 自动**：`up -d` 经 compose `depends_on: migrate service_completed_successfully` 先跑 `newkolmatrix-migrate`（`prisma migrate deploy` + 条件 seed），完成后才起 app。migrate 每次幂等；seed 仅首次（Kol 表空时）灌 ~2500 KOL + embedding，**首次部署可能数分钟**（`up --wait-timeout 600`）。
 - **首次部署**（目录/compose/.env 就位后）：GitHub Actions → Deploy to Production → Run（image_tag=latest）。首次会建库表 + pgvector 扩展 + 灌 seed。
 - **查看**：`ssh deploysvr; cd /opt/apps/newkolmatrix; docker compose -f docker-compose.prod.yml logs -f migrate`（看迁移/seed 进度）/ `... logs -f app`。

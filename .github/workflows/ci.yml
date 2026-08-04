@@ -81,7 +81,12 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
+      # 特权连接：迁移 + 既有 135 个测试文件走它（M5-AUTH-RLS D-8：既有测试不为 RLS 翻修）
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/kolmatrix?schema=public
+      # M5-AUTH-RLS F007（D-5）：非特权应用角色连接串。消费方 = 哨兵/RLS 套件显式建的 client。
+      # **不设 DB_APP_ROLE_RUNTIME** → lib/db/prisma 单例仍走特权连接（既有测试零影响）。
+      DATABASE_URL_APP: postgresql://kol_app:kol_app_ci_password@localhost:5432/kolmatrix?schema=public
+      KOL_APP_PASSWORD: kol_app_ci_password
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -91,6 +96,14 @@ jobs:
       - run: npm ci
       - name: Apply migrations
         run: npx prisma migrate deploy
+      # M5-AUTH-RLS F007：建 kol_app（NOSUPERUSER NOBYPASSRLS）。排在 migrate 之后——
+      # GRANT ON ALL TABLES 只覆盖执行当下已存在的表。CI 的 postgres 用户是 SUPERUSER，
+      # 不建这个角色的话，RLS policy 在 CI 里一条都不生效（静默假绿）。
+      - name: Create non-privileged app role (kol_app)
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: kolmatrix
+        run: bash scripts/db/bootstrap-app-role.sh
       - run: npm run test:unit:coverage
 
   build:

@@ -66,6 +66,13 @@ services:
       - RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET:-}
       # P1：验收真发唯一许可目标（自有测试邮箱）；真实 KOL 地址零发信。
       - OUTREACH_TEST_RECIPIENT=${OUTREACH_TEST_RECIPIENT:-}
+      # M5-AUTH-RLS F007（spec D-5）：非特权应用角色 kol_app 的连接串 + 运行时切换开关。
+      # 两键都刻意**可选**（:-，缺键不阻断部署）：
+      #   · 角色本身要人工在 prod pgdata 上建一次（deploy.md「M5-AUTH-RLS 部署前置人工步」第 1 步）；
+      #   · DB_APP_ROLE_RUNTIME=1 才真正把运行时切到 kol_app，且**必须等租户变量注入（D-7/F009）落地**——
+      #     没有注入就切，RLS 会让每条查询得零行（不报错的"没数据"）。未切时启动哨兵持续告警「RLS 不生效」。
+      - DATABASE_URL_APP=${DATABASE_URL_APP:-}
+      - DB_APP_ROLE_RUNTIME=${DB_APP_ROLE_RUNTIME:-}
     volumes:
       # M1-D F006：素材文件本体落卷（DB 只存元数据 + storageRef）。跨机迁移随卷搬（U2）。
       - newkolmatrix-materials:/app/materials

@@ -6,7 +6,7 @@
   "fix_rounds": 0,
   "current_sprint": "M4.8-HARDEN",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-04T05:30",
+  "last_updated": "2026-08-04T06:05",
   "reference_docs": [
     "docs/specs/M4.8-HARDEN-spec.md",
     "docs/dev/agent-architecture.md",
@@ -63,7 +63,7 @@
   },
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M4.8-HARDEN 全批次 · 2026-08-03/04 · 快车道】planning→building→verifying→done 单会话走完，fix_rounds=0（首轮 7/7 PASS 签收）。■ 编排形态：building 两域串行派发 generator-restricted subagent（租户域/超时域，loop.ts 调用点交叠故不并行），F007 由主上下文亲执；verifying 收敛为单 evaluator subagent（spec D-7 原写 fan-out，census/清态断言对共享 dev 库并发敏感，编排调整已向用户明示）。■ 我踩的坑（已入 project-status 技术坑）：F007 变异还原用 git checkout 把未提交的文档编辑一并抹掉，重做后改 cp 备份还原。■ evaluator 中途撞 API 证书瞬断一次，SendMessage 续跑无损。■ done 收尾已做：evaluator_feedback 原样转录、S-M48-5 销账改完成态（backlog 引用实现 commit）、S-M48-1/2/4 归属登记、project-status 覆盖写。■ 留给人类：I-1 两行建造期孤儿 opLog 的 delete（我未做——DB ops 需授权）、M4.6/4.7/4.8 三批未部署、proposed-learnings 1 条待确认（resolver registry-less 硬退）。■ 下批候选：M5 / M3-C / BL-COST-CAP。",
+    "Andy": "【M4.8-HARDEN 全批次 · 2026-08-03/04 · 快车道】planning→building→verifying→done 单会话走完，fix_rounds=0（首轮 7/7 PASS 签收）。■ 编排形态：building 两域串行派发 generator-restricted subagent（租户域/超时域，loop.ts 调用点交叠故不并行），F007 由主上下文亲执；verifying 收敛为单 evaluator subagent（spec D-7 原写 fan-out，census/清态断言对共享 dev 库并发敏感，编排调整已向用户明示）。■ 我踩的坑（已入 project-status 技术坑）：F007 变异还原用 git checkout 把未提交的文档编辑一并抹掉，重做后改 cp 备份还原。■ evaluator 中途撞 API 证书瞬断一次，SendMessage 续跑无损。■ done 收尾已做：evaluator_feedback 原样转录、S-M48-5 销账改完成态（backlog 引用实现 commit）、S-M48-1/2/4 归属登记、project-status 覆盖写。■ 留给人类：I-1 两行建造期孤儿 opLog 的 delete（我未做——DB ops 需授权）、M4.6/4.7/4.8 三批未部署、proposed-learnings 1 条待确认（resolver registry-less 硬退）。■ 下批候选：M5 / M3-C / BL-COST-CAP。 ■【授权记账·铁律 6】2026-08-04 用户实答两项授权：① 「授权清理」→ 我以 Planner ops 删除 I-1 两行建造期孤儿 OperationLog（id cmse4w1jp000a9y4kaw32jffy / cmse4wit1000a9yfzxqoldju5，孤儿计数 6→4 二次核证，2026-07-27 四行既有物证保留）；② 「你帮我部署」→ 我代为触发 deploy-prod（image_tag=c9236af 全 40 位，run 30881645541 success），公网复核 /api/health ok · / 307→/admin/today 200 · /api/agent 405 存活。生产现跑 M4.6+M4.7+M4.8 @ c9236af，回滚点 fd751ad。",
     "Reviewer": "【M4.8-HARDEN 首轮验收 · 2026-08-04 · Andy/evaluator-subagent 隔离上下文】完整叙述见 signoff §0-§10。要点：22 条自建变异/探针全实跑；每条 acceptance 都自问第二条绕过（tenantId 挪进 OR 分支 / 善意回落 / 判据放宽一格 / 隐私夹带）；发现 F004 第四条误报路径（模型抛错收场）无钉并已补钉双向证活；census 四种写法绕过面、交付叙述 files 计数差一、回调抛错失败信号未落断言等 6 条观察全部非阻断登记。副作用：产品代码零改动（git diff --quiet 逐条核证）、验收净增 0 孤儿、+3 行 e2e append-only 标记（S-M45-1 留不删）。",
     "Mark": null
   },

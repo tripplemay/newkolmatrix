@@ -60,7 +60,7 @@
       "title": "文档翻牌 + doc-freshness 扩断言(含 S-RV3-4 携带)",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec 批内文档新鲜度规则:批末文档刷新。S-RV3-4 触发条件命中:段级覆盖补齐。",
       "acceptance": "agent-architecture.md / architecture.md 就本批 as-built 同步(timeout notice 机制、budgetHitScope 四值、findProjectByRef 租户契约);doc-freshness 扩断言:budgetHitScope 枚举值 = 实物、timeout 文案常量入表;**S-RV3-4 携带**:architecture.md 两形态表**表头单元格** + agent-architecture.md「M4.7 新增工具(1 件)」句纳入断言(段级覆盖对齐,S-M46-7 同款纪律),变异:改坏表头单元格 → 红、改坏新增工具句 → 红;批末新鲜度复核判据不带左括号且含 docs/ 范围(M4.5 教训),先验活;backlog 的 BL-E2E-CLEANUP-PIN 条目内 S-RV3-3(project-context-route 部分)/S-RV3-4 两子项销账更新"
     }

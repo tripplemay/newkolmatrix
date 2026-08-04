@@ -1,12 +1,12 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "M4.8-HARDEN:租户作用域收口(findProjectByRef / knowledge-context 补 tenantId + 全仓三口径普查钉,M5 硬前提)+ 主 loop 超时可观测(用户面告知 + OperationLog 留痕 + 面板流级 error/abort 渲染)+ budgetHitScope 区分前台/专家撞顶。红线不变:遥测只记元数据 / 行动承诺诚实(超时如实说) / 测试零外呼零真实副作用。",
   "total_features": 7,
-  "completed_features": 6,
+  "completed_features": 7,
   "fix_rounds": 0,
   "current_sprint": "M4.8-HARDEN",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-04T04:30",
+  "last_updated": "2026-08-04T04:40",
   "reference_docs": [
     "docs/specs/M4.8-HARDEN-spec.md",
     "docs/dev/agent-architecture.md",

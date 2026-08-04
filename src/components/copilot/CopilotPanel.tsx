@@ -101,6 +101,20 @@ export const BUDGET_NOTICE_PART = 'data-budget_notice';
 export const TIMEOUT_NOTICE_PART = 'data-timeout_notice';
 
 /**
+ * 流级错误告知（M4.8 F005 / D-5）。
+ *
+ * 【与工具级错误的区别】工具报错有 `output-error` 分支（"工具 X 出错"），
+ * 那是**流还活着**时的局部失败；这里说的是流本身死了：连接断开、服务端 500、
+ * 网关拒答。此前 `useChat` 的 `error` 根本没被解构（CopilotPanel.tsx:249 实证），
+ * 于是这类失败在界面上的表现是——**什么都不发生**：思考气泡消失，没有答案，
+ * 也没有一句解释。用户唯一能做的判断是"它是不是坏了"。
+ *
+ * 文案只说三件如实的事：没送达 / 已看到的可能不完整 / 可以重试。不猜原因、不甩术语。
+ */
+export const STREAM_ERROR_NOTICE =
+  '这次回答没能送达（连接中断或服务端出错）。上面如果有内容，那也可能是不完整的——你可以再问我一次。';
+
+/**
  * 从消息流里解析**当值人格**（P9）：取最后一次 persona_switch 事件的 to。
  * 无切换 → 回落 context.agentId（行为与 M4.5 前完全一致）。
  * 响应头 X-Agent-Id 只带起始人格，切换史只在流内——故这里读流不读头。
@@ -268,7 +282,8 @@ function CopilotChat({
   stage: string | null;
 }) {
   const [input, setInput] = useState('');
-  const { messages, sendMessage, status } = useChat({
+  // M4.8 F005（D-5）：`error` 必须解构出来——不解构 = 流级失败在界面上"什么都不发生"。
+  const { messages, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/agent',
       body: { context },
@@ -376,6 +391,17 @@ function CopilotChat({
           <ChatBubble role="agent" muted>
             {persona?.name ?? '专家'}正在思考…
           </ChatBubble>
+        )}
+        {/* M4.8 F005：流级错误/中断——原始 message 只挂在 title 上（诊断可取，
+            但不进正文：它是英文技术串，也会让视觉基线随后端措辞抖动）。 */}
+        {error && (
+          <div
+            data-testid="stream-error"
+            title={error.message}
+            className="my-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+          >
+            {STREAM_ERROR_NOTICE}
+          </div>
         )}
       </div>
 

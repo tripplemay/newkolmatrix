@@ -22,6 +22,7 @@ import {
   installNoNetworkSentinel,
   scriptedModel,
 } from '../support/agent-loop-testbed';
+import { waitForLogSettle } from '../support/log-settle';
 
 const seam = vi.hoisted(() => ({
   ctx: null as unknown,
@@ -374,6 +375,10 @@ describe('F004 ③ route：流内告知 + OperationLog 一行留痕', () => {
       PROMPT_SENTINEL,
     );
     expect(rowJson, '不得含工具入参正文').not.toContain('m48-item');
+
+    // 清理前等留痕/遥测都落完（S-RV2-10 同族：route 的两条写入都是 fire-and-forget，
+    // 不等就删租户 → 慢机上要么被迟到的行打红，要么留下孤儿行）
+    await waitForLogSettle(tenantId);
   }, 30_000);
 });
 

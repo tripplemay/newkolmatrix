@@ -1,0 +1,44 @@
+{
+  "_comment": "dispatch-mode.md local-cli 适配器 —— Kimi Code CLI。已按 kimi 0.26.0 实测核对（local-cli.md §7 七条清单）。升级 CLI 后需重跑核对。",
+  "name": "kimi",
+  "model_family": "kimi",
+  "envelope_delivery": "argv",
+  "argv": [
+    "kimi",
+    "-p",
+    "{{envelope_json}}",
+    "--output-format",
+    "stream-json"
+  ],
+  "bridge_commands": {
+    "acp-native-agent/v1": ["kimi", "acp"]
+  },
+  "artifact_relpath": "docs/test-reports/{{batch}}-verdict.json",
+  "env_allowlist_extra": [
+    "KIMI_CODE_HOME",
+    "KIMI_API_KEY",
+    "KIMI_BASE_URL"
+  ],
+  "_flags_rationale": {
+    "-p {{envelope_json}}": "Kimi 的 prompt 走 argv 而非 stdin（`-p <prompt>` 取字面文本），故用 {{envelope_json}} 内联信封内容。作为单个 argv 元素直接 exec，无 shell 解释",
+    "--output-format stream-json": "结构化事件落进沙箱 run-*.log，供失败取证（对应 Codex 的 --json）",
+    "工作根": "🔴 Kimi **没有** -C/--cd 类工作根参数。靠 sandbox-profile.sh 把子进程 CWD 固定为 worktree 来约束——这也是该加固存在的直接原因",
+    "权限": "🔴 prompt 模式**不接受任何权限旗标**：`--auto` 与 `--yolo` 都会被拒（`error: Cannot combine --prompt with --auto|--yolo`）。而 `-p` 单独运行时**已隐式自动批准工具使用**（实测：无旗标即创建文件、跑命令）。即 Kimi 非交互模式下**没有任何厂商侧权限层可配**"
+  },
+  "_auth_note": "Kimi 数据目录由 KIMI_CODE_HOME 决定，回落 ~/.kimi-code（认证在其 credentials/ 与 oauth/ 下）。普通 local-cli 可由 descriptor 的 sandbox.env_set 指向该数据目录而不泄露真实 HOME。已发布的 ACP same-session route 只能由 framework-owned vm-v1 provider 调用，凭据仅留在宿主 broker 内存；临时复制 credentials/oauth/config.toml/device_id 仅是协议测试辅助，不能作为 hostile-process 凭据隔离。",
+  "_security_note": "🔴 与 Codex 的关键差异：Codex 有 `-s workspace-write` 这一**厂商自带的沙箱级别**作为第二道防线，且显式传参可覆盖用户 config 的削弱。Kimi 的 prompt 模式既隐式全批准、又拒绝一切权限旗标，**厂商侧零约束**。普通 Kimi local-cli 只具有 env 白名单 / 独立 worktree / 禁 push / 封顶与 CWD 的合作型 guardrail，不是 hostile 同 UID 进程隔离。Kimi ACP same-session bridge 只可走已发布的独立 vm-v1 provider，由 provider broker 凭据、网络与生命周期；`sandbox-exec` 不能满足该门槛。派 Kimi 时 sandbox.home_dir 尤其不可省。",
+  "_not_used": {
+    "-y/--yolo 与 --auto": "prompt 模式下均被拒（Cannot combine）；且 -p 本身已隐式全批准，无从收紧",
+    "--add-dir": "追加可写工作目录 —— 与「只在 worktree 内活动」冲突，不用",
+    "-c/--continue/-S": "续接历史会话 —— 每次派活必须干净上下文（铁律 4 fresh context），不用"
+  },
+  "_argv_placeholders": {
+    "{{worktree}}": "沙箱创建的独立 worktree 绝对路径（Kimi 无工作根参数，此处不用）",
+    "{{envelope}}": "信封文件绝对路径",
+    "{{envelope_json}}": "信封 JSON 内容（内联进 argv）",
+    "{{batch}}": "批次 id",
+    "{{artifact}}": "产物相对路径"
+  },
+  "_verified": true,
+  "_verified_note": "kimi (kimi-code) 0.26.0 / 2026-07-25 的 local-cli 端到端演练通过：信封经 argv 内联送达、Kimi 在 worktree 内自写测试并跑、产出合 schema 的 verdict（PARTIAL，精确命中植入缺陷并定位到 src/slugify.js:3）、回执 COMPLETED，169s。捕获的环境与日志未见凭据泄漏、无 push、src 未动、主仓零污染；这些结果不构成 hostile-process 隔离证明。核对记录见 local-cli.md §7.2。"
+}

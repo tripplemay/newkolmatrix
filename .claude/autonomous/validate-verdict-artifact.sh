@@ -26,9 +26,20 @@ for k in ("batch_id", "fix_round", "created_at", "verdicts"):
     if k not in v:
         errs.append(f"缺顶层字段 {k}")
 
+# v1.1（dispatch-mode.md）：waiting 中断态。非空 = 被授权/裁决卡住，本轮本就验不完，
+# 允许 verdicts 为空或部分——强行要求满额会逼出编造的证据。但必须说清卡在哪。
+waiting = v.get("waiting")
+if waiting not in (None, "", "auth", "adjudication"):
+    errs.append(f"waiting 取值非法：{waiting!r}（合法：auth / adjudication / null）")
+interrupted = waiting in ("auth", "adjudication")
+if interrupted and not str(v.get("waiting_detail", "")).strip():
+    errs.append("waiting 非空却缺 waiting_detail —— 人类无从判断如何解锁")
+
 verdicts = v.get("verdicts")
-if not isinstance(verdicts, list) or len(verdicts) == 0:
-    errs.append("verdicts 必须为非空数组")
+if not isinstance(verdicts, list):
+    errs.append("verdicts 必须为数组")
+elif len(verdicts) == 0 and not interrupted:
+    errs.append("verdicts 为空数组 —— 这轮验收没有产出，沉淀引擎无燃料")
 else:
     for i, item in enumerate(verdicts):
         tag = item.get("feature_id", f"#{i}")
@@ -45,5 +56,9 @@ if errs:
     for e in errs:
         print("   -", e)
     sys.exit(2)
-print(f"[autodrive] ✓ verdict 工件合法（batch={v.get('batch_id')}, fix_round={v.get('fix_round')}, {len(verdicts)} 条，证据齐全）。")
+if interrupted:
+    print(f"[autodrive] ⏸ verdict 工件合法但处于中断态 waiting={waiting}（batch={v.get('batch_id')}, "
+          f"{len(verdicts)} 条已验）：{v.get('waiting_detail')} → 硬停交人类，不得自行推进。")
+else:
+    print(f"[autodrive] ✓ verdict 工件合法（batch={v.get('batch_id')}, fix_round={v.get('fix_round')}, {len(verdicts)} 条，证据齐全）。")
 PY

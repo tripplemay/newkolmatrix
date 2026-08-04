@@ -1,0 +1,24 @@
+{
+  "_comment": "Protocol-validated Kimi ACP bridge. The generic runner selects by protocol.kind and manifest-declared native agent types, never by integration or CLI tool name; this manifest alone never publishes a route.",
+  "id": "kimi-acp-native-agent",
+  "_verified": true,
+  "session_scope": "same-session",
+  "strategy": "session-bridge-v1",
+  "protocol": {
+    "kind": "acp-native-agent/v1",
+    "command": ["kimi", "acp"],
+    "request_delivery": "stdin",
+    "response_format": "json"
+  },
+  "personas": {
+    "planner": "planner-proposal",
+    "generator": "generator-restricted",
+    "evaluator": "evaluator"
+  },
+  "native_agent_types": {
+    "planner": "coder",
+    "generator": "coder",
+    "evaluator": "explore"
+  },
+  "notes": "This manifest is published only when a strict VM or ephemeral-principal provider attests both plan and launch. The provider brokers credentials and egress, stages the CLI, owns the worker lifecycle, and supplies a nonce-bound launch attestation. Generator source handoff remains separately gated by the provider copy-in/copy-out protocol."
+}

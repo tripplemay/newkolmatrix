@@ -15,19 +15,26 @@ type: feedback
 
 - spec §关键决策点必须逐条标记每个老路由 redirect 的 destination **wire-readiness** 状态
 - destination 未 wire 等效功能 → 该条写 "kept deep-link，BL-XXX wire 后启 redirect"，不预设"所有老路由立即 redirect"
-- redirect 清单除死链外必须同批扫**引用旧路由的探针/测试**：`tests/visual` route/selector + compose/workflows healthcheck 路由 + `curl` 探针，acceptance 要求同批重指（v1.0.5 — GO-LIVE 沉淀：visual goto 超时 + healthcheck 307 恒 unhealthy 两例均延迟暴露）
+- redirect 清单除死链外必须同批扫描引用旧路由的 visual 探针、compose/workflow healthcheck 与 curl 探针，并在 acceptance 中要求同批重指。
 
-## 批内文档新鲜度（v1.0.6 — ARCH-M05 沉淀）
+## 批内文档新鲜度（KOLMatrix 本地沉淀）
 
-- 批次内若有「口径权威文档」（架构定稿、契约规范）作为**首个** feature 交付，后续 feature 的实装会**反向漂移**它（已实装的仍标「演进目标」、计数过期）
-- 拆 features 时对策二选一：批末排一条**文档刷新 feature**，或在 acceptance 里给该文档加「批末新鲜度复核」clause
-- 大批次（≥10 features）两者都上；反面案例 ARCH-M05 FIX-2（architecture.md 三处批内漂移）
+- 若口径权威文档在批次早期交付，后续实现会反向漂移它；拆分 feature 时应安排文档刷新 feature 或在 acceptance 中加入批末新鲜度复核。
+- 大批次（10 个或更多 features）同时采用文档刷新与批末复核。
+- 文档新鲜度应通过新增或扩展的 doc-freshness 断言验证，不能仅依赖批末人工 grep。
+- 涉及模型自主性的 acceptance 必须明确属于 L1 装配层还是 L2 真模型验证；mock 测试床不能证明真实模型行为。
 
-## 角色分配
+## 工具绑定与角色分配
 
-- 项目根存在 `.agents-registry` 时，展示可用 agent 列表，询问用户分配
-- 校验：generator ≠ evaluator（同一执行上下文）；外部工具类实例只能担任 evaluator
-- 用户说"默认"或不指定 → 不写 `role_assignments`，按默认映射
+- 新的 v2 模式只向用户展示 Harness 支持的 CLI 工具及调用方式
+  (`{tool, invocation}`)，不展示或要求用户选择具体 agent id；下一次 `/plan` 才由本机
+  `tool-integrations/1` registry 与 verified adapter 确定性解析内部 target。
+- Planner 选择器的首项固定为不可配置的 Coordinator；签发 `planner: null` 表示由当前主会话
+  负责规划。Coordinator 不属于 registry，也不写入 `role_assignments`。
+- Generator 与 Evaluator 必须解析为不同 `model_family`；A2A 目前只允许 Planner/Evaluator，
+  Generator 必须使用有本地 source-handoff 契约的路径。
+- 历史 v1 的 `role_assignments` / `.agents-registry` 仍只按兼容路径读取；不要在新的 v2 intent
+  中写入 agent id。用户未指定工具时，按界面默认的 Coordinator Planner 与已签发的其他绑定处理。
 
 ## done 收尾
 

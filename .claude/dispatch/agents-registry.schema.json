@@ -1,0 +1,297 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "harness dispatch registry",
+  "description": "The framework accepts legacy dispatch/1 agent descriptors and the role-neutral tool-integrations/1 catalog. New projects should use tool-integrations/1: an integration describes one CLI tool and invocation configuration; the framework derives role permissions and opaque runtime target ids.",
+  "oneOf": [
+    { "$ref": "#/definitions/legacy_registry" },
+    { "$ref": "#/definitions/integration_registry" }
+  ],
+  "definitions": {
+    "tool_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "agent_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "safe_text_128": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[^\\u0000-\\u001F\\u007F]+$"
+    },
+    "endpoint": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^[^\\u0000-\\u001F\\u007F]+$"
+    },
+    "capability": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9._-]{1,64}$"
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["none", "bearer"] },
+        "env": {
+          "type": "string",
+          "pattern": "^REMOTE_A2A_[A-Za-z0-9_]+$",
+          "description": "Only a dedicated REMOTE_A2A_* variable may be forwarded to an A2A endpoint."
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["type"],
+          "properties": { "type": { "const": "none" } },
+          "not": { "required": ["env"] }
+        },
+        {
+          "required": ["type", "env"],
+          "properties": { "type": { "const": "bearer" } }
+        }
+      ]
+    },
+    "sandbox": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "home_dir": {
+          "type": "string",
+          "description": "Dedicated HOME for local-cli. It must be an absolute path or begin with ~."
+        },
+        "env_allow": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "env_set": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "legacy_agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "roles", "transport", "model_family"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/agent_id",
+          "description": "Legacy runtime agent id. New tool-integrations/1 does not expose agent ids for selection."
+        },
+        "tool": {
+          "$ref": "#/definitions/tool_id",
+          "description": "Optional stable tool identity."
+        },
+        "priority": { "type": "integer", "minimum": 0, "default": 1000 },
+        "roles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["planner", "generator", "evaluator"] }
+        },
+        "transport": { "type": "string", "enum": ["subagent", "local-cli", "a2a"] },
+        "model_family": { "$ref": "#/definitions/safe_text_128" },
+        "adapter": { "$ref": "#/definitions/tool_id" },
+        "endpoint": { "$ref": "#/definitions/endpoint" },
+        "agent_type": { "type": "string", "minLength": 1 },
+        "capabilities": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "$ref": "#/definitions/capability" }
+        },
+        "constraints": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "l2": { "type": "boolean", "default": false },
+            "write_src": { "type": "boolean", "default": false },
+            "push": { "type": "boolean", "default": false }
+          }
+        },
+        "sandbox": { "$ref": "#/definitions/sandbox" },
+        "timeout_s": { "type": "integer", "minimum": 60, "maximum": 86400, "default": 3600 },
+        "auth": { "$ref": "#/definitions/auth" },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "transport": { "const": "local-cli" } }, "required": ["transport"] },
+          "then": {
+            "required": ["adapter", "sandbox"],
+            "properties": { "sandbox": { "required": ["home_dir"] } }
+          }
+        },
+        {
+          "if": { "properties": { "transport": { "const": "a2a" } }, "required": ["transport"] },
+          "then": { "required": ["endpoint"] }
+        },
+        {
+          "if": { "properties": { "transport": { "not": { "const": "a2a" } } }, "required": ["transport"] },
+          "then": { "not": { "required": ["auth"] } }
+        },
+        {
+          "if": {
+            "properties": {
+              "transport": { "const": "a2a" },
+              "roles": { "contains": { "const": "generator" } }
+            },
+            "required": ["transport", "roles"]
+          },
+          "then": false
+        },
+        {
+          "if": {
+            "properties": {
+              "transport": { "const": "subagent" },
+              "roles": { "contains": { "const": "planner" } }
+            },
+            "required": ["transport", "roles"]
+          },
+          "then": {
+            "required": ["agent_type"],
+            "properties": {
+              "agent_type": { "const": "planner-proposal" },
+              "roles": { "minItems": 1, "maxItems": 1, "items": { "const": "planner" } }
+            }
+          }
+        }
+      ]
+    },
+    "legacy_registry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "agents"],
+      "properties": {
+        "_comment": { "type": "string" },
+        "version": { "const": "dispatch/1" },
+        "agents": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/legacy_agent" }
+        }
+      }
+    },
+    "local_cli": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "sandbox"],
+      "properties": {
+        "adapter": { "$ref": "#/definitions/tool_id" },
+        "sandbox": {
+          "allOf": [
+            { "$ref": "#/definitions/sandbox" },
+            { "required": ["home_dir"] }
+          ]
+        },
+        "timeout_s": { "type": "integer", "minimum": 60, "maximum": 86400, "default": 3600 }
+      }
+    },
+    "subagent_declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bridge"],
+      "properties": {
+        "bridge": {
+          "$ref": "#/definitions/tool_id",
+          "description": "Verified bridge manifest id. The catalog loads .claude/dispatch/transports/bridges/<id>.json and derives supported same-session roles from its personas."
+        }
+      }
+    },
+    "integration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "tool", "model_family"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/tool_id",
+          "description": "Stable internal integration identity. It is not an agent-selection UI value."
+        },
+        "tool": { "$ref": "#/definitions/tool_id" },
+        "label": { "$ref": "#/definitions/safe_text_128" },
+        "model_family": { "$ref": "#/definitions/safe_text_128" },
+        "priority": { "type": "integer", "minimum": 0, "default": 1000 },
+        "capabilities": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/capability" }
+        },
+        "local_cli": {
+          "$ref": "#/definitions/local_cli",
+          "description": "When present, the framework automatically offers this CLI for Planner, Generator, and Evaluator with fixed role contracts."
+        },
+        "subagent": {
+          "oneOf": [
+            {
+              "const": true,
+              "description": "Legacy Coordinator-native capability declaration. It remains supported for existing projects, but does not create a selectable tool-invocation candidate."
+            },
+            { "$ref": "#/definitions/subagent_declaration" }
+          ],
+          "description": "A bridge declaration references a verified same-session bridge manifest. Legacy true is Coordinator-native compatibility metadata only; only an object declaration can create a selectable external subagent candidate."
+        },
+        "notes": { "type": "string" }
+      },
+      "anyOf": [
+        { "required": ["local_cli"] },
+        { "required": ["subagent"] }
+      ]
+    },
+    "a2a_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "integration_id", "remote_runner_id", "endpoint"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/tool_id",
+          "description": "Stable remote target identity. The runtime creates a2a--<id>--planner/evaluator target ids."
+        },
+        "integration_id": {
+          "$ref": "#/definitions/tool_id",
+          "description": "Must reference an integrations[].id; enforced by the catalog resolver."
+        },
+        "remote_runner_id": {
+          "$ref": "#/definitions/agent_id",
+          "description": "Exact A2A Agent Card name advertised by the self-hosted runner."
+        },
+        "endpoint": { "$ref": "#/definitions/endpoint" },
+        "auth": { "$ref": "#/definitions/auth" },
+        "priority": { "type": "integer", "minimum": 0 },
+        "capabilities": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/capability" }
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "integration_registry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "integrations", "a2a_targets"],
+      "properties": {
+        "_comment": { "type": "string" },
+        "version": { "const": "tool-integrations/1" },
+        "integrations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/integration" }
+        },
+        "a2a_targets": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/a2a_target" }
+        }
+      }
+    }
+  }
+}

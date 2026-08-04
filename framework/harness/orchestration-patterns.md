@@ -90,22 +90,13 @@
 
 **汇总环节是机械合并，不是二次评估。** 主上下文不得在汇总时调整任何 result 判定。
 
-> **例外——审计类批次的汇总层反过来必须是对抗复核层**（防漏报，不是防误报）。见 `patterns/audit-methodology.md` §3。两者方向相反：验收 fan-out 的汇总不得动判定；审计 fan-out 的汇总必须抽查回原件重跑并主动找盲区。
+> **KOLMatrix 本地补充：** 审计类批次的汇总层反过来必须是对抗复核层，目标是防漏报而非放宽验收；应抽查原始证据并主动寻找盲区，方法学见 `patterns/audit-methodology.md`。
 
-### 4.1 subagent 生成通路故障时的 resume 兜底（v1.0.6）
+### 4.1 Coordinator-native resume 兜底
 
-**症状：** 派发新 subagent 时 tmux 新建 pane 报 **ENXIO**（且 pty 数量未触顶，根因未明），fan-out 卡住无法继续。
+当新 subagent 创建通路故障时，可向已完成的、没有实现上下文的验收 agent 发送 Coordinator-native resume 请求。必须逐次确认「验收到验收」而非「实现到验收」，并把转派事实写入 signoff。
 
-**兜底：** 向**已完成的 agent** `SendMessage` 走 resume 通路可绕过该故障（ARCH-M05 D 组 / E 组 / 汇总 / 复验四次成功）。
-
-**独立性核验（不可省）：** resume 转派会把新任务交给一个**已有上下文**的 agent，因此必须逐次核验转派方向：
-
-| 转派方向 | 允许？ | 理由 |
-|---|---|---|
-| 验收 → 验收 | ✅ | 目标 agent 无实现上下文，铁律 4 不破 |
-| 实现 → 验收 | ❌ | 等于自评，直接违反独立性铁则 |
-
-转派事实（哪个 agent 接了哪段、方向为何合规）**必须记入 signoff**，不得只留在对话里。
+该兜底不允许绕过 v2 active checkpoint、verified adapter、dispatcher 或 receipt 校验；任何已绑定角色仍按当前 mode resolution 派发。
 
 ---
 
@@ -116,7 +107,7 @@
 | 场景 | 模式 |
 |---|---|
 | ≥4 features 的批次验收 | §4 三阶段 fan-out（pipeline：每个 feature 验完即复核，不等全量） |
-| 上线前 audit（prod-launch-audit-template.md） | 多维 finder fan-out（安全 / ghost-control / PRD 偏差 / 部署对位各一个 finder）→ 对抗复核 → 汇总四池子报告。**方法学见 `patterns/audit-methodology.md`**（基线词表校准 / 传递可达性 / 汇总即对抗复核 / 产物脚本化） |
+| 上线前 audit（prod-launch-audit-template.md） | 多维 finder fan-out（安全 / ghost-control / PRD 偏差 / 部署对位各一个 finder）→ 对抗复核 → 汇总四池子报告；方法学见 `patterns/audit-methodology.md` |
 | 全仓扫描类独立任务（rate-limit 全裸点、RLS 缺失表） | loop-until-dry：连续 2 轮无新发现才停，避免 top-N 截断漏尾部 |
 | 大型迁移批次（migration-batch-checklist.md） | discover 站点 → pipeline 逐项转换（worktree 隔离）→ 逐项验证 |
 
@@ -148,10 +139,15 @@
 
 - **跨机器协作：** 多台设备轮换工作，`.agent-id` 各配身份，启动必 `git pull --ff-only`
 - **独立实例验收：** 正式发布批次 / 用户要求最强隔离时，evaluator 跑在独立会话甚至独立机器，读 status=verifying 自行接手
-- **外部工具 evaluator：** 非 Claude Code 的 agent（如 Codex）参与时只能担任 evaluator（harness-rules.md role_assignments 约束），走 AGENTS.md 指令
 - **多日大批次：** Path A 串行多批次重构，天然跨会话
 
-两条车道可以在同一批次内切换：如快车道 building 完成后，用户要求独立实例做 verifying——只要阶段边界状态已落盘，任何实例都能无损接手。这正是「状态文件在两条车道下都必须落盘」的回报。
+**外部工具参与已改走第三形态（v1.6）：** CLI 工具不再靠「读 AGENTS.md 自行接手」，而是由编排者按
+`tool-integrations/1` registry 与 verified adapter 派活（`dispatch-mode.md`）——契约随信封走、产物过 schema、
+跑在进程级沙箱里。每个 local-cli integration 可按固定契约承担 Planner、Generator、Evaluator；已配置的
+A2A target 可承担 Planner/Evaluator。Generator 与 Evaluator 的 `model_family` 必须不同，A2A Generator
+在 source-handoff 契约落地前拒绝。
+
+三条形态可以在同一批次内切换：如快车道 building 完成后，用户要求异厂商实例做 verifying——只要阶段边界状态已落盘，任何实例都能无损接手。这正是「状态文件在所有形态下都必须落盘」的回报。
 
 ---
 
@@ -193,4 +189,3 @@
 |---|---|---|
 | 2026-07-09 | 初版（v1.0）：快车道标准流 / 并行 building / fan-out 验收 + 对抗复核 / Workflow 与 /loop 场景 / 模型分层 / 慢车道保留场景 | 框架 v1.0 重构（适配 Claude Code subagent + Workflow + plan mode + hooks 时代） |
 | 2026-07-12 | §8 Workflow ⇄ progress.json 日志契约（阶段边界不自动越 / 机械原样回写 / 逐条落盘抗崩溃 / 验收工件回喂沉淀） | harness-fit 分析 wt27gd5xu（红队：naive 上 Workflow 是正确性回归 + 沉淀饿死风险） |
-| 2026-07-21 | §4.1 subagent 通路故障的 resume 兜底（含「验收→验收」独立性核验表）+ §4 审计类汇总层例外指针 + §5 audit 行指向 `patterns/audit-methodology.md` | KOLMatrix ARCH-M05（tmux pane ENXIO 四次转派）+ FE-AUDIT |

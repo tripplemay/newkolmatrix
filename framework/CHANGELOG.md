@@ -5,77 +5,830 @@
 
 ---
 
-## v1.0.12 — 2026-07-25（隔离验收抓出的四条 critical 级新坑：M3-A round1）
+## v1.6.4 — 2026-08-03（PostToolUse dispatch 配置 pinning）
 
-**来源：** KOLMatrix M3-A-REACH-CRM round1 验收（payloadHash undefined-键中毒 critical 及其连带盲区），用户 2026-07-25 确认（M4-INSIGHT done 收尾；同批挂起项 M3-B 1 条 + M4 3 条留 proposed-learnings）。
+**来源：** `newkolmatrix` 接入 v1.6.3 的独立验收。
 
-共同主题：**building 自测全绿、隔离验收才暴露**——四条都是「测试形态与真实路径错位」（服务层直调 ≠ HTTP 链、内存对象 ≠ DB 往返、入口预载 ≠ 注册契约、ref 键假设 ≠ 标记实义）。
-
-**变更：**
-- `patterns/database-patterns.md` 新增 **§9 「建立时算 hash / 存储后复算」必须对齐存储层序列化语义**（undefined 值键在 JSONB 往返中丢弃 → stableStringify 须同款；单测须含 DB 往返复算用例）
-- `patterns/testing-env-patterns.md` 新增 **§8 闸门/签名/token 类回归必须含「HTTP 路由创建 → confirm → execute」全链**（服务层直调绕过 route/zod 层载荷改写；Evaluator 受理判据同步）+ **§9 mock 发送类清态按业务观测标记清**（marker 行 ref 语义各异；M4 O2 补充「保留 marker 的后果」证据）
-- `patterns/web-runtime-patterns.md` 新增 **§7 注册不得依赖入口模块图副作用**（消费点显式幂等注册；standalone 预载幸免是运气不是契约）
-
-**触发原因：** M3-A round1 confirm 恒 403 critical 被 gate-smoke + reach-e2e 双绿漏检；同轮连带发现冷进程注册表空、清态漏删污染后续批次视觉基线。M4-INSIGHT 批内「闸门类必有 HTTP 全链回归」已按此实践（create-share-link 测试含全链），本次转正为 pattern。
-
-## v1.0.7 — 2026-07-22（证据强度：绿灯不等于证明）
-
-**来源：** KOLMatrix P2-CLEANUP（需求池清理 5 features，fix_rounds=1，已上线用户验收通过）—— signoff `docs/test-reports/P2-CLEANUP-signoff.md`。
-
-共同主题是**证据强度**：v1.0.6 沉淀的是「静默失败让检查绿得毫无意义」，这一批更进一层——**当事人拿着一份真绿的报告，仍然高估了它证明了什么**。四条里有两条是隔离验收方发现实现方的证据链有水分（断言已退化为恒真、合成节点探针结构性看不见自己要防的 bug），一条是立项前提本身未经核实就写进了 spec。
-
-**变更：**
-- `patterns/audit-methodology.md` 新增 **§5 换实现形态后既有断言可能静默退化为恒真**（复验不得仅以「原测试由红转绿」为据；须先跑反向断言做强度审查，退化的补 discriminating 断言；结论须区分载荷断言与已失效断言）
-- `patterns/audit-methodology.md` 新增 **§6 合成节点探针证明不了「组件真的发出了它」**（合成 `<div class="...">` 只证样式规则存在；零引用组件应建 esbuild 最小挂载 harness，参考 `scripts/test/f003-harness/`、`f003-reverify/`）
-- `patterns/web-runtime-patterns.md` 新增 **§4.4 新增视觉用例的「CI 首推必红」是预期，且补基线不会自动复验**（基线 workflow 带 `[skip ci]`，须另推一次非 `paths-ignore` 改动才验得到 CI 绿）
-- `harness/pre-impl-adjudication.md` §2.1 触发条件表新增两行（**消费点不存在** / **属性根本不生效**）+ 「组件 X 有问题去修 X」类 feature 的开工前两问，并对称要求 Planner 把这两项列入起草期勘查清单
-
-**触发原因：**
-P2-CLEANUP F003 一条 feature 连踩三坑：立项理由（组件脱节影响用户）未核实——该组件全仓零引用；spec 规定的改法作用在一个从不产出样式的通道上；按 acceptance 字面实装后被判 PARTIAL，改用项目主导范式（Tailwind `dark:` 变体）才达成。修复后实现方以「原 harness 由 2 failed 转 0 failed」宣称修复被原尺认可，复验查出其中一条断言已退化为恒真——「转绿」里有一半是空的。
-
-## v1.0.6 — 2026-07-21（视觉回归三坑 + 双域 token + 审计方法学 + 验收活性证明）
-
-**来源：** KOLMatrix 三个批次的 13 条待确认 learnings 一并沉淀 —— FE-AUDIT（首次 Evaluator-only 三路 fan-out + 汇总对抗复核实跑）、FE-REFACTOR（signoff §10 转录）、ARCH-M05（架构定稿 + M0.5 六页工作台，17 features 大规模并行编排）。
-
-共同主题是**静默失败**：这批坑没有一个会让 lint / tsc / 测试变红——它们让检查变绿得毫无意义（空数据基线、容忍带、死掉的检测器、JIT 丢类），或让验收预算被环境误报吃掉（`next dev` 白屏两组独立踩中）。
-
-**变更：**
-- `patterns/web-runtime-patterns.md` 新增 **§4 视觉回归基线的三个静默坑**（4.1 CDN 字体是抖动总根源→本地 woff2 夹具离线回放；4.2 容忍带双向坑→重生用 `all`、断言用紧阈值；4.3 纯 CI 空数据渲染 null 被基线固化为合法空白→route mock + `waitFor` 硬断言）+ **§5 Tailwind JIT 双域 token 分工**（`className` 可达值必须进 `tailwind.config`，JS 域才走 `design-tokens.ts`）
-- `patterns/testing-env-patterns.md` 新增 **§7**：Next.js UI 实测走 `next build` + standalone，不走 `next dev`（devtools `segment-explorer` × RSC manifest 冲突）；含「跨隔离上下文的坑必须写进探针脚本本身」纪律
-- **新建 `patterns/audit-methodology.md`**：审计类批次方法学四条（§1 基线词表校准防误报 / §2 import 图传递可达性防伪存活 / §3 汇总层必须是对抗复核层 / §4 审计产物脚本化转回归 harness）
-- `harness/orchestration-patterns.md` 新增 **§4.1** subagent 生成通路故障的 resume 兜底（含「验收→验收」允许、「实现→验收」禁止的独立性核验表 + 转派须记入 signoff）；§4 补审计类汇总层的反向例外指针；§5 audit 行指向新 pattern
-- `memory/role-context/evaluator.md` 新增三节：「0 findings」检测器活性证明三道交叉 / 计数不符先逐站点追溯（判据落终态不落过程计数）/ 文档新鲜度 clause
-- `memory/role-context/planner.md` 新增「批内文档新鲜度」：口径权威文档作为首 feature 交付时会被后续 feature 反向漂移，批末须排刷新步或加复核 clause
-- `patterns/README.md` 触发条件表补 audit-methodology 行 + 更新 web-runtime / testing-env 两行触发词
-- KOLMatrix 项目侧 `.auto-memory/role-context/` 两份副本同 commit 同步（铁律 7 多副本一致性）
-
-**兼容性：** 纯新增 pattern 与行为规范，不改状态机 / 字段 / 角色协议。
-
-**不在本次范围：** harness-fit 分析（P0-3 / P1-1~P1-3 / P2-1~P2-5）用户 2026-07-21 三度裁决继续挂起。
+- PostToolUse dispatch hook 现在和实际 dispatch 一样，将 registry 固定为当前 Git 项目根的普通
+  `.agents-registry.json`；项目外同名文件、有效符号链接和悬空符号链接一律 fail-closed。
+- 写 registry 或 `progress.json` 时，hook 依次复验 registry、角色分配与已消费 v2 signed
+  checkpoint，避免一个单独合法但已与当前 assignment / execution provenance 漂移的目录延迟到
+  实际派活时才被发现。
+- 增加 hook 回归：覆盖项目根路径、外部同名路径、有效/悬空符号链接、legacy assignment 不兼容和
+  malformed v2 checkpoint；执行入口既有的 project-root registry pinning 覆盖也改为同名外部路径。
 
 ---
 
-## v1.0.5 — 2026-07-20（IA refactor redirect：探针/测试漂移扫描）
+## KOLMatrix 本地沉淀（非上游正式发布）
 
-**来源：** KOLMatrix AGENT-FOUNDATION F008→F009 视觉基线漂移 + GO-LIVE F001/F003 healthcheck 307。IA 重构改路由后，引用旧路由的既有配置**静默失效且延迟暴露**，同根因两例：(1) 视觉回归测试 `page.goto(旧路由)` 被重定向、`waitFor(旧页元素)` 超时——F008 改 dashboard→today 时自身 CI 侥幸绿，F009 无关 push 才红；(2) prod compose + deploy-prod 的 healthcheck 命中 `/admin/dashboards/default` 期待 200，重定向后返 307 → 容器恒 unhealthy / 部署健康检查恒失败，GO-LIVE F001/F003 才修至 `/api/health`。既有 v1.0.0「IA refactor redirect scope」learning 只覆盖死链清单，未覆盖探针/测试维度。
+项目在旧版 Harness 下积累的完整历史已归档至
+`docs/archive/harness-v1.0.3-local-overrides/CHANGELOG.md`，不参与上游的正式版本序列。仍持续适用的本地规则包括：
 
-**变更：**
-- `memory/role-context/generator.md` §"IA refactor redirect scope 评估" 补**探针/测试漂移扫描**条：redirect 落地同批必须 grep 重指 `tests/visual` route/selector + `docker-compose*.yml` / `.github/workflows/deploy*.yml` healthcheck 路由 + `curl` 探针
-- `memory/role-context/planner.md` §"IA refactor 类批次 redirect 清单评估" 补呼应条：redirect 清单必须含探针/测试扫描，acceptance 要求同批重指
-- KOLMatrix 项目侧 `.auto-memory/role-context/` 两份副本同 commit 同步（铁律 7 多副本一致性）
-
-**兼容性：** 纯新增行为规范条目，不改状态机 / 字段 / 角色协议。
+- 闸门、签名与 token 回归必须覆盖 HTTP 全链，并对持久化 payload 做数据库 round trip 复核。
+- 路由迁移必须同批更新 visual、healthcheck、workflow 和 curl 探针。
+- 首次推送第三方模板前执行 secret 扫描；Compose 变更上线前同步人工副本并用运行时证据确认。
 
 ---
 
-## v1.0.4 — 2026-07-14（模板 scaffold secret 预扫）
+## v1.6.3 — 2026-08-02（strict vm-v1 Kimi bridge provider 与回执闭环）
 
-**来源：** KOLMatrix DS-FOUNDATION F001（首个真实项目跑通 v1.0 三角色闭环的地基批次）。以 Horizon UI Pro 付费模板 scaffold 时，模板 demo 组件 `MapComponent.tsx:8` 硬编码 Mapbox token，首次 push 被 GitHub push protection GH013 拦。
+**来源：** tokenizer `BL-NATIVE-SUBAGENT-BRIDGES` 修复批次。
 
-**变更：**
-- `framework/patterns/web-runtime-patterns.md` 新增 **§3**：付费/第三方模板 scaffold 类 feature 首次 push 前必跑全仓 secret grep；命中即删未用 demo 组件或换 env；**清历史铁律**——secret 进本地 commit 后未推送必须 `git commit --amend` 改写（新增删除 commit 不够，push protection 扫本次 push 全部 commit）；`.gitignore` 补 `.env*` 应早于 install/scaffold。
+- 引入 Framework-owned `vm-v1` provider：它固定校验 plain Lima VZ profile、无 host mount / proxy /
+  port forward / container runtime，按 content-addressed runner、CLI bundle、broker policy 与 VM image 启动
+  独立 worker principal。项目 registry、PATH、设备报告和项目内镜像均不能选择或替换 provider。
+- external same-session bridge 只在 installed app 与项目镜像中的受管 dispatch runtime 关键文件逐字节一致、provider 对当前主机做出
+  新鲜 nonce-bound attestation 时出现在 catalog；launch 再次校验相同 contract/provenance。Kimi ACP
+  bridge 将 Planner 映射为 `coder`、Generator 映射为 `coder`、Evaluator 映射为 `explore`；
+  future CLI 只要提供受验证 manifest、已发布 protocol，并在 provider 的新鲜 catalog attestation 中获得精确
+  `{tool, protocol}` route，便可按同一规则加入。当前 `vm-v1` 只发布它实际可运行的 Kimi ACP；协议兼容但没有
+  provider bundle/credential driver 的 CLI 不会形成可签发 candidate。
+- catalog attestation 固定为 300 秒的短时发现证明；launch proof 在私有 copy-in 完成后签发，并使用覆盖最长
+  worker turn、copy-out、broker request 与回执整理余量的 390 秒受限生命周期，避免合法的最长执行在返回时因证明
+  过期被拒绝。
+- root systemd supervisor 通过私有 pipe 接收 Kimi bridge receipt，并在 root-only receipt 目录落盘；它将
+  vendor CLI 精确降权为 `harnessvm`，回收已验证的 bridge 进程组，并由 systemd job cgroup 完成整棵 job
+  的生命周期收束。worker 使用 copy-in/copy-out、brokered
+  credential/network 与受限 supervisor pipe；不挂载 Coordinator 文件、HOME、Kimi state 或原始凭据。Generator 回传只接受普通文件、受控 artifact 与
+  allowlisted source delta，拒绝控制面、链接、非规范权限和 Git 属性/CI/hook 路径变更。
+- 新增 source-only 的受控 Kimi L2 Generator 探测：只能由显式的外部人工确认和 `/usr/bin/python3 -I`
+  启动，固定合成输入；它在同一受保护 source-root fd 下固定 provider、bridge 与三个 runner，再将它们以
+  私有、哈希校验的 stage 传给 VM。探测不读取项目状态、registry 或批准闸门，也不发布 catalog route。其
+  evidence 同时绑定 provider source、runner、bridge、CLI bundle、目标与合成 envelope 的摘要。在打开
+  broker 前，它先以同一 root systemd profile 运行无网络的 `setpriv` 预检，证明 vendor child 的 UID/GID、
+  supplementary groups、Inh/Perm/Eff/Amb capabilities 与 `NoNewPrivs` 均符合固定降权契约。
+- Lima host command 只接收 passwd 派生的固定 `HOME`、PATH 与 locale，既满足 Lima 的 profile lookup，又不继承
+  Coordinator 或 caller 环境。
+- broker 只在 Kimi OAuth access token 的剩余时长足以覆盖最长 vendor turn、copy-out、上游请求与回收余量时
+  才建立 lease，避免短时令牌在受控运行中途失效；刷新仍限定在可信宿主的供应商登录链路内，refresh token
+  不会进入 VM、回执、日志或子进程环境。
+- 针对 hardened guest 中 Python `Popen(user=...)` 无法稳定执行 Kimi ELF 的实际行为，Kimi bridge 改为固定
+  非符号链接 `/usr/bin/setpriv` 在 guest 内完成身份切换；它清空 supplementary groups、Inh/Amb capabilities
+  并设置 `NoNewPrivs`，而 systemd cgroup 继续承担完整 job tree 的回收。
+- 新增 provider-attested Generator receipt consumer：复验 active subagent route、provider run layout、
+  attestation contract/nonce/artifact digest 及签发时效；过期、未来签发、漂移或缺失的证明不能把 handoff
+  推进为 `COMPLETED`。现有 local-cli 和 Codex local-cli 不被升级为 external bridge。
+- 回传验收以重新解析的 active role/target 为准，不能由 `run-meta.transport` 自行降级：external
+  `subagent` 必须走 provider receipt 校验，伪造的 `local-cli` 或不匹配的 agent/transport 一律拒绝。该校验器
+  与 provider runtime 一并纳入 installed app / project mirror 契约。
 
-**兼容性：** 纯新增 pattern，不改状态机 / 字段 / 角色协议。触发条件：scaffold 类 feature（copy 第三方/付费模板入库）。
+---
+
+## v1.6.2 — 2026-07-31（严格同会话桥接 fail-closed 与执行语义防漂移）
+
+**来源：** tokenizer `BL-NATIVE-SUBAGENT-BRIDGES` dispatch 演练。
+
+- 保留并测试 `acp-native-agent/v1` 的协议驱动与 Kimi ACP same-session 语义代码：root 的一次 nonce-bearing
+  原生 `Agent`、同一 session、child terminal update、根 turn 终态和 artifact receipt 都有 focused regression。
+  但本 release **不发布** Kimi 或任何外部 CLI 的 same-session route：`sandbox-exec` 不能作为 hostile 同 UID
+  进程的凭据、网络或生命周期边界，catalog、签发与 sandbox 统一 fail-closed，只保留 `local-cli`。
+- Kimi 的只读原生 `plan` Agent 无法物化 Planner 强制的 proposal artifact；未来已 attested 的 Kimi route
+  会将 `planner-proposal` 映射给 native `coder`，仍只接受 schema-checked proposal artifact。Generator 继续
+  没有外部 source-handoff protocol。
+- Codex 当前 App Server `0.146.0` 的 `thread/fork` 会产生不同 session tree，隔离 probe 也未观测到可验证的
+  `spawnAgent` 生命周期。因此 Codex 保持 `local-cli`；App Server driver 只作为未发布的 fail-closed probe 保留，
+  不能由项目 manifest 或 `_verified` 自行启用。
+- bridge manifest 只能使用本 release 已发布的协议种类，且其启动命令必须精确绑定到同一 verified adapter 的
+  `bridge_commands`。未来遵循已发布 ACP 契约的 CLI 可声明性接入还必须经过 framework-owned strict provider 的
+  plan/launch nonce-bound attestation；新的 wire protocol、凭据流或 provider kind 仍须随 driver、负向隔离测试和
+  真实 provider probe 一起发布。
+- 所有权限入口将 registry 固定为项目根的普通、非符号链接 `.agents-registry.json`。活动 v2 checkpoint 的
+  resolution 新增 `execution_provenance_sha256`，覆盖 target、adapter 执行契约、sandbox/timeout、bridge 和 A2A
+  语义；Gate、dispatch、sandbox 和 A2A client 在启动前均复算并拒绝漂移。旧五字段 active checkpoint 必须重新
+  `/plan` 并 consume。
+- 旧 `subagent: true` 仅保留 Coordinator-native 兼容含义，不再生成可签发的 `tool + subagent` v2 candidate；
+  `dispatch/1` host-native target 也显式标记为内部、不可 v2 选择。外部 bridge manifest 只是 protocol 声明，缺少
+  strict provider 时不能制造 candidate。`process-timeout.py` 改为只使用绝对可信 `ps` 路径并可锁定工作目录，避免
+  vendor 控制的 PATH/CWD 注入回收器。ACP 原始 child-call id 仍仅在内存中关联事件，持久回执必须是固定的 64 位
+  SHA-256 token，不能成为模型或协议文本的写入通道。
+- A2A expected-provenance 路径从同一次已验证 catalog target 构造网络 descriptor，绝不在验签后重读
+  registry；active v2 下 card / list / cancel 也必须重验完整 role、agent 与 provenance。增加 registry pin、
+  bridge command、adapter/registry TOCTOU、活动 provenance 与 A2A pre-network regression coverage。
+
+## v1.6.1 — 2026-07-31（dispatch 适配器持久化与 A2A 安全修正）
+
+**来源：** tokenizer 工具路由角色批次的框架合同审查与加固。
+
+- 将已签名的项目内 `adapter_dir` 固化到 active mode checkpoint；`/plan`、`/build`、`/verify`、autodrive、
+  PostToolUse 与 direct A2A client 都恢复同一受控目录。目录必须是仓库内的非软链相对路径，避免新增 CLI
+  在下一阶段回退到默认适配器集。
+- direct A2A 在发起网络请求或转发 bearer 凭据前，先用 canonical integration、verified adapter、工具与
+  model family 预检目标；Agent Card 请求计入任务 deadline。runner 的默认超时与目录一致为 3600 秒，
+  保持 legacy 65--128 位 dispatch agent id 的兼容，并拒绝启动不支持 Generator 的 legacy runner。
+- sandbox 的 `env_set` 拒绝全部控制字符，封闭 NUL 数组桥接注入路径；Gate 对 model family 使用与 catalog
+  相同的 Unicode strip 规范化，避免错误的 resolution drift 停机。
+- 补全 A2A `get` / `subscribe` 调用的 envelope 文档与 adapter 回归覆盖。
+
+## v1.6.0 — 2026-07-31（工具绑定角色、Coordinator 控制面与可扩展 CLI 目录）
+
+**来源：** tokenizer dispatch 演练批次。原有控制台把角色直接绑定到注册的 agent，用户无法表达
+“使用哪一种 CLI / 调用方式”，而运行期又可能从可变 `progress.role_assignments` 重新选择 agent。
+
+- 新增已签名 v2 `execution.role_bindings`：人类只为 Planner、Generator、Evaluator 选择稳定的
+  `{tool, invocation}`；`fast` 固定为 null bindings。下一次 `/plan` 才从 registry 与 verified adapter
+  候选池确定性解析内部 descriptor，Generator/Evaluator 保持不同 model family。
+- 明确 Coordinator 为当前主会话的固定、不可配置控制面：负责验签、解析、派活、结构化产物校验、闸门与
+  人类确认后的落盘，但不能替代已经绑定的 Planner / Generator / Evaluator。非 fast Planner 始终先交
+  proposal，不能直接改写规格或状态机。
+- 新增 `tool-catalog/1` 参考实现和控制台可信 data-only 目录：registry 中新增兼容 descriptor，加上
+  已验证 local-cli adapter 后自动进入对应角色的工具/调用方式选择、签发、解析和安全 preflight；不再维护
+  前端工具白名单，也不执行项目脚本生成目录。
+- 新增原子 intent 消费 checkpoint。active batch 保存完整 signed intent 与解析审计，每次 `/plan`、`/build`、
+  `/verify`、dispatch 和 handoff 接受路径均从 checkpoint 重验；篡改 assignment/resolution、错误 agent、
+  伪造 run-meta 或替代/缺失 progress 路径都会 fail closed。
+- 增加 Planner proposal、local-cli Generator handoff 及 A2A Planner/Evaluator 的固定 artifact 契约；
+  A2A 远端字节只落进 dispatch state staging，终态与委托 envelope 精确绑定，Generator over A2A 在有可验证
+  source-handoff 前继续拒绝。
+- 收紧 adapter、sandbox 与 A2A bearer credential 环境变量：拒绝 process/Git/shell/dynamic-loader 控制变量，
+  A2A auth 仅允许无认证、精确 `none` 或安全 bearer env。同步回归覆盖 v2 运行文件、适配器、执行位和旧项目
+  升级，避免新增 CLI 形成半升级状态。
+
+## v1.5.3 — 2026-07-30（发布清单契约：控制台与框架版本不得漂移）
+
+**来源：** tokenizer `BL-FW-RELEASE-CONTRACT`。框架源码、项目镜像和控制台各自维护
+发布历史，导致本地账本已是 `v1.5.2` 时，控制台仍把 `v1.4.6` 当作最新版本。
+
+- 新增 `harness/framework-releases.json` 作为 v1 正式发布历史的机器事实源；`VERSION`
+  必须等于其末项，`CHANGELOG.md` 的全部 v1 标题与发布日期必须双向一致。
+- 新增只读校验器、失败 fixture 与 PR/push CI；非法 SemVer、前导零、空或乱序清单、重复版本、
+  `VERSION` 漂移和 changelog 单边条目都会 fail closed。
+- 清单随既有 `harness/` 递归镜像物化为项目的
+  `framework/harness/framework-releases.json`，由 `harness.lock` 使用现有双 SHA 规则管理。
+- 历史 v1.1 / v1.2 / v1.3 标题规范为三段式版本号，与已有 tag 和发布契约一致；v0 历史不进入
+  v1 发布次数清单，保留控制台对旧项目的无计数兼容语义。
+
+## v1.5.2 — 2026-07-29（macOS pending-gate Ed25519 验签兼容）
+
+**来源：** tokenizer `BL-DISPATCH-LIFECYCLE` 的 `verifying → done` 批准已由设备 agent
+中继，但 macOS 系统 `LibreSSL 3.3.6` 不支持 Ed25519，`validate-pending-gate.sh guard`
+把「算法不可用」误报成「签名无效」，导致有效批准无法被可靠消费。
+
+- pending-gate guard 与 mode-intent validator 统一 OpenSSL 选择语义：依次检查
+  `HARNESS_OPENSSL` 显式覆盖、PATH 中的 `openssl` 和 Homebrew OpenSSL 3 标准路径，
+  只选择宣告 Ed25519 支持的实现。
+- 无可用 OpenSSL 3 时明确报「运行时不支持」；只有在可用实现上验签失败才报
+  「签名无效」，避免把环境缺口误判为批准被篡改。
+- 新增 pending-gate 回归 fixture，覆盖有效签名放行、签名字段篡改拒绝和闸门消费后
+  无需密码学运行时的收尾路径。
+
+## v1.5.1 — 2026-07-27（dispatch deadline 与生命周期收束）
+
+**来源：** BL-DISPATCH-LIFECYCLE F001-F005。
+
+- local `repo.url` 在创建 state/workroot/clone/worktree 前规范化到 git top-level，并与调用入口仓库
+  做身份等值检查；不匹配或非 git 目标会同时报告两侧身份并 fail closed。框架默认 adapter、validator、
+  timeout helper 与 runner 资源改为相对 dispatch 脚本解析，显式 CLI 覆盖仍保留。
+- `deadline_s` 与 descriptor `timeout_s` 统一为 `60..86400` 的非 boolean 整数；有效任务上限是
+  `min(deadline_s, timeout_s)`，缺少 deadline 时保持 descriptor cap（缺省 3600 秒）。schema、手工
+  校验器、local-cli 和 a2a client 共用同一常量与算法。
+- 新增 stdlib timeout helper：使用绝对 wall clock、独立 session/process group、TERM 后有界 KILL、
+  子进程收尸和终止来源 status。只有 helper 自己到期才被 sandbox 判为 TIMEOUT；外部 TERM 与子命令
+  自行返回 124 都不会伪装成 helper deadline。
+- A2A task store 和 Executor 的终态、事件与 process map 由锁协调。CancelTask 幂等，终态只写一次；
+  runner `--stop` 先取消并回收活动进程组，持久化 `finished_at`/终态事件/`events_complete`，在有界 drain
+  内继续提供 GetTask/SSE，再移除 pidfile 退出。pidfile 带进程起始身份，避免向复用 PID 发信号。
+- a2a client 的 `run`/`subscribe` 使用 effective timeout + 5 秒 transport grace；超限主动 CancelTask，
+  断线重订阅携带最后 seq。Cancel 已确认后即使最终 GetTask 连接失败，仍保留可解释的本地 CANCELED
+  run-meta。远端 state 继续只作 advisory，本地产物与 receipt/schema 继续权威。
+- 新增 deterministic lifecycle matrix，覆盖 repo target、跨 CWD 默认资源、deadline 类型/范围/min/缺省、
+  正常退出、自身 timeout、外部取消、父孙进程回收、注入 wall clock、Cancel/重复 Cancel、active stop、
+  终态顺序与唯一性、SSE replay、idle exit、restart、task-id 去重及 pid/process 清理。loopback 不可绑定的
+  托管沙箱会跳过 HTTP exact-port 子集，同时执行无 socket 的同契约 runner-core 矩阵。
+
+**残余边界：** 自建 A2A 仍是 JSON-RPC/SSE 子集；真实跨物理机、OAuth/mTLS、签名 Card、Windows
+原生进程树语义与 OS 级文件系统/网络隔离不在本版范围。客户端重试全部受任务 deadline 约束，框架仍不
+自动无限重派，phase gate 仍由人或既有 policy 推进。
+
+## v1.5.0 — 2026-07-27（签名模式意图 + durable dispatch 摘要）
+
+**来源：** BL-HARNESS-DETAIL-MODEINTENT F001 correction。
+
+- 新增严格的 `harness.json.project.mode_defaults={intent,staged_at}` 契约。Ed25519 签名覆盖
+  `intent` 中除 `sig` 外全部字段，使用递归 canonical JSON；验签器兼容 macOS，通过
+  `HARNESS_OPENSSL` / PATH / Homebrew 路径选择支持 Ed25519 的 OpenSSL 3。
+- 机械校验非空 identity/repo、40 位 SHA、UTC 时间和两层未来 expiry；`fast`、`heterogeneous`、
+  `slow` profile 分别约束 null assignments、无 a2a + 至少一方 local-cli、至少一方 a2a（另一方可
+  local-cli）。所有显式 agent 都过角色白名单、不同 id 和不同 model family。
+- 自治关闭只接受 `{enabled:false}`；下一次 `/plan` 不创建非法 disabled policy，并按签名人类意图删除
+  stale `autonomy-policy.json`。自治开启要求自己的绝对 expiry、唯一 A/B gates 和四项有界预算。
+- **phase correction：** `expected_head_sha` 只由 tokenizer device agent 在写并提交 `harness.json`
+  前与真实 HEAD 比较。staging/status commit 会改变 HEAD，所以 `/plan` 只验签名、shape、expiry、repo、
+  agents 和安全语义，绝不要求当时 HEAD 相等。
+- `/plan` 只在新批次边界消费，记录
+  `progress.mode_intent={intent_id,applied_batch,applied_at}`；active batch 不变，无 intent 时保留手工模式。
+- local-cli 与 a2a 统一把 run-meta 耐久写进 `--state`（默认项目 `.harness-dispatch/`）。local-cli 日志和
+  clone/worktree 仍只在 disposable `--workroot`，没有新增日志上传。
+- 覆盖签名 metadata/nested tamper、非法 SHA、repo mismatch、mixed local-cli+a2a slow、disabled
+  autonomy、过期/预算/Agent 语义，以及 init/sync 管理和 local-cli `--state` 耐久性。
+
+---
+
+## v1.4.6 — 2026-07-27（修：`sync` 会覆盖正在运行的自己）
+
+**来源：** 把 tokenizer 从 v1.4.4 同步到 v1.4.5 时，升级正常完成，紧接着蹦出
+`.claude/harness.sh: line 474: syntax error near unexpected token '('`。
+
+**病灶：** `sync` 更新的受管文件里**包含 `.claude/harness.sh` 自己**，而 bash 是**边读边执行**的
+——文件在运行中被替换后，它按旧的字节偏移继续读新内容。这次只是语法报错（lock 与配置
+早已写完，报错发生在收尾阶段），但换一个偏移就可能执行到半条语句，后果不可预期。
+**只要框架更新涉及 `harness.sh` 本身，每次 sync 都会命中。**
+
+**修法：** `sync` 开跑前先把自己复制到临时文件并 `exec` 过去（`HARNESS_SELF_EXEC` 防重入），
+磁盘上那份随便被覆盖；临时副本由子进程自己在 EXIT 时清理。
+
+**这是本轮 dispatch 验证意外捞到的第 9 条**——它与 dispatch 无关，纯粹因为「真的把框架
+升了六次」才暴露。前五次 sync 恰好都没更新到 harness.sh 自身。
+
+---
+
+## v1.4.5 — 2026-07-27（两条沉淀转机件：装 harness 的副作用自检 + a2a runner 生命周期）
+
+**来源：** 用户确认 `proposed-learnings.md` 里剩下的两条。都不是「文档写清楚」能解决的——
+两件事都是**没人负责**，所以要让机件负责。
+
+**一、`harness.sh init` / `adopt` 完成后自检「push = 部署」的 workflow。**
+装 harness 会给项目带来一个持续副作用：状态机每推进一个阶段就提交一次 `progress.json`。
+若该项目的 CI 是 `on: push branches:[main]` 且无 paths 过滤，**每一次状态推进都会重建镜像
+并部署生产**。tokenizer 与 grandtianfu 都是这形态，**都是撞上了才发现**（joyce 的一次账本
+提交已经白跑过一次镜像构建）。现在命中即打印红字警告 + 建议的 `paths-ignore` 清单。
+**只警告不代改**——改别人的 CI 触发条件是有后果的决定，得由人来做。
+
+**二、a2a runner 加 pidfile / `--stop` / `--idle-exit`。**
+起因很具体：7 月 25 日框架演练留下的 runner 在本机**挂了整整两天**没人关，直到这次要用
+同一端口才被撞见（绑 loopback + 需 token，风险有限，但没有任何东西负责收尾）。
+- `runner.pid` 落在 `--state` 目录：关它不必再去 `lsof` 端口猜是谁
+- `--stop`：读 pidfile 停掉并清理
+- `--idle-exit <秒>`：空闲且**无在跑任务**时自行退出。默认 0（长驻部署不受影响），
+  演练/临时用途文档要求必须设。判据同时看「有没有活」和「有没有请求」——正在跑的任务
+  不能被空闲计时误杀，只轮询状态的客户端也不该无限续命。
+
+**实测：** 造一个 `push:main` 无过滤的项目跑 `init` → 警告如期打印并列出建议清单；
+tokenizer（已有 `paths-ignore`）跑 `verify` → 不吵。
+
+---
+
+## v1.4.4 — 2026-07-27（设计订正：外部 generator 不提交 + 把「四道锁不保证什么」写出来）
+
+**来源：** tokenizer BL-MODESCMD —— 首次真派外部 CLI 写代码并走完回流与人闸门。
+
+**🔴 回流四步的第一步改了性质。** v1.1 起写的是「tag 归属校验：外部 CLI 自己打 tag，
+不合规就拒收」。真派 Codex 才发现这条走不通：厂商沙箱禁止写 `.git`，`git commit` 连
+`index.lock` 都建不出；改用独立克隆把 `.git` 挪进沙箱内**同样被拒**——它禁的是 `.git` 本身。
+
+要求外部 CLI 提交，等于**把交付能力绑死在厂商沙箱策略上**，而这条绑定换不来任何安全收益：
+它本来就 `push=false`。真正防 scope 漂移的是「diff 与 handoff 清单对账」，编排者做得更好，
+也更难被绕过——对方写什么 commit message 都不影响实际 diff。
+
+新的四步：**diff 与清单对账 → spec-lock 稽核 → L1 由编排者亲自重跑 → 编排者按
+`features.json` 打 tag 并提交**。副产品：一次 30 分钟的实现不会再因为 commit message
+格式写错而被整轮拒收。`handoff.commits` 随之转为可选，`files_touched` 升为对账主依据。
+
+**§5.1 新增「这四道锁**不**保证什么」。** 此前只写了拦得住什么，读者容易以为它是文件系统
+沙箱。实际：不阻止读主仓（Codex 实测 `ls` 过主仓 `node_modules` 并复用，如实披露）、
+不保证对方能跑 L1（工作目录无依赖 + Codex 沙箱禁网）、超时能否重派取决于 watchdog 凭据
+（v1.4.1）。**当前设计是用产物 schema 与回流校验兜底，不是用隔离兜底**——这句话此前只在
+设计者脑子里。
+
+**沙箱注入 `HARNESS_MAIN_REPO`。** 一次性工作目录没有 `node_modules`，厂商沙箱可能禁网。
+与其让对方猜，不如明确告知「同 HEAD 的依赖在这儿，只读复用」——实测中 Codex 正是自己
+摸到主仓才跑通 L1 的。这不放宽任何权限（四道锁本就不含文件系统隔离），只是把「靠猜」
+变成「有契约」，并让它知道**不该写**那个路径。
+
+**§3.3 补两份可直接复制的合法信封样例**（evaluator / generator 各一），并明写
+「`local-cli` 派活必须后台运行 + 轮询」——`dispatch-run.sh` 是阻塞式的，在会超时的前台里等
+会被 SIGTERM 打断并留下孤儿工作目录（实测踩到，需人工清理）。
+
+**沉淀结账：** BL-FWDRIFT/BL-MODESCMD 攒的 6 条提案，5 条随 v1.4.1~v1.4.4 落地；
+剩 1 条（装 harness 前主动检测「push = 部署」的 workflow）仍在 `proposed-learnings.md` 待确认。
+
+---
+
+## v1.4.3 — 2026-07-26（外部 generator 路径三处修：产物路径 / 无法提交 / 诚实反受罚）
+
+**来源：** tokenizer 上首次真的派 Codex **写代码**（A 阶段）。它跑了 33 分钟、代码写完、
+L1 自测通过，却在三处同时撞墙——**只有真派一次才会撞到的三处**。
+
+**🔴 一、沙箱忽略信封的 `deliverable.artifact`。** 产物路径只认适配器的 `artifact_relpath`
+（默认 `<batch>-verdict.json`），信封里写的 `handoff.json` 被无视 → generator 的交付
+**永远被判 `ARTIFACT_MISSING`**。信封是「这一次任务」的契约，适配器只是「这家 CLI」的
+默认约定；契约必须压过约定。改为 **信封 > 适配器 > 默认**。
+
+**🔴 二、外部 generator 在厂商沙箱下根本无法提交。** `git worktree` 把元数据放在**主仓**的
+`.git/worktrees/<name>/`，而 Codex 的 `-s workspace-write` 只允许写 workspace 目录本身——
+`git commit` 连 `index.lock` 都建不出来（实测原话 `Operation not permitted`）。
+**四道锁的 L2（独立 worktree）与厂商自带沙箱在此相互不兼容**：v1.1 放开外部 generator 时
+没人真派过写代码的活，于是这条一直没暴露。
+改为：`constraints.write_src=true` 的角色用 **`git clone --shared`**（`.git` 落在沙箱目录内、
+可写；object 仍与主仓共享，不复制体积）。隔离性不降反升——不再与主仓共用 `.git`，
+主仓连元数据都不会被碰。evaluator 等只读角色仍用 worktree（更轻）。
+
+**三、我在 v1.4.2 引入的 schema 缺陷：诚实反而受罚。** `commits` 定成 `minItems: 1`，
+于是外部 generator 被挡住无法提交、**如实上报 `waiting` 并写空 commits** 时，产物必然
+违反 schema 被机械拒收。改为 `waiting` 非空时不强求 `features/commits`。
+**规则不能让「如实报告被阻塞」成为一条走不通的路**，否则就是在奖励编造。
+
+**顺带记一笔正面观察：** Codex 被挡住时的原话是「不会用替代 SHA 冒充原 worktree 提交，
+也不会触碰 push」——没有伪造、没有绕过，停手并如实说明。机件设计不该假设对方守规矩，
+但这次它守了。
+
+---
+
+## v1.4.2 — 2026-07-26（补：外部 generator 派活此前无 deliverable 契约可填）
+
+**来源：** tokenizer 上验证 dispatch 的**外部 generator** 路径（A 阶段）时卡住——发不出信封。
+
+**病灶：** 信封 schema 必填 `deliverable.artifact` + `deliverable.schema`，而 §6 对
+外部 generator 只规定「产物是 worktree 里的提交」，**没有任何工件 schema 可指**。
+于是 evaluator 派得出去、generator 派不出去：v1.1 放开外部 generator 时只想清楚了
+四道锁与回流四步，漏了它在 L2 信封层的落点。
+
+**新增 `generator-handoff.schema.json`：** 不是代码本身，而是一张**可与实物逐条对账的清单**
+——每条 feature 声明自己产生了哪些 commit、碰了哪些文件。编排者拿它去比对 `git log` 与
+实际 diff：commit tag 归属对不上就拒收（铁律 10 / §6 回流四步），`files_touched` 之外
+多出来的文件即 **scope 漂移信号**。
+
+**刻意不设结论性字段**（「已充分测试」「可以合并」之类）：外部 generator 无评估权，
+`l1_ran` 只记它自称跑了什么，**编排者必须自己重跑一遍才作数**。`waiting` 与 verdict
+工件同一套语义，回执推断直接复用，不必为 generator 再写一条分支。
+
+---
+
+## v1.4.1 — 2026-07-26（修：macOS 上超时被误判成失败 —— 「幂等重派」承诺从未生效）
+
+**来源：** tokenizer 上验证 dispatch 的**失败路径**（此前四次派活全走成功路径）。
+
+**病灶：** `sandbox-profile.sh` 的 wall-clock 封顶在无 GNU `timeout` 时走 bash watchdog，
+watchdog 用 SIGTERM 杀子进程 → `wait` 返回 **143**；而 outcome 判定只映射 124/137，
+143 落进 `FAILED`。**macOS 默认没有 GNU timeout，于是这条路径在本机永远被误判。**
+
+后果不是标签好看与否：文档承诺「TIMEOUT → 回执 CANCELED → **凭 task_id 幂等重派**」，
+实际得到「FAILED → 重派上限 1 次后硬停」；`dispatch-run` 本该退 124 也退了 0，
+上层同样分辨不出。跑得慢的外部 CLI 会被当成跑挂的。
+
+**🔴 修法不是「把 143 也算超时」。** 143 同样来自「外部把整条命令 kill 了」——编排者所在
+会话超时就是这样（本次验证中实际发生过一次）。只看退出码则两种情形不可区分：要么漏判超时，
+要么把外部中断误判成超时而去自动重派。故让 watchdog **留下自己开过枪的凭据**（marker 文件），
+命中即把 rc 归一成 124，与 GNU timeout 分支共用同一套判据。
+
+**实测（同一场景修前修后各跑一次）：**
+修前 `outcome=FAILED exit=143` → 回执 `FAILED`；修后 `outcome=TIMEOUT exit=124` →
+回执 `CANCELED`，`dispatch-run` 退 124。四处对齐。
+
+**同批验证的其余失败路径（均符合文档，无需修）：** exit 0 但产物缺失 → `FAILED`
+（「礼貌地失败」不会被当成通过）· `waiting:"auth"` → `AUTH_REQUIRED` 硬停（退出码 3）·
+空证据 verdict → 回执层 COMPLETED 但机件 #3 内容门拒收 → `ARTIFACT_INVALID`（退出码 4）·
+`waiting` 取值非法 → `ARTIFACT_INVALID`。
+
+---
+
+## v1.4.0 — 2026-07-26（框架版本化：从「复制模板」到「有版本、可对账、可升级」）
+
+**来源：** 用户要把控制台做成完整的 agent 编排产品体验——看得到模式、切得动模式、能建项目、
+「尽量减少通过终端命令复制 harness 规则」。四块拼图（模式画像 / 签名意图切换 / 控制台建项目 /
+框架版本化）中，用户裁决**先做 P4 框架版本化**——它是另外三块的地基：没有版本号，
+就无从谈升级、兼容与远程操作。
+
+**病灶：`bootstrap.sh` 是一次性复制。** 项目从此冻结在 bootstrap 当天的版本，且没人知道
+是哪天；升级只能手工重铺，而重铺会**静默盖掉**你对框架文件的本地改动；控制台更无从展示
+「这个项目跑的是哪版框架」。实测量化：存量项目 minigame **缺 93 个机件**——整个
+`autonomous/` `dispatch/` `console/` 都没有，而项目自己毫不知情。
+
+**形态：物化文件 + 清单 + 校验和。** 不能把框架文件挪进 submodule / 包 / 软链——
+Claude Code 要在固定路径直接看见 `.claude/hooks/*.sh` 与根目录角色文件，间接层会把
+hook 路径、Windows、`@harness-rules.md` 引用一起弄断。所以版本化落在**账本**上：
+`harness.json`（来源 + 版本 + commit）与 `harness.lock`（受管文件清单）。
+
+**🔴 lock 里每个文件记双 sha，这是整套设计的关键：**
+`sha256` = 项目里该文件上次对齐时的内容；`upstream` = 它当时对齐到的上游原文。
+两者不等 = **有意的本地定制**。第一版只记一个 sha，结果**冲突没有出口**——人工合并之后
+文件仍然既异于基准线又异于上游，`sync` 永远判冲突，无限循环。`upstream` 字段与
+`resolve` 子命令就是为此而生。
+
+**两类文件，边界写死：** `managed`（框架拥有：角色文件 · `.claude/**` · `framework/**` 镜像）
+升级时同步、本地改过则报冲突；`seeded`（`CLAUDE.md` · `progress.json` · `.auto-memory/**` ·
+`framework/proposed-learnings.md`）只在 init 铺一次，**此后永不触碰**。
+
+**🔴 冲突时整次升级不执行**，只把新版原文放到 `<file>.harness-new`。理由：半升级状态最难
+排查——一半文件是新版语义、一半是旧版，而 lock 会声称升级成功。同源的另一条克制：
+新版已移除的受管文件**只从 lock 摘除、不删项目里的文件**，静默删除比留孤儿文件危险得多。
+
+**新增：** `VERSION`（1.4.0）· `templates/claude/harness.sh`（init / status / verify / sync /
+resolve / adopt，随 bootstrap 铺成 `.claude/harness.sh`）· `harness/framework-versioning.md`。
+`bootstrap.sh` 降为薄封装——flat 布局先把源树搬进临时目录再铺回来（源与目标同目录时直接铺
+会自噬：init 要把源镜像进 `framework/`）；对存量项目直接拒绝并指向 `adopt`。
+
+**实测全流程：** 新项目 init（122 受管 / 13 项目自有，骨架齐）→ 本地改一个文件 + 删一个 →
+`verify` 准确报出 modified / missing → 造一个 v1.4.0 源树（含与本地改动撞车的文件）→
+`verify` 报 conflict/outdated/new → `sync` 遇冲突**整次拒绝且项目文件零改动** →
+`resolve` 后重跑 sync 成功且**本地定制被保留** → `bootstrap.sh` 走 degit 路径端到端通过 →
+存量项目副本 `adopt` 如实记录 29 个受管文件、22 处本地差异、93 个缺失机件。
+
+**下一步（未做）：** P1 模式画像（agent 上报 `framework.version` + 漂移 + 各模式开关状态，
+控制台渲染成项目卡片）· P2 签名意图（控制台发起、机器验签后在阶段边界应用）·
+P3 控制台建项目。用户已裁决：执行者为**扩权后的 device agent**；远程可切范围含软配置、
+自主模式开关、建项目/框架升级；**护栏类（deny-list / 沙箱 / console.pub）保留本机人工**。
+
+---
+
+## v1.3.3 — 2026-07-25（本机批准不依赖控制台 —— 控制台降回辅助工具）
+
+**来源：** 用户裁决——「确保本机批准和开发不依赖控制台，控制台只是辅助工具」。
+这同时修掉 v1.3.2 记录的那个未决缺陷。
+
+**问题的实质不是脚本坏了，是依赖方向反了。** v1.3.1 引入验签模式后，能签名的只有控制台，
+于是「人类能否批准」事实上变成了「控制台是否在线」——把红线「推进键在机器侧」交给了一个
+可用性组件。`approve-gate.sh` 写的无签名 decision 一律被 guard 拒收（且脚本还谎报成功并
+已 commit，留下一条注定卡死批次的记录），只是这个反转最刺眼的表现。
+
+**修法：私钥有两个平等的持有者，控制台只是其中之一。** `approve-gate.sh` 现在在两种模式下
+都自足：无 `console.pub` 写明文 + 比对 HEAD；有 `console.pub` 就**本机用私钥签名**
+（openssl，与控制台服务端逐字节等价）。私钥按序探测 `--key <路径>` → `$HARNESS_CONSOLE_KEY`
+→ `~/.harness-console/console.key`，并支持 `--key keychain:<服务名>` 从 macOS 钥匙串取。
+
+**三条 fail-closed，全部在落盘/提交之前：** 拿不到私钥当场退出（`progress.json` 一字节不改）·
+私钥与仓库 `console.pub` 不成对则拒签 · 写完先自检。
+
+**🔴 自检时机必须按模式分开——这是实现时踩到的。** 第一版在提交前统一跑 guard，
+结果**打断了未配 `console.pub` 的项目**：比对 HEAD 模式的判据就是「decision 是否随 HEAD
+到达」，提交前跑必然失败。改为：验签模式**提交前**查（判据是签名，与 commit 无关，
+坏批准一步都不落盘）；比对 HEAD 模式**提交后**查，不通过时给出确切回退命令而**不自动改写
+历史**（改写历史可能连带别人的改动，比留下一条坏 decision 更危险）。
+
+**另一处实现缺陷（`set -u` + 多字节）：** `"…（存在 $PUB），…"` 里 bash 把全角括号的字节
+并进了变量名，`set -u` 下直接炸成 `unbound variable`——而这行正是「拿不到私钥时的报错」，
+最不该炸的地方。全脚本已把紧邻非 ASCII 字符的变量引用统一加花括号。
+
+**文档：** 新增 §0「控制台是辅助工具，不是依赖」与 §3.3「本机批准不依赖控制台」；
+红线加第 5 条（任何把「控制台可达」变成前提的改动，先改红线再说）；
+guard 的成功文案从「控制台签发」改为「由持私钥者签发」——签名只证明持有私钥，
+而合法持有者有两个。
+
+**⚠️ 如实记下残余风险：** 私钥放在本机文件里，同机运行的 agent 原则上也读得到，
+「agent 伪造不了签名」就退化成文件权限 + 你对 agent 的约束。要拿回这条保证，
+把私钥放进钥匙串并要求每次确认（`-T ""`）：无人值守的 agent 过不了系统授权框，你本人过得去。
+**这是「本机自足」与「同机 agent 无法自我盖章」之间的真实取舍，不做粉饰。**
+
+**实测 6 项：** 本机签名批准通（guard 验签放行）· 驳回路径同样签名 · 拿不到私钥当场拒且
+`progress.json` 未被改动 · 拿错密钥拒 · 未配 `console.pub` 的项目原路径不回归（无签名 +
+提交后比对 HEAD 放行）· 终版脚本复验。
+
+---
+
+## v1.3.2 — 2026-07-25（中继通道实装：控制台零 git 权限地把批准送到机器上）
+
+**来源：** v1.3.1 把验签模式做出来之后，「控制台 → device agent → 本机落盘」这条通道才成立；
+本次把它真正接通（实现落在 tokenizer 工程，框架这边只规定契约并同步文档）。
+
+**为什么值得多一条通道 —— 通道 A 的三个代价：** 原设计「传输就是 git」要求控制台
+①持有各项目的 push 权限 ②为每个项目维护本地克隆 ③能连到 remote。第①条是长期凭据，
+而控制台是**唯一持有它**的组件；一旦要覆盖内网/NAT 后的机器，还得额外开入站。
+
+**通道 B 的形状：** 控制台只**签发**一条带签名的决策；机器上已有的**出站轮询** agent
+拉走、验签、写进本机 `progress.json` 并 commit。真相源没有变——决策照样是 git 里的一个
+commit，只是搬运工从控制台换成了机器自己。控制台由此只持一把 Ed25519 私钥，不持任何
+项目的 git 权限；私钥泄露也比 push 权限泄露**更容易收敛**（换密钥 + 提交新 `console.pub`，
+不必去每个 remote 上吊销）。两条通道可并存：配了 `console.pub` 的项目走验签，没配的仍比对 HEAD。
+
+**🔴 通道 B 成立的唯一理由是验签，不是通道本身可信。** 中继的落盘是**本地写入**——
+若不验签，任何能调那个 API 的东西（包括机器上写代码的 agent）都能让一条伪造的批准落盘。
+故机器侧的实现必须：仓库里没有 `.claude/console/console.pub` 就**拒绝写入**（宁可卡住，
+也不落一条无法验证来源的批准），且验签用的规范化实现要与签发侧**同一份**——两份实现漂移
+的表现是「批准了却不生效」，极难排查。
+
+**框架侧的契约边界（本次写清）：** 中继实现不在本仓库。框架只规定
+①签名载荷的规范化方式（§3.2）②`decision` 字段白名单（schema）③机器侧验签守门。
+任何持有出站 agent 的系统都能按这份契约接上。
+
+**中继实现必须满足的四条守门**（缺一条都会把闸门变成摆设，写进 §2/§3.2 的语义里）：
+签名有效 · 本机 `pending_gate.id` 与 `decision.gate_id` 一致（陈旧批准不得解锁另一个闸门）·
+本机尚无 `decision`（不覆盖）· `progress.json` 无未提交改动（不与状态机正在写的内容打架）。
+另：写回只 commit `progress.json` 这一个文件，绝不 `git add -A`。
+
+**文档改动：** `console-mode.md` §2 由「传输就是 git」改写为「两条通道，同一个真相源」；
+§4 组件表补中继行 + 契约边界说明；§5 澄清 push 权限**只在通道 A 需要**；
+§7 记下「通道 B 已经把 P4 需要的架构反转跑通了一遍」（出站轮询 + per-device 凭据 +
+幂等下发 + 回执消费），P4 可照搬这条形状。
+
+**实测（跨仓库接缝，本次补做）：** 用 tokenizer 服务端**真实的**签发代码产出
+`/api/harness/decisions` 会下发的载荷（含中文 `note` 与嵌套 `scope`），按中继**完全相同的
+写盘方式**（`JSON.stringify(…, null, 2)`）落进一个装了 `console.pub` 的仓库，再跑框架侧
+`validate-pending-gate.sh`：合法签发 guard 放行 + schema 通过；篡改 `scope`（把 `once`
+改成永久）拒 / 篡改 `note` 拒 / 去掉 `sig` 拒 / 换 `gate_id` 被验签与 schema **双重拦截**。
+`gen-console-key.sh` 也在这条链路里实跑。**这条接缝两边的单测都覆盖不到**——
+一边只测「我签得对」，另一边只测「我验得严」，中间的字节一致性得这样才验得了。
+
+**实测（生产往返，2026-07-25 当天补完）：** 本机整栈（docker postgres + 真实迁移 +
+Next 服务 + 真实 CLI + 装了 `console.pub` 的 git 仓库）与**生产**（token.vpanel.cc，
+GitHub Actions 部署）各跑通一次完整往返：举闸门 → agent 上报 → 人在网页点批准 →
+服务端 Ed25519 签发 → agent 出站拉取并验签 → 落盘 + `chore(gate): relay …` commit →
+框架 guard 放行 → 状态机消费清空 → 服务端回收 `consumedAt`、待批列表归零。
+
+**演练撞出的三处问题（都在中继侧，已修）：**
+- **部署根本没给服务端签名私钥**：compose 与 deploy workflow 都漏了这个环境变量，
+  照现状部署批准键会永远 503 —— 而本地开发直接 `export` PEM，完全不会暴露。
+  连带一个更隐蔽的：`.env` **不支持多行值**，PEM 原文塞进去只读到第一行，
+  服务能起、批准键照样 503。私钥改用 **base64 单行**注入。
+- **同一个 gate id 被重新举起后控制台永远看不见它**：待批列表按「未消费」过滤，
+  而消费过的记录不会复位 —— 机器再次卡在这道闸门上时，人闸门死锁在一道谁也批不到的门上。
+  修法：带**更新的 `raised_at`** 重新上报即整行复位（旧批准一并清掉，新的举起要有新的决策）；
+  用 `raised_at` 作判据同时挡住反向风险 —— 消费后仍在路上的陈旧上报带同一个 `raised_at`，
+  不会把已消费的闸门复活成幽灵待批项。两个方向都在真实链路上验过。
+- 一处与本通道无关的本地开发缺陷（`tailwind.config.js` 在 Node ≥23 下崩 dev server）。
+
+**🔴 已知缺陷（当时未修；已在 v1.3.3 修复，见上）：验签模式下 `approve-gate.sh` 是断的。**
+它写的是**无签名**的 decision，而验签模式下 guard 一律拒收 —— 但脚本还打印
+「✓ 已提交，guard 自动放行」，且**已经 commit**。后果三层：控制台不可用时人类失去
+本机批准这条逃生路径；失败要等下一次 agent 写 `progress.json` 触发 hook 才暴露，
+报错指向「缺 sig」不易联想到成因；工作区与 HEAD 从此含一条**永远过不了 guard** 的
+decision，fail-closed 的 hook 会把该批次卡死，得人工回滚那个 commit。
+成因是 v1.3.1 把信任从传输路径搬到内容本身时，`approve-gate.sh` 没跟着搬。
+（`console-mode.md` §3.2 已加警示；修法待定，见 §3.2 注。）
+
+---
+
+## v1.3.1 — 2026-07-25（闸门决策 Ed25519 验签模式）
+
+**来源：** 要接「控制台 → device agent → 本机落盘」的中继通道时发现原 guard 拦不住它。
+
+**原模式的信任放在传输路径上。** v1.3 的 guard 比对工作区与 HEAD：`decision` 只有随 HEAD
+到达才放行。这等于要求「decision 必须经 git 送达」，于是控制台必须持各项目 push 权限，
+且**任何非 git 的送达方式都无法验证**——中继通道因此不成立。
+
+**新模式把信任移到内容本身。** 配了 `.claude/console/console.pub` 即切换为验签模式：
+控制台持 Ed25519 私钥签发，机器侧用仓库里的公钥验签。写代码的 agent **读得到公钥、
+伪造不了签名**，于是「本地写入」不再可疑。两种模式各自 fail-closed：
+配了公钥 → 无签名/签名无效一律拒；未配公钥 → 回退比对 HEAD。
+
+**🔴 必须签全字段。** 载荷 = `decision` 里除 `sig` 外的**全部**字段（键排序、紧凑分隔符、UTF-8）。
+只签 `{gate_id, action, by, at}` 会留下缺口：`scope` 未被覆盖，agent 可以把 `once: true`
+改成永久授权而**签名依然有效**——实测踩到过。这类「签了一部分」的缺口不会在正常路径上暴露，
+只在有人真去改未签字段时才生效，故必须在设计时就钉死，不能等测试发现。
+
+**规范化必须递归排序键。** `scope` 是嵌套对象；只排顶层键时，它同时带 `once` 与 `expires_at`
+就会与校验侧 Python 的 `json.dumps(sort_keys=True)` 产出不同字节串——表现为「批准了却不生效」。
+
+**跨语言一致性已验证：** Node（签发侧）与 openssl（校验侧）对同一载荷产生**逐字节相同**
+的签名（Ed25519 是确定性签名），互相可验。
+
+**新增：** `gen-console-key.sh`（密钥对生成）；`validate-pending-gate.sh` 双模式；
+`pending-gate.schema.json` 的 `decision` 白名单加 `sig`。
+
+**实测 6 项：** 未签名拒 / 合法签发通 / 篡改 `by` 拒 / 换 `gate_id` 双重拦截（schema 与验签
+各拦一次）/ 篡改 `scope` 拒 / 篡改 `note` 拒。
+
+---
+
+## v1.3.0 — 2026-07-25（Console Mode：自托管多项目控制台 + 闸门契约）
+
+**来源：** 用户三项裁决——数据边界=全量日志（自托管前提）· 部署=自托管小服务 · 优先级=人闸门优先。
+
+**一条决定形态的红线：控制台不是编排者。** harness 是 hub 形态、状态机唯一持有者、git 是唯一真相源；
+控制台若成为 hub 就会撞上「点对点委托无全局工作流概念，链式转委托无人持有全局真相」。
+故：**控制台 = 观测面 + 人闸门 UI；编排者仍在机器上；改配置不是下发指令，而是生成一个人类签名的 commit。**
+传输就是 git —— 控制台维护各项目本地克隆，不依赖 GitHub API，不引入第二个真相源。
+
+**🔴 先补的地基：闸门此前没有机器可读的表示。** `session_notes` 是散文，`autonomy.last_halt` 只是
+事后记录——**没有「人类回写批准、机器再消费」的槽位**，控制台既无从展示也无从批准。
+新增 `progress.json.pending_gate`（`.claude/console/pending-gate.schema.json`）。
+
+**核心安全属性 —— `decision` 只有人类/控制台可写：** 它是「人类批准」在 git 里的唯一表示。
+agent 若能写，「阶段推进键归人」「L2 需授权」就全部退化成自觉。工具层拦不住
+（progress.json 必须允许 agent 写 status），故在**内容层**拦：`validate-pending-gate.sh guard`
+比对工作区与 HEAD，`decision` 若是本地新增/修改即拒。
+合法路径两条：人类跑 `approve-gate.sh`（走 Bash 不触发 hook，写完即 commit）；
+控制台提交后机器 `git pull`，decision 随 HEAD 到达即放行。
+另有**陈旧批准防护**：`decision.gate_id` 必须等于 `pending_gate.id`。
+
+**新增（随 bootstrap 铺入 `.claude/console/`）：** `pending-gate.schema.json` ·
+`validate-pending-gate.sh`（schema/guard/hook）· `approve-gate.sh`（人类批准 CLI）；
+接入 `settings.json` PostToolUse。
+
+**新增（`console/`，自托管服务，不随项目走，bootstrap 归入 `framework/console/`）：**
+`server.py`（Python3 stdlib 零依赖）+ `ui.html`（自包含，无 CDN）+ 配置示例。
+只写 `pending_gate.decision` 一个字段，不碰 status/features/policy。
+
+**`/autodrive` 接线：** 新增步骤 2.5「消费闸门批准」（只读 decision，绝不写）；
+HALT/DONE_PENDING_USER/HANDBACK 三种处置都要**举起 pending_gate**——
+没有它控制台就看不见这次停机，通知只是提醒，闸门才是接口。
+
+**实测：** 闸门契约 9 项（自我盖章拒 / 篡改授权边界拒 / 陈旧 gate_id 拒 / 合法批准通 /
+消费清空通 / 重复批准拒 …）；控制台端到端（两个假项目 + bare remote）——
+状态读取、取证读取、路径穿越拒、docs 外文件拒、批准 commit+push、
+**机器侧从 remote 克隆后 guard 放行**（整条链路的接缝）。
+
+**修：** 默认端口 8787 与本机既有服务冲突 → 改 41300（与 a2a runner 41241 同族）；
+guard 里 `printf | python3 - <<'PY'` 的 **heredoc 覆盖管道 stdin**，导致 HEAD 恒读成空、
+合法批准被误判为本地新增（只在合法路径上暴露）→ 改临时文件传参。
+
+**未实装（设计已定，见 `console-mode.md` §7）：** P3 agent 实时日志上报
+（runner 已有事件流，缺 `--report-to`；⚠️ 开启后控制台机器将持久化含凭据片段的日志正文，
+须按「持有密钥的系统」对待）；P4 云端跨机调度（需 runner 由 server 反转为出站长连接穿 NAT、
+机器注册心跳、per-machine 凭据、派活前断言对端机件在位）。
+
+---
+
+## v1.2.1 — 2026-07-25（Kimi CLI 适配器接入 + 沙箱两项能力补齐 + 修一个自引入缺陷）
+
+**来源：** 用户要求增加对 Kimi CLI 的支持；本机 kimi-code 0.26.0 实测。
+
+**适配器转正：** `adapters/kimi.json`（`_verified: true`）——
+`kimi -p {{envelope_json}} --output-format stream-json`。
+去偏轮换池由此凑齐 **claude × codex × kimi 三个 model_family**。
+
+**沙箱两项能力补齐（都是 Kimi 逼出来的，对所有适配器通用）：**
+- `{{envelope_json}}` 内联投递 —— Kimi 的 prompt 走 argv 字面文本、不读 stdin，
+  故新增「把信封**内容**（而非路径）渲染进 argv」的占位符
+- **子进程 CWD 固定为 worktree** —— Kimi **没有 `-C`/`--cd` 工作根参数**，只能靠这条约束它。
+  同时这是对所有 CLI 的纵深防御：不再依赖各家是否有工作根参数、是否真的遵守
+
+**🔴 修一个 v1.1.1 自引入的缺陷：`sandbox.home_dir` 未做 `~` 展开**（只有 `env_set` 做了）。
+此前测试都用绝对路径所以没暴露，**而写进示例注册表的正是 `~/...` 形式**。后果两层：
+1. 子进程把 `HOME` 当相对路径 → 在 CWD 下造出字面量 `~/` 垃圾目录
+   （实测中被 CWD 锁定挡在一次性 worktree 内，没碰到主仓——反过来印证了该加固的价值）
+2. **更要命：** dotfile 的 fail-closed 断言会去检查一个不存在的相对路径 → **静默通过**，
+   等于 L1「专用空 HOME」这道护栏被悄悄削掉
+
+修法：展开 `~` 并绝对化；且「必须以 `/` 或 `~` 开头」的判据放在展开**之前**——
+`abspath` 会把相对路径也变成绝对路径，判据放在之后等于没判（第一版就踩了这个，已纠正）。
+
+**安全姿态记录（写进 `local-cli.md` §7.2）：** Codex 有 `-s workspace-write` 这一厂商自带的
+沙箱级别作为第二道防线，显式传参还能覆盖用户 config 的削弱；**Kimi 在非交互模式下没有任何
+可配的权限层**——`--auto` 与 `--yolo` 均报 `Cannot combine --prompt with ...`，而 `-p` 单独运行
+**已隐式自动批准工具使用**（实测无旗标即创建文件、跑命令）。派 Kimi 时机件 #7 的进程级四道锁
+加 CWD 锁定是**唯一防线，没有兜底**。
+
+**演练：** 同一植入缺陷场景（`slugify` 未剥离首尾连字符），Kimi 自写测试、运行、判 `PARTIAL`，
+证据不仅给出实际值 `-hi-` vs 期望 `hi`，还定位到 `src/slugify.js:3` 并解释成因。169s，
+四道锁全守（凭据零泄漏 / 无 push / `src/` 未动 / 主仓零污染）。**修复后重跑终验**——
+`_verified: true` 必须是对实际发布的代码验证过。
+
+**补接一处文档与机件的不一致：** `validate-dispatch.sh` 的 family 互斥校验在 `harness-rules.md`
+守门表与 `dispatch-mode.md` §3.2 里写的是「PostToolUse hook」，但**从未接进 `templates/claude/settings.json`**
+——那道守门此前只能手动跑。这正是框架自己警告的「写在文件里的规则 vs 装进工具链的规则」差距。
+现已接入并实测：违规分配退出码 2（Claude 当场看到报错）、无关文件放行、未装 dispatch 的项目完全 inert。
+
+**未做：** Gemini 适配器（本机未装 gemini CLI，未实测的适配器不写进模板）；
+Kimi 的执行 shell 未观测到（`stream-json` 事件不暴露），按最坏情况处理即专用空 HOME 照样必填；
+`waiting` 路径同 Codex 仍未经真实 CLI 触发。
+
+---
+
+## v1.2.0 — 2026-07-25（a2a transport 实装：真异步 / taskId 重订阅 / SSE 推送）
+
+**来源：** 用户确认做到 C 档（loopback 异步 + 局域网跨机 + SSE 推送）。
+
+**一处认知修正（影响可行性判断）：** v1.1 写「今天现成的对端 ≈ ADK 系」是站在「找别人现成的
+A2A server」角度。实际上 shim 只能自己写，而**自己写意味着两端都由我们控制**——由此推出
+`dispatch-mode.md` 的 **R4「沙箱在 a2a 下整体失效」对自建 runner 不成立**：runner 跑在哪台机器，
+就在哪台机器调本地 `sandbox-profile.sh`，机件 #7 四道锁一条不少。R4 仅适用于我们不控制的第三方对端。
+
+**新增：**
+- `transports/a2a-runner.py` —— 把一次性 CLI 包成长驻 A2A 服务端（Python 3 stdlib，零依赖）。
+  JSON-RPC：`SendMessage` / `GetTask` / `ListTasks` / `CancelTask` / `SubscribeToTask`(SSE)；
+  Agent Card 由 descriptor 生成；**task store 落盘**（taskId 重订阅只有持久化才是真的）；
+  事件 jsonl 带单调 seq，支持 `Last-Event-ID` 断线重放；重启时孤儿 `WORKING` 标 FAILED 而非永远挂着
+- `transports/a2a-client.py` —— 编排者侧 hub client。`run`/`send`/`subscribe`/`get`/`cancel`/`card`/`ls`
+- `dispatch-run.sh` —— **统一派活入口**，按 `descriptor.transport` 路由。两条路径输出同形 run-meta，
+  于是回执推断表、gate-arbiter、`/autodrive` 一行都不用改
+
+**修改：**
+- `gate-arbiter.workflow.js`：判据从 `transport === 'local-cli'` 改为 `!== 'subagent'`，
+  dispatcher subagent 改调 `dispatch-run.sh` → **引擎侧完全不感知 transport**
+- `/autodrive` 步骤 0 增 a2a 断言：`<endpoint>/health` 通 + token 环境变量已设。
+  runner 不在 = 无人值守期间派活必然全数 FAILED，宁可开车前就停
+- `bootstrap.sh` chmod `transports/*.py`
+
+**三条安全设计：**
+1. **鉴权 fail-closed** —— `HARNESS_A2A_TOKEN` 未设时只允许绑 loopback；绑 `0.0.0.0` 无 token 拒绝启动
+2. **远端自述只是参考，权威判定在本地** —— runner 的 state 写进 run-meta 的 `remote_state_advisory`
+   仅供取证；客户端把产物写到本地后由调用方对**本地副本**重跑 `validate-dispatch.sh receipt`。
+   跨机器场景下这是唯一诚实的做法
+3. **产物必须内联回传** —— 跨机器时客户端读不到 runner 的文件系统。这是 a2a 与 local-cli 唯一的
+   实质差异，也是 A2A 把 Artifact 设计成消息负载而非路径的原因
+
+**一个实测修掉的协议瑕疵：** 执行侧「先写终态记录、再发事件」，若 SSE 以 `state` 为收流判据，
+会在最后一个 status 事件写盘前就发 `done`——**直播订阅者永远收不到终态事件**（重放才看得到）。
+改为以独立的 `events_complete` 标志收流，并在收流前做最后一次排空。
+
+**演练（10 项全通）：** 绑 0.0.0.0 无 token 拒启 · 无/错 token 401 · `send` 0.08s 非阻塞（对端任务 4s）·
+同 task_id 幂等去重 · 跨会话凭 taskId 取结果 · SSE 四事件实时 · `--resume-from 0` 完整重放 ·
+CancelTask · runner 重启后任务存活且孤儿标 FAILED · **真实 Codex 经 a2a 198s 长任务
+SSE 全程保活、产物落本地、本地判定 COMPLETED**（再次独立命中植入的缺陷）。
+
+**刻意不做（写进 `transports/a2a.md` §7，避免日后误以为能对接任意第三方）：**
+gRPC/REST 绑定、扩展协商、签名 Agent Card 验真、push webhook、OAuth/mTLS。
+**产物是「A2A 形状的子集」，不是通过一致性认证的 A2A 实现。**
+
+**未做：** 真实跨机器演练（全部在 loopback 完成，网络路径与 Bearer 鉴权已验证，
+但未在两台物理机之间跑过）。
+
+---
+
+## v1.1.1 — 2026-07-25（Dispatch Mode 待建项收口：Codex 适配器实测转正 + 沙箱加固）
+
+**来源：** 本机 codex-cli 0.145.0 端到端演练（`local-cli.md` §7.1 核对记录）。
+
+**🔴 安全发现（实测，非推演）——登录 shell 击穿 env 白名单：**
+外部 CLI 普遍用**登录 shell** 执行命令（Codex 用 `/bin/zsh -lc`），登录 shell 会 source
+`~/.zshenv` / `~/.zprofile`——其中任何 `export` 都会把 `env -i` 刚剥掉的变量**原样还回子进程**。
+实测：HOME 指向含 `.zshenv` 的目录时 `DATABASE_URL` / `DEPLOY_TOKEN` 全部复活。
+**沙箱第一道锁在未配 `home_dir` 时形同虚设**，而 v1.1 只把它标为「强烈建议」。
+
+**变更（沙箱加固）：**
+- `sandbox.home_dir` 对 `transport=local-cli` 升为**硬性前置**，三处 fail-closed：
+  schema（`if/then` required）+ `validate-dispatch.sh registry`（拒写）+ `sandbox-profile.sh`（拒跑）
+- 沙箱启动断言专用 HOME 内无 `.zshenv/.zprofile/.zlogin/.bashrc/.bash_profile/.profile/.envrc`
+- 新增 `sandbox.env_set`（字面注入，支持 `~` 展开）：精确投喂该 CLI 的认证目录
+  （如 `CODEX_HOME=~/.codex`），不再需要放行整个真实 HOME → **残余风险 R1 关闭**
+- 适配器显式传厂商自己的沙箱参数（`-s workspace-write`），防用户 `~/.codex/config.toml`
+  设了 `danger-full-access` 而静默削弱沙箱
+- 修 bash 隐患：`$VAR` 紧跟 CJK 全角字符时，bash 在部分 locale 下会把 UTF-8 高位字节并入
+  标识符 → `unbound variable`。全脚本 4 处改为 `${VAR}`
+
+**变更（适配器转正）：**
+- `adapters/codex.json` 按 codex-cli 0.145.0 实测重写并置 `_verified: true`：
+  `codex exec --json --ephemeral -C <wt> -s workspace-write -`；附 `_flags_rationale` /
+  `_not_used`（禁用 `--dangerously-bypass-approvals-and-sandbox`；不用 `--output-schema`
+  因交付契约是产物文件而非消息）
+- `local-cli.md` §7 核对清单扩为 7 条（新增「它用什么 shell」「厂商沙箱参数是否显式传入」两条
+  ——正是本次踩到的两个坑），并写入 §7.1 Codex 核对记录、§7.2「未实测的适配器不写进模板」
+
+**变更（`/autodrive` 耐久层四职责接线）：**
+- 步骤 0：装了 dispatch 时断言 registry/assignments 合法 + 被引用适配器 `_verified: true`
+- 步骤 1：注入 `registry` / `state.head_sha` / `spec_path` / `l2_authorized`（Workflow 无文件系统权限）
+- 步骤 6a：外部产物收割（原样复制、不改内容）+ **去偏比对下沉**（外部主验时引擎手上无逐条判定）
+- 步骤 6a-3：外部 generator 回流四步（tag 归属 → critic → L1 全绿 → cherry-pick）
+- 步骤 7：ledger 加记 `{dispatched_to, model_family, task_id, receipt_state, duration_s}`
+- 不变量补两条：deny-list 管不到外部进程 / 外部产物只搬不改
+
+**决策定案 —— 外部 commit 的 tag 不合规：拒收，不 rewrite。**
+替对方断言「这个 commit 属于 F003」是一次未经取证的归属判定，与铁律 10 精神相悖，
+且会掩盖 scope 漂移信号。代价只是一次唤醒。
+
+**演练结论：** 植入真实缺陷（slugify 未剥离首尾连字符）后派活，Codex 自行编写测试、运行、
+精确命中并判 `PARTIAL`（证据含实际 `-hi-` vs 期望 `hi`），267s 完成；四道锁全部守住
+（凭据零泄漏 / 主仓零改动 / `src/` 未被动 / 无 push 尝试）。**这条演练同时证明它不是橡皮图章**
+——全 PASS 的结果无法区分「真验了」与「没验」。
+
+**未做（诚实列明）：** Gemini 适配器（本机未装 gemini CLI，**未实测的适配器不写进模板**）；
+`waiting` 路径未经真实 CLI 触发验证（回执侧已单测）；`/autodrive` 全循环带外部派活的端到端
+自主演练；`a2a` transport（设计如此，需真实对端）。
+
+---
+
+## v1.1.0 — 2026-07-25（Dispatch Mode：自动调配异厂商 agent）
+
+**来源：** A2A 协议 v1.0 研究（`docs/a2a-harness-research-2026-07-25.md`，规范三页 + ADK 集成面）
++ 用户四项裁决：对端 = 异构 CLI（Codex 优先）· 交付 = 规范 + 机件模板 · 自动化边界 = 接 autodrive 可逆内环
+· 外部 CLI 放开承担 generator。
+
+**触发原因（研究结论中的关键判断）：** 慢车道缺三样——①没有派活抽象 ②没有唤醒信号 ③没有回执与超时。
+①是地基且**纯 harness 内、零协议**；②③才需协议栈且只在跨机器时值钱。故本版做①，把 A2A 的语义
+（Agent Card / Artifact 分离 / 两个中断态 / 幂等键 / required profile）借来做③的降维版，②留给未来的 a2a transport。
+**「自动调配不同 agent」这个目标本身不需要 A2A。**
+
+**变更（新增 `.claude/dispatch/`，默认安装但 inert）：**
+- `sandbox-profile.sh` —— **机件 #7 外部 CLI 沙箱契约**。红队级发现：`settings.json` 的 deny-list
+  **只约束 Claude Code 自己的工具调用**，对外部 CLI 子进程完全无效（它有自己的权限模型与 shell），
+  闸门分类器也看不见（那是阶段内部的工具调用）。工具层拦不住 → 进程层拦：env 白名单（没凭据就花不了钱）·
+  独立 worktree · 禁 push（`GIT_CONFIG_*` env 级覆盖——**绝不可用 `git remote set-url`，worktree 与主仓共享 config**）·
+  wall-clock 封顶。四道锁均已实测生效
+- `agents-registry.schema.json`（L1 descriptor，A2A Agent Card 最小子集）+ `.example.json`
+- `dispatch-envelope.schema.json`（L2）—— `additionalProperties:false` 是安全属性不是风格：
+  字段白名单使实现叙述**结构上塞不进去**，铁律 12 由模型自觉变为机械强制
+- `validate-dispatch.sh` —— registry / envelope / **assignments（family 互斥）** / receipt / hook 五合一
+- `transports/local-cli.md` + `adapters/codex.json`（首家，`_verified:false` 待实测）+ `transports/a2a.md`（接口预留，未实装）
+
+**变更（既有机件）：**
+- `verdict-artifact.schema.json` + `validate-verdict-artifact.sh` 加 `waiting: auth|adjudication|null`
+  —— **中断态降维**：一次性 CLI 进程无法「挂起等你」，故把 A2A 的 `AUTH_REQUIRED`/`INPUT_REQUIRED`
+  编码进产物而非进程状态；写完照常 exit 0，编排者读到非空即硬停
+- `gate-arbiter.workflow.js`：`build`/`verify` 加 dispatch 分支；机件 #6 去偏从**同家族换档位**升级为
+  **跨厂商 family 轮换**；dispatcher subagent 的返回 schema 结构性地不含结论字段（模型在链路上永不携带结论）
+- `harness-rules.md`：两条车道 → **三条执行形态**（快车道 / 本地异构 / 慢车道，差异只是 descriptor 的 `transport` 字段）；
+  独立性铁则新增第 5 条 **model_family 互斥**；`role_assignments` 约束修订；机制化守门表 +3 行
+- `orchestration-patterns.md` §7：外部工具参与从「读 AGENTS.md 自行接手」改为「编排者主动派活」
+- `bootstrap.sh`：`.claude/dispatch/*.sh` chmod + `.harness-dispatch/` 入 .gitignore
+
+**关键设计（三条，均来自本次实测或红队推演）：**
+1. **不信任对方守规矩，只信任产出能过 schema。** Claude 读 CLAUDE.md、Codex 读 AGENTS.md、Gemini 读 GEMINI.md
+   ——三份必然漂移且无法验证是否遵守。故契约**随信封走**（内联常量模板），产出不合 schema 就机械拒收
+2. **exit 0 ≠ 完成。** 退出码 0 但产物缺失一律判 FAILED——外部 CLI「礼貌地失败」是常态，
+   不写死这条会被当成验收通过。重派上限 1 次，绝不静默无限重跑
+3. **放开外部 generator 引入的新洞：** `{generator: builder-codex, evaluator: reviewer-codex}` 是两个不同进程、
+   各自 fresh context，**完全满足铁律 4 字面要求**，但同模型自评独立性形同虚设 → 新增 family 互斥硬校验
+
+**安全边界：** 安装 ≠ 启用（无 `.agents-registry.json` 即 inert，快车道行为一字不变）；
+外部实例 `constraints.push` 恒 false，产物由编排者校验 commit tag 归属 + spec-lock critic 稽核后才回流主仓；
+deploy/prod/spend 永留人类闸门，且**不得依赖 deny-list 拦外部进程**。
+**残余风险已明文列出**（`dispatch-mode.md` §5.1 R1-R4：HOME 凭据外溢 / 该 CLI 自身推理花费不受 harness 管控 /
+出网未限制 / 沙箱在 a2a 下失效）。
+
+**仍待建（需接真实项目）：** Codex 适配器端到端演练（argv 按当前 CLI 版本核对，清单见 local-cli.md §7）、
+`/autodrive` 耐久层四项新职责、外部 generator 回流的 tag rewrite 策略、第二家适配器、a2a transport。
+
+**兼容性：** 全部为新增或向后兼容修订。`gate-arbiter` 无 `args.registry` 时完整回退 v1.0 行为；
+历史 `.agents-registry` 纯 id 列表仍兼容读取（但无法派活给外部实例）。状态机 7 状态与既有字段未变。
 
 ---
 
@@ -973,26 +1726,3 @@ framework/
 [本次改动的背景，如：Evaluator 反复在某个点上 PARTIAL、新技术栈带来新约定等]
 
 -->
-
-## v1.0.9（2026-07-22）
-
-M1-B/M1-C 两批沉淀 4 条（用户逐条 Accept）：
-
-1. **删除类 feature 勘查面按被删路径 grep**（M1-B F006 + M1-C F005 连续两批各漏一处）→ `patterns/audit-methodology.md` §2.1 反面之二
-2. **RSC 直读 DB 页面必须 force-dynamic**（M1-C F001 构建期静态化冻结数据 + CI 连红两次）→ `patterns/web-runtime-patterns.md` 新增 §6（含 acceptance 硬要求：运行时改→验→复原实证）
-3. **CI watch 必须 --workflow 过滤 + 显式核 conclusion**（M1-C 同 SHA 其他 workflow exit 0 掩盖红灯漏看两 feature）→ `harness/generator.md` §4.5 + 项目根 generator.md + memory/role-context 两份（铁律 7 四副本同步）
-4. **收敛类「零漂移」声明须逐份 diff 全部副本**（M1-C F005 借绿 PARTIAL，Evaluator 像素取证）→ `patterns/web-runtime-patterns.md` §4.2 补充
-
-
-## v1.0.10（2026-07-22）
-
-M1-D 沉淀 1 条（用户 Accept）：
-
-1. **Compose 人工副本漂移**（deploy-prod 只 pull+up 不同步 compose，改 compose 的批次上线前必须先 scp 同步，否则静默跑旧配置——新卷缺失时数据落容器层容器重建即丢）→ `patterns/deploy-patterns.md` 新增 §8（含 M1-D 实操模板 + Planner/Evaluator checklist；长期解法「workflow 加 compose 同步步」登记为候选）
-
-
-## v1.0.11（2026-07-22）
-
-M2-A 沉淀 1 条（用户 Accept）：
-
-1. **视觉基线重生前必查 :3000 无残活 dev server**（playwright `reuseExistingServer` 静默复用任何占端口进程；M2-A F008 实撞：dev server 残活 + standalone EADDRINUSE 被吞 + 容忍带借绿三重静默，12 张基线对着 dev server 拍摄后返工）→ `patterns/web-runtime-patterns.md` 新增 §4.5（含重生序 4 步 + 自检句）

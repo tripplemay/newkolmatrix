@@ -20,6 +20,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **编排：** 并行实现、fan-out 验收、后台 CI、/loop 场景见 `orchestration-patterns.md`（同会话快车道为默认；跨机器 / 独立实例走 git 总线慢车道）。
 
+**工具派活（可选）：** 按 `tool-integrations/1` registry 把 Planner / Generator / Evaluator 路由到支持的 CLI
+（详见 `framework/harness/dispatch-mode.md`）；旧 `dispatch/1` registry 仍兼容。Planner 首项可保持
+Coordinator（`planner: null`），不可配置。无 registry 即 inert。⚠️ `settings.json` 的 deny-list 对外部 CLI
+子进程无效，安全靠 `.claude/dispatch/sandbox-profile.sh` 的进程级四道锁；generator 与 evaluator 的
+`model_family` 必须不同，A2A Generator 在 source-handoff 契约落地前拒绝。
+
 **进度看板：** 阶段边界可 `/dashboard` 刷新图形化看板（Artifact 快照，URL 存 `progress.json.dashboard_url`）。
 
 **自主模式（可选）：** 长时无人值守推进见 `framework/harness/autonomous-mode.md` 与 `/autodrive`；开启需人类建 `autonomy-policy.json` 并手动合入 deny-list，deploy/prod/spend 永留人类闸门。

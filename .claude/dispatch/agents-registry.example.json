@@ -1,0 +1,96 @@
+{
+  "_comment": "tool-integrations/1 example. A CLI integration has no configured role list: local_cli automatically participates in Planner, Generator, and Evaluator under framework-owned role contracts. a2a_targets add only Planner/Evaluator because remote Generator source handoff is not defined yet.",
+  "version": "tool-integrations/1",
+  "integrations": [
+    {
+      "id": "claude-code",
+      "tool": "claude-code",
+      "label": "Claude Code",
+      "model_family": "claude",
+      "priority": 100,
+      "capabilities": ["plan", "build", "fix", "verify", "l1_local", "security_audit"],
+      "subagent": true,
+      "local_cli": {
+        "adapter": "claude-code",
+        "sandbox": {
+          "home_dir": "~/.harness-sandbox/claude-code",
+          "env_allow": ["ANTHROPIC_API_KEY", "CLAUDE_CONFIG_DIR"],
+          "env_set": {}
+        },
+        "timeout_s": 2400
+      },
+      "notes": "The framework fixes the role persona to planner-proposal, generator-restricted, or evaluator. Coordinator remains outside this catalog."
+    },
+    {
+      "id": "codex",
+      "tool": "codex",
+      "label": "Codex",
+      "model_family": "codex",
+      "priority": 100,
+      "capabilities": ["plan", "build", "fix", "verify", "l1_local", "code_review"],
+      "local_cli": {
+        "adapter": "codex",
+        "sandbox": {
+          "home_dir": "~/.harness-sandbox/codex",
+          "env_set": {
+            "CODEX_HOME": "~/.codex"
+          },
+          "env_allow": []
+        },
+        "timeout_s": 2400
+      },
+      "notes": "One verified Codex integration. The framework applies proposal-only, source-handoff, or verdict-only limits according to the dispatched role."
+    },
+    {
+      "id": "kimi",
+      "tool": "kimi",
+      "label": "Kimi Code",
+      "model_family": "kimi",
+      "priority": 100,
+      "capabilities": ["plan", "build", "fix", "verify", "l1_local"],
+      "local_cli": {
+        "adapter": "kimi",
+        "sandbox": {
+          "home_dir": "~/.harness-sandbox/kimi",
+          "env_set": {
+            "KIMI_CODE_HOME": "~/.kimi-code"
+          },
+          "env_allow": []
+        },
+        "timeout_s": 1800
+      }
+    }
+  ],
+  "a2a_targets": [
+    {
+      "id": "claude-code-loopback",
+      "integration_id": "claude-code",
+      "remote_runner_id": "claude-code-loopback",
+      "endpoint": "http://127.0.0.1:41243",
+      "auth": {
+        "type": "none"
+      },
+      "notes": "Start the self-hosted runner with --integration claude-code --runner-id claude-code-loopback. Dispatch requires valid scoped Claude credentials on the runner host."
+    },
+    {
+      "id": "codex-loopback",
+      "integration_id": "codex",
+      "remote_runner_id": "codex-loopback",
+      "endpoint": "http://127.0.0.1:41242",
+      "auth": {
+        "type": "none"
+      },
+      "notes": "Start the self-hosted runner with --integration codex --runner-id codex-loopback. This target is offered for Planner and Evaluator only."
+    },
+    {
+      "id": "kimi-loopback",
+      "integration_id": "kimi",
+      "remote_runner_id": "kimi-loopback",
+      "endpoint": "http://127.0.0.1:41241",
+      "auth": {
+        "type": "none"
+      },
+      "notes": "Start the self-hosted runner with --integration kimi --runner-id kimi-loopback."
+    }
+  ]
+}

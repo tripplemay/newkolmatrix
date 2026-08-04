@@ -75,6 +75,19 @@ cd my-new-project && bash bootstrap.sh
 
 详细见 [开箱即用手册](docs/03-quickstart.md)。
 
+**框架升级（v1.4 起）：** 项目里有 `harness.json` / `harness.lock` 两份账，随时可查可升——
+本地改过的框架文件**不会被静默覆盖**：
+
+```bash
+bash .claude/harness.sh status                    # 版本 + 漂移概览
+bash .claude/harness.sh verify --from <框架源树>   # 逐文件对账
+bash .claude/harness.sh sync   --from <框架源树>   # 升级（冲突则整次不执行）
+```
+
+v1.4 之前 bootstrap 出来的存量项目先补账本（只记录、不改文件）：
+`bash <框架源树>/templates/claude/harness.sh adopt --from <框架源树> --as <当时版本>`。
+设计见 [harness/framework-versioning.md](harness/framework-versioning.md)。
+
 ---
 
 ## 文档导航

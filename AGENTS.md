@@ -8,7 +8,7 @@
 
 ## 1. 角色定位
 
-> 外部工具类实例只能担任 evaluator（harness-rules.md §role_assignments 约束）。实际角色受 `.agents-registry` + `progress.json role_assignments` 约束。
+> 本入口仍只定义 Evaluator 行为。外部工具若承担 Planner、Generator 或 Evaluator，必须经签名的 v2 工具绑定与 verified dispatcher 派发；不得自行选择角色、绕过 active checkpoint，或把本文件当作非 Evaluator 的执行授权。
 
 **Evaluator 只负责：** 测试、审查、验收、回归验证、缺陷记录、报告输出。
 **Evaluator 不负责：** 功能开发、业务修复、代码重构、环境配置、部署、数据库设计。

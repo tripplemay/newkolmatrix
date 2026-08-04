@@ -6,16 +6,16 @@
       "title": "Auth.js v5 Credentials + JWT 装配 + User expand 迁移",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-1:邮箱+密码,JWT 会话(无 adapter 表)。User 加 passwordHash(expand 迁移,bcrypt cost 12)。AUTH_SECRET 接线(dev .env / CI / VPS 前置文档)。",
-      "acceptance": "next-auth v5 依赖入 package.json;`/api/auth/*` 路由就位;User 迁移为纯 expand(只加列,不动既有行);authorize 用 bcrypt 比对;JWT 携带 { userId, tenantId } 且 session 回调透出;**401 语义钉**:认证失败恒 401,全仓 grep 无新 403(403 已锁闸门语义,architecture:1450);登录成功/失败行为级测试(错密码/不存在用户同一错误文案,不泄露用户存在性——负向断言);seed 增 dev 测试用户(已知凭据,仅 dev/CI,prod 不建,条件判断钉住);变异:authorize 改明文比对 → 红;tsc/lint 绿"
+      "acceptance": "next-auth v5 依赖入 package.json;`/api/auth/*` 路由就位;User 迁移为纯 expand(只加列,不动既有行);authorize 用 bcrypt 比对;JWT 携带 { userId, tenantId } 且 session 回调透出;**401 语义钉(裁-1 修订)**:401 的承载层 = middleware(未登录访问受保护面恒 401 JSON,F003);Auth.js 内建端点循其协议(302/200),不强求 401;**零新增 403**(403 已锁闸门语义,architecture:1450)由 status-code census 普查钉守;登录成功/失败行为级测试(错密码/不存在用户同一错误文案,不泄露用户存在性——负向断言);seed 增 dev 测试用户(已知凭据,仅 dev/CI,prod 不建,条件判断钉住);变异:authorize 改明文比对 → 红;tsc/lint 绿"
     },
     {
       "id": "F002",
       "title": "登录/注册页 Horizon port + 视觉基线",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-10:按 template-port-guide 定位模板 sign-in 实源 port /login 与 /signup,登记 template-inventory。",
       "acceptance": "§2.1 原型=Horizon 模板 sign-in(port 后在 docs/dev/template-inventory.md 登记来源路径);§2.2 只用模板 scaffold 既有原语,不引入新 UI 库;§2.3 不得简化:卡片布局/品牌区/输入态样式保留,不得新增第三方登录按钮;§2.4 视觉基线:login+signup 两页 × 两视口(1512×982/430×932)PNG 入库且 CI visual job 覆盖(核到 ci.yml 命令链,M4.7 规律 3);表单错误态(401/限速/校验失败)有用户可读文案且渲染实测;两页未登录可达(middleware 豁免联动 F003)"
     },
@@ -24,7 +24,7 @@
       "title": "src/middleware.ts 鉴权边界(从零建)",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-2:全站粗闸。豁免清单显式写死;API 401 JSON / 页面 redirect /login。",
       "acceptance": "豁免清单为导出常量并**单测钉全集**(恰等于:/api/health · /api/signals/inbound · /api/auth/* · /login · /signup · Next 静态;扩豁免必须改断言);未登录访问任一非豁免 API → 401 JSON(逐类抽测:actions/agent/projects/delivery 各≥1);未登录访问 /admin/* → redirect /login;已登录 → 原行为零变化(回归);webhook svix 路径不受影响(实测签名链仍通);变异:摘 middleware matcher 某段 → 对应 401 测试红;豁免清单塞 /api/projects → 钉红"
     },

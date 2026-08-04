@@ -245,3 +245,13 @@
 **建议写入：** 规律 1 → `patterns/agent-loop-patterns.md` §3（已写）· 规律 2 → `patterns/audit-methodology.md` §7 末段（已写）· 规律 3 → `patterns/audit-methodology.md` §7 末段（已写）· 坑 4 → `patterns/web-runtime-patterns.md` §4.5（已写，随用户裁决）· **纪律 5 → 待用户裁定写入 `harness-rules.md` 铁律 或 `role-context/generator.md`**
 
 **状态：** 1-4 已随本次 Accept 沉淀；**第 5 条待确认**（它涉及铁律层，未擅改）
+
+## [2026-08-03] Andy/Coordinator — 来源：M4.7 done 边界启动 /plan
+
+**类型：** 新坑 / 模板修订
+
+**内容：** `/plan` SKILL 第 4 步强制先跑 `resolve-active-mode-role.sh --role planner`，并约定「输出 `{}` = Coordinator 规划（含 fast）」。但 registry-less 快车道项目（无 `.agents-registry.json` 且 `progress.mode_intent=null`）下，该脚本在 registry preflight 即硬退出（exit 2），永远到不了输出 `{}` 那步——与 dispatch-mode.md「无 registry 即完全 inert、快车道行为一字不变」相悖，使纯快车道项目每次 /plan 都撞一次报错。修法二选一：resolver 在「无 active v2 checkpoint（progress.mode_intent 为 null/缺失）」时先短路输出 `{}`，再做 registry preflight；或 /plan SKILL 第 4 步补一句「registry 不存在且无 active v2 checkpoint → 视同输出 `{}`，走 Coordinator 路径」。
+
+**建议写入：** `framework/templates/claude/dispatch/` 内 resolver 模板（连带项目 `.claude/dispatch/resolve-active-mode-role.sh`）或 `.claude/skills/plan/SKILL.md` 第 4 步
+
+**状态：** 待确认

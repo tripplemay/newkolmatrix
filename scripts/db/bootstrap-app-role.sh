@@ -35,6 +35,12 @@ if [ -z "$CONTAINER" ]; then
   CONTAINER="$(docker ps --filter ancestor=pgvector/pgvector:pg16 --format '{{.Names}}' | head -n 1 || true)"
 fi
 if [ -z "$CONTAINER" ]; then
+  # 兜底：任何名字/镜像里带 postgres|pgvector 的运行中容器（CI 的 service 容器名是随机哈希，
+  # 镜像 tag 也可能不是 pg16——按 ancestor 精确匹配会漏）
+  CONTAINER="$(docker ps --format '{{.Names}} {{.Image}}' \
+    | grep -Ei 'postgres|pgvector' | head -n 1 | awk '{print $1}' || true)"
+fi
+if [ -z "$CONTAINER" ]; then
   echo "[db] 既无 psql+DATABASE_URL，也找不到 Postgres 容器。请装 postgresql-client 或设 DB_CONTAINER=<容器名>" >&2
   exit 1
 fi

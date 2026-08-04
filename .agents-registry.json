@@ -1,0 +1,45 @@
+{
+  "_comment": "M5 批次启用本地异构（2026-08-04 用户裁决：只 Evaluator 异构，家族 codex）。tool-integrations/1 格式，参照 .claude/dispatch/agents-registry.example.json。codex-cli 本机 0.146.0（适配器按 0.145.0 核对，0.146 CLI 面已复核：--json/--ephemeral/-s/-C/stdin 全在）。",
+  "version": "tool-integrations/1",
+  "integrations": [
+    {
+      "id": "claude-code",
+      "tool": "claude-code",
+      "label": "Claude Code",
+      "model_family": "claude",
+      "priority": 100,
+      "capabilities": ["plan", "build", "fix", "verify", "l1_local", "security_audit"],
+      "subagent": true,
+      "local_cli": {
+        "adapter": "claude-code",
+        "sandbox": {
+          "home_dir": "~/.harness-sandbox/claude-code",
+          "env_allow": ["ANTHROPIC_API_KEY", "CLAUDE_CONFIG_DIR"],
+          "env_set": {}
+        },
+        "timeout_s": 2400
+      }
+    },
+    {
+      "id": "codex",
+      "tool": "codex",
+      "label": "Codex",
+      "model_family": "codex",
+      "priority": 100,
+      "capabilities": ["plan", "build", "fix", "verify", "l1_local", "code_review"],
+      "local_cli": {
+        "adapter": "codex",
+        "sandbox": {
+          "home_dir": "~/.harness-sandbox/codex",
+          "env_set": {
+            "CODEX_HOME": "~/.codex"
+          },
+          "env_allow": []
+        },
+        "timeout_s": 2400
+      },
+      "notes": "M5 起承担 Evaluator（去偏验收，family 与 generator=claude 互斥）。--ephemeral 不落会话文件；认证只投喂 CODEX_HOME。"
+    }
+  ],
+  "a2a_targets": []
+}

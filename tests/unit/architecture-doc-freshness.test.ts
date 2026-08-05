@@ -392,3 +392,52 @@ describe('M4.8 加固 as-built（F007 · 含 S-RV3-4 段级钉）', () => {
     }
   });
 });
+
+describe('M5 认证 + RLS as-built（F013）', () => {
+  it('认证选型行 = 实物（package.json 有 next-auth 且文档不再写「认证 | 无」）', () => {
+    const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+    expect(
+      pkg.dependencies?.['next-auth'],
+      'package.json 缺 next-auth 依赖（若移除认证框架须同步翻牌选型表）',
+    ).toBeTruthy();
+    const row = DOC.split('\n').find((l) => l.startsWith('| 认证 |'));
+    expect(row, 'architecture.md 缺选型表认证行').toBeTruthy();
+    expect(row!, '认证行仍是旧「无」口径').toContain('Auth.js v5');
+    expect(row!, '认证行不得再声称「无（硬编码 dev tenant」').not.toContain(
+      '认证 | 无（',
+    );
+  });
+
+  it('RLS 状态句诚实：地基已就位 + 运行时未切换（两半都得在，只写一半 = 撒谎的两种方向）', () => {
+    const line = DOC.split('\n').find((l) => l.includes('租户与认证'));
+    expect(line, 'architecture.md 缺租户与认证 bullet').toBeTruthy();
+    // 正向半句：地基事实绑实物——开关常量真实存在
+    const appRoleSrc = readFileSync('src/lib/db/app-role.ts', 'utf8');
+    expect(appRoleSrc, '实物缺 DB_APP_ROLE_RUNTIME 开关（改名须同步文档与本测试）').toContain(
+      'DB_APP_ROLE_RUNTIME',
+    );
+    expect(line!, '文档缺开关名（地基半句）').toContain('DB_APP_ROLE_RUNTIME');
+    expect(line!, '文档缺 kol_app（地基半句）').toContain('kol_app');
+    // 否定半句：运行时未切换必须明写（M5.1 归属）——防「RLS 已启用」被读成「已生效」
+    expect(line!, '文档缺「运行时未切换」半句（诚实红线）').toContain('运行时未切换');
+    expect(line!, '文档缺 M5.1 归属').toContain('M5.1');
+  });
+
+  it('middleware 豁免面计数 = 实物（EXEMPT_RULES 单一真相源）', async () => {
+    const { EXEMPT_RULES } = await import('../../src/lib/auth/access-policy');
+    const line = DOC.split('\n').find((l) => l.includes('EXEMPT_RULES'));
+    expect(line, 'architecture.md 缺豁免面句').toBeTruthy();
+    const m = line!.match(/恰 (\d+) 条/);
+    expect(m, '豁免面句缺「恰 N 条」计数').toBeTruthy();
+    expect(Number(m![1]), '文档豁免计数与实物 EXEMPT_RULES 长度漂移').toBe(
+      EXEMPT_RULES.length,
+    );
+  });
+
+  it('401 语义句随实装翻牌（不得残留「无认证故无 401」）', () => {
+    expect(DOC, '旧「无认证故无 401」句仍在').not.toContain('无认证故**无 401**');
+    const line = DOC.split('\n').find((l) => l.includes('401 = 认证失败'));
+    expect(line, '缺 M5 的 401 语义句').toBeTruthy();
+    expect(line!, '403 闸门语义半句必须保留').toContain('403 仍专属闸门语义');
+  });
+});

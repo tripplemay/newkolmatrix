@@ -98,6 +98,12 @@ Agent 驱动产品的四根柱子。每柱一个明确的唯一入口，禁止�
 - **租户作用域收口（F001-F003，BL-TENANT-SCOPE-PROJECTREF 兑现）**：`findProjectByRef(ref, tenantId)` 与 `gameKnowledgeSection(projectId, tenantId, kinds)` 的 tenantId 为**必选参数**——跨租户 ref 视同不存在（项目段降级 id-only、知识段空串，别家租户项目名不进 system）。全仓项目三口径（id/publicId/slug）解析点由 census 普查钉守护（`tests/unit/project-scope-census.test.ts`：独立扫描不从修复点派生，豁免清单空，多行 OR 同样命中）
 - **budgetHitScope 四值化（F006，S-M47-G3-5 兑现）**：见上表遥测行；`budgetHit` 保持「前台被截停」口径不变，专家撞顶只进 scope——「用户看到告知」与「遥测记撞顶」不分家
 
+### M5 认证接线（as-built，对 agent 层的影响面）
+
+- **ToolContext 的租户来源变了,契约没变**：`buildToolContext` 从会话解析 `{tenantId, actor=登录邮箱}`（`src/lib/auth/session-tenant.ts` 唯一解析点）;无会话面（scheduler/scripts/webhook）走显式 `systemContext(tenantSlug)`;两条都没有 → 抛,**无隐式回落 dev**。工具执行、闸门、遥测的 ctx 契约零改动——13 个工具的 zod schema、两步票据、`OperationLog.actor` 归属全部照旧。
+- **`/api/agent` 在 middleware 保护面内**：未登录对话请求恒 401,copilot 面板依赖页面级会话。`ToolContext.actor?` 只用于留痕,不参与任何权限判定（D26 延续无 RBAC）。
+- **RLS 地基对 agent 层当前零影响**：运行时仍特权连接（`DB_APP_ROLE_RUNTIME` 默认关）;M5.1 注入机制落地后,pgvector raw SQL（search_kols 等 7 处）才由 DB 侧 policy 接管。
+
 ---
 
 ## 2. 多 Agent 编排框架（⑥ 编队运行时 = 柱二内的调度视图）

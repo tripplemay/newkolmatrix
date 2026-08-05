@@ -83,7 +83,7 @@ KOLMatrix 不是「CRUD-over-REST + AI 挂件」，而是以「工具结果协�
 | 客户端状态 | 不新增全局状态库：`useChat` 持对话、URL 持导航与筛选态（§6.5 四位）、`ConfiguratorContext` 持主题 | 已有 | FR-7.6/7.8 要求环节态可链接直达；URL 即状态天然满足（ADR-18） | zustand/jotai/Redux：当前无跨树共享可变状态诉求，引入即闲置 |
 | 单元/变异测试 | **vitest** | 已装（^4.1.10 + @vitest/coverage-v8，M1-A F001；`vitest.config.ts` 在仓） | 见 §12.6.3 as-built 口径 | — |
 | E2E / 视觉 | Playwright ^1.61.1（+ `playwright` ^1.61.1） | 已装 | 视觉回归已跑通（chromium 1512×982，darwin/linux 双 baseline，CI/linux 重生） | Cypress：迁移无收益 |
-| 认证 | 无（硬编码 dev tenant，`slug='dev'`） | 已装（占位） | D4：单租户占位，`tenantId` 进 schema 不进逻辑分支 | next-auth 现在就上：M5 配合 RLS 一次到位，避免假多租户 |
+| 认证 | **Auth.js v5 Credentials + JWT**（M5 as-built：邮箱+密码 · 开放注册即建租户 · `src/middleware.ts` 全站鉴权 · 登录/注册 fail-closed 限速 + 审计留痕） | ✅ 已实装（M5 F001-F006） | M5 spec D-1/D-2/D-4：JWT 会话无 adapter 表；租户来源仅「会话 / 显式 systemContext」两条路，**无隐式回落 dev**；403 仍专属闸门语义 | RLS 地基同批就位（kol_app + 24 表 policy + `DB_APP_ROLE_RUNTIME` 开关默认关）；运行时非特权切换归 M5.1（`BL-M51-TENANT-INJECTION`） |
 | 部署 | Docker 四阶段（`deps`/`build`/`tools`/`runner`，node 20-alpine standalone）+ GH Actions：CI（push main → lint+tsc+build+visual）、CD 仅 `workflow_dispatch` 手动（VPS `newkol.guangai.ai:3300`） | 已装 | CICD-VPS + GO-LIVE 已 done；deploy/prod 永留人类闸门 | 自动部署 on push：违反人类闸门约束，禁止 |
 
 **附注 · AI SDK 版本族配对核查（ARCH-M05 F001 要求，2026-07-21 实测）**
@@ -106,7 +106,7 @@ KOLMatrix 不是「CRUD-over-REST + AI 挂件」，而是以「工具结果协�
 
 - **AI 唯一出口**：aigcgateway（OpenAI 兼容 baseURL），chat（tool-calling）+ embedding 双链路；密钥全走 env。默认 chat=`deepseek-v3`、embedding=`bge-m3`（`src/lib/ai/gateway.ts` 常量，env 可覆盖）。
 - **数据现状**：`scripts/seed/data/kol-seed-enriched-final.csv` **2,524 条**真实 KOL（含表头 2,525 行）入 git 可复现；Apify 采集、外购评估 API、平台一方 API 均后期。
-- **租户与认证**：单租户硬编码 dev tenant（`slug='dev'`，schema 带 `tenantId` 占位），无真实认证；RLS 与认证是 M5 已知下游。**M4.8 起项目三口径解析（id/publicId/slug）全仓收口 `tenantId` 作用域**（`findProjectByRef` / `gameKnowledgeSection` tenantId 必选 + census 普查钉 `tests/unit/project-scope-census.test.ts`），RLS 落地前的应用层保证。
+- **租户与认证（M5 as-built）**：真实认证已实装（Auth.js v5 Credentials + JWT，开放注册即建租户）；租户来源仅两条路——会话（`buildToolContext` → `requireSessionIdentity`）或显式 `systemContext(tenantSlug)`，**无隐式回落 dev**（缺则抛）。**RLS 地基已就位、运行时未切换**：`kol_app` 非特权角色 + 24 表 default-deny policy + BYPASSRLS 启动哨兵已落（M5 F007/F008），应用运行时仍特权连接，切换是显式开关 `DB_APP_ROLE_RUNTIME`（默认关，开而配错即抛）——注入机制与引导白名单归 M5.1（`BL-M51-TENANT-INJECTION`，实测依据 `docs/specs/M5-AUTH-RLS-F009-preimpl-audit.md`）。M4.8 的三口径 census 钉（`tests/unit/project-scope-census.test.ts`）在运行时切换前仍是主力防线。
 - **资金边界**：合同/支付走 partner（电子签 + Stripe escrow）；本系统只做触发条件 + 闸门 + 状态追溯，不碰资金与税务。
 - **已交付地基**：DS-FOUNDATION（admin 外壳 / 色阶注入 / 深浅色 / 路由表 / 构建门）· **AGENT-FOUNDATION（M0：Prisma schema + pgvector + seed + gateway + 四柱 + 编排框架 + AI→人闸门）** · GO-LIVE（生产全栈化：db 容器 + migrate one-shot + `/api/health`）· FE-REFACTOR（前端整肃 + 视觉基线）。
 
@@ -212,7 +212,7 @@ flowchart LR
     LIB -. 同一字段契约接入 .-> EXT
 ```
 
-**边界声明（架构不做什么）**：不做人→人审批与组织权限层；不碰资金流与税务（partner 域）；不自建模型服务（gateway 域）；当前不做真实认证与多租户隔离。
+**边界声明（架构不做什么）**：不做人→人审批与组织权限层（RBAC 仍无，D26 延续：User 无 role 字段）；不碰资金流与税务（partner 域）；不自建模型服务（gateway 域）；多租户隔离已有真实认证 + 应用层 where + RLS 地基（M5），**运行时非特权切换与注入机制不在当前批**（M5.1）。
 
 | 外部系统 | 方向 | 交互 | 状态 |
 |---|---|---|---|
@@ -1451,7 +1451,7 @@ export interface ApiErr {
 }
 ```
 
-**状态码语义**：无认证故**无 401**；**403 在本系统专属闸门语义**；500 遵守 NFR「error messages 不泄漏敏感数据」——`details` 只在 4xx 校验错误时回传，完整 cause 只进服务端日志（as-built `describeGatewayError` 已遵守此纪律）。
+**状态码语义（M5 起）**：**401 = 认证失败**，承载层是 `src/middleware.ts`（未登录访问受保护 API 恒 401 JSON；页面 307 → /login；Auth.js 内建端点循其协议 302/200，见 M5 裁-1）；**403 仍专属闸门语义**（认证面零新增 403，`auth-status-code-census` 普查钉守）；middleware 豁免面 = `EXEMPT_RULES`（`src/lib/auth/access-policy.ts` 单一真相源，恰 7 条，单测钉全集）；500 遵守 NFR「error messages 不泄漏敏感数据」——`details` 只在 4xx 校验错误时回传，完整 cause 只进服务端日志（as-built `describeGatewayError` 已遵守此纪律）。
 
 `internal` 工具**永远不产生 `GATE_PENDING`**（FR-10.6，假闸门稀释真闸门）。
 
@@ -1595,7 +1595,7 @@ scheduler 触发 nightly-screen / signal-sync / health-scan …
 - **一切边界输入不可信**：API 入参、模型输出、上传素材、外部采集、信号 webhook → **先 zod 校验后处理**（NFR-S6）。`executeTool` 的入参 zod 校验是这条的核心落点。
 - **XSS**：canvas 只走受控组件树，禁 HTML 注入；素材文本净化（NFR-S7）。
 - **数据保护**：KOL 公开画像/联系方式最小化采集、可删除、可溯源（NFR-S11）；采集遵守平台条款并持续评估（NFR-S10）。
-- **多租户预留**：运行时无状态 + 全表 `tenantId` → M5 启用 RLS 不改上层（NFR-S9）。当前所有查询已带 `tenantId` 条件（`buildToolContext` 统一注入）——**这是 RLS 平滑切换的前提，不得绕过**。
+- **多租户预留 → 兑现（NFR-S9，M5 F008 实证）**：运行时无状态 + 全表 `tenantId` → RLS 启用**确实没改上层**（24 表 policy 落地,既有 137 个测试文件零翻修、全量绿——预留兑现的机械证据）。当前所有查询带 `tenantId` 条件（`buildToolContext` 统一注入）仍**不得绕过**：运行时未切非特权连接前它是主力防线,切换后（M5.1）降为纵深。
 
 ### 12.3 可观测性
 
@@ -1830,7 +1830,7 @@ fail-fast 时机：`src/instrumentation.ts`（**本仓库有 `src/`，故不在�
 | ADR-01 | 单全栈 Next.js 应用，无独立后端/微服务/队列 | D1；KISS | 锁定 ✅ 已兑现 |
 | ADR-02 | Agent 运行时 = Vercel AI SDK；AI 唯一出口 = aigcgateway | D2 | 锁定 ✅ 已兑现 |
 | ADR-03 | 数据 = CSV seed + bge-m3 起步，采集/外购后期走同契约 | D3/D15 | 锁定 ✅ 已兑现 |
-| ADR-04 | 单租户 dev tenant + `tenantId` 占位，认证/RLS 留 M5 | D4 | 锁定 ✅ 已兑现 |
+| ADR-04 | 单租户 dev tenant + `tenantId` 占位，认证/RLS 留 M5 | D4 | **M5 已解除**：真实认证 + RLS 地基落地（运行时切换 M5.1）✅ |
 | ADR-05 | 激进 AI-native：对话面 + canvas 为主轴，表单兜底 | D5 | 锁定（A6 方向由 M0.5 mock 先行验证） |
 | ADR-06 | 单角色，无 role/scope/权限层/审批链 | D26 | 锁定 ✅ 已兑现（`User` 无权限列） |
 | ADR-07 | 删人→人审批，留 AI→人闸门；internal 不设闸门 | D27 | 锁定 ✅ 已兑现 |

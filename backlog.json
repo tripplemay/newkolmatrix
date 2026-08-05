@@ -42,13 +42,14 @@
   {
     "id": "BL-E2E-CLEANUP-PIN",
     "title": "断言强度升级：行为级 / 正向精确匹配 / 钉子覆盖面对齐",
-    "description": "M4.5 复验登记（signoff §8.1 S-RV1-1/2/3）：fix_round1 给 agentloop-e2e 清理段加的三条断言都是源码级正则，已被 evaluator 实测绕过并复证等价于原缺陷（catch 改 return Promise.reject / 跨行 await prisma.x ⏎ .deleteMany( / .filter(() => true)）。做法：导出 cleanupStep 并加行为级单测（喂一个必抛的 fn，断言 await cleanupStep(...) 正常 resolve），行为断言天然免疫写法绕过。同批顺手项：e2e 越权负向断言收紧为「错误确实来自 create_project」（S-G5-6）；全人格「名单内工具名必在注册表」通用断言（O-G3-3）。 【M4.6 复验追加】S-M46-6：expectNoFabricatedName 的「占位名黑名单 + 括注正则」不可穷尽，实测两种编造形态绕过（`${id} 星辰出海计划` / `${id}【王者荣耀出海】`）→ 改正向精确匹配（断言恰等于固定全串）。S-M46-7：doc-freshness 的装配序钉比对 4 段文档句却只钉 3 段实物，工具指引段挪位即静默漂移 → 纳入 order 数组与文档句逐项对齐。S-M46-5：e2e-cleanup-hygiene 守门只覆盖 scripts/test/agentloop-e2e.ts，覆盖不到 vitest 集成测的夹具清理（软引用表不级联，漏清即留孤儿行）。 【M4.7 复验轮三追加 S-RV3-5】frontdesk-e2e 第二层整表普查的表清单是**手写的 5 张**（shareLink/operationLog/pendingAction/handoff/project），而 schema 里带 tenantId 的模型有 23 个。当前 e2e 链路只触达这 5 张（evaluator 逐条核过脚本里的 prisma.* 调用），故非现存缺口；但**下次扩 frontdesk:e2e 覆盖面时（如真邮件 outbound → OutreachThread/OutreachMessage）必须同步扩 census 清单**。【S-RV3-3（残余）】遥测等待的下沉点在 runScriptedLoop，只覆盖走测试床的用例；走真 route POST 的 **m47-rv-probe** 仍是「跑完就删租户」形态（project-context-route 部分 ✅ 已由 M4.8 F001 兑现 @505119a，同步点自带活钉，evaluator E16 证活），下一个动该文件的批次顺手补。【S-RV3-4 ✅ 已由 M4.8 F007 兑现 @7877b85：表头单元格全串钉 + 新增工具句计数自洽钉，evaluator E11/E12 证活】 【M4.8 复验追加 S-M48-2】project-scope-census 的调用面正则只认 `.project.findFirst`：findMany / findFirstOrThrow 一行正则可拓宽消除，where 提取局部常量 / 点号后空格属源码级扫描固有边界（M5 RLS 落地后本钉降二线）。【S-M48-4】「回调抛错不打死会话」类用例失败信号未落断言（现状靠 vitest unhandled-error exit 1 可拦），下一个动 loop-timeout-notice.test.ts 或新增同族回调的批次顺手。",
+    "description": "M4.5 复验登记（signoff §8.1 S-RV1-1/2/3）：fix_round1 给 agentloop-e2e 清理段加的三条断言都是源码级正则，已被 evaluator 实测绕过并复证等价于原缺陷（catch 改 return Promise.reject / 跨行 await prisma.x ⏎ .deleteMany( / .filter(() => true)）。做法：导出 cleanupStep 并加行为级单测（喂一个必抛的 fn，断言 await cleanupStep(...) 正常 resolve），行为断言天然免疫写法绕过。同批顺手项：e2e 越权负向断言收紧为「错误确实来自 create_project」（S-G5-6）；全人格「名单内工具名必在注册表」通用断言（O-G3-3）。 【M4.6 复验追加】S-M46-6：expectNoFabricatedName 的「占位名黑名单 + 括注正则」不可穷尽，实测两种编造形态绕过（`${id} 星辰出海计划` / `${id}【王者荣耀出海】`）→ 改正向精确匹配（断言恰等于固定全串）。S-M46-7：doc-freshness 的装配序钉比对 4 段文档句却只钉 3 段实物，工具指引段挪位即静默漂移 → 纳入 order 数组与文档句逐项对齐。S-M46-5：e2e-cleanup-hygiene 守门只覆盖 scripts/test/agentloop-e2e.ts，覆盖不到 vitest 集成测的夹具清理（软引用表不级联，漏清即留孤儿行）。 【M4.7 复验轮三追加 S-RV3-5】frontdesk-e2e 第二层整表普查的表清单是**手写的 5 张**（shareLink/operationLog/pendingAction/handoff/project），而 schema 里带 tenantId 的模型有 23 个。当前 e2e 链路只触达这 5 张（evaluator 逐条核过脚本里的 prisma.* 调用），故非现存缺口；但**下次扩 frontdesk:e2e 覆盖面时（如真邮件 outbound → OutreachThread/OutreachMessage）必须同步扩 census 清单**。【S-RV3-3（残余）】遥测等待的下沉点在 runScriptedLoop，只覆盖走测试床的用例；走真 route POST 的 **m47-rv-probe** 仍是「跑完就删租户」形态（project-context-route 部分 ✅ 已由 M4.8 F001 兑现 @505119a，同步点自带活钉，evaluator E16 证活），下一个动该文件的批次顺手补。【S-RV3-4 ✅ 已由 M4.8 F007 兑现 @7877b85：表头单元格全串钉 + 新增工具句计数自洽钉，evaluator E11/E12 证活】 【S-M48-2 ✅ 已由 M5 F011 兑现 @2ff56d2:正则拓宽至 findFirstOrThrow/findMany + 3 条合成样本;文件头明写「运行时未切换前仍是主力、切换(M5.1)后降二线」双态】残余固有边界(where 提常量/点号空格)不再追。【S-M48-4】「回调抛错不打死会话」类用例失败信号未落断言（现状靠 vitest unhandled-error exit 1 可拦），下一个动 loop-timeout-notice.test.ts 或新增同族回调的批次顺手。",
     "decisions": [
       "M4.5 复验裁定不阻断本批（非 acceptance 项、零产品面），但触发时机写死：下一个改动 scripts/test/agentloop-e2e.ts 清理段的批次必须一并做",
       "M4.6 复验裁定不阻断（断言强度上限，非产品缺陷），但两条都给了一行可根治的修法，下批顺手做",
       "M4.7 复验轮三（2026-08-02 用户裁决）：S-RV3-3/4/5 三条并入本条，触发时机同既有口径（下一个动到对应文件的批次必须一并做）",
       "M4.8-HARDEN 立项（2026-08-04）：S-RV3-4 随 F007、S-RV3-3 的 project-context-route 部分随 F001 携带消化；m47-rv-probe 部分与本条主体保留",
-      "M4.8 done 收尾（2026-08-04）：S-RV3-4 与 S-RV3-3 之 project-context-route 部分销账为完成态（引用实现 commit）；S-M48-2 / S-M48-4 并入本条，触发口径同既有"
+      "M4.8 done 收尾（2026-08-04）：S-RV3-4 与 S-RV3-3 之 project-context-route 部分销账为完成态（引用实现 commit）；S-M48-2 / S-M48-4 并入本条，触发口径同既有",
+      "M5 done 前记账(2026-08-05):S-M48-2 销账完成态"
     ],
     "confirmed_at": "2026-07-25",
     "priority": "medium"
@@ -67,11 +68,21 @@
   {
     "id": "BL-VISUAL-DATA-ISOLATION",
     "title": "视觉基线与 dev 租户数据态解耦（today/雷达面）",
-    "description": "S-RV2-5 的根因：today 基线渲染 dev 租户真实数据，e2e 每跑一次就 append 一行标记留痕 → 本机基线翻红（本机 test:visual 恒 15 passed / 2 failed，today dashboard 即其一）。2026-08-02 用户裁决只解了规则冲突（重生序优先于 append-only，见 framework/patterns/web-runtime-patterns.md §4.5），耦合本身未消解。做法候选：给视觉基线专用租户，或对 feed/雷达做 route-mock，使基线不看 dev 数据态。CI 不受影响（visual job 空库 + seed + 不跑 *:e2e）。 【M4.8 复验追加 S-M48-1】dev 库 2 行建造期孤儿 OperationLog（2026-08-04T04:04，waitForLogSettle 落地前留下，HEAD 不复现）：立即清（一条 delete）或至迟在下一次本机重生含 feed/雷达的视觉基线前随重生序一并清。",
+    "description": "S-RV2-5 的根因：today 基线渲染 dev 租户真实数据，e2e 每跑一次就 append 一行标记留痕 → 本机基线翻红（本机 test:visual 恒 15 passed / 2 failed，today dashboard 即其一）。2026-08-02 用户裁决只解了规则冲突（重生序优先于 append-only，见 framework/patterns/web-runtime-patterns.md §4.5），耦合本身未消解。做法候选：给视觉基线专用租户，或对 feed/雷达做 route-mock，使基线不看 dev 数据态。CI 不受影响（visual job 空库 + seed + 不跑 *:e2e）。 【M4.8 复验追加 S-M48-1】dev 库 2 行建造期孤儿 OperationLog（2026-08-04T04:04，waitForLogSettle 落地前留下，HEAD 不复现）：立即清（一条 delete）或至迟在下一次本机重生含 feed/雷达的视觉基线前随重生序一并清。 【M5 补记】耦合面新增一类:F006 登录审计留痕落 dev 租户 OperationLog → today feed 渲染登录卡,CI 每轮 auth.setup 登录一次(裁-5 已把恒定 1 行烘入 en-today 基线,确定性成立);本机跑 playwright 会额外累积登录卡,重生序照旧须先清。seed 测试用户(dev-user)是 storageState 前置的一部分,做基线专用租户方案时须一并迁移。",
     "decisions": [
       "M4.7 复验轮三（2026-08-02 用户裁决）：本批只定优先级不做隔离，隔离独立立项"
     ],
     "confirmed_at": "2026-08-02",
+    "priority": "medium"
+  },
+  {
+    "id": "BL-AUTH-EMAIL-VERIFY",
+    "title": "开放注册的邮箱验证(M5 已知缺口)",
+    "description": "M5 用户裁决开放注册(注册即建租户),邮箱验证刻意不在批内——当前防滥用 = fail-closed IP 限速(注册 3/min)+ zod 密码强度 + email 唯一约束。缺口:任意可达邮箱格式即可注册,无所有权证明。做法候选:复用已接的 Resend 发验证链接(注意 dev/CI 需 mock 链路);或接入时再评估 magic-link 整体替代。上线开放注册面前建议收口。",
+    "decisions": [
+      "M5 spec §3 明示不做,登记为已知缺口(2026-08-04)"
+    ],
+    "confirmed_at": "2026-08-04",
     "priority": "medium"
   }
 ]

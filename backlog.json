@@ -1,5 +1,15 @@
 [
   {
+    "id": "BL-M51-TENANT-INJECTION",
+    "title": "M5.1:租户注入运行时 — 双 client 白名单 + withTenant 包装器 + ALS + 全站切 kol_app",
+    "description": "M5 F009 开工前审计(docs/specs/M5-AUTH-RLS-F009-preimpl-audit.md)实测证伪 D-7 字面机制:官方范例式 $extends 注入静默毁 $transaction 原子性(B1-4:回滚后数据仍在)、$allModels 不覆盖 raw SQL(B1-2)、会话级变量粘连接池(B3);且登录/注册/slug 解析存在引导悖论(B2-1/2/3:发生在租户已知之前,切 kol_app 后无人能登录)。已预裁决(2026-08-04 用户实答):Q1-A 双 client(特权 client 只供 3 个引导查询点,显式白名单+源码级普查钉)· Q2-B+C(withTenant 包装器保事务内 SET LOCAL 为底座,ALS 只负责租户来源,普查钉兜「裸用单例」)。硬 acceptance 预写:B1-4 原子性回归(包装事务回滚后零残留)· B3 残留回归(跨事务/跨请求变量不残留)· ALS 在 RSC/route/scheduler 三执行上下文的传播实测 · 打开 DB_APP_ROLE_RUNTIME=1 后全站可登录可注册可例程(引导白名单生效)。接线点 = F007 的 DB_APP_ROLE_RUNTIME 开关(默认关,哨兵持续告警是刻意可见态)。生产切换非特权连接依赖本批;在此之前 RLS 为「地基就位、纵深未启用」态(F011 的 DB 层负向套件持续证明地基有效)。",
+    "decisions": [
+      "M5 F009 提审裁决(2026-08-04 用户实答):#Q1:A #Q2:B+C #Q3:A——本批止步 F008,F009 移出独立成批;报告 §4 有完整理由表"
+    ],
+    "confirmed_at": "2026-08-04",
+    "priority": "high"
+  },
+  {
     "id": "BL-COST-CAP",
     "title": "cost-cap 兑现：per-tenant 日预算闸 + 单请求 token 上限差异化",
     "description": "ai-action-contract §4.7 扩展点转正。例程 agent 化（BL-AGENT-ROUTINE）的硬前置——无人值守 loop 上线前必须有预算闸。交互式 loop 本批（M4.5）以 maxSteps+maxOutputTokens+maxDuration 三重上限覆盖（P10 裁决范围克制）。",

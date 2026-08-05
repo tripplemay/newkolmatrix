@@ -131,6 +131,17 @@ Q1+Q2 落地是**跨域大改**（auth 域 + 全部数据访问点 + 14 处事�
 
 ---
 
-## 4. Planner 裁决段（待填）
+## 4. Planner 裁决段（2026-08-04,用户实答确认)
 
-> 本段由 Planner 追加。Generator 在收到裁决前不实现 F009。
+**短格式:#Q1:A #Q2:B+C #Q3:A #Q4:按报告建议采纳。**
+
+| 决议 | 理由(可复用) |
+|---|---|
+| Q3:**A**(本批止步 F008,F009 移出另立 M5.1) | 「全站切非特权连接」牵动每一处数据访问点(14 处事务 + 6 处 raw + auth 域 + F010 面),塞进同批会让验收面变成整站回归——违反范围克制原则(partial-pending 裁决属良性,pre-impl §11);F007 的 `DB_APP_ROLE_RUNTIME` 开关(默认关+哨兵告警)已把「地基就位但未切换」做成可见、可证、fail-closed 的中间态,不留静默半成品 |
+| Q1:**A**(双 client + 显式白名单 + 源码级普查钉) | 例外必须**可数、可钉、可复查**(当前恰 3 个引导查询点);Q1-B 的 policy 例外写进 DB 后从代码不可见,Q1-D 直接放弃两张最敏感的表(User 泄漏面=全租户邮箱清单),Q1-C 把业务逻辑搬进 SQL 函数的迁移/测试成本本批不值 |
+| Q2:**B+C**(withTenant 包装器为底座保事务内 SET LOCAL,ALS 只负责「租户从哪来」) | 原子性是不可让步项(B1-4 回归必须入 M5.1 acceptance);ALS 减少调用点改动但传播性(RSC/route/scheduler 三上下文)必须实测为硬 acceptance;「忘了包/忘了进 ALS」两类静默都由普查钉兜(裸用单例必须在白名单) |
+| Q4 | F009 → M5.1 批次(backlog `BL-M51-TENANT-INJECTION`,B1-4 原子性回归 + B3 残留回归写死为 acceptance);F010 照原样(运行时未切,systemContext 可用);F011 照做,但**报告必须写清两层分工**:API 层证的是应用层 where 有效,DB 层(自建 kol_app 连接)证的才是 RLS 有效——不得读起来像「RLS 在 API 层也证过了」(F011 acceptance 已同步修订) |
+
+**同步修订文件清单(同 commit):** `features.json`(F009 移出,F011 acceptance 补两层分工句)· `backlog.json`(+BL-M51-TENANT-INJECTION)· `docs/specs/M5-AUTH-RLS-spec.md`(§7 裁-6)· `progress.json`(total 13→12)。
+
+**Generator 可直接开工 F010/F011,不必再确认。**

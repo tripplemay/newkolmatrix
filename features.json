@@ -60,7 +60,7 @@
       "title": "非特权 DB 角色 kol_app 三环境落地 + BYPASSRLS 哨兵",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-5:RLS 硬前置。迁移仍走特权 kol,应用运行时切 kol_app。",
       "acceptance": "幂等角色创建 SQL(NOSUPERUSER NOBYPASSRLS + GRANT DML)落 scripts/db/;dev compose 接线(init 或 bootstrap);CI workflow:建角色步 + 应用测试用 kol_app 连接串;deploy.md 追加 prod 人工前置段(pgdata 上执行 SQL + VPS .env 键);**运行时哨兵**:应用启动断言当前连接 rolbypassrls=false(kol_app 连接下绿、特权连接下红——双向实测);迁移连接保持特权(prisma migrate 走 kol,验证迁移仍可跑);变异:哨兵断言摘除 → 专项钉红"
     },
@@ -69,18 +69,9 @@
       "title": "RLS 迁移:23 表 policy + default-deny",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-6:ENABLE RLS + USING/WITH CHECK (tenant_id = current_setting('app.tenant_id', true));Tenant 表按 id 隔离。",
       "acceptance": "迁移覆盖全部 23 张带 tenantId 表 + Tenant(计数断言=schema 实物,防漏表);USING 与 WITH CHECK 双侧;**default-deny 行为级证明**:kol_app 连接未设变量 → SELECT 零行(逐表抽测 ≥5 张 + 全表计数普查);设变量 → 仅见本租户行;特权连接不受影响(既有测试全量回归绿);迁移为 expand 零数据改动,回滚安全注释明示;变异:某表 policy 改 USING(true) → 该表负向测试红"
-    },
-    {
-      "id": "F009",
-      "title": "Prisma $extends 租户变量注入(全查询面覆盖)",
-      "priority": "high",
-      "executor": "generator",
-      "status": "pending",
-      "description": "spec D-7:单例 client extension 每操作事务内 set_config。锁行为不锁机制,机制歧义走 pre-impl 提审。",
-      "acceptance": "经单例 client 的任意查询(含 $transaction 20+ 处与 raw SQL 7 处)在 kol_app 连接下只见当前租户行(pgvector 检索路径专项实测:search_kols 跨租户零泄漏);未注入租户上下文 → 零行不报错(与 F008 default-deny 衔接);interactive $transaction 内变量作用域正确(SET LOCAL 事务界,跨事务不残留——负向:后续无租户查询不得复用上一事务变量);3 处散装 new PrismaClient() 收敛或显式标注特权用途(grep 终态);性能:全量 vitest 时长不劣化 >20%(记录前后数字);变异:摘 set_config 注入 → F011 负向套件红"
     },
     {
       "id": "F010",
@@ -97,8 +88,8 @@
       "priority": "high",
       "executor": "generator",
       "status": "pending",
-      "description": "spec D-8:专用 kol_app 连接;API 层与 DB 层各证;census 降二线 + 正则拓宽。",
-      "acceptance": "双真租户夹具(A/B 各带代表性数据,独一前缀,清理登记表+不从登记表派生的整表普查两层);**API 层**:A 会话请求 B 资源(项目/行动/物料逐类)→ 404/零行,B 数据不出现在响应字节(正向精确);**DB 层**:kol_app + set_config A → raw SQL 直查 B 租户行 = 0;BYPASSRLS 哨兵在套件内断言;census 钉正则拓宽 findMany/findFirstOrThrow(S-M48-2 evaluator 点名修法)并加注释降二线但保留运行;变异:F008 policy 改 USING(true) / F009 摘注入 → 本套件对应红(与实现层变异互证)"
+      "description": "spec D-8 + F009 审计裁决 Q4:专用 kol_app 连接;API 层与 DB 层各证;census 降二线 + 正则拓宽。",
+      "acceptance": "双真租户夹具(A/B 各带代表性数据,独一前缀,清理登记表+不从登记表派生的整表普查两层);**API 层**:A 会话请求 B 资源(项目/行动/物料逐类)→ 404/零行,B 数据不出现在响应字节(正向精确);**DB 层**:kol_app + set_config A → raw SQL 直查 B 租户行 = 0;BYPASSRLS 哨兵在套件内断言;census 钉正则拓宽 findMany/findFirstOrThrow(S-M48-2 evaluator 点名修法)并加注释降二线但保留运行;变异:F008 policy 改 USING(true) / F009 摘注入 → 本套件对应红(与实现层变异互证);**两层分工必须写清(裁 Q4)**:运行时仍特权连接下,API 层证的是应用层 where 有效、DB 层(自建 kol_app 连接)证的才是 RLS 有效,报告不得混同"
     },
     {
       "id": "F012",

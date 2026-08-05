@@ -94,6 +94,8 @@
 
 **裁-3(F002 变异发现:视觉基线 maxDiffPixels=1500 容得下 14px 小字文案微调)**:登记 soft-watch **S-M5-1**,本批不改全仓共用阈值(影响既有 12 条基线,超 scope);done 收尾归入 BL-E2E-CLEANUP-PIN(断言强度家族)。
 
+**裁-6(2026-08-04,F009 提审 → 移出本批,用户实答)**:Generator 开工前审计以真库实测证伪 D-7 两前提(官方范例式注入毁 $transaction 原子性 B1-4 / raw SQL 不在覆盖面 B1-2 / 会话变量粘池 B3;登录/注册/slug 解析引导悖论 B2-1/2/3)。裁决 #Q1:A #Q2:B+C #Q3:A:**本批止步 F008**(RLS 地基就位且可证,运行时暂不切换,`DB_APP_ROLE_RUNTIME` 开关默认关 + 哨兵告警为刻意可见态);F009 移出 → backlog `BL-M51-TENANT-INJECTION`(双 client 白名单 + withTenant/ALS 预裁决与硬 acceptance 已预写);F010 照原样;F011 报告须写清两层分工。批次 13→12 features。完整理由见 `M5-AUTH-RLS-F009-preimpl-audit.md` §4。
+
 **裁-5(2026-08-04,F006 连带:登录留痕进 today feed 使 en-today 基线擦线翻红)**:CI 实证链 = auth.setup 登录一次 → F006 成功留痕落 dev 租户 OperationLog → today feed(page.tsx:302 直读)多一张卡 → 1612px > 1500 阈值。**裁定:留痕留在 feed**(OperationLog feed 反映真实事件,S-M45-1 同一哲学;登录事件对营销操盘手可见是合理审计面),重生 en-today Linux 基线(烘入恒定的 1 行登录卡——auth.setup 每轮恰登录一次,确定性成立)。本机 today 基线本就是已登记翻红项(S-RV2-5 家族),不受影响。
 
 **裁-4(编排重排)**:F003 落地使既有 playwright 23 条因未登录 307 翻红(Generator 实测),CI visual job 将红。按 CI 守门纪律「红了先修」,**F012 提前至 A2 之前执行**,恢复 CI 绿后再回 F004-F006。

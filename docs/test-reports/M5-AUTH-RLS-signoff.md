@@ -311,3 +311,295 @@ M5 的 DB 侧变异已还原并双向核证：`pg_policies` 恢复双侧同式�
 需要回炉的两条也很清楚：**I-1 是唯一的实质缺陷**（闸门可绕过，今日靠 F004 纵深兜住没出事，但不能留），I-2/I-3 是精度与卫生问题。修完 I-1 必须连带补上能抓住这一类的断言，否则修复本身无法被证明。
 
 **建议流转：`verifying → fixing`**（F003、F013 回 `pending`）。
+
+---
+---
+
+## 复验轮二（reverifying · fix_round1 后）
+
+> **被测 SHA**：`9dcbed46f923e60442fbcc8ea7b4cdd41398bd62`（`chore(M5-AUTH-RLS): fix_round1 完成 3/3`）
+> **形态**：快车道隔离 evaluator subagent（fresh context，未继承任何实现过程叙述）
+> **日期**：2026-08-05
+> **口径**：首轮 10 PASS 的 feature 不重判；只重判 F003 / F013，并登记本轮修复对其余 feature 的波及。
+> 首轮内容一字未改，本段为追加。
+
+---
+
+### R0. 前置：被测快照自证（自行取证）
+
+| 项 | 实测 |
+|---|---|
+| `git rev-parse HEAD` | `9dcbed46f923e60442fbcc8ea7b4cdd41398bd62` |
+| 工作树对 HEAD 的产品面差异 | 仅 `?? .harness-dispatch/`（非我产生）；`.claude/dispatch/` `framework/templates/` 的 M 属框架侧同步，按指令不动不判 |
+| **fix_round1 触及的全部文件** | `git diff --name-only fd111af..HEAD` = `docs/dev/architecture.md` · `features.json` · `progress.json` · **`src/lib/auth/access-policy.ts`** · **`src/middleware.ts`** · `tests/integration/auth-signin-http.test.ts` · `tests/unit/architecture-doc-freshness.test.ts` · `tests/unit/auth-middleware-gate.test.ts` |
+| → **产品代码本轮只改了 2 个文件** | `access-policy.ts` + `middleware.ts`。RLS 迁移 / `src/lib/db/` / 会话注入 / 注册 / 限速 / 审计面 **零命中**（grep 过滤实测），这是「修复没动红线」的机械依据，不是转述 |
+
+**L1 全量（本机实跑，全部我自己跑的）**
+
+| 项 | 结果 |
+|---|---|
+| `npx tsc --noEmit` | **exit 0** |
+| `npx next lint` | **✔ No ESLint warnings or errors** |
+| `npx vitest run` | **141 files / 1800 tests 全绿，exit 0**（首轮 1760 → 本轮 1800，净增 40） |
+| `npx next build` | **exit 0**（本轮我自己重建，未沿用工作树里既有的 `.next/`） |
+| `npm run test:visual` | **29 passed / 2 failed** —— 条数与身份与首轮**逐条相同**（`today dashboard` = BL-VISUAL-DATA-ISOLATION；`workbench env=match` = M4.7 §RV-5）。**无新增翻红** |
+| standalone 生产形态 | `node --env-file=.env .next/standalone/server.js`（:3000），启动日志含预期的 `[db] ⚠️ 运行时连接角色为 kol` 告警（裁-6 状态属实） |
+
+---
+
+### R1. I-1 复验：闸门后缀绕过 —— **闭环成立**
+
+复验不复跑首轮样本了事，分四路独立取证。
+
+**判别器（本轮新造）**：middleware 一旦执行，其 NextAuth 实例必然种下 `authjs.csrf-token` set-cookie。
+于是 `MW=YES / MW=no` 可以在**运行时**区分「middleware 跑了并放行」与「matcher 根本没让它跑」——
+首轮无法区分的这两种 200，本轮可以分开看。
+
+#### 路一：首轮点名样本（standalone 实测，10 条）
+
+| 路径 | 修前（首轮实测） | 本轮实测 |
+|---|---|---|
+| `/api/actions/abc`（控制组） | 401 | **401** `{"ok":false,"error":"unauthorized"}` MW=YES |
+| `/api/actions/abc.json` / `.js` / `.txt` / `.map` | 500 ×4 | **401 ×4** MW=YES |
+| `/api/delivery/deliverables/abc.json` | 405 | **401** MW=YES |
+| `/api/agent.json` · `/api/kols/abc.png` | —— | **401 ×2** MW=YES |
+| `/admin/campaigns/abc.json` | 500 | **307 → /login?callbackUrl=%2Fadmin%2Fcampaigns%2Fabc.json** MW=YES |
+| `/admin/today.json` | 404（未跳登录） | **307 → /login** MW=YES |
+
+#### 路二：我自建的第二条绕过（19 条，全部 fail-closed）
+
+大小写混合扩展名 `.JSON`/`.PNG`、多重扩展名 `abc.json.txt`/`abc.txt.json`、扩展名塞中段
+`abc.json/confirm`、`/API/projects` 与 `/Api/actions/abc.json` 大小写变体、查询串 `?x=.json`、
+编码点 `%2Ejson`/`%2ejson`、空字节 `abc.json%00.png`、分号参数 `abc;x=.json`、
+`.rsc` 后缀、`.webmanifest`、页面 `.css`/`.txt` —— **全部 401（API）或 307（页面）**，MW=YES。
+
+三条经 Next 规范化：`/api/actions/abc.json/`、`//api/actions/abc.json`、`/api//actions/abc.json`
+→ 308 规范化跳转（MW=no，Next 内建，未触达任何 route），`curl -L` 终态**全部 401**。
+
+`_next/data` 形态：`/_next/data/<BUILD_ID>/admin/today.json` → **307 + `x-nextjs-redirect: /login?...`**，MW=YES。
+
+#### 路三：穿越出静态目录 —— 本轮新增的头号候选（10 条）
+
+收窄成「目录白名单 × 扩展名」之后，最强的剩余攻击面是**从豁免目录穿越出去**
+（`/img/` 前缀成立 + `.json` 结尾成立 = 两层都豁免）。逐条 `curl --path-as-is` 实测：
+
+| 样本 | 结果 |
+|---|---|
+| `/img/../api/actions/abc.json` · `/styles/../api/...` · `/fonts/../api/...` · `/svg/../../api/...` | **404**（MW=no） |
+| `/img/..%2fapi/...` · `/img/%2e%2e/api/...` · `/img/..%2F..%2Fapi%2Factions%2Fabc.json` | **404**（MW=no） |
+| `/img/x.png/../../api/actions/abc.json` · `/img/../admin/today.png` | **404**（MW=no） |
+| `/imgx/../api/actions/abc.json`（前缀混淆对照组） | **401** MW=YES ✅ 证明检测有效 |
+
+→ 这类路径 middleware 确实**不执行**（两层一致地把它们当静态件放过），但 **Next 不做 `..` 归一化，
+直接 404，未触达任何 route**，无数据暴露。生产前置的 nginx 反代**会**先归一化 `..` 再转发，
+归一化后的 `/api/actions/abc.json` 落回本轮已修好的 401 路径 —— 两种情况都不失守。
+残余风险登记为 S-M5-5（见 R6），今日不构成缺陷。
+
+#### 路四：两层一致性的**穷举式**核对（17,354 条语料）
+
+被测单测第 ③ 组用 `new RegExp('^' + matcher + '$')` 建**模型**来验 matcher。我不采信模型，
+改用 Next 的**编译产物** `.next/server/middleware-manifest.json` 里的真实 regexp：
+
+```
+^(?:\/(_next\/data\/[^/]{1,}))?(?:\/((?!_next\/static|_next\/image|favicon\.ico$|manifest\.json$
+|robots\.txt$|(?:img|fonts|svg|styles)\/.*\.(?:ico|png|…|json)$).*))(\.json|\.rsc|\.segments\/.+
+\.segment\.rsc)?[\/#\?]?$
+```
+
+语料 = `public/` 全部 178 个真实文件 + `.next/app-path-routes-manifest.json` 解出的 50 条真实路由
+× 24 种扩展名 × 7 种前缀（含 4 种穿越前缀）× 6 种尾缀花招 + 大写变体 + `_next/data` 变体，
+共 **17,354 条**。判据：
+
+| 判据 | 结果 |
+|---|---|
+| ① **静默失守**（matcher 不拦 **且** 豁免清单也不认） | **0** |
+| ② API 面被任一层放过（白名单 `/api/health` `/api/signals/inbound` `/api/auth/*` 外） | **0** |
+| ③ `public/` 真实文件被拦或会触发 edge | **0** |
+
+**判定：I-1 闭环成立。** 「未登录访问任一非豁免 API → 401 JSON」在我能构造的全部形态下都成立。
+
+---
+
+### R2. S-M5-2 反向风险独立取证 —— **未误伤**
+
+「修 I-1 会不会把静态件误拦，导致每张图跑一次 edge 函数」这条我不采信静态断言，做了运行时取证：
+
+| 路径 | 状态码 | MW（是否跑了 middleware） |
+|---|---|---|
+| `/img/auth/auth.png` | **200** | **no** |
+| `/favicon.ico` | **200** | **no** |
+| `/manifest.json` | **200** | **no** |
+| `/robots.txt` | **200** | **no** |
+| `/styles/Plugins.css` | **200** | **no** |
+| 对照 `/api/health`（豁免但 matcher 覆盖） | 200 | **YES** ← 判别器本身证活 |
+
+静态面 178 个文件的两层放行由 R1 路四的 ③ 判据覆盖（0 命中）。
+**性能回归不成立**：静态件既不进 edge，也不被拦。
+
+---
+
+### R3. I-2 复验：数字实核 —— **数字对，但同一句里换了一处新的失实**（→ I-4）
+
+我自己数（未采信 commit 正文的数）：
+
+```
+git ls-tree -r --name-only 3901404 tests/ | grep -c '\.ts$'          → 137
+git diff --name-status 3901404..HEAD -- tests/ | uniq -c              → 29 A / 13 M
+13 M 拆开 = 8 个 .ts（其中 7 个 *.test.ts）+ 5 张 baseline .png
+```
+
+→ 文档现写的 **8 / 7 / 5 三个数全部与 git 实物吻合**，「137」保留亦成立，
+被证伪的「零翻修」绝对句已删，「**RLS 面零翻修**」限定域成立。**I-2 的字面缺陷已闭合。**
+
+但同一句的**归因半句**经不起同样的核：现句为
+「既有测试仅 8 个 `.ts` **做了会话注入适配（F004 缝**，其中 7 个 `*.test.ts`）」。
+逐文件核 diff（判据 = 改动行里是否出现 `session-tenant` / `sessionSeam` / `makeSessionTenantMock` /
+`requireSessionTenantId` / 显式传 `tenantId`）：
+
+| 文件 | 会话注入相关改动行 | 实际归属 |
+|---|---|---|
+| `f009-evaluator-insight-surface.test.ts` | 显式传 `{ tenantId }` | **F004** ✅ |
+| `m45-g4-f004-planack.probe.test.ts` | 7 | **F004** ✅ |
+| `m45-g5-f006-f007.probe.test.ts` | 6 | **F004** ✅ |
+| `materials-upload.test.ts` | 7 | **F004** ✅ |
+| `architecture-doc-freshness.test.ts` | **0** | F013 文档钉（+66 行纯新增断言） |
+| `project-scope-census.test.ts` | **0** | F011 / S-M48-2 census 正则拓宽 |
+| `repo-hygiene.test.ts` | 1（`storageState` 卫生条目） | F012，非 F004 缝 |
+| `playwright.evaluator.config.ts` | 4（登录前置） | F003 / F012，非 F004 缝 |
+
+→ **8 个里只有 4 个是 F004 会话注入适配**；7 个 `*.test.ts` 里只有 4 个是。
+底层结论（RLS 面零翻修）仍为真，**佐证半句再度失实** —— 与首轮 I-2 同一类（铁律 13）。登记为 **I-4（低）**。
+
+**归因语境（据实登记，非为软化）**：首轮 I-2 的 `fix_hint` 我方写的是「改为『既有测试仅 13 处会话注入适配（F004 缝）』」——
+generator 忠实执行了该建议并把数字纠正到 8，失实的归因是**从首轮验收建议里继承下来的**。
+但铁律 13 的判据落在「落笔前有没有一条命令输出作依据」，而 commit 正文把
+「与 evaluator 的『7 个 *.test.ts』完全一致」当作已核证，实际未核证这 7 个的**性质**。
+
+**钉的覆盖面刻画（RM7b）**：把 8→3、7→1 改成假数字而措辞保持合规 → doc-freshness **34 passed 全绿**。
+即第 34 条钉只守表述、不守数字。generator 在 commit 正文里**主动写明**了这一取舍及其理由
+（CI `actions/checkout@v4` 浅克隆跑不了 `git diff 3901404..HEAD`，钉数字会造出「本机绿 CI 红」）——
+这个取舍我认可，但它意味着**数字与归因只能靠人核，不能靠钉**，故 I-4 必须人工改掉而不能寄望回归。
+
+---
+
+### R4. I-3 复验：孤儿泄漏 —— **闭环成立**
+
+用首轮同一套逐套件 delta 隔离法，特权连接直数（`OperationLog LEFT JOIN Tenant`，孤儿 = 指不到租户行的行）：
+
+| 时点 | total | orphan | Tenant | User |
+|---|---|---|---|---|
+| 我接手基线 | 329 | 129 | 4 | 1 |
+| 跑 `auth-signin-http.test.ts` 第 1 轮后 | 329 | 129 | 4 | 1 |
+| 第 2 轮后 | 329 | 129 | 4 | 1 |
+| **全量 `npx vitest run`（141 files / 1800 tests）前后** | **329 → 329** | **129 → 129** | 4 | 1 |
+
+→ 单套件 delta **0**，整仓 delta 也 **0**（不是自扫门前雪）。
+`2026-07-27` 的 4 行历史物证**未动**，复查按日聚合仍为 `2026-07-27:4`。
+
+**变异证活（RM6，我只摘较隐蔽的那一条）**：注掉「占位租户 `__auth-audit__` 三条件精确删」那一条 deleteMany
+（保留按夹具 tenantId 删的那条）→ `Failed Suites 1`，报错原文
+`expected { fixtureLogs: +0, …(3) } to deeply equal …`；同时 DB `total 329 → 331`（+2）而 **orphan 不变**。
+这同时证明了两件事：① 钉是活的；② 那 2 行落在**真实占位租户**下、不是孤儿 —— 只盯 orphan 的度量对它是盲的。
+
+---
+
+### R5. 变异清单（8 条，全部我自己实跑 · cp 备份还原 · `git diff --quiet` 核证复位）
+
+| # | 变异 | 预期 | 实测 |
+|---|---|---|---|
+| **RM1** | **半个闸门（matcher 单侧放宽）**：只把 matcher 排除项放回全局 `.*\.(ext)$`，判定层保持修复态 | 两层一致性钉必须抓住 | **10 failed**，含「matcher 排除的路径必须都是豁免路径」逐条列出静默失守样本 ✅ |
+| **RM2** | **半个闸门（判定层单侧放宽）**：`matchesExemptRule` 回到「整条 path 后缀正则」，matcher 保持修复态 | ①② 组红 | **20 failed** ✅ |
+| **RM3** | 摘掉第二道防线 `if (isApiPath(pathname)) return false;` | 只有「第二道防线」用例红 | **恰 1 failed**，正是该用例 ✅（精准，不误伤） |
+| **RM4** | **过度收窄（判定层）**：dirs 摘掉 `/styles/` | S-M5-2 判定侧红 | **3 failed**（I-1 条 + S-M5-2 豁免条 + 两层一致性条）✅ |
+| **RM5** | **过度收窄（matcher 侧）**：matcher 摘掉 `styles` | S-M5-2 matcher 侧红 | **恰 1 failed** ✅ |
+| **RM6** | I-3：只注掉占位租户那条 deleteMany | 清态断言红 + DB delta 回来 | **Failed Suites 1** + total +2 ✅ |
+| **RM7a** | I-2：把被证伪的原句整句装回 | doc-freshness 红 | **1 failed** ✅ |
+| **RM7b** | I-2：措辞合规但数字造假（8→3 / 7→1） | —— | **34 passed 全绿**（钉不守数字，见 R3） |
+
+**还原核证**：`git diff --quiet src/ docs/ tests/` → 与 HEAD 完全一致。变异全程用 `cp` 备份还原，
+未用 `git checkout`（M4.8 已登记的坑）。
+
+---
+
+### R6. 产品红线抽查（要求以实物核证「没动」这句话本身）
+
+| 红线 | 核证方式 | 结果 |
+|---|---|---|
+| **403 零新增** | `grep -rn "403" src --include=*.ts --include=*.tsx \| wc -l`：本轮 **22**；`git grep` 首轮基线 `fd111af` 同口径 **22** → **delta 0**。58 条运行时探针中 **零个 403** | ✅ |
+| **无隐式回落 dev** | `grep -rn "_devTenantId" src` = **0**；`getDevTenantId` 在 `src` 仅 3 处（F004 已裁定的 systemContext 实现面）；本轮修复 diff 对 `src/lib/agent/context.ts` / `session-tenant` **零命中** | ✅ |
+| **RLS default-deny 仍成立** | 用 `DATABASE_URL_APP` 真连 `kol_app`（实测 `rolsuper=false rolbypassrls=false`）：开了 RLS 的表 **24 张**，**未设租户变量下逐表计数总和 = 0，非零表 0 张**；设 dev 变量后 `Kol=2526 / Project=4 / Tenant=1`（证明不是把一切关死） | ✅ |
+| **RLS/注册/限速/审计面未被本轮修复触碰** | `git diff --name-only fd111af..HEAD` 过滤 `prisma/` `src/lib/db/` `src/lib/auth/(session-tenant\|audit\|password\|index)` `src/lib/agent/context` `src/app/api/auth` → **零命中** | ✅ |
+| **豁免面未被收窄误伤** | 运行时：`/api/health` 200 · `/api/signals/inbound` 405（触达 route，svix 面未被拦）· `/login` `/signup` 200 · `/api/auth/csrf` `/api/auth/session` 200，全部 MW=YES（走了闸门被放行，而非靠 matcher 漏掉） | ✅ |
+
+---
+
+### R7. 首轮 PASS 项被本轮修复波及情况（如实登记）
+
+| Feature | 波及？ | 依据 |
+|---|---|---|
+| **F004（会话面）** | **无** | 修复 diff 对会话注入面零命中；全量 1800 tests 含 F004 全部负向断言，绿 |
+| **F012（测试面）** | **无新增翻红** | `npm run test:visual` = 29 passed / **2 failed**，与首轮**条数与身份逐条相同**；auth.setup 真登录成功（DB 留下 `[auth] login ok domain=newkolmatrix.local` 一行为证）；`auth-pages.spec.ts` 错误态用例通过 |
+| F001/F002/F005–F008/F010/F011 | 无 | 源码零改动 + 全量套件绿 + RLS 三态实测（R6） |
+
+---
+
+### R8. 新登记 soft-watch
+
+- **S-M5-5（新）**：`/img/` `/fonts/` `/svg/` `/styles/` 四个前缀 + 静态扩展名的组合，**两层一致地**跳过闸门，
+  其中包含 `/img/../api/...` 这类穿越形态（我的语料里 11,403 条）。今日无害的**唯一理由**是
+  ① 这四个前缀下不存在任何 app route（`src/app` 实查无同名目录，唯一 catch-all 是 `/api/auth/[...nextauth]`）、
+  ② Next 不归一化 `..` 直接 404。建议补一条钉：**断言 `app-path-routes-manifest.json` 里没有任何路由落在这四个前缀下**——
+  哪天有人加了 `src/app/styles/…` 页面，闸门会静默跳过而现有断言一条都不会红。
+- **S-M5-6（新）**：`tests/visual/auth-pages.spec.ts` 的登录错误态用例每跑一轮，会在**占位租户 `__auth-audit__`**
+  下留 1 行审计（本轮实测）。它**不是孤儿行**（占位租户是真实行），因此 I-3 那套只盯 orphan 的度量对它是盲的。
+  归 `BL-E2E-CLEANUP-PIN` 一并处置。
+- **S-M5-2 → 可关闭**：本轮已双向取证（R2 + RM4/RM5 两侧过度收窄各自打红）。
+- **S-M5-3（沿用）**：`/API/projects` `/Api/actions/abc.json` 落 307 而非 401 JSON —— 本轮复现，仍 fail-closed，仅口径不一致。
+- **S-M5-4（沿用）**：`__auth-audit__` 占位租户已在本机 dev 库实存（本轮实见），上线后须人工确认它不出现在任何用户可见面。
+
+---
+
+### R9. 副作用自查（我这一轮对环境做了什么）
+
+| 动作 | 处置 |
+|---|---|
+| `next build` 重建 + 拷 `public/`、`.next/static` 进 `.next/standalone/` | 覆盖 `.next/`（构建产物，非源码）；standalone 服务已停 |
+| 58 条 curl 探针 | 只读，未产生任何写入（全部落在未登录路径） |
+| 8 条变异 | 全部 `cp` 备份还原，`git diff --quiet src/ docs/ tests/` 核证复位 |
+| 跑测产生的审计行 | 我在 05:40 之后产生的 2 行（1 行 visual auth.setup 登录成功 + 1 行 auth-pages 错误态）**已按时间窗 + actor 精确删除**（matched=deleted=2）；**generator 05:35:50 那行未动**（早于我接手，属我的基线） |
+| RM6 变异产生的 2 行占位租户审计 | **已按 id 精确删除**（deleted=2） |
+| DB 终态 | `total=329 / orphan=129 / Tenant=4 / User=1` —— **与我接手时逐位相同**；`2026-07-27:4` 历史物证未动 |
+| 2 个 `f005-52865-*` 残留租户（slug=NULL） | 首轮已登记的建造期残渣，**未动**（不属本轮范围） |
+| 产品代码 | **零修改**（边界铁律） |
+| 我自己踩的坑（据实登记） | RLS 正向探针第一版把 `set_config` 的值写成 `(SELECT id FROM "Tenant" WHERE slug='dev')` —— 该子查询在 kol_app 上**自己就被 default-deny 关掉**返回 NULL，导致我一度读到「设了变量还是 0 行」。改成先用特权连接取 id 再传字面量即得 2526 行。**这是我的探针 bug，不是被测缺陷** |
+
+---
+
+### R10. 逐 Feature 重判
+
+#### F003 `src/middleware.ts` 鉴权边界 —— **PASS**（首轮 PARTIAL → 本轮转 PASS）
+
+依据：① 首轮 10 条绕过样本运行时全部转 401/307；② 我自建 19 条第二条绕过（大小写/多重扩展名/中段/编码/空字节/分号/双斜杠/`.rsc`/`_next/data`）无一击穿；③ 10 条穿越样本 middleware 虽跳过但 Next 直接 404、未触达 route，且反代归一化后落回已修的 401 路径；④ 17,354 条语料对 **Next 编译产物真 regexp** 的穷举核对，静默失守 0 / API 放过 0；⑤ 两层 desync 双向变异（RM1/RM2）与过度收窄双向变异（RM4/RM5）全部按预期打红，「半个闸门」这一类已被机械钉住；⑥ 第二道防线（`isApiPath` 前置）有独立且精准的钉（RM3 恰 1 红）。acceptance「未登录访问任一非豁免 API → 401 JSON」成立。
+
+#### F013 文档翻牌 + doc-freshness 扩 + deploy + backlog —— **PARTIAL**（I-4）
+
+依据：I-2 的字面缺陷已闭合（8/7/5/137 四个数我自己数过，全部与 git 实物吻合；「RLS 面零翻修」限定域成立；RM7a 证明钉是活的）。但**同一句的归因半句再度失实**：8 个 `.ts` 中只有 4 个是 F004 会话注入适配，另 4 个分属 F011 census 拓宽 / F012 storageState / F013 文档钉（R3 逐文件 diff 实核）。与首轮 I-2 同类（铁律 13：底层结论真、佐证半句假），且第 34 条钉按设计不守数字与归因（RM7b 绿），只能靠人改。严重度低、不影响产品面，但按首轮同一标准判 PARTIAL。
+
+其余 10 条首轮 PASS 的 feature **不重判**，波及情况见 R7（无波及、无新增翻红）。
+
+---
+
+### R11. 结论
+
+**11 PASS / 1 PARTIAL / 0 FAIL。**
+
+I-1 是这批唯一的实质缺陷，本轮**真闭环**了：修法（目录白名单 × 扩展名 + `/api/` 前置硬规则 + matcher 同式收窄）
+在语义上是对的，补的钉在两个方向上都能自动翻红 —— 我用「只放宽一层」这种最阴的姿势去打，
+两层一致性钉当场抓住并把静默失守的路径逐条打印出来。这条钉比我首轮 `fix_hint` 里要求的更狠，
+是这一轮里质量最高的一处。I-3 的修法也超出建议：它多清了一类「按夹具 tenantId 根本删不到」的占位租户审计行，
+并把 delta 归零写成断言而非承诺。
+
+不能签收的只剩一条一行的文档失实（I-4）：修 I-2 时把「零翻修」换成了另一句同样经不起 `git diff` 核的归因。
+它不影响任何产品行为，改一行即可，复验面也只有 `architecture-doc-freshness` 一个文件 + 重新数一次归属。
+
+**建议流转：`reverifying → fixing`**（F013 回 `pending`，F003 保持 `completed`）。修完只需定点复验 I-4。

@@ -78,7 +78,7 @@
       "title": "scheduler/scripts 系统上下文收敛",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-3 双路之无会话面:scheduler 4 处 + scripts 9 处经 systemContext;与 F004 联动收口。",
       "acceptance": "scheduler(lib/jobs/scheduler.ts 4 处)与 scripts 9 处全部显式传租户(kol-sync 例程按现语义作用于 dev 租户,显式写明而非隐式);例程冒烟不回归;grep getDevTenantId 终态清单与 F004 口径一致(仅 systemContext 实现与测试夹具);变异:某 script 摘显式租户 → throw(F004 负向复用)"
     },
@@ -87,7 +87,7 @@
       "title": "RLS 负向验证套件(双租户双层双证)+ S-M48-2 处置",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-8 + F009 审计裁决 Q4:专用 kol_app 连接;API 层与 DB 层各证;census 降二线 + 正则拓宽。",
       "acceptance": "双真租户夹具(A/B 各带代表性数据,独一前缀,清理登记表+不从登记表派生的整表普查两层);**API 层**:A 会话请求 B 资源(项目/行动/物料逐类)→ 404/零行,B 数据不出现在响应字节(正向精确);**DB 层**:kol_app + set_config A → raw SQL 直查 B 租户行 = 0;BYPASSRLS 哨兵在套件内断言;census 钉正则拓宽 findMany/findFirstOrThrow(S-M48-2 evaluator 点名修法)并加注释降二线但保留运行;变异:F008 policy 改 USING(true) / F009 摘注入 → 本套件对应红(与实现层变异互证);**两层分工必须写清(裁 Q4)**:运行时仍特权连接下,API 层证的是应用层 where 有效、DB 层(自建 kol_app 连接)证的才是 RLS 有效,报告不得混同"
     },

@@ -18,7 +18,22 @@ export const UNAUTHORIZED_BODY = { ok: false, error: 'unauthorized' } as const;
 export type ExemptRule =
   | { id: string; kind: 'exact'; path: string }
   | { id: string; kind: 'prefix'; path: string }
-  | { id: string; kind: 'suffix-regex'; pattern: RegExp };
+  /**
+   * public/ 下的静态文件。**扩展名只在已知静态目录内生效**（见 I-1）：
+   * 早先这条写成「整条 path 以某扩展名结尾即放行」，于是任何末段为动态段的路由
+   * （`/api/actions/[id]`、`/admin/campaigns/[id]` …）只要在 id 后面加 `.json`/`.js`/`.txt`/`.map`
+   * 就能让闸门**根本不执行**（首轮验收实测 401 → 500/405）。收窄成
+   * 「public/ 顶层已知单文件」+「已知静态目录 × 已知扩展名」两种形态。
+   */
+  | {
+      id: string;
+      kind: 'static-asset';
+      /** public/ 顶层单文件：整条 path 精确匹配（不是前缀，不是后缀） */
+      files: readonly string[];
+      /** public/ 下的静态资源目录：只有落在这些目录内才适用扩展名放行（含首尾 `/`） */
+      dirs: readonly string[];
+      pattern: RegExp;
+    };
 
 /**
  * 豁免清单（spec D-2 逐条对应）。**这是全集**——单测钉住 id 集合，
@@ -36,26 +51,45 @@ export const EXEMPT_RULES: readonly ExemptRule[] = [
   { id: 'signup-page', kind: 'exact', path: '/signup' },
   // Next 静态资源（构建产物）
   { id: 'next-static', kind: 'prefix', path: '/_next' },
-  // public/ 下的静态文件（图片 / 字体 / manifest / favicon 等）——按扩展名放行
+  // public/ 下的静态文件（图片 / 字体 / 样式 / manifest / favicon / robots）。
+  // 目录白名单 = public/ 下的实际静态目录；扩展名列表按 public/ 实际文件类型取，
+  // **刻意不含 `js` / `map`**（public/ 下无此类文件；构建产物走 `/_next`，由 next-static 规则管）。
   {
     id: 'public-asset',
-    kind: 'suffix-regex',
+    kind: 'static-asset',
+    files: ['/favicon.ico', '/manifest.json', '/robots.txt'],
+    dirs: ['/img/', '/fonts/', '/svg/', '/styles/'],
     pattern:
-      /\.(?:ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|otf|eot|css|js|map|txt|xml|webmanifest|json)$/i,
+      /\.(?:ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|otf|eot|css|txt|xml|webmanifest|json)$/i,
   },
 ];
 
 /** 豁免清单的 id 全集（单测断言锚点）。 */
 export const EXEMPT_RULE_IDS: readonly string[] = EXEMPT_RULES.map((r) => r.id);
 
+/**
+ * 单条规则的匹配判定（导出是为了让单测能拿**构造出来的恶意规则**驱动它——
+ * 比如把 `/api/` 塞进 `dirs`，验证第二道防线仍然拦住）。
+ */
+export function matchesExemptRule(rule: ExemptRule, pathname: string): boolean {
+  if (rule.kind === 'exact') return pathname === rule.path;
+  if (rule.kind === 'prefix') {
+    return pathname === rule.path || pathname.startsWith(`${rule.path}/`);
+  }
+  // ① 前置硬规则：/api/ 一律不适用扩展名豁免。
+  //    dirs 白名单本身已经排除了 API 面，这条是第二道防线——防止将来有人往 dirs 里
+  //    加一条看起来无害的目录（或 public/ 下真出现 `api` 目录）就把闸门重新捅穿。
+  if (isApiPath(pathname)) return false;
+  // ② public/ 顶层单文件：整条 path 精确匹配
+  if (rule.files.includes(pathname)) return true;
+  // ③ 已知静态目录 × 已知扩展名（两者都必须成立）
+  return (
+    rule.dirs.some((dir) => pathname.startsWith(dir)) && rule.pattern.test(pathname)
+  );
+}
+
 export function isExemptPath(pathname: string): boolean {
-  return EXEMPT_RULES.some((rule) => {
-    if (rule.kind === 'exact') return pathname === rule.path;
-    if (rule.kind === 'prefix') {
-      return pathname === rule.path || pathname.startsWith(`${rule.path}/`);
-    }
-    return rule.pattern.test(pathname);
-  });
+  return EXEMPT_RULES.some((rule) => matchesExemptRule(rule, pathname));
 }
 
 /** API 面 = /api/* （未登录时给 401 JSON 而不是跳转页面）。 */

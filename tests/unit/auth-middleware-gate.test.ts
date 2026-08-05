@@ -11,11 +11,21 @@
 //   3. 未登录 API 改成 403 → 「恒不产生 403」红
 //   4. 跳转 Location 改回 req.nextUrl.origin（监听地址）→ 「Location host 取自请求头」红
 //   5. isExemptPath 用 startsWith 松匹配 → 「/loginx 不豁免」红
+//   6.【I-1 回归】public-asset 改回「整条 path 的扩展名后缀正则」/ matcher 排除项放回
+//      `.*\.(?:…)$` → ①②③ 的扩展名绕过样本同时红（fix_round1 实跑，见 commit 正文）
+//
+// I-1 教训（首轮验收实测击穿）：原「通配一切」守卫只拿 `/api/projects`、`/admin/today` 两个
+// **不带扩展名**的路径试探后缀正则，对「末段加 .json 即绕过」这一类**恒绿**。
+// 所以本轮把带扩展名的动态段样本直接并进 GUARDED_* 全集——三层断言（豁免 / 判定 / matcher）
+// 全都会吃到它们，而不是另起一条容易被遗忘的独立用例。
 
 import { describe, it, expect } from 'vitest';
+import { readdirSync, statSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
 import {
   EXEMPT_RULE_IDS,
   EXEMPT_RULES,
+  matchesExemptRule,
   isExemptPath,
   isApiPath,
   decideAccess,
@@ -27,6 +37,27 @@ import {
 import { config as middlewareConfig } from 'middleware';
 
 const ORIGIN = 'https://kolmatrix.example.com';
+
+/**
+ * 扩展名绕过样本（I-1）：末段为动态段的真实路由 + 常见静态扩展名。
+ * 这些路径**都是非豁免 API/页面**，闸门必须照常生效。
+ */
+const EXT_BYPASS_API_PATHS = [
+  '/api/actions/abc.json',
+  '/api/actions/abc.js',
+  '/api/actions/abc.txt',
+  '/api/actions/abc.map',
+  '/api/delivery/deliverables/abc.json',
+  '/api/projects/abc.json',
+  '/api/kols/abc.png',
+  '/api/agent.json',
+];
+
+const EXT_BYPASS_PAGE_PATHS = [
+  '/admin/campaigns/abc.json',
+  '/admin/today.json',
+  '/admin/creators/abc.txt',
+];
 
 /** 未登录时必须被拦的 API 抽样：actions / agent / projects / delivery 各 ≥1（acceptance 点名）。 */
 const GUARDED_API_PATHS = [
@@ -46,6 +77,7 @@ const GUARDED_API_PATHS = [
   '/api/handoffs',
   '/api/kols/abc/contact',
   '/api/match/refresh',
+  ...EXT_BYPASS_API_PATHS,
 ];
 
 const GUARDED_PAGE_PATHS = [
@@ -55,7 +87,20 @@ const GUARDED_PAGE_PATHS = [
   '/admin/creators',
   '/admin/campaigns/abc',
   '/preview/agent-loop',
+  ...EXT_BYPASS_PAGE_PATHS,
 ];
+
+/** public/ 下的真实静态文件全集（S-M5-2：收窄豁免后它们必须仍免闸门）。 */
+const PUBLIC_DIR = join(__dirname, '..', '..', 'public');
+function listPublicFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = join(dir, name);
+    return statSync(full).isDirectory()
+      ? listPublicFiles(full)
+      : [`/${relative(PUBLIC_DIR, full).split(sep).join('/')}`];
+  });
+}
+const PUBLIC_FILE_PATHS = listPublicFiles(PUBLIC_DIR);
 
 describe('M5-AUTH-RLS F003 — ① 豁免清单全集（spec D-2 逐条）', () => {
   it('豁免规则 id 恰等于清单全集（增删都必须先改这条断言）', () => {
@@ -104,14 +149,53 @@ describe('M5-AUTH-RLS F003 — ① 豁免清单全集（spec D-2 逐条）', () 
     expect(isExemptPath(p)).toBe(false);
   });
 
-  it('豁免规则没有「通配一切」的写法（前缀 / 后缀正则都不得匹配裸路径）', () => {
+  it('豁免规则没有「通配一切」的写法（前缀不得是根；静态规则的目录白名单不得含 / 或 API 面）', () => {
     for (const rule of EXEMPT_RULES) {
       if (rule.kind === 'prefix') expect(rule.path.length).toBeGreaterThan(1);
-      if (rule.kind === 'suffix-regex') {
-        expect(rule.pattern.test('/api/projects')).toBe(false);
-        expect(rule.pattern.test('/admin/today')).toBe(false);
+      if (rule.kind === 'static-asset') {
+        for (const dir of rule.dirs) {
+          expect(dir.startsWith('/'), `${dir} 必须是绝对目录`).toBe(true);
+          expect(dir.endsWith('/'), `${dir} 必须以 / 结尾（否则 /imgx 也会命中）`).toBe(
+            true,
+          );
+          expect(dir.length, `${dir} 不得是根目录（= 通配一切）`).toBeGreaterThan(2);
+          expect(isApiPath(dir), `${dir} 不得落在 API 面`).toBe(false);
+        }
+        for (const f of rule.files) {
+          expect(f.slice(1).includes('/'), `${f} 必须是 public/ 顶层单文件`).toBe(false);
+          expect(rule.pattern.test(f), `${f} 必须是静态扩展名`).toBe(true);
+        }
       }
     }
+  });
+
+  it('**I-1**：扩展名豁免只在 public/ 静态目录内生效，末段加后缀不得绕过闸门', () => {
+    for (const p of [...EXT_BYPASS_API_PATHS, ...EXT_BYPASS_PAGE_PATHS]) {
+      expect(isExemptPath(p), `${p} 加了扩展名就被豁免 = 闸门可绕过`).toBe(false);
+    }
+    // 反面对照：同样的扩展名落在 public/ 静态目录内则必须豁免（否则每张图跑一次 edge 函数）
+    expect(isExemptPath('/img/auth/auth.png')).toBe(true);
+    expect(isExemptPath('/styles/Plugins.css')).toBe(true);
+  });
+
+  it('**I-1 第二道防线**：即便有人把 /api/ 塞进静态目录白名单，API 面仍不豁免', () => {
+    const malicious = {
+      id: 'evil',
+      kind: 'static-asset' as const,
+      files: ['/api/actions/abc.json'],
+      dirs: ['/api/'],
+      pattern: /\.(?:json|png)$/i,
+    };
+    expect(matchesExemptRule(malicious, '/api/actions/abc.json')).toBe(false);
+    expect(matchesExemptRule(malicious, '/api/kols/x.png')).toBe(false);
+    // 同一条规则对非 API 面按原语义工作（证明上面两条不是因为规则本身失效）
+    expect(matchesExemptRule({ ...malicious, dirs: ['/img/'] }, '/img/x.png')).toBe(true);
+  });
+
+  it('S-M5-2：public/ 下每个真实静态文件都仍被豁免（收窄不得误伤）', () => {
+    expect(PUBLIC_FILE_PATHS.length).toBeGreaterThan(100); // 走到了真目录，不是空列表恒绿
+    const notExempt = PUBLIC_FILE_PATHS.filter((p) => !isExemptPath(p));
+    expect(notExempt, 'public/ 下这些真实文件被闸门拦了').toEqual([]);
   });
 
   it('isApiPath 只认 /api 面', () => {
@@ -279,8 +363,32 @@ describe('M5-AUTH-RLS F003 — ③ matcher 覆盖面（摘一段就失守）', (
     '/img/auth/auth.png',
     '/fonts/DMSans.woff2',
     '/manifest.json',
+    '/robots.txt',
   ])('matcher 排除静态资源 %s（省去每张图跑一次 edge 函数）', (p) => {
     expect(matches(p)).toBe(false);
+  });
+
+  it('S-M5-2：public/ 下每个真实静态文件都被 matcher 排除（收窄后不得每张图跑一次 edge）', () => {
+    const notExcluded = PUBLIC_FILE_PATHS.filter((p) => matches(p));
+    expect(notExcluded, 'public/ 下这些真实文件会触发 edge 函数').toEqual([]);
+  });
+
+  it('**I-1**：matcher 与豁免清单两层同步收窄——matcher 排除的路径必须都是豁免路径', () => {
+    // 两层各写一份正则很容易漂移（I-1 就是两层同时写宽）。这条把它们钉成同一语义：
+    // matcher 漏掉 = middleware 不执行 = 事实上的放行，故它必须是豁免集的子集。
+    const corpus = [
+      ...GUARDED_API_PATHS,
+      ...GUARDED_PAGE_PATHS,
+      ...PUBLIC_FILE_PATHS,
+      '/api/health',
+      '/api/signals/inbound',
+      '/login',
+      '/signup',
+      '/_next/static/chunks/main.js',
+      '/favicon.ico',
+    ];
+    const silentlyPassed = corpus.filter((p) => !matches(p) && !isExemptPath(p));
+    expect(silentlyPassed, '这些路径 matcher 不拦、豁免清单也不认 = 静默失守').toEqual([]);
   });
 
   it('豁免路径仍进 matcher（由豁免清单放行，而不是靠 matcher 漏掉——两道各司其职）', () => {

@@ -15,7 +15,14 @@
 //  - 判定与响应构造全在 lib/auth/access-policy（纯函数，单测直驱）；本文件只做拆装。
 //
 // matcher 取**默认全拦 + 负向排除**形态（而非列举要拦的路径）：新加的路由默认被守住，
-// 忘记登记不会造成静默失守。排除项只有 Next 构建产物与带扩展名的静态文件。
+// 忘记登记不会造成静默失守。排除项只有 Next 构建产物与 public/ 下的真实静态文件。
+//
+// ⚠️ 排除项**必须与 access-policy 的 public-asset 规则同步收窄**（I-1）：
+// 早先这里写的是「任何以某扩展名结尾的路径」，middleware 因此对 `/api/actions/abc.json`
+// 这类路径**根本不执行**——闸门被一个后缀绕过。现在扩展名排除只在
+// `img|fonts|svg|styles` 四个 public/ 目录内生效，另加三个 public/ 顶层单文件（各自 `$` 锚定）。
+// 两层的一致性由单测钉住：`matcher 排除的路径 ⊆ 豁免清单放行的路径`，且 public/ 下每个真实文件
+// 两层都必须放行（tests/unit/auth-middleware-gate.test.ts ③）。
 
 import NextAuth from 'next-auth';
 import { authBaseConfig, resolveAuthSecret } from 'lib/auth/config';
@@ -44,6 +51,6 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpe?g|gif|svg|webp|avif|woff2?|ttf|otf|css|js|map|txt|xml|webmanifest|json)$).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico$|manifest\\.json$|robots\\.txt$|(?:img|fonts|svg|styles)/.*\\.(?:ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|otf|eot|css|txt|xml|webmanifest|json)$).*)',
   ],
 };

@@ -1,12 +1,12 @@
 {
-  "status": "fixing",
+  "status": "reverifying",
   "user_goal": "M5-AUTH-RLS:真实认证(Auth.js v5 Credentials+JWT / 开放注册即建租户 / middleware 全站鉴权 401)+ 真 PG RLS 多租户隔离(非特权角色 kol_app + 23 表 policy default-deny + $extends 租户变量注入,覆盖 pgvector raw SQL)。执行形态:本地异构首跑(evaluator=codex local-cli,generator=主上下文默认映射)。红线:403 闸门语义不碰 / 无隐式回落 dev 租户 / 登录注册 fail-closed 限速 / 审计只记元数据。",
   "total_features": 12,
-  "completed_features": 10,
-  "fix_rounds": 0,
+  "completed_features": 12,
+  "fix_rounds": 1,
   "current_sprint": "M5-AUTH-RLS",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-05T06:20",
+  "last_updated": "2026-08-05T06:00",
   "reference_docs": [
     "docs/specs/M5-AUTH-RLS-spec.md",
     "docs/dev/architecture.md",
@@ -153,7 +153,17 @@
     ],
     "report_path": "docs/test-reports/M5-AUTH-RLS-signoff.md"
   },
-  "generator_handoff": null,
+  "generator_handoff": {
+    "round": 1,
+    "date": "2026-08-05",
+    "fixes": [
+      "I-1(F003,必修):豁免扩展名收窄到 public/ 静态目录(/img /fonts /svg /styles + 顶层三单文件精确名单),去掉 js/map;第二道防线 isApiPath → /api/ 一律不适用扩展名豁免(导出可直驱测试);matcher 负向排除同式收窄。修前/修后 standalone curl 字节对比在 commit 正文(6 条 API 500/405→401、2 条页面 404/500→307)。补钉:11 条绕过样本并入 GUARDED_API_PATHS/GUARDED_PAGE_PATHS 三层断言 + 恶意规则用例 + S-M5-2 遍历 public/ 178 个真实文件双层放行断言",
+      "I-2(F013,必修):NFR-S9 去掉被证伪的「137 个测试文件零翻修」,改为实数表述",
+      "I-3(F001 测试产物,低):auth-signin-http afterAll 补按 tenantId 删 OperationLog"
+    ],
+    "l1_status": "编排者独立复核:tsc 0 error · next lint 无告警 · vitest 141 files / 1800 tests 全绿(首轮 1760,本轮净增 40)",
+    "for_evaluator": "I-1 修复触及 access-policy 与 middleware matcher 两层,请自行复现你首轮用的 11 类后缀绕过并另设第二条绕过(如把扩展名塞在中段、大小写混合扩展名、多重扩展名 abc.json.txt、/api 大小写变体);S-M5-2 的反向风险(静态件被误拦导致每图跑 edge)也请独立取证。I-2 的实数(13/7)请自行 git diff 复核。I-3 请用逐套件 delta 隔离法复证。"
+  },
   "session_notes": {
     "Andy": "【M5-AUTH-RLS planning→building · 2026-08-04 · 本地异构首跑】spec lock=用户实答(邮箱+密码 / 真 PG RLS+非特权角色 / 开放注册 / Horizon port 登录页 / 只 evaluator 异构=codex)。■ 装配:.agents-registry.json 立起(36073b1),role_assignments 用部分指派 {evaluator: local-cli--codex--evaluator}(实测 assignments 校验:显式 null generator 被拒、'local' 被拒、缺键=默认映射合法——这是「只 evaluator 异构」的正确写法)。■ 侦察关键实物(m5-recon,全文在对话):45 处 getDevTenantId/39 文件 · buildToolContext 22 处 · context.ts:13 模块缓存是串数据风险 · DB 用户 kol=SUPERUSER+BYPASSRLS(dev/prod/CI 三处,RLS 硬阻塞→F007) · raw SQL 7 处只有 DB 侧 RLS 能覆盖 · admin layout 是 client component→middleware 必建 · 403 已锁闸门语义(architecture:1450),认证一律 401。■ 既有 1470 tests 不翻修(D-8 分层)。■ 开放注册是用户主动选择(逆我推荐),邮箱验证挂 BL-AUTH-EMAIL-VERIFY。■ building 计划:域串行派 generator-restricted(A1=F001-F003 认证核,A2=F004-F006 注入+注册,B1=F007-F009 RLS 链,B2=F010-F011),F012-F013 收尾;迁移类 feature 不并行(migrations 时间戳与 dev 库锁冲突)。",
     "Reviewer": "【M5-AUTH-RLS 首轮 verifying · 2026-08-05 · 快车道隔离 subagent】10 PASS / 2 PARTIAL / 0 FAIL → fixing。■ 唯一实质缺陷 I-1（F003）：豁免的 public-asset 后缀正则作用于整条 path，末段动态段路由加 .json 即可让 middleware 完全不执行（/api/actions/abc.json→500 vs 控制组 401）。今日没出事只因 F004 fail-closed 兜住——纵深防御救了第一场，但闸门本身不成立。修时必须连带补断言：现有反通配守卫只试探无扩展名路径，对这一类恒绿。■ I-2（F013）铁律 13：「既有 137 个测试文件零翻修」中 137 成立而「零翻修」被证伪（13 个既有测试 .ts 实质改动，性质是 F004 会话注入适配非 RLS 翻修）。■ I-3 低：auth-signin-http.test.ts 每轮漏 5 行孤儿 opLog（OperationLog 无 FK 不级联，项目已登记的坑），dev 库孤儿 4→124。■ 质量正面：RLS 我做的是 24 张表全表普查而非抽测（无变量 0 行/0 表），WITH CHECK 四条写侧探针全部正确拒绝，哨兵双向都实测，9 条变异无一哑火。F011 把「运行时没切所以 API 层证的不是 RLS」用 §0 两条断言机械钉死且 M5.1 切换时会自动翻红——很少见的诚实。■ 复验只需重跑 F003 绕过矩阵 + F013 那句话；其余 10 条证据已在 signoff 报告逐条留档。■ 我自己踩的两个坑已在报告据实登记（grep -oE '[0-9]+' 被 m5rv 的 5 污染导致误判 0 行；DROP POLICY IF EXISTS 被我的正则误报为破坏性语句）——都不是被测缺陷。",

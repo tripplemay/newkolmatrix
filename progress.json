@@ -6,7 +6,7 @@
   "fix_rounds": 0,
   "current_sprint": "M5-AUTH-RLS",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-05T03:30",
+  "last_updated": "2026-08-05T03:40",
   "reference_docs": [
     "docs/specs/M5-AUTH-RLS-spec.md",
     "docs/dev/architecture.md",
@@ -21,7 +21,7 @@
     "framework_reviewed": false
   },
   "role_assignments": {
-    "evaluator": "local-cli--codex--evaluator"
+    "evaluator": "local-cli--kimi--evaluator"
   },
   "mode_intent": null,
   "evaluator_feedback": null,

@@ -79,9 +79,9 @@
           },
           "env_allow": []
         },
-        "timeout_s": 1800
+        "timeout_s": 3600
       },
-      "notes": "M5 verifying 起启用:codex 因「个人 config 依赖自定义 provider,隔离 config 即断认证」两难硬停(2026-08-05),用户裁决换 kimi 承担 evaluator。"
+      "notes": "M5 verifying 起启用:codex 因「个人 config 依赖自定义 provider,隔离 config 即断认证」两难硬停(2026-08-05),用户裁决换 kimi 承担 evaluator。 首派 1800s 撞墙钟(47 tool calls 稳定推进中,12 feature 体量所致)→ 提至 3600s。"
     }
   ],
   "a2a_targets": []

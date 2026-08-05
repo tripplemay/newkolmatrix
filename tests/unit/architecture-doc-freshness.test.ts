@@ -434,6 +434,23 @@ describe('M5 认证 + RLS as-built（F013）', () => {
     );
   });
 
+  it('NFR-S9 的「零翻修」必须带限定域（I-2：原句「既有 137 个测试文件零翻修」被 git 实物证伪）', () => {
+    const line = DOC.split('\n').find((l) => l.includes('NFR-S9'));
+    expect(line, 'architecture.md 缺 NFR-S9 多租户预留句').toBeTruthy();
+    // 这条钉守的是**表述精度**，不是功能：本批实际改了 8 个既有 tests/**/*.ts（7 个 *.test.ts）
+    // 与 5 张 Linux 视觉基线，「既有 N 个测试文件零翻修」这种绝对句拿 git 一数就翻。
+    // 数法（本机可复现，CI 因浅克隆不跑 git 史，故这里只钉表述而不钉数字）：
+    //   git diff --name-status 3901404..HEAD -- tests/ | grep '^M'
+    expect(line!, '被 git 证伪的绝对句复活了').not.toMatch(/\d+\s*个测试文件零翻修/);
+    expect(
+      line!,
+      '「零翻修」必须写明限定域（RLS 面），否则又是一句会被实物证伪的绝对话',
+    ).toContain('RLS 面零翻修');
+    expect(line!, '须写明既有测试的适配面来自 F004 会话注入缝，而非「一个都没改」').toContain(
+      'F004',
+    );
+  });
+
   it('401 语义句随实装翻牌（不得残留「无认证故无 401」）', () => {
     expect(DOC, '旧「无认证故无 401」句仍在').not.toContain('无认证故**无 401**');
     const line = DOC.split('\n').find((l) => l.includes('401 = 认证失败'));

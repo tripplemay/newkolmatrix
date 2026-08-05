@@ -4,7 +4,7 @@
 //（本地需 ssh 隧道：ssh -L 3004:localhost:3004 deploysvr + .env 配 APIFY_KOL_*）
 // 与 scheduler 走同一执行体（runExclusive + 探活 + syncKols），非旁路实现。
 
-import { getDevTenantId } from '../../src/lib/agent/context';
+import { DEV_TENANT_SLUG, systemTenantId } from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
 import { health } from '../../src/lib/apify/client';
 import { runExclusive } from '../../src/lib/jobs/scheduler';
@@ -17,7 +17,7 @@ async function main(): Promise<void> {
     );
     process.exit(1); // 手动入口明示失败（区别于例程静默跳过）
   }
-  const tenantId = await getDevTenantId();
+  const tenantId = await systemTenantId(DEV_TENANT_SLUG);
   const result = await runExclusive('kol-sync', () => syncKols(tenantId));
   if (result == null) {
     console.log('[routine:kol-sync] 互斥锁占用，本轮跳过');

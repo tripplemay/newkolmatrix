@@ -20,7 +20,7 @@
 import { chromium, type Page } from 'playwright';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../src/lib/db/prisma';
-import { getDevTenantId } from '../../src/lib/agent/context';
+import { DEV_TENANT_SLUG, systemTenantId } from '../../src/lib/agent/context';
 
 const BASE = process.env.PROBE_BASE_URL ?? 'http://127.0.0.1:3000';
 const TAG = `f009eval${process.pid}`;
@@ -112,7 +112,7 @@ async function openShareGate(page: Page): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const tenantId = await getDevTenantId();
+  const tenantId = await systemTenantId(DEV_TENANT_SLUG);
   const shareBefore = await prisma.shareLink.count();
   console.log(
     `[probe] dev tenant=${tenantId} · ShareLink 基线行数=${shareBefore}`,

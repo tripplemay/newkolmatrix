@@ -14,7 +14,7 @@
 // 不发任何对外动作）。
 
 import cron from 'node-cron';
-import { getDevTenantId } from 'lib/agent/context';
+import { DEV_TENANT_SLUG, systemTenantId } from 'lib/agent/context';
 import { health as apifyKolHealth } from 'lib/apify/client';
 import { syncKols } from 'lib/kol-sync/sync';
 import { runHealthScan } from './routines/health-scan';
@@ -33,12 +33,29 @@ export const KOL_SYNC_CRON = '0 3 * * *';
 /** 周报起草 cron（M4 F011；每周一 04:00，与夜间例程错峰）。 */
 export const WEEKLY_DRAFT_CRON = '0 4 * * 1';
 
-/** 例程注册表条目（F006）。 */
+/** 例程注册表条目（F006；M5-AUTH-RLS F010 加 tenantSlug）。 */
 export interface RoutineDef {
   name: string;
   cron: string;
-  /** 执行体（互斥与异常消化由调度层统一包裹，run 内不重复实现） */
-  run: () => Promise<unknown>;
+  /**
+   * M5-AUTH-RLS F010（spec D-3 无会话面）——**这条例程作用在哪个租户上，写在注册处**。
+   *
+   * 例程跑在没有登录会话的进程里，租户不可能从会话来；本批之前它来自一个叫
+   * `getDevTenantId` 的函数，读注册表看不出租户是谁。现在改成注册时指名：
+   * 想知道 nightly-screen 作用于谁，看这一行就够，不用追进执行体。
+   *
+   * 当前四条都是 `dev`——这是**把现语义显式写出来**，不是新增默认值。改成多租户轮询
+   * 是一个独立决策（要考虑并发、互斥锁粒度、失败隔离），改这里一行不能替代那个决策。
+   */
+  tenantSlug: string;
+  /**
+   * 执行体（互斥与异常消化由调度层统一包裹，run 内不重复实现）。
+   *
+   * 租户 slug 由调度层从注册表传入，**由执行体自己按需解析成 id**——刻意不在调度层预先解析：
+   * kol-sync 在探活失败时要早退且不碰库，预解析会给它加一次无谓查询，还会让
+   *「dev 租户不存在的环境」从静默跳过变成抛错（行为回归）。
+   */
+  run: (tenantSlug: string) => Promise<unknown>;
 }
 
 /**
@@ -49,8 +66,9 @@ export const ROUTINES: ReadonlyArray<RoutineDef> = [
   {
     name: 'health-scan',
     cron: HEALTH_SCAN_CRON,
-    run: async () => {
-      const tenantId = await getDevTenantId();
+    tenantSlug: DEV_TENANT_SLUG,
+    run: async (tenantSlug) => {
+      const tenantId = await systemTenantId(tenantSlug);
       const r = await runHealthScan(tenantId, new Date());
       console.log(
         `[jobs] health-scan 完成：扫描 ${r.scanned} 项目，留痕 ${r.logged} 条`,
@@ -61,8 +79,9 @@ export const ROUTINES: ReadonlyArray<RoutineDef> = [
   {
     name: 'nightly-screen',
     cron: NIGHTLY_SCREEN_CRON,
-    run: async () => {
-      const tenantId = await getDevTenantId();
+    tenantSlug: DEV_TENANT_SLUG,
+    run: async (tenantSlug) => {
+      const tenantId = await systemTenantId(tenantSlug);
       const r = await runNightlyScreen(tenantId);
       console.log(
         `[jobs] nightly-screen 完成：${r.projects} 项目（成功 ${r.succeeded} / 失败 ${r.failed}）`,
@@ -73,7 +92,8 @@ export const ROUTINES: ReadonlyArray<RoutineDef> = [
   {
     name: 'kol-sync',
     cron: KOL_SYNC_CRON,
-    run: async () => {
+    tenantSlug: DEV_TENANT_SLUG,
+    run: async (tenantSlug) => {
       // M2-B F003：dev 内网不可达属预期（apify-kol 在 deploysvr kol-shared 网络）——
       // 探活失败静默跳过 log warn 不炸（spec §2 F003 硬要求）；env 未配同走此分支。
       if (!(await apifyKolHealth())) {
@@ -82,7 +102,7 @@ export const ROUTINES: ReadonlyArray<RoutineDef> = [
         );
         return { skipped: true };
       }
-      const tenantId = await getDevTenantId();
+      const tenantId = await systemTenantId(tenantSlug);
       const r = await syncKols(tenantId);
       console.log(
         `[jobs] kol-sync 完成：拉取 ${r.fetched}（新建 ${r.created}/更新 ${
@@ -95,10 +115,11 @@ export const ROUTINES: ReadonlyArray<RoutineDef> = [
   {
     name: 'weekly-draft',
     cron: WEEKLY_DRAFT_CRON,
-    run: async () => {
+    tenantSlug: DEV_TENANT_SLUG,
+    run: async (tenantSlug) => {
       // M4 F011：跨项目周报起草（internal only——只落草案；对外分享须人过 create_share_link 闸门）。
       // 无网关凭据由服务层降级固定草案（明示不静默），例程不因此失败。
-      const tenantId = await getDevTenantId();
+      const tenantId = await systemTenantId(tenantSlug);
       const r = await runWeeklyDraft(tenantId);
       console.log(
         `[jobs] weekly-draft 完成：周期 ${r.period} 草案 ${r.reportId}${
@@ -148,7 +169,8 @@ export function startScheduler(): void {
   started = true;
   for (const routine of ROUTINES) {
     cron.schedule(routine.cron, () => {
-      void runExclusive(routine.name, routine.run).catch((err) => {
+      // F010：租户 slug 从注册表条目取，调度层不知道也不假设"默认租户"是谁。
+      void runExclusive(routine.name, () => routine.run(routine.tenantSlug)).catch((err) => {
         // 例程失败只留日志不炸进程（下一轮 cron 自然重试）
         console.error(`[jobs] ${routine.name} 失败：`, err);
       });

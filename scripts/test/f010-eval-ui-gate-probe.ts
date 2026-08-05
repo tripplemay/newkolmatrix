@@ -21,7 +21,7 @@
 import { chromium, type Page } from 'playwright';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../src/lib/db/prisma';
-import { getDevTenantId } from '../../src/lib/agent/context';
+import { DEV_TENANT_SLUG, systemTenantId } from '../../src/lib/agent/context';
 
 const BASE = process.env.PROBE_BASE_URL ?? 'http://127.0.0.1:3000';
 const TAG = `f010eval${process.pid}`;
@@ -59,7 +59,7 @@ function money(n: number): string {
 }
 
 async function main(): Promise<void> {
-  const tenantId = await getDevTenantId();
+  const tenantId = await systemTenantId(DEV_TENANT_SLUG);
   const shareLinkBaseline = await prisma.shareLink.count();
   const paBaseline = await prisma.pendingAction.count({
     where: { toolName: 'create_share_link' },

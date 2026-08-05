@@ -42,7 +42,10 @@ export async function tenantIdBySlug(slug: string): Promise<string> {
  *
  * @deprecated M5-AUTH-RLS F004 起**不是任何请求的租户来源**。HTTP 面走会话
  *（`lib/auth/session-tenant`），无会话面走 `systemContext(DEV_TENANT_SLUG)`。
- * 剩余调用点（scheduler / scripts / seed / 测试夹具）由 F010 收口。
+ * **F010 已收口**：scheduler（4 处）与 scripts（10 个文件）已全部改为显式
+ * `systemTenantId(DEV_TENANT_SLUG)`；src/ 下除本定义外零调用点（`tests/unit/session-tenant-context.test.ts`
+ * 的普查钉守）。本函数只为既有测试夹具保留，新代码一律不得调用——它把「租户是谁」
+ * 藏进函数名里，而 D-3 要的正是相反：调用点必须写出租户是谁。
  */
 export async function getDevTenantId(): Promise<string> {
   return tenantIdBySlug(DEV_TENANT_SLUG);

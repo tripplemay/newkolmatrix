@@ -197,13 +197,14 @@ describe('普查钉：HTTP 面不得自己指定租户', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('getDevTenantId 在 src/ 的调用点 ⊆ 已登记清单（F010 继续收口，只减不增）', () => {
+  it('getDevTenantId 在 src/ 的调用点 ⊆ 已登记清单（F010 已收口：只剩定义处）', () => {
     /**
      * F004 口径：HTTP 面已全部收敛，剩下的都是**无会话面**。
-     * scheduler 的 4 处由 F010 改成显式 systemContext——用**子集**断言而不是相等，
-     * 使 F010 把它们清掉时本钉自然保持绿，而任何**新增**调用点立刻红。
+     * **F010 已把 scheduler 的 4 处清掉**（改为注册表声明 tenantSlug + systemTenantId），
+     * 故此处清单从 2 项收紧到 1 项——留下的那个就是函数定义自身。
+     * 仍用**子集**断言而不是相等：将来若把这个 @deprecated 函数彻底删掉，本钉不会因此假红。
      */
-    const ALLOWED = new Set(['src/lib/agent/context.ts', 'src/lib/jobs/scheduler.ts']);
+    const ALLOWED = new Set(['src/lib/agent/context.ts']);
     const callers = walk('src').filter((f) =>
       /\bgetDevTenantId\s*\(/.test(readFileSync(f, 'utf8')),
     );

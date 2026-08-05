@@ -3,13 +3,13 @@
 // 运行：npm run routine:nightly-screen
 // 与 scheduler 走同一执行体（runExclusive + runNightlyScreen），非旁路实现。
 
-import { getDevTenantId } from '../../src/lib/agent/context';
+import { DEV_TENANT_SLUG, systemTenantId } from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
 import { runExclusive } from '../../src/lib/jobs/scheduler';
 import { runNightlyScreen } from '../../src/lib/jobs/routines/nightly-screen';
 
 async function main(): Promise<void> {
-  const tenantId = await getDevTenantId();
+  const tenantId = await systemTenantId(DEV_TENANT_SLUG);
   const result = await runExclusive('nightly-screen', () =>
     runNightlyScreen(tenantId),
   );

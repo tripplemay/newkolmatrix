@@ -7,7 +7,7 @@
 //
 // 运行：npm run seed:dev-user
 
-import { getDevTenantId } from '../../src/lib/agent/context';
+import { DEV_TENANT_SLUG, systemTenantId } from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
 import {
   assertDevSeedAllowed,
@@ -19,7 +19,7 @@ async function main(): Promise<void> {
   assertDevSeedAllowed();
 
   const { email, password } = resolveDevTestUserCredentials();
-  const tenantId = await getDevTenantId();
+  const tenantId = await systemTenantId(DEV_TENANT_SLUG);
   const passwordHash = await hashPassword(password);
 
   const user = await prisma.user.upsert({

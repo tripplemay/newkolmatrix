@@ -6,13 +6,13 @@
 //
 // 运行：npm run seed:demo-handoff
 
-import { getDevTenantId } from '../../src/lib/agent/context';
+import { DEV_TENANT_SLUG, systemTenantId } from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
 
 const DEMO_REF = 'match_plan:demo-starlight-protocol';
 
 async function main(): Promise<void> {
-  const tenantId = await getDevTenantId();
+  const tenantId = await systemTenantId(DEV_TENANT_SLUG);
   const existing = await prisma.handoff.findFirst({
     where: { tenantId, artifactRef: DEMO_REF },
   });

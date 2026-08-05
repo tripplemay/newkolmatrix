@@ -6,13 +6,13 @@
 //
 // stats 显式输出（database-patterns §6/§7：prod-shaped 数据端到端实跑 + 显式计数）。
 
-import { getDevTenantId } from '../../src/lib/agent/context';
+import { DEV_TENANT_SLUG, systemTenantId } from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
 import { normalizeDataSource } from '../../src/lib/kol-sync/normalize-datasource';
 
 async function main(): Promise<void> {
   const apply = process.argv.includes('--apply');
-  const tenantId = await getDevTenantId();
+  const tenantId = await systemTenantId(DEV_TENANT_SLUG);
   const r = await normalizeDataSource(tenantId, { apply });
   console.log(
     `[ops:normalize-datasource] ${apply ? 'APPLY' : 'DRY-RUN'} — 命中 csv-seed:* ${r.matched} 行，改写 ${r.updated} 行`,

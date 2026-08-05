@@ -3,7 +3,7 @@
 // 4) 筛选真值域 + URL 边界回落  5) 改→验→复原（sentinel 行经数据层实时可见后删除，D-H 清态）
 // 运行：node --env-file=.env --import tsx scripts/test/m2b-f004-pagedata-verify.ts
 import { prisma } from '../../src/lib/db/prisma';
-import { getDevTenantId } from '../../src/lib/agent/context';
+import { DEV_TENANT_SLUG, systemTenantId } from '../../src/lib/agent/context';
 import { loadCreatorsPageData, LIST_LIMIT } from '../../src/lib/creators/page-data';
 
 const SENTINEL_HANDLE = 'evaluator-f004:sentinel';
@@ -14,7 +14,7 @@ function assert(cond: boolean, label: string) {
 }
 
 async function main() {
-  const tenantId = await getDevTenantId();
+  const tenantId = await systemTenantId(DEV_TENANT_SLUG);
 
   // ── 0. 残留清理（幂等，防上次中断）
   await prisma.kol.deleteMany({ where: { tenantId, canonicalHandle: SENTINEL_HANDLE } });

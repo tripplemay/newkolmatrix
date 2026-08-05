@@ -3,13 +3,13 @@
 // 运行：npm run routine:weekly-draft
 // 与 scheduler 走同一执行体（runExclusive + runWeeklyDraft），非旁路实现。
 
-import { getDevTenantId } from '../../src/lib/agent/context';
+import { DEV_TENANT_SLUG, systemTenantId } from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
 import { runExclusive } from '../../src/lib/jobs/scheduler';
 import { runWeeklyDraft } from '../../src/lib/jobs/routines/weekly-draft';
 
 async function main(): Promise<void> {
-  const tenantId = await getDevTenantId();
+  const tenantId = await systemTenantId(DEV_TENANT_SLUG);
   const result = await runExclusive('weekly-draft', () =>
     runWeeklyDraft(tenantId),
   );

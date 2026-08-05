@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { usePathname } from 'next/navigation';
 import NavLink from 'components/link/NavLink';
 import DashIcon from 'components/icons/DashIcon';
 import { FaCircle } from 'react-icons/fa';
@@ -15,13 +15,13 @@ import {
 
 export function SidebarLinks(props: { routes: RoutesType[] }) {
   //  Chakra color mode
-  let location = useLocation();
+  const pathname = usePathname();
 
   const { routes } = props;
 
   // verifies if routeName is the one active (in browser input)
   const activeRoute = (routeName: string) => {
-    return location.pathname.includes(routeName);
+    return pathname.includes(routeName);
   };
 
   const createLinks = (routes: RoutesType[]) => {

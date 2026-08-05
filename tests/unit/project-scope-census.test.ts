@@ -19,6 +19,16 @@
 // `.project.findFirst(` 匹配接收者无关的调用，再用**花括号配平**取出实参与 where ——
 // 单行与多行格式（set-goal.ts 是多行 OR）走同一条路径，不靠正则去猜换行位置。
 //
+// 【M5-AUTH-RLS F011：本钉现在处在第几线（裁 Q4 口径，别写含糊）】
+// F008 起 DB 侧有了 RLS：在 kol_app 连接上，policy 是与源码写法无关的兜底。但本批
+// **没有**把应用运行时切过去（F009 的租户变量注入移出到 M5.1，`DB_APP_ROLE_RUNTIME` 默认关），
+// 而特权连接绕过全部 policy —— 也就是说，对**产品当前实际跑的那条连接**而言，
+// 租户作用域仍然只由应用层 where 保证。
+// 所以：现在它**仍是主力**，不是"有 RLS 了可以松一口气的二线"；等运行时切换落地后，
+// 它才降为二线（专防新写的解析点漏 tenantId，数据面由 RLS 兜）。两种状态下都保留运行。
+// 这个前提有机械证据：tests/integration/rls-negative-suite.test.ts §0 断言 API 层用的
+// 单例确实是特权连接——切换那天那条会红，逼着来人回来改这段话。
+//
 // 【范围】spec D-3 划定的是 `src/`。scripts/ 下唯一的 project.findFirst
 //（scripts/test/m2a-f001-db-verify.ts:65）不是三口径解析，不在本钉范围——如实登记在此。
 
@@ -124,7 +134,11 @@ function lineOf(src: string, idx: number): number {
 export function scanProjectResolves(src: string, file: string): ResolveSite[] {
   const masked = maskSource(src);
   const sites: ResolveSite[] = [];
-  const call = /\.project\s*\.\s*findFirst\s*\(/g;
+  // M5-AUTH-RLS F011（S-M48-2 修法）：方法名拓宽到 findFirstOrThrow / findMany。
+  // 原口径只认 findFirst，M4.8 验收实测出三个绕过写法（E4b `project.findMany`、
+  // E4d `findFirstOrThrow`），改一个方法名就能让同样危险的三口径解析溜过普查。
+  // 注意 `findFirst\s*\(` 认不了 `findFirstOrThrow(`——必须显式列出，不能靠前缀匹配。
+  const call = /\.project\s*\.\s*(?:findFirstOrThrow|findFirst|findMany)\s*\(/g;
   let m: RegExpExecArray | null;
   while ((m = call.exec(masked)) !== null) {
     const argStart = masked.indexOf('{', m.index + m[0].length - 1);
@@ -292,6 +306,22 @@ describe('三口径项目解析普查（M4.8-HARDEN F003）', () => {
         '事务客户端接收者（db. / (ctx.db ?? prisma).）同样要被扫到',
         `await (ctx.db ?? prisma).project.findFirst({ where: { OR: [{ id: r }, { publicId: r }, { slug: r }] } });`,
         false,
+      ],
+      // ── F011 / S-M48-2：换个方法名就绕过，是 M4.8 验收实测出来的洞（E4b / E4d）──
+      [
+        'findFirstOrThrow 无 tenantId → 违规（S-M48-2 E4d）',
+        `await prisma.project.findFirstOrThrow({ where: { OR: [{ id: r }, { publicId: r }, { slug: r }] } });`,
+        false,
+      ],
+      [
+        'findMany 无 tenantId → 违规（S-M48-2 E4b）',
+        `await prisma.project.findMany({ where: { OR: [{ id: r }, { publicId: r }, { slug: r }] } });`,
+        false,
+      ],
+      [
+        'findMany + 同层 tenantId → 合规（拓宽没把合规写法误判成违规）',
+        `await prisma.project.findMany({ where: { tenantId: t, OR: [{ id: r }, { publicId: r }, { slug: r }] } });`,
+        true,
       ],
     ];
 

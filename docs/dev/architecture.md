@@ -1595,7 +1595,7 @@ scheduler 触发 nightly-screen / signal-sync / health-scan …
 - **一切边界输入不可信**：API 入参、模型输出、上传素材、外部采集、信号 webhook → **先 zod 校验后处理**（NFR-S6）。`executeTool` 的入参 zod 校验是这条的核心落点。
 - **XSS**：canvas 只走受控组件树，禁 HTML 注入；素材文本净化（NFR-S7）。
 - **数据保护**：KOL 公开画像/联系方式最小化采集、可删除、可溯源（NFR-S11）；采集遵守平台条款并持续评估（NFR-S10）。
-- **多租户预留 → 兑现（NFR-S9，M5 F008 实证）**：运行时无状态 + 全表 `tenantId` → RLS 启用**确实没改上层**（24 表 policy 落地；既有测试仅 8 个 `.ts` 做了会话注入适配（F004 缝，其中 7 个 `*.test.ts`）+ 5 张 Linux 视觉基线因登录留痕重生（M5 裁-5），**RLS 面零翻修**、全量绿——预留兑现的机械证据）。当前所有查询带 `tenantId` 条件（`buildToolContext` 统一注入）仍**不得绕过**：运行时未切非特权连接前它是主力防线,切换后（M5.1）降为纵深。
+- **多租户预留 → 兑现（NFR-S9，M5 F008 实证）**：运行时无状态 + 全表 `tenantId` → RLS 启用**确实没改上层**（24 表 policy 落地；既有测试 8 个 `.ts` 有改动，逐条归因：4 个是 F004 会话注入适配（`f009-evaluator-insight-surface` / `m45-g4-f004-planack` / `m45-g5-f006-f007` / `materials-upload`），另 4 个与会话无关（`project-scope-census` 走 F011 census 拓宽、`repo-hygiene` 走 F012 卫生条目、`architecture-doc-freshness` 走 F013 文档钉、`playwright.evaluator.config.ts` 走 F003/F012 登录前置）；另有 13 张视觉基线因登录留痕与新页重生。**RLS 面零翻修**、全量绿——预留兑现的机械证据）。当前所有查询带 `tenantId` 条件（`buildToolContext` 统一注入）仍**不得绕过**：运行时未切非特权连接前它是主力防线,切换后（M5.1）降为纵深。
 
 ### 12.3 可观测性
 

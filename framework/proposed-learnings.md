@@ -255,3 +255,13 @@
 **建议写入：** `framework/templates/claude/dispatch/` 内 resolver 模板（连带项目 `.claude/dispatch/resolve-active-mode-role.sh`）或 `.claude/skills/plan/SKILL.md` 第 4 步
 
 **状态：** 待确认
+
+## [2026-08-05] Andy/Coordinator — 来源：M5-AUTH-RLS codex 异构验收首派失败
+
+**类型：** 新坑 / 模板修订
+
+**内容：** codex 适配器不加 `--ignore-user-config` 时，用户个人 `~/.codex/config.toml` 会进入沙箱派发——本次实测用户 config 以 `~` 路径引用自定义指令 profile 文件，沙箱替换 HOME 后 `~` 展开落空，codex 启动即死（exit 1 / 1s）。更根本的问题：**派发任务不应继承个人 config 的自定义指令与模型档**（用户 config 里可能有任意 instructions profile，与信封契约「契约随信封走、不依赖对方读仓内/机内任何文件」的信任模型冲突）。原适配器把该 flag 放 `_not_used`（理由：别破坏用户模型选择），本次事故证明代价方向反了。项目侧已启用；建议 framework 模板 `transports/adapters/codex.json` 默认加 `--ignore-user-config`，并在 local-cli.md 核对清单补「个人 config 隔离」一项。
+
+**建议写入：** `framework/templates/claude/dispatch/transports/adapters/codex.json` + `framework/harness/dispatch-mode.md` §5.2 / `transports/local-cli.md` 核对清单
+
+**状态：** 待确认

@@ -17,16 +17,21 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '../../src/lib/db/prisma';
 import { handlers } from '../../src/lib/auth';
 import { hashPassword } from '../../src/lib/auth/password';
+import { AUTH_AUDIT_TENANT_SLUG } from '../../src/lib/auth/audit';
 
 const FIXTURE_SLUG = `test-tenant-m5-auth-${process.pid}`;
 const TEST_EMAIL = `m5-auth-${process.pid}@test.invalid`;
+const TEST_DOMAIN = TEST_EMAIL.split('@')[1];
 const TEST_PASSWORD = 'FixturePass2026';
 const ORIGIN = 'https://example.test';
 
 let tenantId: string;
 let userId: string;
+/** 清理窗口下界：占位租户下的审计行按「本套件运行期间」判定归属（见 afterAll）。 */
+let suiteStartedAt: Date;
 
 beforeAll(async () => {
+  suiteStartedAt = new Date();
   const t = await prisma.tenant.create({
     data: { slug: FIXTURE_SLUG, name: 'M5 认证集成测试夹具租户' },
   });
@@ -43,9 +48,43 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // ① 夹具租户名下的审计行。**OperationLog.tenantId 是软引用（无 FK）→ 删租户不级联**，
+  //    不显式删就是每跑一轮往 dev 库漏 5 行孤儿（首轮验收 I-3 实测 delta=5）。
+  await prisma.operationLog.deleteMany({ where: { tenantId } });
+  // ② 还有 2 行落在**认证审计占位租户**下：未知邮箱的失败登录天生没有租户（F006 设计），
+  //    按夹具 tenantId 删是删不到的——evaluator §6 的「不从登记表派生的整表 census」
+  //    抓到的正是这一类。判据取三条同时成立（占位租户 + 本套件运行窗口 + 测试域名），
+  //    避免误伤该租户下的真实匿名审计行。
+  const placeholder = await prisma.tenant.findUnique({
+    where: { slug: AUTH_AUDIT_TENANT_SLUG },
+    select: { id: true },
+  });
+  const strayWhere = placeholder && {
+    tenantId: placeholder.id,
+    createdAt: { gte: suiteStartedAt },
+    summary: { contains: `domain=${TEST_DOMAIN}` },
+  };
+  if (strayWhere) await prisma.operationLog.deleteMany({ where: strayWhere });
   await prisma.user.deleteMany({ where: { tenantId } });
   await prisma.tenant.deleteMany({ where: { id: tenantId } });
+  // ③ 清完再普查——**delta 归零是断言，不是承诺**：摘掉上面任一条 deleteMany，
+  //    这里立刻红（I-3 的回归钉）。断言放在 $disconnect 之后，保证清理段先跑完
+  //    （patterns/testing-env-patterns.md §9.1：清理段自身绝不可再抛）。
+  const residue = {
+    fixtureLogs: await prisma.operationLog.count({ where: { tenantId } }),
+    strayAuditLogs: strayWhere
+      ? await prisma.operationLog.count({ where: strayWhere })
+      : 0,
+    fixtureUsers: await prisma.user.count({ where: { tenantId } }),
+    fixtureTenants: await prisma.tenant.count({ where: { id: tenantId } }),
+  };
   await prisma.$disconnect();
+  expect(residue).toEqual({
+    fixtureLogs: 0,
+    strayAuditLogs: 0,
+    fixtureUsers: 0,
+    fixtureTenants: 0,
+  });
 });
 
 /** 取 set-cookie 里的 name=value 段，拼成后续请求的 Cookie 头。 */

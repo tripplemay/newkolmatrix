@@ -138,7 +138,7 @@ describe('F008 ① 覆盖面：RLS 表集合 == schema 实物（防漏表）', (
 });
 
 describe('F008 ② default deny：kol_app 不设租户变量 → 零行（不是报错）', () => {
-  it('逐表普查：24 张表在 kol_app 无变量下全部零行，且其中 ≥5 张在特权连接下确有数据', async () => {
+  it('逐表普查：24 张表在 kol_app 无变量下全部零行，且本文件夹具那几张在特权连接下确有数据', async () => {
     const tables = expectedRlsTablesFromSchema();
     const appCounts: Record<string, number> = {};
     const privilegedCounts: Record<string, number> = {};
@@ -152,9 +152,19 @@ describe('F008 ② default deny：kol_app 不设租户变量 → 零行（不是
     }
     const leaking = Object.entries(appCounts).filter(([, n]) => n !== 0);
     expect(leaking).toEqual([]);
-    // 非空洞证明：若全库恰好都空，上面那条断言毫无意义
-    const nonEmpty = Object.entries(privilegedCounts).filter(([, n]) => n > 0);
-    expect(nonEmpty.length).toBeGreaterThanOrEqual(5);
+    /**
+     * 非空洞证明：若这些表本来就空，上面那条"全是 0"毫无意义。
+     *
+     * 判据只认**本文件自己造的那几张表**。初版写的是"全库 ≥5 张表非空"——它在全量并跑时
+     * 靠别的测试文件顺带把库填上了才成立，**在刚迁移完的空库上单独跑就 4<5 翻红**（实测）。
+     * 那种"绿"取决于跑法而不是被测行为，与本批 F007/F010 撞的是同一族（跨环境形态差）。
+     */
+    for (const table of ['Tenant', 'Project', 'Kol', 'OperationLog']) {
+      expect(
+        privilegedCounts[table],
+        `${table} 在特权连接下也是 0 —— 夹具没建起来，本条断言会变成空洞的绿`,
+      ).toBeGreaterThan(0);
+    }
   });
 
   it('无变量的 SELECT 不抛错，只是看不见（default deny 的语义是零行而非 42501）', async () => {

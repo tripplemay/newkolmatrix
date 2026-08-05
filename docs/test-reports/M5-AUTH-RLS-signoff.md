@@ -603,3 +603,178 @@ I-1 是这批唯一的实质缺陷，本轮**真闭环**了：修法（目录白
 它不影响任何产品行为，改一行即可，复验面也只有 `architecture-doc-freshness` 一个文件 + 重新数一次归属。
 
 **建议流转：`reverifying → fixing`**（F013 回 `pending`，F003 保持 `completed`）。修完只需定点复验 I-4。
+
+---
+
+## 复验轮三（reverifying · fix_round2 后）
+
+> 隔离 evaluator subagent（fresh context）· 2026-08-05 · 被测 SHA `94bb352`
+> 窄面复验：fix_round2 声称只改 `docs/dev/architecture.md` 一行。**这句话本身是本轮要核证的第一件事。**
+> 前两轮内容一字未改，本段为追加。
+
+### T0. 前置：被测快照与「只改一行」自证
+
+```
+git rev-parse HEAD                      → 94bb3522e2cd7e4b81212da51a62e138c356e823
+git diff --name-status 18781db..94bb352 → M docs/dev/architecture.md
+                                          M features.json
+                                          M progress.json
+git diff --name-status 83620c5^..94bb352→ 同上三项
+git show --stat 83620c5                 → docs/dev/architecture.md | 2 +-（1 insertion, 1 deletion）
+git status --short src/ prisma/ tests/ scripts/ docs/ package.json
+        playwright.config.ts vitest.config.ts features.json progress.json → 空
+```
+
+→ **「产品代码零改动、只动 architecture.md 一行」为真**，且被测工作树 == `94bb352`（无未提交夹带）。
+`features.json` 的改动仅 F013 `pending → completed` 一处；`progress.json` 仅状态位与 handoff。
+工作树里 `.claude/dispatch/` 与 `framework/templates/` 的未提交改动属框架侧同步，不在本批产品面，**未动未判**。
+
+---
+
+### T1. I-4 核心：8 个文件的归因分类 —— **逐条证伪未果，分类全部成立**
+
+方法：**不看 generator 的分类，先自己 `git diff 3901404..94bb352` 逐个文件读改动内容再归类**，读完再与文档所写比对。
+
+| # | 文件 | 我读到的实际改动内容 | 我的独立归类 | 文档所写 | 一致？ |
+|---|---|---|---|---|---|
+| 1 | `f009-evaluator-insight-surface.test.ts` | `loadInsightSurfaceData('no-such-project')` → 加第二参 `{ tenantId }`，注释写明「租户改由调用方显式传入（RSC 在降级 try 之外解析会话）」 | **F004**（会话缝外移导致的显式传参） | F004 会话注入适配 | ✅ |
+| 2 | `m45-g4-f004-planack.probe.test.ts` | 新增 `vi.hoisted` sessionSeam + `vi.mock('lib/auth/session-tenant')` + `makeSessionTenantMock`；注释改写 `getDevTenantId()` → `requireSessionTenantId()` | **F004** | F004 会话注入适配 | ✅ |
+| 3 | `m45-g5-f006-f007.probe.test.ts` | 同款 sessionSeam + `vi.mock('lib/auth/session-tenant')`；`hasDevTenant` 改为顺带取 id 灌进会话缝 | **F004** | F004 会话注入适配 | ✅ |
+| 4 | `materials-upload.test.ts` | 同款 sessionSeam + `vi.mock('lib/auth/session-tenant')`；夹具建租户后 `sessionSeam.tenantId = tenantId` | **F004** | F004 会话注入适配 | ✅ |
+| 5 | `project-scope-census.test.ts` | 扫描正则 `findFirst` → `(?:findFirstOrThrow\|findFirst\|findMany)` + 3 条 S-M48-2 用例 + 一段「本钉处在第几线」的口径注释 | **F011 / S-M48-2 census 拓宽**（会话相关行 0） | F011 census 拓宽 | ✅ |
+| 6 | `repo-hygiene.test.ts` | `GENERATED_DIRS` 加一条 `tests/.auth` + `storage-state.json`（理由：内含真实会话 JWT，不得入库） | **F012 storageState 卫生条目** | F012 卫生条目 | ✅ |
+| 7 | `architecture-doc-freshness.test.ts` | 尾部 +66 行纯新增 `describe('M5 认证 + RLS as-built（F013）')` 5 条断言 | **F013 文档钉**（会话相关行 0） | F013 文档钉 | ✅ |
+| 8 | `playwright.evaluator.config.ts` | 加 `setup` 项目 + `dependencies:['setup']` + `storageState: STORAGE_STATE_PATH`；头注释写「不补则 F003 middleware 落地后每条 admin/preview 用例都是 307 红」 | **F012 登录前置（起因是 F003）** | F003/F012 登录前置 | ✅ |
+
+**8/8 与文档所写逐条吻合，无一处可证伪。** 其中第 5、6、8 三条的归因**无法从文件名推出**
+（`project-scope-census` 看不出是 S-M48-2 正则拓宽、`repo-hygiene` 看不出是 storageState、
+`playwright.evaluator.config.ts` 看不出是 F003 触发的登录前置），且第 8 条的「F003/F012 双归因」
+**不在我轮二 `fix_hint` 给出的清单里**（我当时只写到「F012 storageState」，第 4 个文件没拆）。
+→ 「逐个 diff 看过内容再分类」这句**有间接机械依据**：产出包含了只有读过 diff 才能写出的信息。
+（我无法核证他的过程，只能核证产物；此处如实标注为**间接**证据。）
+
+### T2. 计数复核（三个数全部我自己数）
+
+```
+git ls-tree -r --name-only 3901404 tests/ | grep -c '\.ts$'                 → 137
+git diff --name-status 3901404..94bb352 -- tests/ | grep '^M' | grep -c '\.ts$'      → 8
+                                                    ... | grep -c '\.test\.ts$'      → 7
+git diff --name-status 3901404..94bb352 -- 'tests/screenshots/baseline/*'
+        | awk '{print $1}' | sort | uniq -c                                 → 8 A / 5 M
+git diff --name-only  3901404..94bb352 -- 'tests/screenshots/baseline/*' | wc -l     → 13
+```
+
+- **「8 个 `.ts`」成立**（`tests/` 口径，与钉内注释记载的数法一致）。
+- **「13 张视觉基线」成立**：8 张新增（`auth-login` / `auth-signup` × {darwin, linux, mobile-darwin, mobile-linux}）+ 5 张改写（`agent-loop-linux` / `agent-loop-mobile-linux` / `creator-drawer-linux` / `en-today-linux` / `runs-linux`，全部 `*-linux`）。文档写「因登录留痕与新页重生」，两个成因与 5/8 的拆分对得上。
+- **「全量绿」成立**：本轮实跑 `npx vitest run` → **141 files / 1800 tests passed**（与轮二逐位相同）。
+
+### T3. 「RLS 面零翻修」—— 仍成立，且本轮在**更大的样本**上再次成立
+
+轮二我只核了 `tests/` 下 8 个。本轮把口径主动放大到全仓既有测试资产：
+
+```
+git diff --name-status 3901404..94bb352 -- tests/ scripts/test/ playwright.config.ts vitest.config.ts
+        | grep '^M' | grep -c '\.ts$'   → 22
+```
+
+多出的 14 个我逐个读了 diff：
+
+| 组 | 文件数 | 改动性质 | 是否 RLS 面 |
+|---|---|---|---|
+| `scripts/test/*-e2e.ts` / `*-smoke.ts` / `*-probe.ts` 等 | 12 | `buildToolContext()` → `systemContext(DEV_TENANT_SLUG)` / `getDevTenantId()` → `systemTenantId(DEV_TENANT_SLUG)`（F010 系统上下文收敛，起因是 F004 去掉隐式 dev 回落）；其中 `agentloop-e2e` / `frontdesk-e2e` 另加 F012 登录步 | **否** |
+| `playwright.config.ts` | 1 | F012 `setup` 项目 + `storageState` | **否** |
+| `vitest.config.ts` | 1 | F001 `server.deps.inline: ['next-auth','@auth/core']` | **否** |
+
+→ **22 个既有测试资产 `.ts` 中，因 F007/F008（RLS）而改的：0 个。**「RLS 面零翻修」这句底层结论
+不但未被新表述削弱，反而比轮二判它为真时**样本大了近 3 倍仍成立**。
+
+### T4. 钉活性：新句写完后钉还守不守得住（3 条变异，全部实跑 · `cp` 备份还原 · `git diff --quiet` 核证复位）
+
+| # | 变异 | 预期 | 实测 |
+|---|---|---|---|
+| **RM8** | 新句里 `F004 会话注入适配` → `会话注入适配`（抹掉 F004 归属，其余不动） | 第 34 条钉红 | **1 failed / 33 passed** ✅ |
+| **RM9** | `**RLS 面零翻修**` → `**零翻修**`（摘掉限定域） | 第 34 条钉红 | **1 failed / 33 passed** ✅ |
+| **RM10** | 把**轮二被我判失实的那句归因原样装回**（`既有测试仅 8 个 .ts 做了会话注入适配（F004 缝，其中 7 个 *.test.ts）+ 5 张 Linux 视觉基线…`，措辞仍合规） | —— | **34 passed 全绿** ⚠️ |
+
+RM8/RM9 证明重写没有把钉的抓手写没（`F004` 与 `RLS 面零翻修` 两个锚点仍被守住）。
+RM10 与轮二 RM7b 同向再证：**这条钉只守表述、不守数字与归因**——即
+**本轮 I-4 的闭合 100% 依赖上面 T1 的人工逐文件核对，没有任何回归能替我做这件事**。
+（该取舍 generator 在轮一 commit 正文已写明理由：CI 浅克隆跑不了 `git diff 3901404..HEAD`，钉数字会造出「本机绿 CI 红」。我仍认可。）
+
+### T5. 「无其它面被波及」—— 以 diff + 实跑双证，不采信声明
+
+1. **静态**：`18781db..94bb352` 只有 3 个文件（1 文档 + 2 状态机 JSON），`src/` `prisma/` `tests/` `scripts/` 命中数 **0**。11 条已 PASS 的 feature 对应的产品文件**一个都没被碰**。
+2. **动态**：`npx tsc --noEmit` exit 0 · `npx next lint` → `No ESLint warnings or errors` · `npx vitest run` → **141 files / 1800 tests passed**（与轮二逐位相同，无新增翻红、无用例数漂移）。
+3. **数据面**：全量跑前后 DB 逐位相同 → `total 333 / orphan 129 / Tenant 4 / User 1`，**delta 0**（I-3 的闭合在本轮再次成立，不是一次性的）。
+
+### T6. 本轮新登记（均**不阻断**签收，逐条给出不阻断的理由）
+
+**N-1（低 · 口径未写明，非失实）**：文中「既有测试 8 个 `.ts` 有改动」未写限定域。
+按钉内注释记载的数法（`-- tests/`）该句为真；按「既有测试资产」的朴素读法则少计 14 个
+（`scripts/test/` 12 + 根 `playwright.config.ts` / `vitest.config.ts`）。
+方向上少计使「预留兑现」的论证显得**更强**（属自利方向，我按从严对待），故我把这 14 个全部读了 diff——
+**结论不变**（见 T3：无一条因 RLS）。
+**为什么不判 PARTIAL**：I-2 是「被 git 直接证伪的绝对句」，I-4 是「被 diff 内容证伪的归因」，
+两者都是**假陈述**；N-1 是**未写明口径**，在文档自带的数法下为真陈述，且补上口径不改变任何结论。
+这是不同类，不是同一标准下的软化。建议处置：下次触碰该行时顺手写成「既有测试（`tests/`）8 个 `.ts`」，
+记为 soft-watch 而非 fixing 项。
+
+**N-2（info · 铁律 13 · 方向自贬）**：commit `83620c5` 正文写「视觉基线原写「5 张」也是估计值」——
+此句无机械依据且与 git 相反：原句为「5 张 **Linux** 视觉基线因登录留痕重生」，
+而本批 `M` 状态基线恰为 5 张且**全部**是 `*-linux.png`，「5」是精确数不是估计。
+**不阻断的理由**：该陈述把自己**上一版说得更差**（自贬方向），不构成质量夸大，且不影响本轮落盘的文档正文。
+按铁律 13 如实登记，供 done 阶段作为「交付叙述精度」的样本。
+（同理：「重生」一词覆盖 8 张全新页基线略松——那 8 张是新增而非重生；成因拆分本身正确。）
+
+**N-3（观察 · 非缺陷）**：`06:00:00` DB 出现 4 行 `kind=auto / actor=strategy / tenant=dev` 的
+`OperationLog`（轮二终态 329 → 我接手时 333）。这是本机后台 scheduler 到点跑的，不是 fix_round2 的产物，
+也不是缺陷；顺带是 **F010（scheduler 系统上下文收敛）的一条运行时旁证**——定时任务写留痕时租户是显式解析到 `dev` 的。
+
+### T7. soft-watch 更新
+
+- **S-M5-7（新 · 低）**：「RLS 面零翻修」的证明力受限于**运行时仍走特权连接（`kol` = BYPASSRLS），RLS 对当前运行时是惰性的**——「RLS 启用没改上层」在此前提下有一半是同义反复。真正检验「预留兑现」的时刻是 M5.1 切 `DB_APP_ROLE_RUNTIME=1` 之后。**不判缺陷**：同一 bullet 已带「运行时未切非特权连接前它是主力防线，切换后（M5.1）降为纵深」的 caveat，且该 caveat 被独立钉住（第 32 条）。建议 M5.1 批末回来复核这句是否仍成立。
+- **S-M5-8（新 · 低，由 N-1 转入）**：NFR-S9 句的计数口径（`tests/` vs 全仓测试资产）建议写进句内。
+- S-M5-5 / S-M5-6 / S-M5-3 / S-M5-4 **沿用**（轮二登记，本轮无新证据改变判断）；S-M5-2 维持轮二的「建议关闭」。
+
+### T8. 副作用自查（我这一轮对环境做了什么）
+
+| 动作 | 处置 |
+|---|---|
+| 3 条变异（RM8/RM9/RM10） | 全部 `cp /tmp` 备份还原，`git diff --quiet docs/dev/architecture.md` 逐条核证复位 |
+| `npx vitest run` 全量 1 次 | 跑前 `total=333/orphan=129/Tenant=4/User=1`，跑后**逐位相同**（delta 0），未做任何清理动作 |
+| `tsc` / `next lint` / 单套件 vitest | 只读，无写入 |
+| 产品代码 | **零修改**（边界铁律） |
+| `.claude/dispatch/` `framework/templates/` 的未提交改动 | **未动未判**（框架侧同步，不在本批产品面） |
+| 未执行 | 无 `next build`、无 standalone 服务、无 curl 探针（本轮改动面为文档，无运行时可测面） |
+
+### T9. 逐 Feature 重判
+
+#### F013 文档翻牌 + doc-freshness 扩 + deploy + backlog —— **PASS**（轮二 PARTIAL → 本轮转 PASS）
+
+依据：① I-4 指出的失实归因已改掉，新归因的 8 条分类**经我逐个 diff 独立复核 8/8 吻合**（T1），
+且其中 3 条含只有读过 diff 才写得出的信息（间接支持 generator 的过程陈述）；
+② 三个数（8 / 13 / 137）我自己数过，全部与 git 吻合（T2）；
+③ 「全量绿」有本轮实跑背书（1800 tests）；
+④ 底层结论「RLS 面零翻修」在放大到 22 个既有测试资产 `.ts` 的更大样本上仍成立（T3）；
+⑤ 钉的抓手未被重写写没（RM8/RM9 双红），且我已明确本轮闭合靠人核而非靠钉（RM10 全绿，如实登记）。
+残留 N-1（口径未写明）为**真陈述下的精度问题**，不同于 I-2/I-4 的假陈述，转 soft-watch，不构成 PARTIAL。
+
+其余 11 条 feature（F001-F008、F010-F012）**不重判**：本轮 diff 对它们的命中数为 0（T5.1），
+且全量测试与轮二逐位相同（T5.2），无波及、无新增翻红。
+
+---
+
+### T10. 结论
+
+**12 PASS / 0 PARTIAL / 0 FAIL —— 建议签收整批。**
+
+三轮验收的实质缺陷只有一条（I-1 闸门后缀绕过），已在轮二真闭环并被双向变异钉死；
+I-3（孤儿泄漏）本轮第二次复现 delta 0，证明是修法而非一次性清理。
+后两轮消耗在同一句文档上的三次往返（I-2 → I-4 → 闭合），其价值不在那句话本身，
+而在于它把一件事钉成了机械事实：**这条钉守表述不守数字，凡是「数出来的」结论只能靠人核**——
+这已由 RM7b / RM10 两次独立实测确证，并已写进本报告供 M5.1 沿用。
+
+产品面本轮零改动，L1 三项（tsc / lint / 1800 tests）全绿，DB delta 0。
+**建议流转：`reverifying → done`**；L2 缺口（真多用户并发、生产 RLS 实测、开放注册滥用面、
+`DB_APP_ROLE_RUNTIME=1` 真实切换、prod 人工前置步、生产反代对 `/img/../api/…` 的归一化）
+全部**未授权零执行**，随批次转入 M5.1 / backlog，**不因签收而视为已验**。

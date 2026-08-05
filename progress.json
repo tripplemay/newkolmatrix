@@ -1,12 +1,12 @@
 {
-  "status": "reverifying",
+  "status": "done",
   "user_goal": "M5-AUTH-RLS:真实认证(Auth.js v5 Credentials+JWT / 开放注册即建租户 / middleware 全站鉴权 401)+ 真 PG RLS 多租户隔离(非特权角色 kol_app + 23 表 policy default-deny + $extends 租户变量注入,覆盖 pgvector raw SQL)。执行形态:本地异构首跑(evaluator=codex local-cli,generator=主上下文默认映射)。红线:403 闸门语义不碰 / 无隐式回落 dev 租户 / 登录注册 fail-closed 限速 / 审计只记元数据。",
   "total_features": 12,
   "completed_features": 12,
   "fix_rounds": 2,
   "current_sprint": "M5-AUTH-RLS",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-05T06:20",
+  "last_updated": "2026-08-05T06:30",
   "reference_docs": [
     "docs/specs/M5-AUTH-RLS-spec.md",
     "docs/dev/architecture.md",
@@ -17,30 +17,27 @@
   "docs": {
     "spec": "specs/M5-AUTH-RLS-spec.md",
     "test_cases": null,
-    "signoff": null,
+    "signoff": "test-reports/M5-AUTH-RLS-signoff.md",
     "framework_reviewed": false
   },
   "role_assignments": null,
   "mode_intent": null,
   "evaluator_feedback": {
-    "round": 2,
-    "phase": "reverifying (fix_round1 后)",
-    "tested_sha": "9dcbed46f923e60442fbcc8ea7b4cdd41398bd62",
-    "verdict": "PARTIAL",
-    "summary": "11 PASS / 1 PARTIAL / 0 FAIL。I-1 真闭环（首轮 10 样本 + 自建 19 条第二绕过 + 10 条穿越 + 17,354 条语料对 Next 编译产物真 regexp 的穷举核对：静默失守 0 / API 放过 0；两层 desync 与过度收窄四向变异全部按预期打红）。I-3 真闭环（单套件与整仓 delta 均 0，变异证活）。I-2 字面缺陷闭合，但同一句的归因半句再度失实 → I-4：8 个 .ts 中只有 4 个是 F004 会话注入适配。",
+    "round": 3,
+    "phase": "reverifying (fix_round2 后 · 窄面复验)",
+    "tested_sha": "94bb3522e2cd7e4b81212da51a62e138c356e823",
+    "verdict": "PASS",
+    "summary": "12 PASS / 0 PARTIAL / 0 FAIL —— 建议签收整批。I-4 闭合：新归因的 8 个文件分类我逐个 git diff 独立复核 8/8 吻合（其中 3 条含只有读过 diff 才写得出的信息，间接支持 generator 的『逐个 diff 看内容』过程陈述）；8/13/137 三个数我自己数过与 git 吻合；「RLS 面零翻修」在放大到 22 个既有测试资产 .ts 的更大样本上仍成立（因 RLS 而改的：0 个）。「只改 architecture.md 一行、产品代码零改动」以 diff 自证为真。新登记 N-1（口径未写明，真陈述下的精度问题）转 soft-watch，不构成 PARTIAL。",
     "features": {
-      "F003": {
-        "verdict": "PASS",
-        "evidence": "standalone 实测：首轮 10 条绕过样本全转 401/307（判别器 = middleware 执行必种 authjs.csrf-token，可运行时区分「跑了并放行」与「根本没跑」）；自建 19 条（.JSON 大小写 / abc.json.txt 多重 / 中段 / %2Ejson / %00 / ;x=.json / 双斜杠 / .rsc / _next/data）无一击穿；10 条穿越（/img/../api、..%2f、%2e%2e、全编码）middleware 虽跳过但 Next 不归一化 .. 直接 404、未触达 route，对照组 /imgx/../api 落 401 证检测有效；17,354 条语料对 .next/server/middleware-manifest.json 真 regexp 穷举：静默失守 0 / API 面放过 0 / public 178 文件被拦 0；RM1 只放宽 matcher → 10 red（两层一致性钉逐条打印失守路径）、RM2 只放宽判定层 → 20 red、RM3 摘第二道防线 → 恰 1 red、RM4/RM5 两侧过度收窄 → 3/1 red"
-      },
       "F013": {
-        "verdict": "PARTIAL",
-        "evidence": "I-2 字面闭合：8/7/5/137 四个数我自己数过与 git 实物吻合，「RLS 面零翻修」限定域成立，RM7a 装回原句 → 1 red（钉活）。但归因半句失实（I-4）：逐文件核 diff（session-tenant/sessionSeam/makeSessionTenantMock/requireSessionTenantId 判据）显示 8 个 .ts 中仅 4 个是 F004 会话注入（f009 / m45-g4 / m45-g5 / materials-upload），另 4 个分属 F011 census 拓宽、F012 storageState、F013 文档钉；7 个 *.test.ts 中亦仅 4 个。RM7b（8→3、7→1 造假数字而措辞合规）34 passed 全绿 → 第 34 条钉按设计只守表述不守数字，归因只能人核"
+        "verdict": "PASS",
+        "evidence": "轮二 PARTIAL → 本轮转 PASS。① 8 个文件逐个读 diff 后独立归类，与文档所写 8/8 吻合：F004 会话注入 4（f009 显式传 {tenantId} / m45-g4 · m45-g5 · materials-upload 三处 vi.mock('lib/auth/session-tenant')+makeSessionTenantMock），非会话 4（project-scope-census = findFirst 拓宽到 findFirstOrThrow/findMany 的 S-M48-2 修法 / repo-hygiene = tests/.auth storageState 卫生条目 / architecture-doc-freshness = +66 行 F013 文档钉 / playwright.evaluator.config.ts = setup+storageState 登录前置，头注释自证起因是 F003 middleware）；第 5·6·8 三条归因无法由文件名推出，且第 8 条的 F003/F012 双归因不在我轮二 fix_hint 清单里。② 计数：git ls-tree 3901404 tests/ = 137；M 状态 .ts = 8（其中 *.test.ts = 7）；基线 8 A + 5 M = 13（5 张 M 全部 *-linux）。③ 全量绿有实跑背书 141 files / 1800 tests。④ RM8（抹 F004）1 red、RM9（摘「RLS 面」限定域）1 red → 重写没把钉的抓手写没；RM10（把轮二失实归因原样装回，措辞合规）34 全绿 → 与 RM7b 同向再证该钉只守表述不守数字，本轮闭合 100% 靠人核，如实登记。"
       }
     },
     "unchanged_pass": [
       "F001",
       "F002",
+      "F003",
       "F004",
       "F005",
       "F006",
@@ -50,89 +47,77 @@
       "F011",
       "F012"
     ],
-    "side_effect_on_pass_features": "无。fix_round1 产品面只改 access-policy.ts + middleware.ts（git diff --name-only 实测）；F004 会话面与 RLS/注册/限速/审计面零命中；F012 视觉 29 passed / 2 failed，条数与身份与首轮逐条相同，无新增翻红",
-    "issues": [
-      {
-        "id": "I-4",
-        "feature": "F013",
-        "severity": "low",
-        "title": "NFR-S9 修 I-2 时换入新的失实归因：8 个 .ts 中仅 4 个是 F004 会话注入适配",
-        "detail": "现句「既有测试仅 8 个 `.ts` 做了会话注入适配（F004 缝，其中 7 个 `*.test.ts`）」。逐文件核 diff：f009-evaluator-insight-surface / m45-g4-f004-planack / m45-g5-f006-f007 / materials-upload = 真 F004 会话注入（4 个）；architecture-doc-freshness（+66 行文档钉，会话相关行 0）、project-scope-census（F011/S-M48-2 正则拓宽，会话相关行 0）、repo-hygiene（F012 storageState 卫生条目）、playwright.evaluator.config.ts（F003/F012 登录前置）= 非 F004 缝。底层结论「RLS 面零翻修」仍为真，佐证半句为假——与首轮 I-2 同类（铁律 13）。语境登记：失实归因是从首轮 I-2 的 fix_hint 继承下来的，但 commit 正文把「与 evaluator 的 7 个 *.test.ts 完全一致」当作已核证，实际未核证这 7 个的性质。",
-        "fix_hint": "把归因写成实数拆分，例如「既有测试 8 个 `.ts` 有改动：4 个是 F004 会话注入适配（f009 / m45-g4 / m45-g5 / materials-upload），另 4 个是 F011 census 拓宽 / F012 storageState / F013 文档钉；+ 5 张 Linux 视觉基线因登录留痕重生——RLS 面零翻修、全量绿」。或直接去掉归因半句只留计数与 RLS 面结论。复验面只有 architecture.md 一行 + architecture-doc-freshness 一个文件。"
-      }
-    ],
+    "side_effect_on_pass_features": "无。18781db..94bb352 只有 3 个文件（docs/dev/architecture.md + features.json + progress.json），src/ prisma/ tests/ scripts/ 命中数 0；tsc exit 0 · lint 无告警 · vitest 141 files/1800 tests 与轮二逐位相同（无新增翻红、无用例数漂移）；全量跑前后 DB delta 0（total 333 / orphan 129 / Tenant 4 / User 1）",
+    "issues": [],
     "closed_issues": [
       {
         "id": "I-1",
         "status": "CLOSED",
-        "evidence": "R1 四路取证 + R5 四向变异，见 signoff §复验轮二"
+        "evidence": "轮二 R1 四路取证 + R5 四向变异"
       },
       {
         "id": "I-2",
-        "status": "CLOSED（字面）",
-        "evidence": "137/13/8/7/5 数字我自己复核吻合，被证伪绝对句已删且 RM7a 证钉活；但同句归因新缺陷另开 I-4"
+        "status": "CLOSED",
+        "evidence": "轮二字面闭合；同句归因缺陷经 I-4 于本轮闭合"
       },
       {
         "id": "I-3",
         "status": "CLOSED",
-        "evidence": "单套件连跑两轮 delta 0（329/129/4/1 三次逐位相同）；全量 1800 tests 前后整仓 delta 也是 0；RM6 只摘占位租户那条 deleteMany → Failed Suites 1 且 DB +2（非孤儿，证明只盯 orphan 的度量对它是盲的）"
+        "evidence": "轮二单套件+整仓 delta 0；本轮全量跑前后 DB 再次 delta 0 —— 第二次复现，证明是修法而非一次性清理"
+      },
+      {
+        "id": "I-4",
+        "status": "CLOSED",
+        "evidence": "8 个文件分类逐条 git diff 独立复核 8/8 吻合；13 张基线 = 8 A + 5 M 自数属实；见 signoff §复验轮三 T1/T2"
       }
     ],
     "l1_status": {
       "tsc": "exit 0",
       "lint": "No ESLint warnings or errors",
-      "vitest": "141 files / 1800 tests 全绿 exit 0",
-      "build": "exit 0（本轮自行重建，未沿用既有 .next/）",
-      "visual": "29 passed / 2 failed——条数与身份与首轮逐条相同，无新增翻红",
-      "standalone_probe": "58 条 curl，零 403，零意外 200"
+      "vitest": "141 files / 1800 tests 全绿（另单跑 tests/unit 56 files / 1040 tests 全绿，核证本报告追加未触发任何文档扫描钉）",
+      "doc_freshness": "34 passed",
+      "db_delta": "全量跑前后逐位相同：total 333 / orphan 129 / Tenant 4 / User 1",
+      "not_run": "本轮改动面为文档，无运行时可测面 → 未 next build、未起 standalone、未跑 curl 探针（如实登记）"
     },
     "mutations_run": [
-      "RM1 半个闸门：只放宽 matcher（判定层保持修复态） → 10 failed（两层一致性钉逐条打印静默失守路径）",
-      "RM2 半个闸门：只放宽判定层（matcher 保持修复态） → 20 failed",
-      "RM3 摘掉第二道防线 isApiPath 前置 → 恰 1 failed（精准命中该用例）",
-      "RM4 过度收窄（判定层 dirs 摘 /styles/） → 3 failed（含 S-M5-2 与两层一致性）",
-      "RM5 过度收窄（matcher 摘 styles） → 恰 1 failed（S-M5-2 matcher 侧）",
-      "RM6 I-3 只摘占位租户那条 deleteMany → Failed Suites 1 + DB total +2 / orphan 不变",
-      "RM7a 装回被证伪的 NFR-S9 原句 → 1 failed",
-      "RM7b 措辞合规但数字造假（8→3 / 7→1） → 34 passed 全绿（刻画钉的覆盖面：只守表述不守数字）"
+      "RM8 抹掉新句里的 F004 归属（其余措辞不动） → 1 failed / 33 passed（第 34 条钉红）",
+      "RM9 「**RLS 面零翻修**」→「**零翻修**」摘限定域 → 1 failed / 33 passed",
+      "RM10 把轮二被判失实的那句归因原样装回（措辞仍合规） → 34 passed 全绿 ⚠️ 与 RM7b 同向再证：该钉只守表述不守数字与归因"
     ],
     "probes_run": [
-      "standalone 58 条 curl 绕过矩阵（A 首轮样本 10 / B 自建绕过 19 / C 穿越 10 / D matcher 其它入口 6 / E public 静态 7 / F 豁免面回归 6）",
-      "MW 判别器（authjs.csrf-token set-cookie）区分「middleware 跑了并放行」与「matcher 让它没跑」",
-      "17,354 条语料 × Next 编译产物真 regexp 的两层一致性穷举核对",
-      "OperationLog 孤儿逐套件 delta 隔离（单套件 ×2 + 全量 ×1）",
-      "kol_app 真连 RLS 三态（24 表未设变量总和 0 行；设 dev → Kol 2526 / Project 4 / Tenant 1）",
-      "403 census 本轮 22 vs 首轮基线 fd111af 22（delta 0）",
-      "fix_round1 触及文件面 census（产品面仅 2 文件）"
+      "git diff --name-status 18781db..94bb352 与 83620c5^..94bb352 双向自证「只改一行」",
+      "git status --short 产品面/测试面 → 空，核证被测树 == 94bb352（无未提交夹带）",
+      "8 个既有测试 .ts 逐个 git diff 读内容后独立归类（不看 generator 分类）",
+      "口径主动放大：tests/ + scripts/test/ + 根 playwright/vitest 配置共 22 个既有测试资产 .ts 全部读 diff，核「RLS 面零翻修」",
+      "计数三连：git ls-tree 137 / M 状态 .ts 8（test.ts 7）/ 基线 8 A + 5 M = 13"
     ],
     "new_soft_watch": [
-      "S-M5-5（新）/img/ /fonts/ /svg/ /styles/ 四前缀 + 静态扩展名的组合两层一致地跳过闸门（含 /img/../api 穿越形态，语料里 11,403 条）。今日无害仅因这四前缀下无任何 app route 且 Next 不归一化 ..。建议补钉：断言 app-path-routes-manifest.json 无路由落在这四前缀下——否则将来有人加 src/app/styles/… 页面会静默失守而现有断言一条都不会红",
-      "S-M5-6（新）tests/visual/auth-pages.spec.ts 登录错误态每跑一轮在占位租户 __auth-audit__ 下留 1 行审计；它不是孤儿行，I-3 那套只盯 orphan 的度量对它是盲的 → 归 BL-E2E-CLEANUP-PIN",
-      "S-M5-2 → 建议关闭（R2 运行时取证 + RM4/RM5 两侧过度收窄各自打红，双向已证）",
-      "S-M5-3 沿用（/API/projects、/Api/... 落 307 而非 401 JSON，本轮复现，仍 fail-closed）",
-      "S-M5-4 沿用（__auth-audit__ 占位租户本机已实存，上线后须人工确认不出现在用户可见面）"
+      "S-M5-7（新·低）「RLS 面零翻修」的证明力受限于运行时仍走特权连接（kol = BYPASSRLS，RLS 对当前运行时惰性）——「RLS 启用没改上层」有一半是同义反复。真正检验「预留兑现」在 M5.1 切 DB_APP_ROLE_RUNTIME=1 之后。不判缺陷（同一 bullet 已带 caveat 且被第 32 条钉住），建议 M5.1 批末回来复核",
+      "S-M5-8（新·低，由 N-1 转入）NFR-S9 句「既有测试 8 个 .ts」未写限定域：按钉内数法（-- tests/）为真，按朴素读法少计 14 个（scripts/test 12 + 根 playwright.config.ts / vitest.config.ts）。我已逐个读 diff 核证这 14 个全部是 F004/F010 systemContext + F012 登录前置 + F001 vitest inline，无一因 RLS → 结论不变。建议下次触碰该行时写成「既有测试（tests/）8 个 .ts」",
+      "N-2（info·铁律 13·方向自贬，不阻断）commit 83620c5 正文「视觉基线原写『5 张』也是估计值」无机械依据且与 git 相反：原句写的是「5 张 Linux 视觉基线」，而 M 状态基线恰 5 张且全部 *-linux.png，5 是精确数。因属自贬方向、不夸大质量、不影响落盘正文，故登记不阻断",
+      "N-3（观察·非缺陷）06:00:00 出现 4 行 kind=auto/actor=strategy/tenant=dev 的 OperationLog（轮二终态 329 → 我接手 333），是本机后台 scheduler 到点跑的，非 fix_round2 产物；顺带是 F010 系统上下文收敛的运行时旁证",
+      "S-M5-5 / S-M5-6 / S-M5-3 / S-M5-4 沿用；S-M5-2 维持轮二的「建议关闭」"
     ],
     "l2_gaps": [
       "真多用户并发会话正确性（未授权，零执行）",
-      "生产 RLS 实测（注意运行时仍特权连接，此刻只有应用层 where 一道）",
+      "生产 RLS 实测（运行时仍特权连接，此刻只有应用层 where 一道）",
       "开放注册真实滥用面（BL-AUTH-EMAIL-VERIFY 在案）",
       "DB_APP_ROLE_RUNTIME=1 真实切换（裁-6，属 M5.1）",
       "prod 人工前置步实机执行",
-      "生产 nginx 对 /img/../api/... 归一化行为的实机确认（本轮以本机 Next 行为 + 反代通用语义推定不失守，未实测）"
+      "生产 nginx 对 /img/../api/... 归一化行为的实机确认",
+      "以上全部未授权零执行，随批次转入 M5.1 / backlog，不因签收而视为已验"
     ],
     "side_effects": [
-      "next build 重建 + 拷 public/、.next/static 进 standalone；服务已停",
-      "8 条变异全部 cp 备份还原，git diff --quiet src/ docs/ tests/ 核证复位",
-      "我在 05:40 后产生的 2 行审计（visual auth.setup 登录成功 + auth-pages 错误态）已按时间窗+actor 精确删除；RM6 产生的 2 行占位租户审计已按 id 精确删除",
-      "generator 05:35:50 那行审计未动（早于我接手，属我的基线）；2026-07-27 的 4 行历史孤儿物证未动",
-      "DB 终态 total=329 / orphan=129 / Tenant=4 / User=1——与我接手时逐位相同",
-      "2 个 f005-52865-* 残留租户（slug=NULL）未动（首轮已登记的建造期残渣）",
+      "3 条变异（RM8/RM9/RM10）全部 cp /tmp 备份还原，git diff --quiet docs/dev/architecture.md 逐条核证复位",
+      "npx vitest run 全量 1 次：跑前跑后 DB 逐位相同（delta 0），未做任何清理动作",
+      "tsc / next lint / 单套件 vitest 均只读",
       "产品代码零修改",
-      "我自己的探针 bug 据实登记：RLS 正向探针首版把 set_config 的值写成子查询，该子查询在 kol_app 上自己被 default-deny 关掉返回 NULL，导致一度误读「设了变量还是 0 行」——非被测缺陷"
+      ".claude/dispatch/ 与 framework/templates/ 的未提交改动未动未判（框架侧同步，不在本批产品面）",
+      "本轮唯一写入：docs/test-reports/M5-AUTH-RLS-signoff.md 追加「## 复验轮三」段（前两轮内容一字未改）+ progress.json 的 evaluator_feedback / docs.signoff"
     ],
-    "signoff_recommended": false,
-    "next_status": "fixing",
-    "report_path": "docs/test-reports/M5-AUTH-RLS-signoff.md（§复验轮二）"
+    "signoff_recommended": true,
+    "next_status": "done",
+    "report_path": "docs/test-reports/M5-AUTH-RLS-signoff.md（§复验轮三）"
   },
   "generator_handoff": {
     "round": 2,
@@ -145,7 +130,7 @@
   },
   "session_notes": {
     "Andy": "【M5-AUTH-RLS planning→building · 2026-08-04 · 本地异构首跑】spec lock=用户实答(邮箱+密码 / 真 PG RLS+非特权角色 / 开放注册 / Horizon port 登录页 / 只 evaluator 异构=codex)。■ 装配:.agents-registry.json 立起(36073b1),role_assignments 用部分指派 {evaluator: local-cli--codex--evaluator}(实测 assignments 校验:显式 null generator 被拒、'local' 被拒、缺键=默认映射合法——这是「只 evaluator 异构」的正确写法)。■ 侦察关键实物(m5-recon,全文在对话):45 处 getDevTenantId/39 文件 · buildToolContext 22 处 · context.ts:13 模块缓存是串数据风险 · DB 用户 kol=SUPERUSER+BYPASSRLS(dev/prod/CI 三处,RLS 硬阻塞→F007) · raw SQL 7 处只有 DB 侧 RLS 能覆盖 · admin layout 是 client component→middleware 必建 · 403 已锁闸门语义(architecture:1450),认证一律 401。■ 既有 1470 tests 不翻修(D-8 分层)。■ 开放注册是用户主动选择(逆我推荐),邮箱验证挂 BL-AUTH-EMAIL-VERIFY。■ building 计划:域串行派 generator-restricted(A1=F001-F003 认证核,A2=F004-F006 注入+注册,B1=F007-F009 RLS 链,B2=F010-F011),F012-F013 收尾;迁移类 feature 不并行(migrations 时间戳与 dev 库锁冲突)。",
-    "Reviewer": "【M5-AUTH-RLS 复验轮二 · 2026-08-05 · 快车道隔离 subagent】11 PASS / 1 PARTIAL → 建议回 fixing。■ I-1 真闭环：没只复跑首轮样本，另造 19 条第二绕过 + 10 条穿越 + 17,354 条语料对 **Next 编译产物真 regexp**（.next/server/middleware-manifest.json，不是把 matcher 串自己包 ^$ 的模型）穷举核对——静默失守 0 / API 放过 0。运行时判别器很好用：middleware 一跑必种 authjs.csrf-token，于是能区分「跑了并放行」与「matcher 让它没跑」，S-M5-2 因此有了运行时证据而非只有静态断言。■ 穿越形态（/img/../api/actions/abc.json）是本轮最强候选：两层都豁免、middleware 确实没跑，但 Next 不归一化 .. 直接 404、未触达 route → 今日不失守，登记 S-M5-5（建议补「四个静态前缀下不得有 app route」的钉，否则将来加 src/app/styles/… 会静默失守而现有断言全绿）。■ 补钉质量高于我首轮要求：两层一致性钉在我用「只放宽一层」这种最阴的姿势打时当场抓住并逐条打印失守路径（RM1 10 red / RM2 20 red）。I-3 的修法也超出建议（多清了按夹具 tenantId 根本删不到的占位租户审计行，并把 delta 归零写成断言）。■ 唯一未闭合 I-4（低）：修 I-2 时把「零翻修」换成了另一句经不起 git diff 的归因——8 个 .ts 里只有 4 个是 F004 会话注入，另 4 个是 F011 census / F012 storageState / F013 文档钉。RM7b 实测该钉只守表述不守数字（generator 在 commit 正文主动写明了这个取舍及 CI 浅克隆的理由，取舍我认可），所以归因只能人核。改一行即可，复验面只有 architecture.md + doc-freshness 一个文件。■ 我自己的探针 bug 已在报告 R9 登记（set_config 用子查询取 tenant id，子查询自己被 default-deny 关掉 → 误读 0 行）。",
+    "Reviewer": "【M5-AUTH-RLS 复验轮三 · 2026-08-05 · 快车道隔离 subagent】12 PASS / 0 PARTIAL → 建议签收整批（status 与 features.json 我未动，留给 Coordinator 走人类闸门）。■ 被测 94bb352，窄面复验。「只改 architecture.md 一行、产品代码零改动」我用 18781db..94bb352 与 83620c5^..94bb352 双向 diff 自证为真，另 git status 核证被测树无未提交夹带。■ I-4 闭合：我把 generator 的 8 条分类当待证伪对象，先自己逐个读 diff 归类再比对 → 8/8 吻合。判他这次确实读过 diff 的间接依据：第 5·6·8 三条归因（S-M48-2 正则拓宽 / storageState 卫生条目 / F003 触发的登录前置）从文件名推不出来，且第 8 条的 F003+F012 双归因不在我轮二 fix_hint 里 —— 连续两轮「按印象归因」这次没复发。■ 我主动把口径放大了一圈：文中「8 个」是 tests/ 口径，全仓既有测试资产 .ts 实际改了 22 个（多出 scripts/test 12 + 根 playwright/vitest 配置 2）。我把这 14 个也全读了 diff：F004/F010 systemContext 迁移 + F012 登录步 + F001 next-auth inline，**无一因 RLS** → 「RLS 面零翻修」不但成立，样本还大了近 3 倍。这条登记为 S-M5-8（口径未写明），**没判 PARTIAL**：I-2/I-4 是假陈述，这条在文档自带数法下是真陈述、补口径不改结论 —— 不同类，不是同一标准下的软化。■ RM8/RM9 证明重写没把钉的抓手写没；RM10 把轮二那句失实归因原样装回 → 34 全绿，与轮二 RM7b 同向再证「该钉只守表述不守数字」，即本轮闭合全靠人核，M5.1 沿用这条结论。■ N-2 如实登记（不阻断）：commit 正文说「原写 5 张也是估计值」与 git 相反 —— 原句写的是「5 张 Linux 基线」，M 状态基线恰 5 张且全是 *-linux，5 是精确数；因属自贬方向不夸大质量，不开 issue。■ 新增 S-M5-7：「RLS 没改上层」在运行时仍走 BYPASSRLS 特权连接的前提下有一半是同义反复，真正检验在 M5.1 切 DB_APP_ROLE_RUNTIME=1 之后。■ L1：tsc 0 / lint 0 / vitest 141 files 1800 tests 全绿 / DB delta 0（I-3 第二次复现）。L2 六项未授权零执行，随批转 M5.1。",
     "Mark": null
   },
   "lane": "heterogeneous"

@@ -1,12 +1,12 @@
 {
-  "status": "verifying",
+  "status": "fixing",
   "user_goal": "M5-AUTH-RLS:真实认证(Auth.js v5 Credentials+JWT / 开放注册即建租户 / middleware 全站鉴权 401)+ 真 PG RLS 多租户隔离(非特权角色 kol_app + 23 表 policy default-deny + $extends 租户变量注入,覆盖 pgvector raw SQL)。执行形态:本地异构首跑(evaluator=codex local-cli,generator=主上下文默认映射)。红线:403 闸门语义不碰 / 无隐式回落 dev 租户 / 登录注册 fail-closed 限速 / 审计只记元数据。",
   "total_features": 12,
-  "completed_features": 12,
+  "completed_features": 10,
   "fix_rounds": 0,
   "current_sprint": "M5-AUTH-RLS",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-05T04:40",
+  "last_updated": "2026-08-05T06:20",
   "reference_docs": [
     "docs/specs/M5-AUTH-RLS-spec.md",
     "docs/dev/architecture.md",
@@ -22,11 +22,141 @@
   },
   "role_assignments": null,
   "mode_intent": null,
-  "evaluator_feedback": null,
+  "evaluator_feedback": {
+    "verdict": "PARTIAL",
+    "summary": "10 PASS / 2 PARTIAL / 0 FAIL。RLS 地基与认证核心质量高（24 表 default-deny 全表普查、WITH CHECK 四条写侧探针、哨兵双向、9 条变异无一哑火）。两条回炉：I-1 middleware 豁免后缀正则作用于整条 path，闸门可被绕过（今日靠 F004 fail-closed 兜住未泄漏，但闸门本身不成立）；I-2 architecture.md「既有 137 个测试文件零翻修」被实物证伪（13 个既有测试 .ts 被改）。",
+    "features": {
+      "F001": {
+        "verdict": "PASS",
+        "evidence": "迁移纯 expand（单列 nullable）；库内 passwordHash 前缀 $2b$12$ 长度 60；401 承载层实测恒 401 JSON；403 census 三处命中全为注释；变异 authorize→明文比对 2 条红"
+      },
+      "F002": {
+        "verdict": "PASS",
+        "evidence": "template-inventory 登记 6 落点实源；第三方登录 3 处命中全为说明删除的注释（裁-2）；4 张基线×2 视口 + 3 条错误态真浏览器全绿；CI 链实读 ci.yml；/login /signup 未登录 200"
+      },
+      "F003": {
+        "verdict": "PARTIAL",
+        "evidence": "401/307/豁免全集/变异 M3 六条红均成立，且路径穿越·前缀混淆·大小写·双斜杠四类绕过全部未击穿；但 public-asset 后缀正则作用于整条 path，/api/actions/abc.json 实测 500（middleware 未执行）、/admin/campaigns/abc.json 实测 500 → acceptance「未登录访问任一非豁免 API → 401 JSON」不成立"
+      },
+      "F004": {
+        "verdict": "PASS",
+        "evidence": "_devTenantId 在 src/scripts 命中 0（残余 3 处在普查测试自身，检测器经 3901404 基线对照证活）；无会话即抛；变异装回 dev 回落 4 条红"
+      },
+      "F005": {
+        "verdict": "PASS",
+        "evidence": "真端点四步实测 400/201/409/429；单事务建 Tenant+User+留痕；全表搜明文口令与 passwordHash 命中 0/0；审计只落 emailDomain"
+      },
+      "F006": {
+        "verdict": "PASS",
+        "evidence": "阈值导出常量；fail-closed 双条（IP 不可得 / 限流器异常）；实测 429 + Retry-After:60；不读 DISABLE_GATE_RATELIMIT；变异改 fail-open 1 条红"
+      },
+      "F007": {
+        "verdict": "PASS",
+        "evidence": "kol_app 真库属性 rolsuper=f rolbypassrls=f；哨兵双向实测（强制+特权→抛 PrivilegedConnectionError，强制+kol_app→status=ok）；dev 启动告警实见（裁-6 可见态属实）；deploy.md R16 置段首；变异摘断言 5 条红"
+      },
+      "F008": {
+        "verdict": "PASS",
+        "evidence": "24 表 RLS + 24 policy 双侧非空；有 tenantId 却未开 RLS 的表 = 0；全表普查 default-deny：特权 2908 行/11 表 vs kol_app 无变量 0 行/0 表 vs 设 dev 2716 行/10 表；WITH CHECK 四探针（跨租户 INSERT/UPDATE 均被拒、DELETE 0、Tenant 自隔离）；零数据语句、FORCE 仅存注释（DB 侧 forced=0）；变异 USING(true) 9 条红"
+      },
+      "F010": {
+        "verdict": "PASS",
+        "evidence": "scheduler 4 条例程注册处 tenantSlug + 调用点 systemTenantId；scripts/jobs 4 入口显式；scripts 下 getDevTenantId 命中 0；13 条测试绿"
+      },
+      "F011": {
+        "verdict": "PASS",
+        "evidence": "两层分工不仅写清且机械钉住（§0 两条断言：DB 层连接不可绕 RLS / API 层单例此刻是特权连接，M5.1 切换时会自动翻红）；缺 DATABASE_URL_APP 硬抛非 skip，零 skip/runIf；census 正则拓宽至 findFirstOrThrow|findMany；清理 delta 0、三表 census 0。acceptance「降二线」实装写成「未切换前仍是主力、切换后降二线」双态——与裁-6 事实一致，判为正确偏离"
+      },
+      "F012": {
+        "verdict": "PASS",
+        "evidence": "auth.setup 三重校验实跑绿；既有视觉用例零改动 29 passed；2 条 failed 身份逐条对账 = today dashboard(BL-VISUAL-DATA-ISOLATION) + workbench env=match(M4.7 §RV-5)，M4.8 为 19/2、本批 29/2 → 条数与身份均未变，无新增翻红；双 e2e 全绿；CI 前置链实读 yml"
+      },
+      "F013": {
+        "verdict": "PARTIAL",
+        "evidence": "六处翻牌齐、双半句诚实性逐处核证通过（三处均写明「运行时未切换/归 M5.1」）；doc-freshness 三钉变异各自打红；迁移 11 条、豁免恰 7 条与实物相符；deploy.md R16 置段首、backlog 三项记账到位。但 NFR-S9 段「既有 137 个测试文件零翻修」被证伪：本批改了 13 个既有 tests/**/*.ts（7 个 *.test.ts，+24/+18/+32 行实质改动）"
+      }
+    },
+    "issues": [
+      {
+        "id": "I-1",
+        "feature": "F003",
+        "severity": "high",
+        "title": "豁免后缀正则作用于整条 path → 鉴权闸门可绕过",
+        "detail": "EXEMPT_RULES 第 7 条 public-asset 与 middleware matcher 负向排除均按「path 以扩展名结尾」判定，未限定静态资源前缀。末段为动态段的路由加 .json/.js/.txt/.map 即可令 middleware 完全不执行：/api/actions/abc.json→500、/api/delivery/deliverables/abc.json→405、/admin/campaigns/abc.json→500（控制组 /api/actions/abc→401）。当前未泄漏数据（两条 API 各自要求会话，F004 fail-closed 兜住），但闸门本身不成立，且将来任何不经 buildToolContext 的新路由会直接裸奔而现有测试一条都不会红。",
+        "fix_hint": "扩展名豁免限定在已知静态前缀（/img/ /fonts/ /favicon.ico /manifest.json）内，或前置一条「/api/ 一律不适用扩展名豁免」；matcher 同步收窄。必须同时补钉：现有『豁免规则没有通配一切的写法』只试探无扩展名路径，对本类恒绿，须把 /api/actions/abc.json、/admin/campaigns/abc.json 加进 GUARDED_API_PATHS 与 matcher 覆盖面断言。"
+      },
+      {
+        "id": "I-2",
+        "feature": "F013",
+        "severity": "low",
+        "title": "architecture.md「既有 137 个测试文件零翻修」与实物矛盾（铁律 13）",
+        "detail": "「137」在 baseline 全部 tests/**/*.ts 口径下成立；「零翻修」不成立——本批改了 13 个既有 tests/**/*.ts（7 个 *.test.ts）。改动性质为 F004 会话注入缝适配，非为 RLS 翻修，故底层结论为真、佐证半句为假。",
+        "fix_hint": "改为「既有测试仅 13 处会话注入适配（F004 缝），RLS 面零翻修、全量绿」。"
+      },
+      {
+        "id": "I-3",
+        "feature": "F001",
+        "severity": "low",
+        "title": "auth-signin-http.test.ts 每轮泄漏 5 行孤儿 OperationLog",
+        "detail": "afterAll 删了夹具 User 与 Tenant 却未删 F006 审计路径以该租户 id 写入的 OperationLog；OperationLog.tenantId 无 FK 不级联（项目记忆已登记的坑）。逐套件 delta 隔离：auth-rate-limit 0 / auth-register 0 / auth-signin-http 5。dev 库孤儿行由批前 4 行涨至 124 行。不违反 F001 任一 acceptance，故未据此降级。另有 2 个 f005-52865-* 残留租户属建造期历史残渣（auth-register 当前 delta 已为 0）。",
+        "fix_hint": "afterAll 补一条按 tenantId 删 OperationLog。"
+      }
+    ],
+    "l1_status": {
+      "tsc": "exit 0",
+      "lint": "No ESLint warnings or errors",
+      "vitest": "141 files / 1760 tests 全绿",
+      "build": "exit 0",
+      "visual": "29 passed / 2 failed（2 条为已登记本机项，身份未变）",
+      "agentloop_e2e": "PASS",
+      "frontdesk_e2e": "PASS"
+    },
+    "mutations_run": [
+      "M1 F004 装回 dev 回落 → 4 failed",
+      "M2 F006 fail-closed→fail-open → 1 failed",
+      "M3 F003 豁免塞 /api/projects → 6 failed",
+      "M4 F001 bcrypt→明文比对 → 2 failed",
+      "M5 F008 Project policy→USING(true)（真库） → 9 failed",
+      "M6 F007 哨兵判定恒 false → 5 failed",
+      "M7a F013 豁免计数 7→8 → 1 failed",
+      "M7b F013 RLS 状态句改「已全面启用」 → 1 failed",
+      "M7c F013 认证选型 v5→v4 → 1 failed"
+    ],
+    "probes_run": [
+      "middleware 绕过矩阵 B1-B5（standalone 生产形态）",
+      "注册生命周期 400/201/409/429",
+      "库内隐私普查（明文口令/摘要）",
+      "RLS 三态全表普查（特权/无变量/设变量）",
+      "WITH CHECK 写侧 W1-W4",
+      "哨兵双向 S-1/S-2",
+      "孤儿行逐套件 delta 隔离",
+      "残留两层 census"
+    ],
+    "new_soft_watch": [
+      "S-M5-2 修 I-1 时须回归确认 public/ 真实静态件仍免闸门（勿把每张图变成一次 edge 调用）",
+      "S-M5-3 isApiPath 大小写敏感：/API/projects 落 307 而非 401 JSON（仍 fail-closed，仅口径不一致）→ BL-E2E-CLEANUP-PIN",
+      "S-M5-4 认证审计占位租户 __auth-audit__ 会在 prod 首次匿名失败时被 upsert 建出，上线后人工确认其不出现在任何用户可见面"
+    ],
+    "l2_gaps": [
+      "真多用户并发会话正确性",
+      "生产 RLS 实测（注意：运行时仍特权连接，此刻只有应用层 where 一道，RLS 尚未接管）",
+      "开放注册真实滥用面（邮箱验证缺失，BL-AUTH-EMAIL-VERIFY 在案）",
+      "DB_APP_ROLE_RUNTIME=1 真实切换（裁-6 本批不做，属 M5.1）",
+      "prod 人工前置步实机执行"
+    ],
+    "side_effects": [
+      "探针数据（前缀 m5rv-1785905555）已两层清除，整表 census 抓到 1 行登记删漏掉的行（写在 __auth-audit__ 下）并补删，复查 0/0/0",
+      "真库 policy 变异已还原并核证（双侧同式复原 + 全库 weak_policies=0 + 套件 28/28 回绿）",
+      "6 源码文件 + architecture.md 变异全部 cp 备份还原，git diff 为空；工作树对 HEAD 仅剩 ?? .harness-dispatch/（非我产生）",
+      "反复跑认证套件因 I-3 累积约 50 行孤儿 OperationLog（2026-08-05），刻意保留为 I-3 现场物证",
+      "2026-07-27 的 4 行既有孤儿 opLog 未动，复查仍为 4 行",
+      "next build 覆盖 .next/；dev(3100) 与 standalone(3000) 均已停；产品代码零修改"
+    ],
+    "report_path": "docs/test-reports/M5-AUTH-RLS-signoff.md"
+  },
   "generator_handoff": null,
   "session_notes": {
     "Andy": "【M5-AUTH-RLS planning→building · 2026-08-04 · 本地异构首跑】spec lock=用户实答(邮箱+密码 / 真 PG RLS+非特权角色 / 开放注册 / Horizon port 登录页 / 只 evaluator 异构=codex)。■ 装配:.agents-registry.json 立起(36073b1),role_assignments 用部分指派 {evaluator: local-cli--codex--evaluator}(实测 assignments 校验:显式 null generator 被拒、'local' 被拒、缺键=默认映射合法——这是「只 evaluator 异构」的正确写法)。■ 侦察关键实物(m5-recon,全文在对话):45 处 getDevTenantId/39 文件 · buildToolContext 22 处 · context.ts:13 模块缓存是串数据风险 · DB 用户 kol=SUPERUSER+BYPASSRLS(dev/prod/CI 三处,RLS 硬阻塞→F007) · raw SQL 7 处只有 DB 侧 RLS 能覆盖 · admin layout 是 client component→middleware 必建 · 403 已锁闸门语义(architecture:1450),认证一律 401。■ 既有 1470 tests 不翻修(D-8 分层)。■ 开放注册是用户主动选择(逆我推荐),邮箱验证挂 BL-AUTH-EMAIL-VERIFY。■ building 计划:域串行派 generator-restricted(A1=F001-F003 认证核,A2=F004-F006 注入+注册,B1=F007-F009 RLS 链,B2=F010-F011),F012-F013 收尾;迁移类 feature 不并行(migrations 时间戳与 dev 库锁冲突)。",
-    "Reviewer": null,
+    "Reviewer": "【M5-AUTH-RLS 首轮 verifying · 2026-08-05 · 快车道隔离 subagent】10 PASS / 2 PARTIAL / 0 FAIL → fixing。■ 唯一实质缺陷 I-1（F003）：豁免的 public-asset 后缀正则作用于整条 path，末段动态段路由加 .json 即可让 middleware 完全不执行（/api/actions/abc.json→500 vs 控制组 401）。今日没出事只因 F004 fail-closed 兜住——纵深防御救了第一场，但闸门本身不成立。修时必须连带补断言：现有反通配守卫只试探无扩展名路径，对这一类恒绿。■ I-2（F013）铁律 13：「既有 137 个测试文件零翻修」中 137 成立而「零翻修」被证伪（13 个既有测试 .ts 实质改动，性质是 F004 会话注入适配非 RLS 翻修）。■ I-3 低：auth-signin-http.test.ts 每轮漏 5 行孤儿 opLog（OperationLog 无 FK 不级联，项目已登记的坑），dev 库孤儿 4→124。■ 质量正面：RLS 我做的是 24 张表全表普查而非抽测（无变量 0 行/0 表），WITH CHECK 四条写侧探针全部正确拒绝，哨兵双向都实测，9 条变异无一哑火。F011 把「运行时没切所以 API 层证的不是 RLS」用 §0 两条断言机械钉死且 M5.1 切换时会自动翻红——很少见的诚实。■ 复验只需重跑 F003 绕过矩阵 + F013 那句话；其余 10 条证据已在 signoff 报告逐条留档。■ 我自己踩的两个坑已在报告据实登记（grep -oE '[0-9]+' 被 m5rv 的 5 污染导致误判 0 行；DROP POLICY IF EXISTS 被我的正则误报为破坏性语句）——都不是被测缺陷。",
     "Mark": null
   },
   "lane": "heterogeneous"

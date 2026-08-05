@@ -24,7 +24,7 @@
       "title": "src/middleware.ts 鉴权边界(从零建)",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "spec D-2:全站粗闸。豁免清单显式写死;API 401 JSON / 页面 redirect /login。",
       "acceptance": "豁免清单为导出常量并**单测钉全集**(恰等于:/api/health · /api/signals/inbound · /api/auth/* · /login · /signup · Next 静态;扩豁免必须改断言);未登录访问任一非豁免 API → 401 JSON(逐类抽测:actions/agent/projects/delivery 各≥1);未登录访问 /admin/* → redirect /login;已登录 → 原行为零变化(回归);webhook svix 路径不受影响(实测签名链仍通);变异:摘 middleware matcher 某段 → 对应 401 测试红;豁免清单塞 /api/projects → 钉红"
     },
@@ -105,7 +105,7 @@
       "title": "文档翻牌 + doc-freshness 扩 + deploy.md 前置段 + backlog 记账",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "批末文档刷新(13 features ≥10 → 独立文档 feature + acceptance 复核双上,批内新鲜度规则)。",
       "acceptance": "architecture.md 翻牌:选型表:86 · :215 边界声明 · :282 · :1450(401 语义随实装更新)· :1594 NFR-S9(RLS 已启用)· :1829 ADR-04 兑现标记;agent-architecture.md 相关段同步;deploy.md 部署前置段(F007 prod 人工步 + AUTH_SECRET + **R16 备份建议置段首**);doc-freshness 扩断言:认证选型行/RLS 状态句/middleware 豁免清单计数 = 实物,变异证活(改坏各 → 红);批末新鲜度复核判据不带左括号含 docs/ 范围先验活;backlog:新增 BL-AUTH-EMAIL-VERIFY、S-M48-2 销账完成态、BL-VISUAL-DATA-ISOLATION 补记与本批 seed 测试用户关系"
     }

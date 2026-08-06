@@ -18,7 +18,7 @@ type: project
 
 ## 需求池 / 待人类
 - backlog 8 条，high：**BL-M51-TENANT-INJECTION**（M5.1，切非特权运行时的前提）· BL-COST-CAP · BL-AGENT-COST-CALIBRATE。medium：BL-AUTH-EMAIL-VERIFY（开放注册已知缺口）· BL-AGENT-ROUTINE · BL-E2E-CLEANUP-PIN · BL-VISUAL-DATA-ISOLATION。low：BL-TOOL-STREAM-OUTPUT
-- **待人类**：M5 部署 + 上线后 L2 复测（真多用户会话 / 生产 RLS 跨租户手测 / `__auth-audit__` 占位租户不出现在用户可见面）· 工作树里 `.claude/dispatch/` 一批未提交的框架侧同步改动待你确认取舍
+- **待人类**：上线后 L2 手测（**注册一个真账号走通登录→对话** / 真多用户会话 / `__auth-audit__` 占位租户不出现在用户可见面 / M4.7 原始故障场景复测）。M5 部署 ✅ 已完成；框架侧 dispatch 改动 ✅ 已采纳（含模板 16 个脚本可执行位修复）
 - proposed-learnings：2 条待确认（registry-less resolver 硬退 · codex 适配器默认 `--ignore-user-config`）
 
 ## 关键技术坑（M4→M5 精选）

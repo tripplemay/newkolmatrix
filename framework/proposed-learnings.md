@@ -266,6 +266,56 @@
 
 **状态：** 待确认
 
+## [2026-08-06] Andy/Coordinator — 来源：M5.1 首次 local-cli Generator 派活在前置被拦
+
+**类型：** 新坑 / 模板修订
+
+**内容：** `progress.docs.spec` 的路径基准在框架内部**自相矛盾**，且矛盾双方都在 framework 模板里：
+
+- `framework/harness/planner.md:229`（与项目根 `planner.md:216`）的 §6 模板写 `"spec": "specs/[批次名称]-spec.md"` —— **docs/ 相对**
+- `framework/templates/claude/dispatch/dispatch-generator-handoff.sh:302-309` 要求 **repository-relative** 并 `os.path.isfile(project_root + spec)` 实测存在性，不合即 exit 2 前置硬停
+- `dispatch-envelope.schema.json:48` 对 spec 字段的描述是「规格文档路径（**仓内相对路径**）」，与派活脚本一致
+
+机件自身的测试夹具也站在仓库相对这一侧（`test-generator-handoff.py:36,278,492` 与
+`test-gate-arbiter.mjs:31` 均为 `docs/specs/...`）。也就是说 planner 模板是**孤例**。
+
+**为什么一直没暴露：** 只有 local-cli / A2A 的 Generator 派活会经过这段校验；快车道（主上下文或
+subagent Generator）根本不读 `docs.spec` 的路径，照 planner 模板写的 `specs/...` 一路无感。
+本项目 M5 的 heterogeneous 首跑零结论，从未真正走到这一步 —— 本批是第一次撞上。
+症状是「派活在前置就死，报错指向 spec 不存在」，极易被误读成规格没落盘。
+
+**顺带的第二处（未改，供一并裁决）：** `docs.signoff` 同样按 docs/ 相对写
+（如 `test-reports/M5-DEPLOY-FIX-signoff.md`），目前无机件校验它，故未动。若统一为仓库相对，
+需同步 `evaluator.md` 的填写指引与 `skills/dashboard/SKILL.md` 的读取侧。
+
+**建议写入：** `framework/harness/planner.md` §6 模板改为 `"spec": "docs/specs/[批次名称]-spec.md"`
+（连带项目根 `planner.md`，铁律 7 多副本一致性）；并在 `harness/dispatch-mode.md` 的前置排错段
+补一条「派活报 spec 不存在 → 先看路径基准，不是规格没写」。`docs.signoff` 是否一并统一，请一并裁决。
+
+**状态：** 待确认
+
+## [2026-08-06] Andy/Coordinator — 来源：M5.1 F001 首次 local-cli Generator 派活（三个坑连撞）
+
+**类型：** 新坑 ×3（其中 2 条框架级）
+
+**内容：** 同一条 local-cli 派活链路上撞出三处独立缺陷。共同形态值得先说：**三条全部只在「跑完之后」才暴露** —— 派活的失败成本是前置且不对称的（本次实测：kimi 跑满 2910s 之后才在回执阶段炸）。因此这条链路需要的是**派发前**的机件自检，而不是只在返回后校验。
+
+**坑 1（框架级）· `active_target` 只填给 external-bridge 路由，local-cli / a2a 恒空。**
+`templates/claude/dispatch/dispatch-generator-handoff.sh:358-362` 只在 `route == "external-bridge-subagent"` 时写 `context["active_target"]`；而 `validate-dispatch.sh:752-756` 在 role/target **任一**非空时就调 `validate-active-return-route.py`，后者 `:60-62` 要求**两者同时提供**，否则抛错。于是 local-cli 派活必定在回执自检失败，且调用侧把任何校验失败一律报成 `run metadata transport does not match the re-verified active target` —— **报错指向的方向与真因无关**（transport 实测完全匹配：填上 target 后同一份 run-meta 立刻返回 `{"route":"local-cli"}`）。
+对照证据：`accept-generator-handoff.sh:147-149` 对所有路由都用 `tool-catalog.py target` 重解 target，是对的；也就是说派发端与收编端口径不一致，派发端是错的那个。
+项目侧已修（改为无条件填充）。**建议 framework 模板同修**，并把调用侧的兜底报错改为透传校验器原文，别再用一句固定的 transport 措辞盖住真因。
+
+**坑 2（框架级）· `progress.docs.spec` 路径基准自相矛盾。** 见上一条独立提案（同日）。
+
+**坑 3（本机环境 × 机件交互）· 全局 gitignore 排除的文件会让 accept 恒判「主仓不 clean」。**
+`accept-generator-handoff.sh:253-258` 用 `COORDINATOR_ENV`（`env -i` + `GIT_CONFIG_GLOBAL=/dev/null` + `GIT_CONFIG_NOSYSTEM=1`）跑 `git status --porcelain=v1 -uall`。剥掉全局配置后，**只靠 `~/.gitignore_global` 排除的文件会重新变成 untracked**，主仓因此恒不 clean —— 而开发者自己 `git status` 看到的是干净的，两边永远对不上。本次实测命中 `.claude/settings.local.json`（被 `~/.gitignore_global:8` 挡着）。
+更棘手的是它与「HEAD 必须等于信封 ref」构成**死锁**：把该文件写进仓库 `.gitignore` 需要 commit，一 commit HEAD 就离开信封 ref，accept 转而拒收。本次用 `.git/info/exclude`（仓库本地、不受 `GIT_CONFIG_GLOBAL` 影响、不被跟踪故不动 HEAD）解开。
+**建议：** ① accept 的 clean 检查失败时，把实际未清洁的文件列表打进报错（现在只有一句结论，定位全靠自己复现它的 env）；② `bootstrap.sh` 把 `.claude/settings.local.json` 写进项目 `.gitignore`（不能只依赖开发者的全局配置——换机器或换人就会暴露成待提交文件，而它通常含本机权限设置）；③ `dispatch-mode.md` 排错段补这条与上面的死锁解法。
+
+**建议写入：** `framework/templates/claude/dispatch/dispatch-generator-handoff.sh`（坑 1）· `framework/templates/claude/dispatch/validate-dispatch.sh` 报错透传（坑 1）· `framework/templates/claude/dispatch/accept-generator-handoff.sh` 报错列文件（坑 3）· `bootstrap.sh` 的 `.gitignore` 模板（坑 3）· `framework/harness/dispatch-mode.md` 排错段（三条）
+
+**状态：** 待确认（项目侧坑 1 已修、坑 3 已用 `.git/info/exclude` 绕开；framework 侧未动）
+
 ---
 
 <!-- 2026-08-06 M5-DEPLOY-FIX done 收尾 · Planner(Coordinator) 逐条提交,用户裁决：

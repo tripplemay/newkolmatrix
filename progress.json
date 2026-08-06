@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "M5.1(机制层):把「地基就位、纵深未启用」的 RLS 真正接上运行时——双 client 引导白名单 + withTenant 事务内 SET LOCAL + ALS 租户作用域 + 防漏普查钉,并用一条 DB_APP_ROLE_RUNTIME=1 真开着的最小闭环(登录/注册/route/RSC page/例程/跨租户零行)证明机制成立。全站入口收口与生产切换留 M5.2;开关默认值本批不变。",
   "total_features": 7,
-  "completed_features": 0,
+  "completed_features": 1,
   "fix_rounds": 0,
   "current_sprint": "M5.1-TENANT-INJECTION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-06T06:32",
+  "last_updated": "2026-08-06T07:35",
   "reference_docs": [
     "docs/specs/M5.1-TENANT-INJECTION-spec.md",
     "docs/specs/M5-AUTH-RLS-F009-preimpl-audit.md",
@@ -77,7 +77,25 @@
     }
   },
   "evaluator_feedback": null,
-  "generator_handoff": null,
+  "generator_handoff": {
+    "feature": "F001",
+    "agent": "local-cli--kimi--generator (kimi 0.31.0, 独立克隆沙箱)",
+    "commit": "e6ecef1",
+    "duration_s": 2910,
+    "accept_state": "APPLIED",
+    "accept_verified": "沙箱真实 diff 与 files_touched 精确对账 + 在沙箱快照重跑 L1(lint/typecheck/vitest) + 禁改清单未触及。handoff 自报的 l1_ran 未被采信。",
+    "accept_not_verified": "acceptance 6 条判据是否满足、断言有无鉴别力(变异证活) —— 均属 verifying 面，收编不代表验收通过。",
+    "spec_lock_review": "docs/test-reports/M5.1-F001-spec-lock-review.md（violation=false，有条件放行）",
+    "carried_corrections": [
+      "src/lib/db/tenant-scope.ts:13-14 「全仓此刻没有任何 withTenant 调用点」经 grep 证伪（同批自带 5 处，在 tests/integration/tenant-injection-proxy.test.ts）→ 应改为「产品代码零调用点」",
+      "src/lib/db/runtime.ts:8-9 importer 清单两头都错（漏列真实 importer prisma.ts:23；写入的 instrumentation.ts 实际不 import runtime）→ 直接污染 F003 白名单口径，必须更正"
+    ],
+    "carried_conditions": [
+      "F002 不得以「F001 已实现 set_config」抵扣其 acceptance ①(a)，仍须交 set_config 断言 + 第三参 true→false 的变异实跑",
+      "F003 须显式决定要不要把 tests/ 侧的 db/privileged / db/runtime importer 纳入普查钉射程（acceptance ③ 现只写 src/）"
+    ],
+    "note": "更正无法回传 kimi：信封字段是白名单，按铁律 12 结构上塞不进反馈叙述。正规通道是 fixing 阶段的 evaluator_feedback。"
+  },
   "session_notes": {
     "Andy": null,
     "Reviewer": null,

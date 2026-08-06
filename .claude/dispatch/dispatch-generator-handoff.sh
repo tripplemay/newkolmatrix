@@ -355,11 +355,21 @@ context = {
 }
 if agent_type is not None:
     context["agent_type"] = agent_type
-if route == "external-bridge-subagent":
-    # Keep the full catalog target for receipt verification. Its provenance is
-    # independently compared with the signed active role after the Provider
-    # returns; it is not a new selection input.
-    context["active_target"] = descriptor
+# Keep the full catalog target for receipt verification. Its provenance is
+# independently compared with the signed active role after the executor
+# returns; it is not a new selection input.
+#
+# Required for EVERY route, not just external bridges: validate-dispatch.sh
+# runs the receipt through validate-active-return-route.py whenever *either* the
+# active role or the active target is non-empty, while that validator rejects a
+# half-supplied pair ("active role and active target must be supplied
+# together"). Populating only the bridge route therefore made every local-cli
+# and a2a dispatch fail its own receipt check *after* the executor had already
+# finished, and the caller reported the generic "run metadata transport does
+# not match" reason, which points away from the real cause. accept-generator-
+# handoff.sh already re-resolves the target for all routes via
+# `tool-catalog.py target`; this keeps the dispatch side consistent with it.
+context["active_target"] = descriptor
 json.dump(context, open(output_path, "w", encoding="utf-8"), ensure_ascii=True, sort_keys=True)
 PY
 then

@@ -320,6 +320,7 @@ project_root = Path(sys.argv[1])
 root = home / ".tokenizer" / "app"
 required = (
     "tool-catalog.py",
+    "dispatch_common.py",
     "validate-active-return-route.py",
     "transports/vm-bridge-provider.py",
     "transports/session-bridge.py",

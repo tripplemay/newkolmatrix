@@ -305,6 +305,7 @@ class SessionBridgeRunnerTests(unittest.TestCase):
                 bridge_id="future-acp-bridge",
                 strategy="session-bridge-v1",
                 native_agent_type="plan",
+                deliverable_channel="file",
                 worktree=self.worktree,
                 worker_state_root=self.worker_state_root,
             )
@@ -348,6 +349,7 @@ class SessionBridgeRunnerTests(unittest.TestCase):
             bridge_id="future-acp-bridge",
             strategy="session-bridge-v1",
             native_agent_type="plan",
+            deliverable_channel="file",
             worktree=self.worktree,
             worker_state_root=self.worker_state_root,
         )

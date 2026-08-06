@@ -167,6 +167,7 @@ class VmBridgeWorkerTests(unittest.TestCase):
                 "response_format": "json",
             },
             "native_agent_type": "coder",
+            "deliverable_channel": "file",
             "agent_type": "planner-proposal",
         }
         result = {

@@ -6,7 +6,7 @@
   "fix_rounds": 0,
   "current_sprint": "M5.1-TENANT-INJECTION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-06T06:20",
+  "last_updated": "2026-08-06T06:32",
   "reference_docs": [
     "docs/specs/M5.1-TENANT-INJECTION-spec.md",
     "docs/specs/M5-AUTH-RLS-F009-preimpl-audit.md",
@@ -14,7 +14,7 @@
     "scripts/test/f009-injection-probe.ts"
   ],
   "docs": {
-    "spec": "specs/M5.1-TENANT-INJECTION-spec.md",
+    "spec": "docs/specs/M5.1-TENANT-INJECTION-spec.md",
     "test_cases": null,
     "signoff": null,
     "framework_reviewed": false

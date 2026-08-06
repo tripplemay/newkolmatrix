@@ -1,12 +1,14 @@
 [
   {
-    "id": "BL-M51-TENANT-INJECTION",
-    "title": "M5.1:租户注入运行时 — 双 client 白名单 + withTenant 包装器 + ALS + 全站切 kol_app",
-    "description": "M5 F009 开工前审计(docs/specs/M5-AUTH-RLS-F009-preimpl-audit.md)实测证伪 D-7 字面机制:官方范例式 $extends 注入静默毁 $transaction 原子性(B1-4:回滚后数据仍在)、$allModels 不覆盖 raw SQL(B1-2)、会话级变量粘连接池(B3);且登录/注册/slug 解析存在引导悖论(B2-1/2/3:发生在租户已知之前,切 kol_app 后无人能登录)。已预裁决(2026-08-04 用户实答):Q1-A 双 client(特权 client 只供 3 个引导查询点,显式白名单+源码级普查钉)· Q2-B+C(withTenant 包装器保事务内 SET LOCAL 为底座,ALS 只负责租户来源,普查钉兜「裸用单例」)。硬 acceptance 预写:B1-4 原子性回归(包装事务回滚后零残留)· B3 残留回归(跨事务/跨请求变量不残留)· ALS 在 RSC/route/scheduler 三执行上下文的传播实测 · 打开 DB_APP_ROLE_RUNTIME=1 后全站可登录可注册可例程(引导白名单生效)。接线点 = F007 的 DB_APP_ROLE_RUNTIME 开关(默认关,哨兵持续告警是刻意可见态)。生产切换非特权连接依赖本批;在此之前 RLS 为「地基就位、纵深未启用」态(F011 的 DB 层负向套件持续证明地基有效)。",
+    "id": "BL-M52-TENANT-COVERAGE",
+    "title": "M5.2:租户注入的全站覆盖面收口 + 生产切非特权连接",
+    "description": "M5.1(机制层)承接了预裁决的机制本体——双 client 引导白名单 + withTenant 事务内 SET LOCAL + ALS 租户作用域 + 防漏普查钉 + 开关真开着的最小闭环(登录/注册/1 route/1 RSC page/1 例程/跨租户零行)。本条保留的是**覆盖面**那一半:入口面全量包裹(实测底数 31 API route + 13 admin page + 3 例程 + ~20 scripts,差集清单由 M5.1 F007 落盘为 docs/specs/M5.1-uncovered-entrypoints.md)· 开关开状态下的全量 e2e 与视觉门重跑 · withTenant 事务开销在全量面的观察(M5.1 刻意未设 perf 数字门)· 生产前置与回滚预案。**生产切换(VPS .env 写 DB_APP_ROLE_RUNTIME=1 + 部署)永远是人类闸门,不入自动面。**切换完成后须回来改三处口径:tests/integration/rls-negative-suite.test.ts §0(断言 API 层 client 是特权连接,切换那天它会红,这是刻意设计的逼停) · tests/unit/project-scope-census.test.ts 文件头「现在仍是主力」段(降为二线) · M5 signoff §S-M5-7 登记的「RLS 面零翻修的证明力受限」那句(切换后才真正可检验)。",
     "decisions": [
-      "M5 F009 提审裁决(2026-08-04 用户实答):#Q1:A #Q2:B+C #Q3:A——本批止步 F008,F009 移出独立成批;报告 §4 有完整理由表"
+      "M5 F009 提审裁决(2026-08-04 用户实答):#Q1:A #Q2:B+C #Q3:A——本批止步 F008,F009 移出独立成批;报告 §4 有完整理由表",
+      "M5.1 立项(2026-08-06 用户实答):注入落点形态=ALS 感知代理(206 处调用点零改写,只迁 15 处 $transaction);批次拆两批——M5.1 只到「机制成立有定论」,覆盖面留本条。理由见 docs/specs/M5.1-TENANT-INJECTION-spec.md D-1/D-6",
+      "M5.1 立项实测修正:审计写「引导查询点=3 个」已过期,实测 ≥7 处/4 文件(M5 F006 登录留痕新增了引导写路径)。白名单一律由普查产出,不照抄文档"
     ],
-    "confirmed_at": "2026-08-04",
+    "confirmed_at": "2026-08-06",
     "priority": "high"
   },
   {

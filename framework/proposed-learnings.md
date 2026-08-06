@@ -265,3 +265,11 @@
 **建议写入：** `framework/templates/claude/dispatch/transports/adapters/codex.json` + `framework/harness/dispatch-mode.md` §5.2 / `transports/local-cli.md` 核对清单
 
 **状态：** 待确认
+
+---
+
+<!-- 2026-08-06 M5-DEPLOY-FIX done 收尾 · Planner(Coordinator) 逐条提交,用户裁决：
+     上方两条（2026-08-03 registry-less resolver 硬退 · 2026-08-05 codex 适配器默认 --ignore-user-config）
+     **继续挂起，不写入 framework/**，保留待确认状态。项目侧的 codex `--ignore-user-config` 已启用（实物在
+     .claude/dispatch/transports/adapters/），本次裁决只是不把它提升为 framework 模板默认值。
+     harness-fit P0-3 / P1-1~3 / P2-1~5 同前，长期挂起，非待办。 -->

@@ -1,103 +1,87 @@
 {
-  "status": "done",
-  "user_goal": "M5-DEPLOY-FIX(hotfix):补 compose 对 AUTH_SECRET 的必填透传,并装一条「production fail-fast env 必须在 compose 透传」的机械断言,把这类只有部署当下才暴露的缺口挪进 CI 执行面。触发源=M5 部署前置核查(生产未受损,动手前拦下)。",
-  "total_features": 1,
-  "completed_features": 1,
+  "status": "building",
+  "user_goal": "M5.1(机制层):把「地基就位、纵深未启用」的 RLS 真正接上运行时——双 client 引导白名单 + withTenant 事务内 SET LOCAL + ALS 租户作用域 + 防漏普查钉,并用一条 DB_APP_ROLE_RUNTIME=1 真开着的最小闭环(登录/注册/route/RSC page/例程/跨租户零行)证明机制成立。全站入口收口与生产切换留 M5.2;开关默认值本批不变。",
+  "total_features": 7,
+  "completed_features": 0,
   "fix_rounds": 0,
-  "current_sprint": "M5-DEPLOY-FIX",
+  "current_sprint": "M5.1-TENANT-INJECTION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-06T05:10",
+  "last_updated": "2026-08-06T06:20",
   "reference_docs": [
-    "docs/dev/deploy.md",
-    "docs/test-reports/M5-AUTH-RLS-signoff.md"
+    "docs/specs/M5.1-TENANT-INJECTION-spec.md",
+    "docs/specs/M5-AUTH-RLS-F009-preimpl-audit.md",
+    "docs/test-reports/M5-AUTH-RLS-signoff.md",
+    "scripts/test/f009-injection-probe.ts"
   ],
   "docs": {
-    "spec": null,
+    "spec": "specs/M5.1-TENANT-INJECTION-spec.md",
     "test_cases": null,
-    "signoff": "test-reports/M5-DEPLOY-FIX-signoff.md",
+    "signoff": null,
     "framework_reviewed": false
   },
-  "role_assignments": null,
-  "mode_intent": null,
-  "evaluator_feedback": {
-    "batch": "M5-DEPLOY-FIX",
-    "round": "verifying-1",
-    "evaluated_sha": "312eb9a",
-    "evaluator": "Andy/evaluator-subagent (isolated context)",
-    "verdict": "PASS",
-    "features": {
-      "F001": {
-        "verdict": "PASS",
-        "acceptance_items": {
-          "compose 必填插值形态(:? 缺键 compose 层报错)": "PASS",
-          "机械断言在 vitest/CI 收集范围内且判据先验活": "PASS",
-          "三张例外清单显式写死+理由与实物一致": "PASS",
-          "变异证活 ①删透传行 ②新增 fail-fast 键 ③:? 改 :-": "PASS",
-          "compose 语法自证": "PASS",
-          "deploy.md M5 前置段同步": "PASS",
-          "tsc/lint/全量 vitest 绿": "PASS",
-          "未越界(src/ 零改动)": "PASS"
-        }
-      }
-    },
-    "issues": [],
-    "l1_status": {
-      "tsc": "exit=0",
-      "lint": "No ESLint warnings or errors",
-      "vitest_full": "142 files / 1809 tests passed",
-      "new_test_file": "tests/unit/deploy-env-passthrough.test.ts 9/9 passed",
-      "env_false_positive_screen": "无(无 prisma client 失配类误报)"
-    },
-    "mutations_run": {
-      "compose_side": [
-        "删 AUTH_SECRET 透传行 → 红2(透传+形态)",
-        ":? 改 :- → 只红1(形态)，透传用例仍绿=鉴别力正确",
-        "塞入 DEV_TEST_USER_EMAIL → 红1(禁止清单)",
-        "NODE_ENV 字面值改插值 → 红1",
-        "删 RESEND_API_KEY 透传 → 红1(可选清单仍要求透传)"
-      ],
-      "src_side_new_writing_styles": [
-        "解构赋值 → 红并点名",
-        "模板字符串键 → 红并点名",
-        "类字段初始化 → 红并点名",
-        ".tsx 文件内 → 红并点名",
-        "动态键 env[NAME] → 漏(盲区)",
-        "反向判据 NODE_ENV !== production 后 throw → 漏(盲区)",
-        "helper isProd() 判 production → 漏(盲区)",
-        "同文件可选键连带 → 误红6条(设计取舍，有逃生口)"
-      ],
-      "test_side": [
-        "清单塞入过期键 LEGACY_GONE_KEY → 防腐用例红并点名"
-      ],
-      "cross_validation": "另写独立第二实现(正则口径)普查 src/ 25 个 env 键；严格判据命中集与被测断言完全一致(4键)，宽判据额外命中 0 → 今日无活体漏网",
-      "restored": "全部探针/变异已删除还原；compose hash 前后一致 47697d7a；git status 干净"
-    },
-    "new_soft_watch": [
-      "S1 扫描判据 3 盲区(动态键 / NODE_ENV !== production 反向写法 / helper 判 production)；今日 0 例活体漏网，属将来风险；反向写法与 resolveAuthSecret 只差一个 !",
-      "S2 文件级判定连带误红：同文件带默认值的可选键被要求必填透传(实测红6条)；有逃生口但首选修法文案会误导；未来给 lib/ai/gateway.ts 加 production 校验时会命中",
-      "S3 守门只覆盖 app 服务 + 只扫 src/；migrate 服务(scripts/deploy/migrate-seed.sh)同样在生产跑代码但无守门；今日无缺口",
-      "S4 PROD_FORBIDDEN 用 \\bKEY\\b 扫 compose 全文，未来注释里提及该键会误红(极轻)"
-    ],
-    "side_effects": "无。未修改产品代码/compose/文档基线；未连接或操作 VPS；未执行部署动作；所有 docker 调用限于 config 与 --dry-run，本机未产生本项目容器",
-    "l2_status": "[L2] 未执行，待授权(VPS 真实 up -d 与部署后 staging 实测)",
-    "deploy_recommendation": {
-      "recommend_release": true,
-      "rationale": "修复形态本身 fail-safe：实测 pull/up 在缺键时于解析阶段中止，发生在 recreate 任何容器之前，deploy 工作流第1步即 pull(set -euo pipefail)，最坏结局是部署中止+报错精确，旧容器继续服务；产品代码零改动，回归面为零",
-      "hard_prerequisites_in_order": [
-        "1) VPS .env 写入 AUTH_SECRET=$(openssl rand -base64 32)",
-        "2) scp docker-compose.prod.yml 到 VPS（唯一人为失误面：只改 .env 不同步 compose = 完全没修）",
-        "3) 可选自检：VPS 上 docker compose config exit=0",
-        "4) 手动触发 Deploy to Production"
-      ],
-      "caveat": "AUTH_SECRET 轮换会使全部现存登录会话失效；首次配置无此问题(此前生产无该键)"
-    },
-    "report": "docs/test-reports/M5-DEPLOY-FIX-signoff.md"
+  "role_assignments": {
+    "planner": null,
+    "generator": "local-cli--kimi--generator",
+    "evaluator": "local-cli--codex--evaluator"
   },
+  "mode_intent": {
+    "intent_id": "e66dd7e5-d521-4f04-8e29-a73d9e3cabc4",
+    "applied_batch": "M5.1-TENANT-INJECTION",
+    "applied_at": "2026-08-06T06:06:53Z",
+    "signed_intent": {
+      "desired": {
+        "autonomy": {
+          "enabled": false
+        },
+        "execution": {
+          "profile": "heterogeneous",
+          "role_bindings": {
+            "evaluator": {
+              "invocation": "local-cli",
+              "tool": "codex"
+            },
+            "generator": {
+              "invocation": "local-cli",
+              "tool": "kimi"
+            },
+            "planner": null
+          }
+        }
+      },
+      "expected_head_sha": "1c8afd8c0bbf52939376057e055546305024987e",
+      "intent_expires_at": "2026-08-13T06:00:00.000Z",
+      "intent_id": "e66dd7e5-d521-4f04-8e29-a73d9e3cabc4",
+      "issued_at": "2026-08-06T06:00:44.413Z",
+      "issued_by": "tripplezhou@gmail.com",
+      "repo_key": "github.com/tripplemay/newkolmatrix",
+      "sig": "MuuIOVGtzZ6L9RmX2mQVHZuXBZpx7MHfe9+9DI4tmB1YNgzV1VEdUJIoMitw3u4UnlBM6YrCAI1NPySFvJQyBQ=="
+    },
+    "resolution": {
+      "evaluator": {
+        "agent_id": "local-cli--codex--evaluator",
+        "execution_provenance_sha256": "8fdf3314902f4eb644a982c2d84920cb108aac764630a01196f8246bb8cb4e1f",
+        "invocation": "local-cli",
+        "model_family": "codex",
+        "priority": 100,
+        "tool": "codex"
+      },
+      "generator": {
+        "agent_id": "local-cli--kimi--generator",
+        "execution_provenance_sha256": "f96f1e7332c386a31d80ebc1a367c1ab7ce6e677c1e62d768575a4d5ea0dd996",
+        "invocation": "local-cli",
+        "model_family": "kimi",
+        "priority": 90,
+        "tool": "kimi"
+      },
+      "planner": null
+    }
+  },
+  "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M5-DEPLOY-FIX hotfix · 2026-08-06】部署前置核查拦下阻断缺陷:compose 未透传 AUTH_SECRET,而 F001 生产缺该键即抛错停机 → 照现状部署会把生产打下线。生产当时 healthy 47h(跑 M4.8),零损害。按铁律 9 报根因 + 方案 → 用户确认 → 开本批。Bug 修复批次,spec 省略(features.acceptance 即依据)。范围克制:只做 compose 透传 + 一条覆盖面断言,不顺手扩 deploy 校验体系。 ■【跨角色 ops 记账·铁律 6】2026-08-06 用户书面授权「你帮我 ssh 上去做」→ 我代执行生产前置四步:① R16 备份(backups/kolmatrix-20260806T050827Z.dump 49M,pg_restore -l 列 182 对象自证可读;.env 同时备份)② 建 kol_app 角色(幂等 SQL,自证 rolsuper=f/rolbypassrls=f/rolcanlogin=t)③ VPS .env 追加三键(AUTH_SECRET/KOL_APP_PASSWORD/DATABASE_URL_APP,幂等判断防重复追加,口令 32 位随机且经 kol_app 真连自证)④ scp compose(旧版已备份)+ docker compose config exit=0 + 反向自证(抽掉 AUTH_SECRET 即解析报错)。随后触发 deploy-prod(run 31073339114,image_tag=9f010a34…,success)。公网复核:health ok · /login /signup 200 · /admin/today 307→/login?callbackUrl · 三条受保护 API 401 JSON · I-1 后缀绕过回归 /api/actions/abc.json=401 /admin/campaigns/abc.json=307(不再 500) · 静态件 200。生产库 RLS 实证:24 policy / 24 表启用 / kol_app 未设变量 Project=0 行 vs 特权 6 行(default-deny 在生产成立)。DB_APP_ROLE_RUNTIME 保持未设(等 M5.1),启动哨兵按预期告警。",
-    "Reviewer": "【M5-DEPLOY-FIX 首轮 verifying · 2026-08-06 · 隔离 evaluator subagent】PASS 7/7 acceptance + 边界项，零 issue，无需 fixing。重点自证：①compose :? 形态不只读文本——用临时 dummy env 实测 config/pull/up --dry-run 三面，确认缺键在解析阶段中止(补齐了实现方标注的「up 未核」)，故失败早于容器 recreate=fail-safe。②鉴别力用 8 种作者未用的写法变异：解构/模板键/类字段/.tsx 四种全抓并点名；动态键、NODE_ENV !== production 反向写法、helper 判 production 三处漏(S1)。③另写独立第二实现(正则口径)普查 src/ 25 键交叉验证，命中集与被测完全一致、宽判据额外命中 0 → 盲区是将来风险不是当前缺口。④例外清单理由逐条去实物核(dev-seed assertDevSeedAllowed 无 escape hatch；prod migrate 入口不含 dev-user；RESEND 是发送时刻抛错故 :- 正确)。部署放行意见：建议放行，但 scp compose 这一步是唯一人为失误面(只改 .env 不同步 compose = 完全没修)。",
+    "Andy": null,
+    "Reviewer": null,
     "Mark": null
   },
-  "lane": "fast"
+  "lane": "heterogeneous"
 }

@@ -66,6 +66,16 @@ services:
       - RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET:-}
       # P1：验收真发唯一许可目标（自有测试邮箱）；真实 KOL 地址零发信。
       - OUTREACH_TEST_RECIPIENT=${OUTREACH_TEST_RECIPIENT:-}
+      # M5-AUTH-RLS F001（spec D-1）：Auth.js 会话签名密钥。**必填插值**（`:?`，与
+      # AIGCGATEWAY_API_KEY / APIFY_KOL_API_KEY 同款）——src/lib/auth/config.ts 的
+      # resolveAuthSecret 在 production 缺该键时抛错，刻意不回落到公开的 dev 常量
+      # （回落 = 任何人都能自签会话 cookie，比"服务起不来"严重得多）。
+      # 不透传的实际后果：middleware（src/middleware.ts:36，默认全拦、含 /api/health）每个请求
+      # 抛错 → compose healthcheck 拿不到 200 → deploy-prod.yml 的 `up -d --wait` 超时失败。
+      # 故必须在 compose 层就报错拦住，不进到"容器起来了但每个请求 500"那一步。
+      # 人工放 /opt/apps/newkolmatrix/.env：AUTH_SECRET=$(openssl rand -base64 32)
+      # 一致性由 tests/unit/deploy-env-passthrough.test.ts 机械钉住（M5-DEPLOY-FIX F001）。
+      - AUTH_SECRET=${AUTH_SECRET:?AUTH_SECRET 必填（放 /opt/apps/newkolmatrix/.env，用 openssl rand -base64 32 生成）}
       # M5-AUTH-RLS F007（spec D-5）：非特权应用角色 kol_app 的连接串 + 运行时切换开关。
       # 两键都刻意**可选**（:-，缺键不阻断部署）：
       #   · 角色本身要人工在 prod pgdata 上建一次（deploy.md「M5-AUTH-RLS 部署前置人工步」第 1 步）；

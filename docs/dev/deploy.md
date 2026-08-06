@@ -115,7 +115,14 @@ push main → ci.yml 自动检查 + build-push.yml 自动推 app + tools 两镜�
 >      -c "SELECT rolsuper, rolbypassrls, rolcanlogin FROM pg_roles WHERE rolname='kol_app';"
 >    ```
 > 2. **VPS `.env` 追加键**（`/opt/apps/newkolmatrix/.env`，人工，绝不入 git）：
->    - `AUTH_SECRET=<openssl rand -base64 32>`（M5 F001：production 下缺失即启动抛错，刻意不回落）
+>    - `AUTH_SECRET=<openssl rand -base64 32>` — **M5-DEPLOY-FIX F001 起由 compose 强制**：
+>      app 服务写的是必填插值 `${AUTH_SECRET:?...}`，缺键的表现从「容器起来了但每个请求 500 /
+>      healthcheck 永不转绿」变成**「compose 在解析阶段当场报错并中止」**（实测
+>      `docker compose -f docker-compose.prod.yml config` exit=1，报 `required variable AUTH_SECRET
+>      is missing a value`；`up` 读同一份文件走同一插值解析，**但未单独实测**）。
+>      故障因此发生在最早、信息最全的那一层。
+>      （为什么必须有：`resolveAuthSecret` 在 production 缺该键时抛错、刻意不回落到公开 dev 常量
+>      ——回落等于任何人都能自签会话 cookie。而 middleware 是默认全拦，`/api/health` 也在其中。）
 >    - `KOL_APP_PASSWORD=<上一步用的口令>`
 >    - `DATABASE_URL_APP=postgresql://kol_app:<KOL_APP_PASSWORD>@db:5432/kolmatrix?schema=public`
 > 3. **迁移连接保持特权不变**：`migrate` 服务仍用 `DATABASE_URL`（kol）。建表与建 policy 需要
@@ -125,7 +132,11 @@ push main → ci.yml 自动检查 + build-push.yml 自动推 app + tools 两镜�
 >    而 policy 认的是会话变量 `app.tenant_id`；没有注入就打开，应用每条查询都会得零行
 >    （不报错的"没数据"）。未打开时应用仍走特权连接，启动日志会持续告警「RLS 不生效」，
 >    这是刻意留的可见状态，不是噪声。
-> 5. compose 若有变更，照例先 `scp docker-compose.prod.yml deploysvr:/opt/apps/newkolmatrix/`（VPS 是人工副本）。
+> 5. **先同步 compose 再部署**：`scp docker-compose.prod.yml deploysvr:/opt/apps/newkolmatrix/`
+>    （VPS 是人工副本）。M5-DEPLOY-FIX F001 起 app 服务多了必填的 `AUTH_SECRET` 行——
+>    **只更新 .env 不更新 compose，容器里就没有这个变量**（旧 compose 不透传，`.env` 里有也没用）。
+>    源码的「production fail-fast env 键」与本文件 app 服务的透传是否一致，由
+>    `tests/unit/deploy-env-passthrough.test.ts` 在 CI 机械钉住（新增同类键漏透传会当场翻红）。
 
 - **迁移/seed 自动**：`up -d` 经 compose `depends_on: migrate service_completed_successfully` 先跑 `newkolmatrix-migrate`（`prisma migrate deploy` + 条件 seed），完成后才起 app。migrate 每次幂等；seed 仅首次（Kol 表空时）灌 ~2500 KOL + embedding，**首次部署可能数分钟**（`up --wait-timeout 600`）。
 - **首次部署**（目录/compose/.env 就位后）：GitHub Actions → Deploy to Production → Run（image_tag=latest）。首次会建库表 + pgvector 扩展 + 灌 seed。

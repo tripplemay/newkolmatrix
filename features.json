@@ -6,7 +6,7 @@
       "title": "compose 透传 AUTH_SECRET(必填插值)+ env 透传一致性机械断言",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "部署前置核查发现的阻断缺陷:docker-compose.prod.yml 的 app 服务未透传 AUTH_SECRET,而 M5 F001 的 resolveAuthSecret 在 production 缺该键时抛错停机(刻意设计,防自签会话 cookie)——照现状部署 app 起不来,生产从 healthy 变 down。根因面:部署配置不在 L1/CI 执行面上,vitest 与 CI 都触不到 compose。",
       "acceptance": "compose app 服务补 `AUTH_SECRET=${AUTH_SECRET:?...}` **必填插值形态**(与既有 AIGCGATEWAY_API_KEY / APIFY_KOL_API_KEY 同款,缺键在 compose 层即报错,不等容器崩);**机械断言**(新增测试,vitest 收集范围内):扫 src/ 中「production 下 fail-fast 读取」的 env 键(判据自定但须先验活:当前实物至少命中 AUTH_SECRET),逐个断言在 docker-compose.prod.yml 的 app 服务 environment 段有透传;**豁免清单显式写死并有注释理由**(dev/CI 专用键如 DEV_TEST_USER_* 生产本就不该有,prod seed 不建——豁免须写明);变异证活:① 从 compose 删掉 AUTH_SECRET 行 → 新断言红 ② 在 src/ 临时加一处 production fail-fast 的新 env 读取而不透传 → 新断言红并点名该键 ③ 把必填插值 `:?` 改成可选 `:-` → 形态断言红;compose 语法自证(docker compose config 或等价解析);deploy.md 的 M5 前置段同步(AUTH_SECRET 现由 compose 强制,缺键表现从「容器崩」变「compose 报错」);tsc/lint/全量 vitest 绿"
     }

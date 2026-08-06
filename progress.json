@@ -1,12 +1,12 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "M5-DEPLOY-FIX(hotfix):补 compose 对 AUTH_SECRET 的必填透传,并装一条「production fail-fast env 必须在 compose 透传」的机械断言,把这类只有部署当下才暴露的缺口挪进 CI 执行面。触发源=M5 部署前置核查(生产未受损,动手前拦下)。",
   "total_features": 1,
-  "completed_features": 0,
+  "completed_features": 1,
   "fix_rounds": 0,
   "current_sprint": "M5-DEPLOY-FIX",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-06T00:10",
+  "last_updated": "2026-08-06T05:00",
   "reference_docs": [
     "docs/dev/deploy.md",
     "docs/test-reports/M5-AUTH-RLS-signoff.md"

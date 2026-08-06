@@ -7,6 +7,37 @@
     "adopted": true
   },
   "project": {
-    "name": "newkolmatrix"
+    "name": "newkolmatrix",
+    "mode_defaults": {
+      "intent": {
+        "desired": {
+          "autonomy": {
+            "enabled": false
+          },
+          "execution": {
+            "profile": "heterogeneous",
+            "role_bindings": {
+              "planner": null,
+              "evaluator": {
+                "tool": "codex",
+                "invocation": "local-cli"
+              },
+              "generator": {
+                "tool": "kimi",
+                "invocation": "local-cli"
+              }
+            }
+          }
+        },
+        "repo_key": "github.com/tripplemay/newkolmatrix",
+        "intent_id": "e66dd7e5-d521-4f04-8e29-a73d9e3cabc4",
+        "issued_at": "2026-08-06T06:00:44.413Z",
+        "issued_by": "tripplezhou@gmail.com",
+        "expected_head_sha": "1c8afd8c0bbf52939376057e055546305024987e",
+        "intent_expires_at": "2026-08-13T06:00:00.000Z",
+        "sig": "MuuIOVGtzZ6L9RmX2mQVHZuXBZpx7MHfe9+9DI4tmB1YNgzV1VEdUJIoMitw3u4UnlBM6YrCAI1NPySFvJQyBQ=="
+      },
+      "staged_at": "2026-08-06T06:00:55.173Z"
+    }
   }
 }

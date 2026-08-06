@@ -5,6 +5,14 @@
 
 ---
 
+## v1.7.0 — 2026-08-06（采纳上游 v1.7.0：真机验证的 vm-v1 bridge + deliverable_channels）
+
+**来源：** 上游 harness-template v1.7.0（e91fbbc）。本项目此前的 v1.6.5（铁律 13）已被上游 v1.7.0 吸收；本次把账本对齐到 v1.7.0，dispatch 运行时同步为经真机验证的 A 血统 vm-v1 provider（6 个 launch 修复）+ deliverable_channels + codex --ignore-user-config 硬化。
+
+- 账本对齐：`framework/VERSION`、`harness.json`、`harness.lock`、`framework-releases.json` 统一为 1.7.0（此前碎片化为 1.6.4/1.6.5）。
+- dispatch 机件与 v1.7.0 源逐字节一致（222 文件 verify ok）；`framework/CHANGELOG.md` 与 `framework/harness/dispatch-mode.md` 保留为本地定制。
+- 本项目本地首创的铁律 13 已随上游 v1.7.0 通用化。
+
 ## v1.6.5 — 2026-08-03（铁律 13：交付叙述必须有机械依据）
 
 **来源：** `newkolmatrix` M4.7-FRONTDESK 复验轮三 evaluator 点名建议（连续三轮共 4 例交付叙述与实物不符，均被 `git show --stat` / `git log -L` / 实跑逐条证伪），用户裁决入铁律。

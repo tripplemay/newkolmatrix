@@ -1,8 +1,8 @@
 {
   "lock_version": 1,
   "framework": {
-    "version": "1.6.4",
-    "commit": "6911969"
+    "version": "1.7.0",
+    "commit": "e91fbbc"
   },
   "managed": {
     ".claude/agents/evaluator.md": {

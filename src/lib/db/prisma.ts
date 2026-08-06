@@ -1,34 +1,47 @@
-// AGENT-FOUNDATION F002 — Prisma client 单例
+// M5.1-TENANT-INJECTION F001（spec D-1 / D-4）— `prisma` 导出名不变，实体换成 ALS 感知代理。
 //
-// Next.js dev 下模块热重载会反复 new PrismaClient → 连接风暴。用 globalThis 单例兜底。
-// 向量列（Kol.embedding vector(1024)）为 Unsupported 类型，读写走 raw SQL（F004 灌向量 / F005 cosine 检索），
-// 不经此 client 的类型化 API——这是 pgvector + Prisma 的既定分工（D3）。
+// 【为什么是代理（D-1，2026-08-06 用户实答）】src/ 下 73 个文件、206 处模型调用点逐个改写，
+// 等于付了 ALS 的复杂度却不收它「调用点改动小」的收益；既有 142 个测试文件按 D-8 不翻修。
+// 代理把注入落点收进这一个模块——每次属性访问时按**当下**状态解析真实目标（spec D-4 三分支）：
+//
+//   ① ALS 有租户事务（withTenant 作用域内）→ 该事务的 tx client。
+//      模型调用与 $queryRawUnsafe / $executeRawUnsafe 都落在这同一个事务上
+//     （后者是审计 B1-2「raw SQL 不在覆盖面」的根治点）。TransactionClient 没有
+//      $transaction —— 作用域内调它会在运行期当场暴露，15 处调用点的迁移是 F004。
+//   ② 无 ALS + DB_APP_ROLE_RUNTIME 未开 → 运行时 client（= 特权连接，行为与今日逐位一致，
+//      D-8：既有测试面 / dev server / scripts 零改动零影响）。
+//   ③ 无 ALS + DB_APP_ROLE_RUNTIME=1 → 抛 MissingTenantScopeError（fail-closed）。
+//      回落到「无变量的 kol_app 查询」= default-deny 下静默零行，是 app-role.ts:98-107
+//      点名的失败模式；「忘了包裹」必须当场炸，不能装作没数据。
+//
+// 【历史沿革】原 M5-AUTH-RLS F007 单例（连接串分工 + globalThis 防热重载连接风暴）已搬入
+// lib/db/runtime.ts（D-2 三层分工）；schema.prisma 的 datasource 刻意不动（迁移必须保持
+// 特权，M5 D-5）。
 
-import { PrismaClient } from '@prisma/client';
-import { resolveRuntimeDatabaseUrl } from './app-role';
+import { Prisma, PrismaClient } from '@prisma/client';
+import { isAppRoleRuntimeEnabled } from './app-role';
+import { getRuntimeDb } from './runtime';
+import { MissingTenantScopeError, getTenantTxScope } from './tenant-scope';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-// M5-AUTH-RLS F007（spec D-5）— 应用运行时连接串与迁移连接串分离：
-//   DATABASE_URL      特权（kol / postgres）：prisma migrate、seed、既有 vitest 集成测走它，行为不变
-//   DATABASE_URL_APP  非特权（kol_app，NOBYPASSRLS）：RLS policy 对它真实生效
-// 单例只在 `DB_APP_ROLE_RUNTIME=1` 时才切过去（理由见 app-role.ts：租户变量注入未落地前
-// 切过去 = 全查询零行）。刻意**不改 schema.prisma 的 datasource**：那会连 `prisma migrate`
-// 的连接一起改掉，而迁移必须保持特权（D-5：建表 / 建 policy 需要 owner 权限）。
-const appDatabaseUrl = resolveRuntimeDatabaseUrl();
-
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    ...(appDatabaseUrl ? { datasourceUrl: appDatabaseUrl } : {}),
-    log:
-      process.env.NODE_ENV === 'development'
-        ? ['warn', 'error']
-        : ['error'],
-  });
-
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
+/** 代理每一次属性访问都重新解析目标：ALS 状态与开关都是「当下」事实，不是模块加载时的快照。 */
+function resolveDelegate(): PrismaClient | Prisma.TransactionClient {
+  const scope = getTenantTxScope();
+  if (scope) return scope.tx;
+  if (isAppRoleRuntimeEnabled()) throw new MissingTenantScopeError();
+  return getRuntimeDb();
 }
+
+/**
+ * 全部既有调用点（73 个 src 文件 / 206 处模型调用 / 15 处 $transaction）经此代理。
+ * 类型保持 PrismaClient，调用点零改写、零感知。
+ */
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    const delegate = resolveDelegate();
+    const value = Reflect.get(delegate, prop);
+    // PrismaClient 的方法（$queryRawUnsafe / $transaction / $connect …）依赖 this，
+    // 必须绑到解析出的真实 client；模型 delegate（prisma.user 这类对象）原样返回即可
+    //（它内部已持有所属 client 的引用）。
+    return typeof value === 'function' ? value.bind(delegate) : value;
+  },
+});

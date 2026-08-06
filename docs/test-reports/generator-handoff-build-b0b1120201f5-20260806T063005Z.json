@@ -1,0 +1,24 @@
+{
+  "batch_id": "M5.1-TENANT-INJECTION",
+  "created_at": "2026-08-06T07:15:55Z",
+  "features": [
+    {
+      "feature_id": "F001",
+      "commits": [],
+      "files_touched": [
+        "src/lib/db/prisma.ts",
+        "src/lib/db/privileged.ts",
+        "src/lib/db/runtime.ts",
+        "src/lib/db/tenant-scope.ts",
+        "tests/integration/tenant-injection-proxy.test.ts"
+      ],
+      "notes": "1. 布局按 spec §4.2：privileged.ts（privilegedDb，恒 DATABASE_URL，globalThis 单例）、runtime.ts（getRuntimeDb()，复用 app-role.ts:91-117 的 resolveRuntimeDatabaseUrl/isAppRoleRuntimeEnabled，未重写）、tenant-scope.ts（AsyncLocalStorage + withTenant + MissingTenantScopeError + getTenantTxScope）、prisma.ts（导出名不变，实体换成 ALS 感知 Proxy，类型仍是 PrismaClient，73 个 src 导入点零改写）。app-role.ts 未改。\n2. acceptance ① 三分支各有正向用例（tests/integration/tenant-injection-proxy.test.ts，11 条全绿）：(a) ALS 有事务 → 代理解析到该 tx，判据为代理与 tx 的 txid_current() 相同（非「看代码」），typed 写入 tx 内可见/事务外不可见；含开关开时 ALS 作用域内照常解析的正向变体。(b) 无 ALS + 开关未设 → inspectConnectionRole(prisma) 为特权连接且普通查询照常（与 rls-negative-suite §0 同口径）。(c) 无 ALS + DB_APP_ROLE_RUNTIME=1 → 访问模型 delegate 与 $queryRawUnsafe 均同步抛 MissingTenantScopeError，断言 instanceof（类型而非字符串），并拨回开关即恢复（证明解析看当下 env）。\n3. acceptance ② 逐位不变：改动前基线 npx vitest run = 142 文件 / 1809 用例全绿；改动后 = 143 文件 / 1820 用例全绿。git status 证据：仅 ' M src/lib/db/prisma.ts' + 4 个新文件（3 个在 src/lib/db/，1 个为新测试文件）；既有 142 个测试文件与 73 个 src 导入点零改动。说明：② 括号内「diff 不含 tests/」按「不改动既有 tests/ 文件」执行——①④⑤ 显式要求的正向用例与变异锚必须落在新测试文件里（vitest 只收集 tests/unit 与 tests/integration），新增文件不可避免。\n4. acceptance ③ 实例分工：开关关时 getRuntimeDb() 与 privilegedDb 同串不同实例（not.toBe + 两连接 current_user 同为 kol 且均特权）；开关开时实测 current_user 不同（kol vs kol_app，isPrivilegedConnection 一 true 一 false）。本机 kol_app 属性实测 NOSUPERUSER+NOBYPASSRLS（pg_roles 直查）。\n5. acceptance ④ raw 转发：withTenant 内经代理的 $executeRawUnsafe 写入，同事务内经代理的 $queryRawUnsafe 可见（count=1）、事务外经运行时连接不可见（count=0）、fn 抛错回滚后特权连接复查零残留；另有提交路径落库+两层清理（登记 id 精确删 + 全表 slug 前缀普查），跑完直查 f001proxy-% 前缀 0 行。\n6. acceptance ⑤ 变异证活（还原用 cp 回写预存副本，未用 git checkout，还原后 diff 校验 byte-exact 并重跑 11 条全绿）：变异A 把分支③抛错改成回落 getRuntimeDb() → ①(c) 三条用例红（expected function to throw... but it didn't / toBeInstanceOf 失败）；变异B 把代理对 $queryRawUnsafe/$executeRawUnsafe 的解析恒指向运行时 client → ①(a) 两条 txid 用例红（expected '680768' to be '680767'：raw 落到另一个事务）+ ④ 回滚路径红（expected 1 to be 0：raw 写在事务外自动提交）+ ①(c) raw 用例红，共 4 条。\n7. acceptance ⑥：tsc --noEmit 0 error；next lint 0 warning 0 error。\n8. 【building 期实测回归，已修复并钉注释】首版 runtime.ts 懒构造 client 导致 weekly-draft-routine.test.ts 两条用例红（AI_APICallError: Invalid API key）。根因探针实证：new PrismaClient() 构造本身会重载 .env（Prisma 6.19 client runtime 内嵌 dotenv，只补缺失键不覆盖在场键）——原 prisma.ts 在模块 import 时构造，重载发生在测试 beforeAll 清凭据之前；懒构造把重载推迟到清凭据之后，把已删的 AIGCGATEWAY_* 塞回 process.env，「零外呼降级」被改道成真打网关。修复：runtime.ts 模块加载时急切调用一次 getRuntimeDb()（恢复原时序），文件内有完整注释。修复后该文件单独跑绿 + 全量 143/1820 绿。这对 F005/F006 是重要环境事实：任何「首次访问才构造」的 db client 都有同样的 .env 重载时序坑。\n9. 【F001/F002 边界说明】tenant-scope.ts 交付的是单层 withTenant（开事务 → SELECT set_config('app.tenant_id', $1, true) → ALS.run）：F001 acceptance ④ 的正向用例必须有真事务才能写。同租户嵌套复用 / 跨租户嵌套抛错 / B1-4 / B3 两条预写死回归均为 F002 范围，文件头注释已标明；此刻全仓无 withTenant 调用点（迁移是 F004），单层语义不可达误用。\n10. 【环境事实】本机无 .env，由 .env.example 复制生成（gitignored，不在 diff 内）；localhost:5434 经 colima 端口转发指向本机 dev 库（11 migrations / kol_app 已建 / 4 个 dev 租户），即 .env.example 登记的标准 L1 环境，非生产。测试产生的夹具全部两层清理，dev 库直查零残留（f001proxy-% 前缀 0 行）。另：docker compose 插件在本机不可用，standalone docker-compose 可用（npm run db:up 因此在本机跑不了，属环境观察，不影响交付）。"
+    }
+  ],
+  "l1_ran": {
+    "lint": "npm run lint → ✔ No ESLint warnings or errors",
+    "typecheck": "npm run typecheck（tsc --noEmit）→ 0 errors",
+    "test": "npx vitest run → Test Files 143 passed (143) / Tests 1820 passed (1820)（Duration 11.41s）；改动前基线 142 passed (142) / 1809 passed (1809)；F001 新文件 tests/integration/tenant-injection-proxy.test.ts 单跑 11/11 绿；weekly-draft-routine.test.ts 回归修复后单跑 4/4 绿"
+  },
+  "waiting": null
+}

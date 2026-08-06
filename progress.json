@@ -6,7 +6,7 @@
   "fix_rounds": 0,
   "current_sprint": "M5-DEPLOY-FIX",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-06T05:00",
+  "last_updated": "2026-08-06T01:15",
   "reference_docs": [
     "docs/dev/deploy.md",
     "docs/test-reports/M5-AUTH-RLS-signoff.md"
@@ -14,16 +14,89 @@
   "docs": {
     "spec": null,
     "test_cases": null,
-    "signoff": null,
+    "signoff": "docs/test-reports/M5-DEPLOY-FIX-signoff.md",
     "framework_reviewed": false
   },
   "role_assignments": null,
   "mode_intent": null,
-  "evaluator_feedback": null,
+  "evaluator_feedback": {
+    "batch": "M5-DEPLOY-FIX",
+    "round": "verifying-1",
+    "evaluated_sha": "312eb9a",
+    "evaluator": "Andy/evaluator-subagent (isolated context)",
+    "verdict": "PASS",
+    "features": {
+      "F001": {
+        "verdict": "PASS",
+        "acceptance_items": {
+          "compose 必填插值形态(:? 缺键 compose 层报错)": "PASS",
+          "机械断言在 vitest/CI 收集范围内且判据先验活": "PASS",
+          "三张例外清单显式写死+理由与实物一致": "PASS",
+          "变异证活 ①删透传行 ②新增 fail-fast 键 ③:? 改 :-": "PASS",
+          "compose 语法自证": "PASS",
+          "deploy.md M5 前置段同步": "PASS",
+          "tsc/lint/全量 vitest 绿": "PASS",
+          "未越界(src/ 零改动)": "PASS"
+        }
+      }
+    },
+    "issues": [],
+    "l1_status": {
+      "tsc": "exit=0",
+      "lint": "No ESLint warnings or errors",
+      "vitest_full": "142 files / 1809 tests passed",
+      "new_test_file": "tests/unit/deploy-env-passthrough.test.ts 9/9 passed",
+      "env_false_positive_screen": "无(无 prisma client 失配类误报)"
+    },
+    "mutations_run": {
+      "compose_side": [
+        "删 AUTH_SECRET 透传行 → 红2(透传+形态)",
+        ":? 改 :- → 只红1(形态)，透传用例仍绿=鉴别力正确",
+        "塞入 DEV_TEST_USER_EMAIL → 红1(禁止清单)",
+        "NODE_ENV 字面值改插值 → 红1",
+        "删 RESEND_API_KEY 透传 → 红1(可选清单仍要求透传)"
+      ],
+      "src_side_new_writing_styles": [
+        "解构赋值 → 红并点名",
+        "模板字符串键 → 红并点名",
+        "类字段初始化 → 红并点名",
+        ".tsx 文件内 → 红并点名",
+        "动态键 env[NAME] → 漏(盲区)",
+        "反向判据 NODE_ENV !== production 后 throw → 漏(盲区)",
+        "helper isProd() 判 production → 漏(盲区)",
+        "同文件可选键连带 → 误红6条(设计取舍，有逃生口)"
+      ],
+      "test_side": [
+        "清单塞入过期键 LEGACY_GONE_KEY → 防腐用例红并点名"
+      ],
+      "cross_validation": "另写独立第二实现(正则口径)普查 src/ 25 个 env 键；严格判据命中集与被测断言完全一致(4键)，宽判据额外命中 0 → 今日无活体漏网",
+      "restored": "全部探针/变异已删除还原；compose hash 前后一致 47697d7a；git status 干净"
+    },
+    "new_soft_watch": [
+      "S1 扫描判据 3 盲区(动态键 / NODE_ENV !== production 反向写法 / helper 判 production)；今日 0 例活体漏网，属将来风险；反向写法与 resolveAuthSecret 只差一个 !",
+      "S2 文件级判定连带误红：同文件带默认值的可选键被要求必填透传(实测红6条)；有逃生口但首选修法文案会误导；未来给 lib/ai/gateway.ts 加 production 校验时会命中",
+      "S3 守门只覆盖 app 服务 + 只扫 src/；migrate 服务(scripts/deploy/migrate-seed.sh)同样在生产跑代码但无守门；今日无缺口",
+      "S4 PROD_FORBIDDEN 用 \\bKEY\\b 扫 compose 全文，未来注释里提及该键会误红(极轻)"
+    ],
+    "side_effects": "无。未修改产品代码/compose/文档基线；未连接或操作 VPS；未执行部署动作；所有 docker 调用限于 config 与 --dry-run，本机未产生本项目容器",
+    "l2_status": "[L2] 未执行，待授权(VPS 真实 up -d 与部署后 staging 实测)",
+    "deploy_recommendation": {
+      "recommend_release": true,
+      "rationale": "修复形态本身 fail-safe：实测 pull/up 在缺键时于解析阶段中止，发生在 recreate 任何容器之前，deploy 工作流第1步即 pull(set -euo pipefail)，最坏结局是部署中止+报错精确，旧容器继续服务；产品代码零改动，回归面为零",
+      "hard_prerequisites_in_order": [
+        "1) VPS .env 写入 AUTH_SECRET=$(openssl rand -base64 32)",
+        "2) scp docker-compose.prod.yml 到 VPS（唯一人为失误面：只改 .env 不同步 compose = 完全没修）",
+        "3) 可选自检：VPS 上 docker compose config exit=0",
+        "4) 手动触发 Deploy to Production"
+      ],
+      "caveat": "AUTH_SECRET 轮换会使全部现存登录会话失效；首次配置无此问题(此前生产无该键)"
+    },
+    "report": "docs/test-reports/M5-DEPLOY-FIX-signoff.md"
+  },
   "generator_handoff": null,
   "session_notes": {
     "Andy": "【M5-DEPLOY-FIX hotfix · 2026-08-06】部署前置核查拦下阻断缺陷:compose 未透传 AUTH_SECRET,而 F001 生产缺该键即抛错停机 → 照现状部署会把生产打下线。生产当时 healthy 47h(跑 M4.8),零损害。按铁律 9 报根因 + 方案 → 用户确认 → 开本批。Bug 修复批次,spec 省略(features.acceptance 即依据)。范围克制:只做 compose 透传 + 一条覆盖面断言,不顺手扩 deploy 校验体系。",
-    "Reviewer": null,
+    "Reviewer": "【M5-DEPLOY-FIX 首轮 verifying · 2026-08-06 · 隔离 evaluator subagent】PASS 7/7 acceptance + 边界项，零 issue，无需 fixing。重点自证：①compose :? 形态不只读文本——用临时 dummy env 实测 config/pull/up --dry-run 三面，确认缺键在解析阶段中止(补齐了实现方标注的「up 未核」)，故失败早于容器 recreate=fail-safe。②鉴别力用 8 种作者未用的写法变异：解构/模板键/类字段/.tsx 四种全抓并点名；动态键、NODE_ENV !== production 反向写法、helper 判 production 三处漏(S1)。③另写独立第二实现(正则口径)普查 src/ 25 键交叉验证，命中集与被测完全一致、宽判据额外命中 0 → 盲区是将来风险不是当前缺口。④例外清单理由逐条去实物核(dev-seed assertDevSeedAllowed 无 escape hatch；prod migrate 入口不含 dev-user；RESEND 是发送时刻抛错故 :- 正确)。部署放行意见：建议放行，但 scp compose 这一步是唯一人为失误面(只改 .env 不同步 compose = 完全没修)。",
     "Mark": null
   },
   "lane": "fast"

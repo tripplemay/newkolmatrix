@@ -1,137 +1,30 @@
 {
-  "status": "done",
-  "user_goal": "M5-AUTH-RLS:真实认证(Auth.js v5 Credentials+JWT / 开放注册即建租户 / middleware 全站鉴权 401)+ 真 PG RLS 多租户隔离(非特权角色 kol_app + 23 表 policy default-deny + $extends 租户变量注入,覆盖 pgvector raw SQL)。执行形态:本地异构首跑(evaluator=codex local-cli,generator=主上下文默认映射)。红线:403 闸门语义不碰 / 无隐式回落 dev 租户 / 登录注册 fail-closed 限速 / 审计只记元数据。",
-  "total_features": 12,
-  "completed_features": 12,
-  "fix_rounds": 2,
-  "current_sprint": "M5-AUTH-RLS",
+  "status": "building",
+  "user_goal": "M5-DEPLOY-FIX(hotfix):补 compose 对 AUTH_SECRET 的必填透传,并装一条「production fail-fast env 必须在 compose 透传」的机械断言,把这类只有部署当下才暴露的缺口挪进 CI 执行面。触发源=M5 部署前置核查(生产未受损,动手前拦下)。",
+  "total_features": 1,
+  "completed_features": 0,
+  "fix_rounds": 0,
+  "current_sprint": "M5-DEPLOY-FIX",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-05T06:30",
+  "last_updated": "2026-08-06T00:10",
   "reference_docs": [
-    "docs/specs/M5-AUTH-RLS-spec.md",
-    "docs/dev/architecture.md",
     "docs/dev/deploy.md",
-    "docs/test-reports/M4.8-HARDEN-signoff.md",
-    "framework/harness/dispatch-mode.md"
+    "docs/test-reports/M5-AUTH-RLS-signoff.md"
   ],
   "docs": {
-    "spec": "specs/M5-AUTH-RLS-spec.md",
+    "spec": null,
     "test_cases": null,
-    "signoff": "test-reports/M5-AUTH-RLS-signoff.md",
+    "signoff": null,
     "framework_reviewed": false
   },
   "role_assignments": null,
   "mode_intent": null,
-  "evaluator_feedback": {
-    "round": 3,
-    "phase": "reverifying (fix_round2 后 · 窄面复验)",
-    "tested_sha": "94bb3522e2cd7e4b81212da51a62e138c356e823",
-    "verdict": "PASS",
-    "summary": "12 PASS / 0 PARTIAL / 0 FAIL —— 建议签收整批。I-4 闭合：新归因的 8 个文件分类我逐个 git diff 独立复核 8/8 吻合（其中 3 条含只有读过 diff 才写得出的信息，间接支持 generator 的『逐个 diff 看内容』过程陈述）；8/13/137 三个数我自己数过与 git 吻合；「RLS 面零翻修」在放大到 22 个既有测试资产 .ts 的更大样本上仍成立（因 RLS 而改的：0 个）。「只改 architecture.md 一行、产品代码零改动」以 diff 自证为真。新登记 N-1（口径未写明，真陈述下的精度问题）转 soft-watch，不构成 PARTIAL。",
-    "features": {
-      "F013": {
-        "verdict": "PASS",
-        "evidence": "轮二 PARTIAL → 本轮转 PASS。① 8 个文件逐个读 diff 后独立归类，与文档所写 8/8 吻合：F004 会话注入 4（f009 显式传 {tenantId} / m45-g4 · m45-g5 · materials-upload 三处 vi.mock('lib/auth/session-tenant')+makeSessionTenantMock），非会话 4（project-scope-census = findFirst 拓宽到 findFirstOrThrow/findMany 的 S-M48-2 修法 / repo-hygiene = tests/.auth storageState 卫生条目 / architecture-doc-freshness = +66 行 F013 文档钉 / playwright.evaluator.config.ts = setup+storageState 登录前置，头注释自证起因是 F003 middleware）；第 5·6·8 三条归因无法由文件名推出，且第 8 条的 F003/F012 双归因不在我轮二 fix_hint 清单里。② 计数：git ls-tree 3901404 tests/ = 137；M 状态 .ts = 8（其中 *.test.ts = 7）；基线 8 A + 5 M = 13（5 张 M 全部 *-linux）。③ 全量绿有实跑背书 141 files / 1800 tests。④ RM8（抹 F004）1 red、RM9（摘「RLS 面」限定域）1 red → 重写没把钉的抓手写没；RM10（把轮二失实归因原样装回，措辞合规）34 全绿 → 与 RM7b 同向再证该钉只守表述不守数字，本轮闭合 100% 靠人核，如实登记。"
-      }
-    },
-    "unchanged_pass": [
-      "F001",
-      "F002",
-      "F003",
-      "F004",
-      "F005",
-      "F006",
-      "F007",
-      "F008",
-      "F010",
-      "F011",
-      "F012"
-    ],
-    "side_effect_on_pass_features": "无。18781db..94bb352 只有 3 个文件（docs/dev/architecture.md + features.json + progress.json），src/ prisma/ tests/ scripts/ 命中数 0；tsc exit 0 · lint 无告警 · vitest 141 files/1800 tests 与轮二逐位相同（无新增翻红、无用例数漂移）；全量跑前后 DB delta 0（total 333 / orphan 129 / Tenant 4 / User 1）",
-    "issues": [],
-    "closed_issues": [
-      {
-        "id": "I-1",
-        "status": "CLOSED",
-        "evidence": "轮二 R1 四路取证 + R5 四向变异"
-      },
-      {
-        "id": "I-2",
-        "status": "CLOSED",
-        "evidence": "轮二字面闭合；同句归因缺陷经 I-4 于本轮闭合"
-      },
-      {
-        "id": "I-3",
-        "status": "CLOSED",
-        "evidence": "轮二单套件+整仓 delta 0；本轮全量跑前后 DB 再次 delta 0 —— 第二次复现，证明是修法而非一次性清理"
-      },
-      {
-        "id": "I-4",
-        "status": "CLOSED",
-        "evidence": "8 个文件分类逐条 git diff 独立复核 8/8 吻合；13 张基线 = 8 A + 5 M 自数属实；见 signoff §复验轮三 T1/T2"
-      }
-    ],
-    "l1_status": {
-      "tsc": "exit 0",
-      "lint": "No ESLint warnings or errors",
-      "vitest": "141 files / 1800 tests 全绿（另单跑 tests/unit 56 files / 1040 tests 全绿，核证本报告追加未触发任何文档扫描钉）",
-      "doc_freshness": "34 passed",
-      "db_delta": "全量跑前后逐位相同：total 333 / orphan 129 / Tenant 4 / User 1",
-      "not_run": "本轮改动面为文档，无运行时可测面 → 未 next build、未起 standalone、未跑 curl 探针（如实登记）"
-    },
-    "mutations_run": [
-      "RM8 抹掉新句里的 F004 归属（其余措辞不动） → 1 failed / 33 passed（第 34 条钉红）",
-      "RM9 「**RLS 面零翻修**」→「**零翻修**」摘限定域 → 1 failed / 33 passed",
-      "RM10 把轮二被判失实的那句归因原样装回（措辞仍合规） → 34 passed 全绿 ⚠️ 与 RM7b 同向再证：该钉只守表述不守数字与归因"
-    ],
-    "probes_run": [
-      "git diff --name-status 18781db..94bb352 与 83620c5^..94bb352 双向自证「只改一行」",
-      "git status --short 产品面/测试面 → 空，核证被测树 == 94bb352（无未提交夹带）",
-      "8 个既有测试 .ts 逐个 git diff 读内容后独立归类（不看 generator 分类）",
-      "口径主动放大：tests/ + scripts/test/ + 根 playwright/vitest 配置共 22 个既有测试资产 .ts 全部读 diff，核「RLS 面零翻修」",
-      "计数三连：git ls-tree 137 / M 状态 .ts 8（test.ts 7）/ 基线 8 A + 5 M = 13"
-    ],
-    "new_soft_watch": [
-      "S-M5-7（新·低）「RLS 面零翻修」的证明力受限于运行时仍走特权连接（kol = BYPASSRLS，RLS 对当前运行时惰性）——「RLS 启用没改上层」有一半是同义反复。真正检验「预留兑现」在 M5.1 切 DB_APP_ROLE_RUNTIME=1 之后。不判缺陷（同一 bullet 已带 caveat 且被第 32 条钉住），建议 M5.1 批末回来复核",
-      "S-M5-8（新·低，由 N-1 转入）NFR-S9 句「既有测试 8 个 .ts」未写限定域：按钉内数法（-- tests/）为真，按朴素读法少计 14 个（scripts/test 12 + 根 playwright.config.ts / vitest.config.ts）。我已逐个读 diff 核证这 14 个全部是 F004/F010 systemContext + F012 登录前置 + F001 vitest inline，无一因 RLS → 结论不变。建议下次触碰该行时写成「既有测试（tests/）8 个 .ts」",
-      "N-2（info·铁律 13·方向自贬，不阻断）commit 83620c5 正文「视觉基线原写『5 张』也是估计值」无机械依据且与 git 相反：原句写的是「5 张 Linux 视觉基线」，而 M 状态基线恰 5 张且全部 *-linux.png，5 是精确数。因属自贬方向、不夸大质量、不影响落盘正文，故登记不阻断",
-      "N-3（观察·非缺陷）06:00:00 出现 4 行 kind=auto/actor=strategy/tenant=dev 的 OperationLog（轮二终态 329 → 我接手 333），是本机后台 scheduler 到点跑的，非 fix_round2 产物；顺带是 F010 系统上下文收敛的运行时旁证",
-      "S-M5-5 / S-M5-6 / S-M5-3 / S-M5-4 沿用；S-M5-2 维持轮二的「建议关闭」"
-    ],
-    "l2_gaps": [
-      "真多用户并发会话正确性（未授权，零执行）",
-      "生产 RLS 实测（运行时仍特权连接，此刻只有应用层 where 一道）",
-      "开放注册真实滥用面（BL-AUTH-EMAIL-VERIFY 在案）",
-      "DB_APP_ROLE_RUNTIME=1 真实切换（裁-6，属 M5.1）",
-      "prod 人工前置步实机执行",
-      "生产 nginx 对 /img/../api/... 归一化行为的实机确认",
-      "以上全部未授权零执行，随批次转入 M5.1 / backlog，不因签收而视为已验"
-    ],
-    "side_effects": [
-      "3 条变异（RM8/RM9/RM10）全部 cp /tmp 备份还原，git diff --quiet docs/dev/architecture.md 逐条核证复位",
-      "npx vitest run 全量 1 次：跑前跑后 DB 逐位相同（delta 0），未做任何清理动作",
-      "tsc / next lint / 单套件 vitest 均只读",
-      "产品代码零修改",
-      ".claude/dispatch/ 与 framework/templates/ 的未提交改动未动未判（框架侧同步，不在本批产品面）",
-      "本轮唯一写入：docs/test-reports/M5-AUTH-RLS-signoff.md 追加「## 复验轮三」段（前两轮内容一字未改）+ progress.json 的 evaluator_feedback / docs.signoff"
-    ],
-    "signoff_recommended": true,
-    "next_status": "done",
-    "report_path": "docs/test-reports/M5-AUTH-RLS-signoff.md（§复验轮三）"
-  },
-  "generator_handoff": {
-    "round": 2,
-    "date": "2026-08-05",
-    "fixes": [
-      "I-4(F013,低):NFR-S9 归因半句改为逐条实数拆分。不再凭记忆:用 git diff --name-status 3901404..9dcbed4 数出 8 个既有测试 .ts 并**逐个 diff 看内容**归因(F004 会话注入 4 个 / 非会话 4 个:F011 census 拓宽、F012 卫生条目、F013 文档钉、F003+F012 登录前置);视觉基线原写「5 张」也是估计值,实数 13 张同法数出。底层结论「RLS 面零翻修」保留(两轮复验均为真)。"
-    ],
-    "l1_status": "doc-freshness 34 条全绿(本轮 +1 条来自 evaluator 复验产物);产品代码零改动(仅 architecture.md 一行)",
-    "for_evaluator": "本轮只动 architecture.md 一行。请复验:① 新归因的 8 个文件分类是否与你自己的 git diff 逐条一致(你首轮/轮二两次都指出我按印象归因,这次请把我的分类当成待证伪对象)② 13 张基线数是否属实 ③「RLS 面零翻修」这句是否仍成立 ④ 确认无其它面被波及。其余 11 条 feature 本轮零触碰。"
-  },
+  "evaluator_feedback": null,
+  "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M5-AUTH-RLS 全批次 · 2026-08-04/05 · 计划本地异构、实际回落快车道】planning→building→verifying→fixing×2→done,12/12 PASS 签收。■ 编排:building 四域串行派 generator-restricted(A1 认证核 / F012 测试面提前 / A2 注入注册 / B1 RLS 链 / B2 收敛+负向),F013 与 I-4 修复由主上下文亲执。■ **异构首跑失败四次全是基础设施**:codex 个人 config 的 ~ 路径 profile 在沙箱 HOME 落空(已加 --ignore-user-config)→ codex auth.json 非有效 OpenAI key(依赖 config 自定义 provider,两难硬停)→ kimi 30min 墙钟 → kimi 60min 版撞本机 DNS 瞬断(auth.kimi.com ENOTFOUND)。零验收结论产生,按预案回落隔离 subagent。registry/信封/适配器修复保留。■ **我自己栽的跟头**:F013 文档归因连续两轮失实(I-2「137 个测试零翻修」→ I-4「8 个都是 F004 缝」),根因是 commit 正文把「与 evaluator 数字一致」当作已核证,而没核证那些文件的**性质**——铁律 13 的形态比我以为的更细。第三轮改为逐个 git diff 看内容再归因才闭环。■ F009 提审是本批最大的方法论收获:Generator 用真库探针证伪了 spec 的字面机制(不是「实现不了」而是「实现出来会静默毁原子性」),并发现引导悖论。这类「spec 前提在实物上不成立」的发现必须走提审而非硬做。■ CI 守门本批插队三次(psql URI / CI 空库无 dev 租户 / 非空洞判据环境耦合),全是跨环境形态差。■ 遗留给人类:M5 部署(deploy.md 前置四步)+ dispatch 面未提交的框架同步改动待确认。",
-    "Reviewer": "【M5-AUTH-RLS 三轮验收 · 2026-08-05 · Andy/evaluator-subagent 隔离上下文】完整叙述见 signoff 三段。轮一 10P/2PA(抓到 I-1 闸门后缀绕过:末段动态段路由加 .json 即让 middleware 不执行,现有测试一条不会红);轮二 11P/1PA(I-1 真闭环——自建 19 条第二绕过 + 10 条穿越 + 17,354 条语料对 Next 编译产物真 regexp 穷举核对,静默失守 0;同时抓到 I-4 归因再度失实);轮三 12P 建议签收(I-4 分类逐个 diff 独立复核 8/8 吻合,且其中 3 条含只有读过 diff 才写得出的信息,间接支持 generator 的过程陈述;「RLS 面零翻修」在放大到 22 个测试资产的更大样本上仍成立)。",
+    "Andy": "【M5-DEPLOY-FIX hotfix · 2026-08-06】部署前置核查拦下阻断缺陷:compose 未透传 AUTH_SECRET,而 F001 生产缺该键即抛错停机 → 照现状部署会把生产打下线。生产当时 healthy 47h(跑 M4.8),零损害。按铁律 9 报根因 + 方案 → 用户确认 → 开本批。Bug 修复批次,spec 省略(features.acceptance 即依据)。范围克制:只做 compose 透传 + 一条覆盖面断言,不顺手扩 deploy 校验体系。",
+    "Reviewer": null,
     "Mark": null
   },
-  "lane": "heterogeneous"
+  "lane": "fast"
 }

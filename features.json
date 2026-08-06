@@ -1,113 +1,14 @@
 {
-  "batch": "M5-AUTH-RLS",
+  "batch": "M5-DEPLOY-FIX",
   "features": [
     {
       "id": "F001",
-      "title": "Auth.js v5 Credentials + JWT 装配 + User expand 迁移",
+      "title": "compose 透传 AUTH_SECRET(必填插值)+ env 透传一致性机械断言",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "spec D-1:邮箱+密码,JWT 会话(无 adapter 表)。User 加 passwordHash(expand 迁移,bcrypt cost 12)。AUTH_SECRET 接线(dev .env / CI / VPS 前置文档)。",
-      "acceptance": "next-auth v5 依赖入 package.json;`/api/auth/*` 路由就位;User 迁移为纯 expand(只加列,不动既有行);authorize 用 bcrypt 比对;JWT 携带 { userId, tenantId } 且 session 回调透出;**401 语义钉(裁-1 修订)**:401 的承载层 = middleware(未登录访问受保护面恒 401 JSON,F003);Auth.js 内建端点循其协议(302/200),不强求 401;**零新增 403**(403 已锁闸门语义,architecture:1450)由 status-code census 普查钉守;登录成功/失败行为级测试(错密码/不存在用户同一错误文案,不泄露用户存在性——负向断言);seed 增 dev 测试用户(已知凭据,仅 dev/CI,prod 不建,条件判断钉住);变异:authorize 改明文比对 → 红;tsc/lint 绿"
-    },
-    {
-      "id": "F002",
-      "title": "登录/注册页 Horizon port + 视觉基线",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-10:按 template-port-guide 定位模板 sign-in 实源 port /login 与 /signup,登记 template-inventory。",
-      "acceptance": "§2.1 原型=Horizon 模板 sign-in(port 后在 docs/dev/template-inventory.md 登记来源路径);§2.2 只用模板 scaffold 既有原语,不引入新 UI 库;§2.3 不得简化:卡片布局/品牌区/输入态样式保留,不得新增第三方登录按钮;§2.4 视觉基线:login+signup 两页 × 两视口(1512×982/430×932)PNG 入库且 CI visual job 覆盖(核到 ci.yml 命令链,M4.7 规律 3);表单错误态(401/限速/校验失败)有用户可读文案且渲染实测;两页未登录可达(middleware 豁免联动 F003)"
-    },
-    {
-      "id": "F003",
-      "title": "src/middleware.ts 鉴权边界(从零建)",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-2:全站粗闸。豁免清单显式写死;API 401 JSON / 页面 redirect /login。",
-      "acceptance": "豁免清单为导出常量并**单测钉全集**(恰等于:/api/health · /api/signals/inbound · /api/auth/* · /login · /signup · Next 静态;扩豁免必须改断言);未登录访问任一非豁免 API → 401 JSON(逐类抽测:actions/agent/projects/delivery 各≥1);未登录访问 /admin/* → redirect /login;已登录 → 原行为零变化(回归);webhook svix 路径不受影响(实测签名链仍通);变异:摘 middleware matcher 某段 → 对应 401 测试红;豁免清单塞 /api/projects → 钉红"
-    },
-    {
-      "id": "F004",
-      "title": "会话租户注入:context.ts EXTENSION POINT 兑现 + systemContext 显式路径",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-3:buildToolContext 从会话解析 {tenantId, actor};删模块级缓存 _devTenantId;scheduler/scripts 走显式 systemContext(tenantSlug)。",
-      "acceptance": "`buildToolContext` 从会话取 tenantId/actor(HTTP 面 29 route + admin pages 全收敛,tsc 强制);**模块级缓存 `_devTenantId` 删除**(grep 0 命中);**无隐式回落**:无会话且未显式传租户 → throw(负向断言,不默认 dev——静默跨租户是本 feature 最大风险);`systemContext(tenantSlug)` 显式路径就位;既有 vitest 测试床显式传 ctx 不受影响(全量回归绿);变异:给无会话路径加回落 dev → 负向红"
-    },
-    {
-      "id": "F005",
-      "title": "开放注册:注册即建租户",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-4:/signup 事务内建 Tenant + owner User。防滥用与空态明示。",
-      "acceptance": "注册事务:Tenant(name=输入)+User(email 唯一,bcrypt)原子建(部分失败零残留,行为级测试);email 唯一冲突 → 明确 4xx 不 500;zod 密码强度(≥10 位含字母数字,负向用例);注册后自动登录并落 OperationLog(元数据 only:email 域名+结果,**不含密码任何形态**——隐私断言串);新租户首屏空态明示不算缺陷(spec 语义,登记测试注释);变异:把建租户挪出事务 → 原子性测试红"
-    },
-    {
-      "id": "F006",
-      "title": "登录/注册 fail-closed 限速 + 审计留痕",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-4:复用 checkRateLimit。登录 5/min/IP + 5min block;注册 3/min/IP。fail-closed。",
-      "acceptance": "限速维度 IP(clientIpOf 复用);阈值为导出常量;**fail-closed**(限流存储异常 → 拒绝而非放行,行为级测试驱动异常路径,注释明示与既有 fail-open 面的区别是显式设计);超限 → 429 + 用户可读文案;不设 escape hatch(安全敏感面,spec 明示);登录成/败、注册、限速触发均落 OperationLog(元数据 only);变异:fail-closed 改 fail-open → 红;摘留痕 → 红"
-    },
-    {
-      "id": "F007",
-      "title": "非特权 DB 角色 kol_app 三环境落地 + BYPASSRLS 哨兵",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-5:RLS 硬前置。迁移仍走特权 kol,应用运行时切 kol_app。",
-      "acceptance": "幂等角色创建 SQL(NOSUPERUSER NOBYPASSRLS + GRANT DML)落 scripts/db/;dev compose 接线(init 或 bootstrap);CI workflow:建角色步 + 应用测试用 kol_app 连接串;deploy.md 追加 prod 人工前置段(pgdata 上执行 SQL + VPS .env 键);**运行时哨兵**:应用启动断言当前连接 rolbypassrls=false(kol_app 连接下绿、特权连接下红——双向实测);迁移连接保持特权(prisma migrate 走 kol,验证迁移仍可跑);变异:哨兵断言摘除 → 专项钉红"
-    },
-    {
-      "id": "F008",
-      "title": "RLS 迁移:23 表 policy + default-deny",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-6:ENABLE RLS + USING/WITH CHECK (tenant_id = current_setting('app.tenant_id', true));Tenant 表按 id 隔离。",
-      "acceptance": "迁移覆盖全部 23 张带 tenantId 表 + Tenant(计数断言=schema 实物,防漏表);USING 与 WITH CHECK 双侧;**default-deny 行为级证明**:kol_app 连接未设变量 → SELECT 零行(逐表抽测 ≥5 张 + 全表计数普查);设变量 → 仅见本租户行;特权连接不受影响(既有测试全量回归绿);迁移为 expand 零数据改动,回滚安全注释明示;变异:某表 policy 改 USING(true) → 该表负向测试红"
-    },
-    {
-      "id": "F010",
-      "title": "scheduler/scripts 系统上下文收敛",
-      "priority": "medium",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-3 双路之无会话面:scheduler 4 处 + scripts 9 处经 systemContext;与 F004 联动收口。",
-      "acceptance": "scheduler(lib/jobs/scheduler.ts 4 处)与 scripts 9 处全部显式传租户(kol-sync 例程按现语义作用于 dev 租户,显式写明而非隐式);例程冒烟不回归;grep getDevTenantId 终态清单与 F004 口径一致(仅 systemContext 实现与测试夹具);变异:某 script 摘显式租户 → throw(F004 负向复用)"
-    },
-    {
-      "id": "F011",
-      "title": "RLS 负向验证套件(双租户双层双证)+ S-M48-2 处置",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-8 + F009 审计裁决 Q4:专用 kol_app 连接;API 层与 DB 层各证;census 降二线 + 正则拓宽。",
-      "acceptance": "双真租户夹具(A/B 各带代表性数据,独一前缀,清理登记表+不从登记表派生的整表普查两层);**API 层**:A 会话请求 B 资源(项目/行动/物料逐类)→ 404/零行,B 数据不出现在响应字节(正向精确);**DB 层**:kol_app + set_config A → raw SQL 直查 B 租户行 = 0;BYPASSRLS 哨兵在套件内断言;census 钉正则拓宽 findMany/findFirstOrThrow(S-M48-2 evaluator 点名修法)并加注释降二线但保留运行;变异:F008 policy 改 USING(true) / F009 摘注入 → 本套件对应红(与实现层变异互证);**两层分工必须写清(裁 Q4)**:运行时仍特权连接下,API 层证的是应用层 where 有效、DB 层(自建 kol_app 连接)证的才是 RLS 有效,报告不得混同"
-    },
-    {
-      "id": "F012",
-      "title": "e2e / visual 鉴权适配",
-      "priority": "medium",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-8:seed 测试用户;playwright storageState;两套 e2e 脚本带会话;CI 前置。",
-      "acceptance": "playwright 全局 setup 登录一次落 storageState,既有视觉用例零改动跑通(本机与 CI);agentloop:e2e / frontdesk:e2e 走真 route 处带会话(登录步入脚本,清理纪律不变);CI workflow 前置链核证(实读 yml,M4.7 规律 3);本机既有 2 条已登记基线翻红项身份不变(不新增翻红);未登录跑 e2e → 明确失败信息而非静默空跑(负向)"
-    },
-    {
-      "id": "F013",
-      "title": "文档翻牌 + doc-freshness 扩 + deploy.md 前置段 + backlog 记账",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "批末文档刷新(13 features ≥10 → 独立文档 feature + acceptance 复核双上,批内新鲜度规则)。",
-      "acceptance": "architecture.md 翻牌:选型表:86 · :215 边界声明 · :282 · :1450(401 语义随实装更新)· :1594 NFR-S9(RLS 已启用)· :1829 ADR-04 兑现标记;agent-architecture.md 相关段同步;deploy.md 部署前置段(F007 prod 人工步 + AUTH_SECRET + **R16 备份建议置段首**);doc-freshness 扩断言:认证选型行/RLS 状态句/middleware 豁免清单计数 = 实物,变异证活(改坏各 → 红);批末新鲜度复核判据不带左括号含 docs/ 范围先验活;backlog:新增 BL-AUTH-EMAIL-VERIFY、S-M48-2 销账完成态、BL-VISUAL-DATA-ISOLATION 补记与本批 seed 测试用户关系"
+      "status": "pending",
+      "description": "部署前置核查发现的阻断缺陷:docker-compose.prod.yml 的 app 服务未透传 AUTH_SECRET,而 M5 F001 的 resolveAuthSecret 在 production 缺该键时抛错停机(刻意设计,防自签会话 cookie)——照现状部署 app 起不来,生产从 healthy 变 down。根因面:部署配置不在 L1/CI 执行面上,vitest 与 CI 都触不到 compose。",
+      "acceptance": "compose app 服务补 `AUTH_SECRET=${AUTH_SECRET:?...}` **必填插值形态**(与既有 AIGCGATEWAY_API_KEY / APIFY_KOL_API_KEY 同款,缺键在 compose 层即报错,不等容器崩);**机械断言**(新增测试,vitest 收集范围内):扫 src/ 中「production 下 fail-fast 读取」的 env 键(判据自定但须先验活:当前实物至少命中 AUTH_SECRET),逐个断言在 docker-compose.prod.yml 的 app 服务 environment 段有透传;**豁免清单显式写死并有注释理由**(dev/CI 专用键如 DEV_TEST_USER_* 生产本就不该有,prod seed 不建——豁免须写明);变异证活:① 从 compose 删掉 AUTH_SECRET 行 → 新断言红 ② 在 src/ 临时加一处 production fail-fast 的新 env 读取而不透传 → 新断言红并点名该键 ③ 把必填插值 `:?` 改成可选 `:-` → 形态断言红;compose 语法自证(docker compose config 或等价解析);deploy.md 的 M5 前置段同步(AUTH_SECRET 现由 compose 强制,缺键表现从「容器崩」变「compose 报错」);tsc/lint/全量 vitest 绿"
     }
   ]
 }

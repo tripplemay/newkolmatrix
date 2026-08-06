@@ -1,5 +1,16 @@
 [
   {
+    "id": "BL-M51B-TENANT-INJECTION-REST",
+    "title": "M5.1b:租户注入机制层的其余六条(F002-F007 原文承接)",
+    "description": "M5.1 于 2026-08-06 收口在 F001(三层 client + ALS 感知代理 + 单层 withTenant,已落库 e6ecef1)。本条承接被移出的 F002-F007,**原文逐字保全**在 docs/specs/M5.1b-carryover-features.json,下一批次直接取用,不得重写 acceptance。规格真相源仍是 docs/specs/M5.1-TENANT-INJECTION-spec.md,其 D-1(ALS 代理形态) ~ D-8(断言强度)对本批继续适用,§2.1 的在范围内清单减去已交付的第 1 项即为本批范围。 ■ 六条依次为:F002 withTenant 三条硬语义 + B1-4 原子性回归 + B3 残留回归(四条变异证活) · F003 引导白名单(普查产出,spec D-5 的 ≥7 处/4 文件表只是快照)+ 源码级普查钉 · F004 15 处 $transaction 迁移(gate/delivery/register 七处「原子性即全部意义」单独断言) · F005 ALS 在 RSC/route/scheduler 三上下文的真跑传播实测 · F006 DB_APP_ROLE_RUNTIME=1 的六段最小闭环 e2e + 跨租户零行(须 DB 层证据) · F007 文档 + doc-freshness 钉扩展 + 未覆盖入口清单落盘(M5.2 的输入)。 ■ **F001 带过来的三条硬约束(不得遗漏,来源 docs/test-reports/M5.1-F001-spec-lock-review.md)**:(1) F002 不得以「F001 已实现 set_config」抵扣其 acceptance ①(a),仍须交 set_config 断言 + 第三参 true→false 的变异实跑,否则按 spec-lock 稽核的放行条件当场判 VIOLATION;(2) F003 须显式决定要不要把 tests/ 侧的 db/privileged / db/runtime importer 纳入普查钉射程(acceptance ③ 现只写 src/);(3) 两条经 grep 证伪的注释须更正——src/lib/db/tenant-scope.ts:13-14「全仓此刻没有任何 withTenant 调用点」(实为产品代码零调用点,同批测试自带 5 处)与 src/lib/db/runtime.ts:8-9 的 importer 清单两头都错(漏列真实 importer prisma.ts:23,写入的 instrumentation.ts 实际不 import runtime),后者会直接污染 F003 白名单口径。 ■ 另:withTenant 目前无嵌套守卫,嵌套会静默开第二事务(B1-4 病灶形态),当前因产品代码零调用点而不可达,F002 落地前是 fail-open。",
+    "decisions": [
+      "M5.1 building 中途(2026-08-06 用户实答):切回快车道。因 consume-mode-intent.sh:155-156 对 active batch 硬拒改模式,唯一合法途径是把 M5.1 收口在 F001 走到批次边界,再在新批次消费 fast 意图 —— 故拆出本条。触发前置:人类在控制台签一份 fast 意图,/plan 在 M5.1 done 后消费",
+      "异构实测成本(供排期参考):F001 单条 kimi 2910s(48.5min);且派活链路当日撞三处缺陷,全部只在「跑完之后」暴露(详见 framework/proposed-learnings.md 2026-08-06 两条)"
+    ],
+    "confirmed_at": "2026-08-06",
+    "priority": "high"
+  },
+  {
     "id": "BL-M52-TENANT-COVERAGE",
     "title": "M5.2:租户注入的全站覆盖面收口 + 生产切非特权连接",
     "description": "M5.1(机制层)承接了预裁决的机制本体——双 client 引导白名单 + withTenant 事务内 SET LOCAL + ALS 租户作用域 + 防漏普查钉 + 开关真开着的最小闭环(登录/注册/1 route/1 RSC page/1 例程/跨租户零行)。本条保留的是**覆盖面**那一半:入口面全量包裹(实测底数 31 API route + 13 admin page + 3 例程 + ~20 scripts,差集清单由 M5.1 F007 落盘为 docs/specs/M5.1-uncovered-entrypoints.md)· 开关开状态下的全量 e2e 与视觉门重跑 · withTenant 事务开销在全量面的观察(M5.1 刻意未设 perf 数字门)· 生产前置与回滚预案。**生产切换(VPS .env 写 DB_APP_ROLE_RUNTIME=1 + 部署)永远是人类闸门,不入自动面。**切换完成后须回来改三处口径:tests/integration/rls-negative-suite.test.ts §0(断言 API 层 client 是特权连接,切换那天它会红,这是刻意设计的逼停) · tests/unit/project-scope-census.test.ts 文件头「现在仍是主力」段(降为二线) · M5 signoff §S-M5-7 登记的「RLS 面零翻修的证明力受限」那句(切换后才真正可检验)。",

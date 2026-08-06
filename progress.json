@@ -1,16 +1,17 @@
 {
-  "status": "building",
-  "user_goal": "M5.1(机制层):把「地基就位、纵深未启用」的 RLS 真正接上运行时——双 client 引导白名单 + withTenant 事务内 SET LOCAL + ALS 租户作用域 + 防漏普查钉,并用一条 DB_APP_ROLE_RUNTIME=1 真开着的最小闭环(登录/注册/route/RSC page/例程/跨租户零行)证明机制成立。全站入口收口与生产切换留 M5.2;开关默认值本批不变。",
-  "total_features": 7,
+  "status": "verifying",
+  "user_goal": "M5.1(机制底座):三层 client 分工(privilegedDb / 运行时 / ALS 感知代理)+ 单层 withTenant 事务内 SET LOCAL。零调用点接线、开关默认关——装上去不改变任何现有行为的惰性底座,可独立验收独立回滚。批次 2026-08-06 收口于 F001(用户裁决切快车道,active batch 不可改模式故走批次边界);F002-F007 原文移交 BL-M51B-TENANT-INJECTION-REST。",
+  "total_features": 1,
   "completed_features": 1,
   "fix_rounds": 0,
   "current_sprint": "M5.1-TENANT-INJECTION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-06T07:35",
+  "last_updated": "2026-08-06T07:50",
   "reference_docs": [
     "docs/specs/M5.1-TENANT-INJECTION-spec.md",
+    "docs/specs/M5.1b-carryover-features.json",
     "docs/specs/M5-AUTH-RLS-F009-preimpl-audit.md",
-    "docs/test-reports/M5-AUTH-RLS-signoff.md",
+    "docs/test-reports/M5.1-F001-spec-lock-review.md",
     "scripts/test/f009-injection-probe.ts"
   ],
   "docs": {

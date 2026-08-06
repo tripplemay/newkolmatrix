@@ -11,8 +11,9 @@ type: project
 - **异构模式首跑未成（如实记）**：codex 认证两难 ×2（个人 config 依赖自定义 provider ↔ 隔离 config 即断认证）· kimi 墙钟 ×1 + 本机 DNS 瞬断 ×1，零验收结论 → 回落隔离 subagent。registry/信封/适配器修复全部保留，网络稳定后可补异构复核轮
 
 ## 已上线
-- `https://newkol.guangai.ai` 跑 **M4.6+M4.7+M4.8 @ `c9236af…0428d9`**（2026-08-04 部署）——**M5 尚未部署**
-- **M5 部署前置人工步（deploy.md 已写，按序做）**：R16 备份 → 建 `kol_app` 角色 → VPS `.env` 加 `AUTH_SECRET`/`DATABASE_URL_APP` → 迁移保持特权 → `DB_APP_ROLE_RUNTIME` 保持关（切换等 M5.1）
+- `https://newkol.guangai.ai` 跑 **M5 + M5-DEPLOY-FIX @ `9f010a34bd7682edc19f0535797c00a2d822baf7`**（2026-08-06 部署，用户授权后由主实例代执行全部前置；回滚点 = M4.8 `c9236af1cc65cc64a0e7ecd50f15c86def0428d9`）
+- 部署实况：R16 备份已做（`backups/kolmatrix-20260806T050827Z.dump`，pg_restore -l 182 对象自证）· `kol_app` 角色已建（f|f|t）· `.env` 三键已配 · compose 已同步且反向自证缺键即报错 · 公网复核认证面全过（health ok / login·signup 200 / admin 307→login / API 401 JSON / I-1 后缀绕过 401·307 不再 500 / 静态件 200）· **生产库 24 policy / 24 表启用，kol_app 未设变量 Project=0 行 vs 特权 6 行 → default-deny 在生产成立**
+- **`DB_APP_ROLE_RUNTIME` 保持未设**（运行时仍特权连接，切换等 M5.1 注入落地）；启动哨兵持续告警「RLS 不生效」是刻意可见态
 - ⚠️ image_tag 必须完整 40 位 SHA；compose 是 VPS 人工副本
 
 ## 需求池 / 待人类

@@ -9,7 +9,7 @@
 
 import KnowledgeWorkbench from 'components/knowledge/KnowledgeWorkbench';
 import { getKnowledgePageData } from 'lib/knowledge/page-data';
-import { requireSessionTenantId } from 'lib/auth/session-tenant';
+import { withSessionTenant } from 'lib/db/tenant-entry';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,16 @@ export default async function KnowledgePage({
   searchParams: Promise<{ game?: string }>;
 }) {
   const { game } = await searchParams;
-  const tenantId = await requireSessionTenantId(); // M5-AUTH-RLS F004（spec D-3）
-  const games = await getKnowledgePageData({ tenantId });
+  // M5-AUTH-RLS F004（spec D-3）：租户来自登录会话。
+  // M5.1b-TENANT-INJECTION F005（spec D-6 最小闭环）：本页是 **RSC 执行上下文**的 ALS 传播样板。
+  //
+  // 【只包数据装配，不包渲染】作用域止于 getKnowledgePageData —— 它把这一页要的行**全部读完**
+  // 才返回可序列化数据（page-contract.ts 的 KnowledgeGameData[]），JSX 里不再有数据访问。
+  // 把 return 的 JSX 一起包进来只会让一条 DB 连接陪着整段渲染（含下游组件树构造）白等，
+  // 而多拿不到任何一次查询；RSC 若哪天改成在 JSX 内 await（Suspense 流式子树），
+  // 那次访问会落在作用域外 → 开关开时当场 MissingTenantScopeError，不会静默读错租户。
+  const games = await withSessionTenant(({ tenantId }) =>
+    getKnowledgePageData({ tenantId }),
+  );
   return <KnowledgeWorkbench games={games} initialGame={game} />;
 }

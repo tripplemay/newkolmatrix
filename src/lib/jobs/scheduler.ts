@@ -16,6 +16,7 @@
 import cron from 'node-cron';
 import { DEV_TENANT_SLUG, systemTenantId } from 'lib/agent/context';
 import { health as apifyKolHealth } from 'lib/apify/client';
+import { withTenant } from 'lib/db/tenant-scope';
 import { syncKols } from 'lib/kol-sync/sync';
 import { runHealthScan } from './routines/health-scan';
 import { runNightlyScreen } from './routines/nightly-screen';
@@ -59,8 +60,27 @@ export interface RoutineDef {
 }
 
 /**
+ * health-scan 那次事务的超时（M5.1b F005）。
+ *
+ * 包进 withTenant 后，一轮巡检的「N 次 Project 读 + N 条 OperationLog 写」变成**一个**事务
+ * （原先是逐条自动提交）。Prisma interactive transaction 默认 5s —— 项目数一多就会在
+ * 「跑到一半被打断」处炸，而这条例程在夜里无人值守。给一个与量级匹配的显式上限，
+ * 并把「为什么不是默认值」写在这里，而不是等生产超时才现形。
+ * 选项只能在**最外层**那次 withTenant 传（嵌套传即抛 NestedTransactionOptionsError），
+ * 例程是无会话面、无外层作用域，正是该传的地方。
+ */
+export const HEALTH_SCAN_TX_TIMEOUT_MS = 60_000;
+
+/**
  * 例程注册表（F006）：新例程在此登记即自动获得调度（:1815 口径兑现）。
  * 数组顺序即注册顺序，无优先级语义。
+ *
+ * 【M5.1b F005 · 租户作用域接线边界（spec D-6：本批只做最小闭环）】
+ * 只有 health-scan 被包进 `withTenant` —— 它是 spec D-6 最小闭环里「一个例程」的那一条。
+ * 其余三条（nightly-screen / kol-sync / weekly-draft）**刻意未包**：它们各自有网关外呼、
+ * 内网探活、降级路径，包进一个事务需要逐条决定超时与外呼边界（gate.ts 那 90s 事务同款问题），
+ * 属 M5.2 全站收口的工作面。开关未开时它们行为逐位不变；开关一开会当场抛
+ * MissingTenantScopeError（fail-closed，不是静默零行）。未覆盖清单由 F007 落盘。
  */
 export const ROUTINES: ReadonlyArray<RoutineDef> = [
   {
@@ -68,8 +88,14 @@ export const ROUTINES: ReadonlyArray<RoutineDef> = [
     cron: HEALTH_SCAN_CRON,
     tenantSlug: DEV_TENANT_SLUG,
     run: async (tenantSlug) => {
+      // slug→id 解析走 privilegedDb（F003 引导白名单），刻意在作用域**外**：
+      // 租户 id 是开作用域的入参，不可能在作用域内才拿到。
       const tenantId = await systemTenantId(tenantSlug);
-      const r = await runHealthScan(tenantId, new Date());
+      const r = await withTenant(
+        tenantId,
+        () => runHealthScan(tenantId, new Date()),
+        { timeout: HEALTH_SCAN_TX_TIMEOUT_MS },
+      );
       console.log(
         `[jobs] health-scan 完成：扫描 ${r.scanned} 项目，留痕 ${r.logged} 条`,
       );

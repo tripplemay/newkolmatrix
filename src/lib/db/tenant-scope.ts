@@ -79,6 +79,23 @@ export class CrossTenantNestingError extends Error {
   }
 }
 
+/**
+ * 【选 `run` 不选 `enterWith` —— 依据是实测，不是惯例（M5.1b F005 acceptance ③）】
+ *
+ * 实测三条（探针与用例见 tests/integration/als-context-propagation.test.ts §③）：
+ *   1. `enterWith` 在事务回调内**同样读得到** —— 所以理由不是「它在本仓不成立」；
+ *   2. `enterWith` **没有出口**，它到底泄不泄漏取决于调用点落在第一个 `await` 之前还是之后：
+ *      写在之前（同步段 = 调用方的执行上下文）→ 入口函数返回后作用域**仍粘在调用方身上**
+ *      （实测 store 仍是那个租户）；写在之后 → 不泄漏。同一个 API、两种相反结果，
+ *      差别是一个读代码时看不见的性质；
+ *   3. 泄漏为什么致命：事务一提交，那个 tx 句柄就是**死的** —— 拿它再查会抛
+ *      PrismaClientKnownRequestError（实测）。于是「上一个请求残留的作用域」会让下一段
+ *      本该正常的数据访问打到已关闭事务上，或者更坏——在池化/复用场景里读到别人的租户。
+ *
+ * `withTenant` 要的性质是「作用域与事务同生共死」。`run` 的回调边界**就是**那个结构：
+ * 事务回调结束 = 作用域结束，与调用点写在哪无关。把安全性交给「碰巧写对了位置」
+ * 是 B3 那类事故的同一种形状（`set_config` 第三参写成 false 也只是「碰巧大多数时候没事」）。
+ */
 const tenantTxAls = new AsyncLocalStorage<TenantTxScope>();
 
 /** 当前 ALS 里的租户事务作用域；没有则 undefined。`prisma` 代理每访问一次属性就查一次。 */

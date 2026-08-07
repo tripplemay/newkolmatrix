@@ -54,6 +54,31 @@ export class MissingTenantScopeError extends Error {
   }
 }
 
+/**
+ * 在租户 A 的作用域内又对租户 B 调 withTenant 时抛出（spec D-3 语义三）。
+ *
+ * 为什么必须抛，而不是「切到 B」也不是「沿用 A」：
+ *   · 切到 B —— 外层事务的 app.tenant_id 是 SET LOCAL 的，改了它整个外层事务都跟着变，
+ *     外层后续的写会落到 B 名下；调用方完全看不见这次静默换租户。
+ *   · 沿用 A —— 调用方明确写了 B，却拿到 A 的数据，是最坏的一种「不报错的错」。
+ * 两条都比抛错危险得多。独立错误类是为了让断言钉类型而不是钉字符串。
+ */
+export class CrossTenantNestingError extends Error {
+  readonly outerTenantId: string;
+  readonly innerTenantId: string;
+  constructor(outerTenantId: string, innerTenantId: string) {
+    super(
+      `[db] 跨租户嵌套 withTenant：外层作用域是租户 ${outerTenantId}，内层却要求租户 ` +
+        `${innerTenantId}。外层事务的 app.tenant_id 是 SET LOCAL 的，改它会把整个外层事务` +
+        `一起换掉（后续写将落到别人名下），沿用外层则是「你要 B 却拿到 A」——两种都是静默的` +
+        `跨租户事故，故此处 fail-closed。需要跨租户时请在各自的 withTenant 里分别完成。`,
+    );
+    this.name = 'CrossTenantNestingError';
+    this.outerTenantId = outerTenantId;
+    this.innerTenantId = innerTenantId;
+  }
+}
+
 const tenantTxAls = new AsyncLocalStorage<TenantTxScope>();
 
 /** 当前 ALS 里的租户事务作用域；没有则 undefined。`prisma` 代理每访问一次属性就查一次。 */
@@ -75,6 +100,21 @@ export async function withTenant<T>(
   tenantId: string,
   fn: (tx: TenantTx) => Promise<T>,
 ): Promise<T> {
+  const outer = getTenantTxScope();
+  if (outer) {
+    // 【嵌套语义（M5.1b F002，spec D-3 语义二/三）】
+    // 跨租户 → 抛（理由见 CrossTenantNestingError）。
+    if (outer.tenantId !== tenantId) {
+      throw new CrossTenantNestingError(outer.tenantId, tenantId);
+    }
+    // 同租户 → **复用外层事务**：不开第二个事务，也不重设 app.tenant_id。
+    //
+    // 为什么这条是原子性的关键：若这里另起一个事务，内层的写会在自己的事务里**独立提交**，
+    // 外层随后回滚也带不走它——这正是审计 B1-4 实测到的「$transaction 原子性被静默废掉」
+    // 的形态（回滚后行仍在）。原子性必须归调用方所有：外层回滚 = 内外层全部回滚。
+    // 也不重设变量：SET LOCAL 作用于整个事务，重设等于允许中途改租户（见上面的抛错理由）。
+    return fn(outer.tx);
+  }
   return getRuntimeDb().$transaction(async (tx) => {
     await tx.$queryRawUnsafe(`SELECT set_config('app.tenant_id', $1, true)`, tenantId);
     return tenantTxAls.run({ tenantId, tx }, () => fn(tx));

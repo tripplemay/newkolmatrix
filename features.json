@@ -42,7 +42,7 @@
       "title": "15 处 $transaction 调用点迁移到 withTenant",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-4 末段。ALS 有事务时代理解析为 TransactionClient，而它**没有** $transaction 方法——这是本批唯一必须改写的调用点类别。实测 15 处 / 10 文件：build-plans.ts:220 · auth/register.ts:107 · projects/set-goal.ts:80 · signals/ingest.ts:49 · match/approve-plan.ts:72 · projects/create.ts:64 · agent/gate/gate.ts:249,364,431 · knowledge/parse.ts:346 · delivery/register.ts:96,203,289 · domain/env-advance.ts:128。其中 gate.ts（两步票据）、register.ts（注册）、delivery/register.ts（放款）三处是「原子性就是全部意义」的地方。",
       "acceptance": "① **迁移前先重跑普查**（`grep -rn '\\$transaction' src --include=\"*.ts\" --include=\"*.tsx\"`），实测条数与 spec 的 15 处对账；有出入以实测为准并如实登记（spec 数字取自 2026-08-06，可能已漂移）。② 15 处（或实测条数）**逐处**迁移，**每处独立可审**：commit message 能对应到具体文件。auth/register.ts:107 是**白名单事务**（F003），迁移后仍走 privilegedDb，不得混进 withTenant 的租户路径——这一条单独断言。③ **原子性不得回归**：gate.ts 三处 + delivery/register.ts 三处 + register.ts 一处这 7 个「原子性即全部意义」的点，每处至少一条**回滚后零残留**的行为级用例（可复用既有测试里的回滚用例，若既有已覆盖则如实指出文件:行，不重复造）。④ 既有 gate/delivery/reach 的 smoke 与 e2e（`npm run gate:smoke` / `delivery:e2e` / `reach:e2e`）在开关关状态下全绿，输出原样附上。⑤ **变异证活**：任选一处已迁移的事务，把 withTenant 的回滚传播摘掉 → ③ 对应用例必须红。⑥ tsc/lint + 全量 vitest 绿。"
     },

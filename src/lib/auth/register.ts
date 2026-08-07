@@ -14,7 +14,10 @@
 // 新注册用户首屏看到空态是产品的当前语义（数据获取属另批），不是本 feature 的 bug。
 
 import { z } from 'zod';
-import { prisma as defaultPrisma } from 'lib/db/prisma';
+// M5.1b F003（spec D-5）— **引导白名单**：注册必须走特权连接。
+// 理由：注册要在事务里建 Tenant，而「要建的那个租户」此刻还不存在，无从注入租户变量
+//（审计 B2-2 实测：kol_app 下 tenant.create 被 RLS WITH CHECK 拒）。
+import { privilegedDb as defaultPrisma } from 'lib/db/privileged';
 import { normalizeEmail } from './credentials';
 import { hashPassword } from './password';
 import {

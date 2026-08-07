@@ -10,6 +10,20 @@
 // 都会让那条钉红并点名文件。本模块刻意**不读** DB_APP_ROLE_RUNTIME / DATABASE_URL_APP：
 // privileged = 特权，不依赖任何间接解析。
 //
+// 【引导白名单 as-built（M5.1b F003 普查产出，实测 5 处 / 5 文件）】
+//   ① src/lib/auth/index.ts                      登录查用户 ×2 + 登录留痕 ×2（B2-1）
+//   ② src/lib/auth/register.ts                   注册事务：要建的租户此刻还不存在（B2-2）
+//   ③ src/lib/agent/context.ts                   tenantIdBySlug：systemContext 第一步（B2-3）
+//   ④ src/app/api/auth/register/route.ts         注册限速留痕（判定在解析入参之前）
+//   ⑤ src/app/api/auth/[...nextauth]/route.ts    登录限速留痕（判定在会话建立之前）
+// 每处的「为什么必须绕过 RLS」写在该文件的 import 旁。两道钉各守一面、互不派生：
+//   · tests/unit/db-layer-importer-census.test.ts  文档面（清单与实物同步）
+//   · tests/unit/bootstrap-whitelist-census.test.ts 越权面（谁在用 + 每条必须有理由）
+//
+// 【spec D-5 表的两处出入（F003 实测更正）】① 该表漏列了上面 ④⑤ 两个路由文件；
+// ② 该表把 src/instrumentation.ts 列为引导点，**判定有误** —— 启动哨兵要问的是
+// 「运行时连接是谁」，指向本模块会恒答「特权」。它已改用 getRuntimeDb()，不在本白名单内。
+//
 // 新增引导点前先回答：为什么这里必须在租户已知之前碰库？把理由写在调用点旁边（spec D-5）。
 
 import { PrismaClient } from '@prisma/client';

@@ -15,7 +15,10 @@
 //
 // 运行时 = nodejs（Prisma + bcrypt）。
 
-import { prisma } from 'lib/db/prisma';
+// M5.1b F003（spec D-5）— **引导白名单**：注册限速留痕必须走特权连接。
+// 理由：限速判定发生在**解析入参之前**（不让攻击者用请求体消耗资源），此刻既无会话
+// 也无租户，留痕写的是审计占位租户的行。
+import { privilegedDb as prisma } from 'lib/db/privileged';
 import { writeAuthAudit } from 'lib/auth/audit';
 import {
   authRateLimitVerdict,

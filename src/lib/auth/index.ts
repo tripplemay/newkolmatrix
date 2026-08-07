@@ -7,7 +7,12 @@
 
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import { prisma } from 'lib/db/prisma';
+// M5.1b F003（spec D-5）— **引导白名单**：登录路径必须走特权连接。
+// 理由：登录的输入只有 email，租户是这次查询的**产物**；RLS 却要求先有租户才能查
+//（审计 B2-1 实测：kol_app 无租户变量下 user.findUnique 恒 null ⇒ 没人能登录）。
+// 失败登录的归因查询与两处 writeAuthAudit 同理：都发生在会话存在之前，且留痕写的是
+// 占位租户 / 被撞库租户的行，在 kol_app 下被 USING + WITH CHECK 双向拒。
+import { privilegedDb } from 'lib/db/privileged';
 import { authBaseConfig, resolveAuthSecret } from './config';
 import {
   authorizeCredentials,
@@ -22,7 +27,7 @@ import { writeAuthAudit } from './audit';
 /** 生产依赖装配：Prisma 查 User + bcrypt 比对。 */
 export const prismaAuthorizeDeps: AuthorizeDeps = {
   async findUserByEmail(email: string): Promise<AuthUserRecord | null> {
-    return prisma.user.findUnique({
+    return privilegedDb.user.findUnique({
       where: { email },
       select: { id: true, email: true, tenantId: true, passwordHash: true },
     });
@@ -50,7 +55,7 @@ async function recordLoginAttempt(
   if (user) {
     await writeAuthAudit(
       { event: 'login', result: 'ok', email: user.email, tenantId: user.tenantId },
-      prisma,
+      privilegedDb,
     );
     return;
   }
@@ -58,7 +63,7 @@ async function recordLoginAttempt(
   let tenantId: string | null = null;
   if (email) {
     try {
-      const target = await prisma.user.findUnique({
+      const target = await privilegedDb.user.findUnique({
         where: { email: normalizeEmail(email) },
         select: { tenantId: true },
       });
@@ -69,7 +74,7 @@ async function recordLoginAttempt(
   }
   await writeAuthAudit(
     { event: 'login', result: 'invalid_credentials', email, tenantId },
-    prisma,
+    privilegedDb,
   );
 }
 

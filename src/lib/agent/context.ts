@@ -13,7 +13,11 @@
 // 【删除模块级缓存】原来那个进程级的 dev 租户 id 缓存变量在多租户下是串数据风险点（M5 侦察点名）：
 // 进程内第一个请求解析到的租户会被后续所有请求复用。已删除，不留任何进程级租户状态。
 
-import { prisma } from 'lib/db/prisma';
+// M5.1b F003（spec D-5）— **引导白名单**：slug→租户解析必须走特权连接。
+// 理由：tenantIdBySlug 是 systemContext 的第一步，无会话面（scheduler / scripts / seed /
+// webhook）全靠它把 slug 解析成租户 id——而它本身就发生在「租户已知」之前
+//（审计 B2-3 实测：kol_app 无租户变量下 tenant.findUnique(slug) 恒 null）。
+import { privilegedDb as prisma } from 'lib/db/privileged';
 import { requireSessionIdentity } from 'lib/auth/session-tenant';
 import { DEFAULT_AGENT_ID, type AgentId } from './registry';
 import type { ToolContext } from './tools/types';

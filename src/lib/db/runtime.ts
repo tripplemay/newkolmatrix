@@ -5,9 +5,15 @@
 //                                         RLS 真实生效）；否则 DATABASE_URL（与今日逐位一致，D-8）
 //   prisma（lib/db/prisma.ts）            ALS 感知代理，全部既有调用点不动
 //
-// 【谁在直接 import 本模块（as-built，实测）】src/ 下恰两处：
+// 【谁在直接 import 本模块（as-built，实测）】src/ 下恰三处：
 //   ① lib/db/prisma.ts        代理的分支三：无 ALS 作用域且开关未开时回落到运行时 client
 //   ② lib/db/tenant-scope.ts  withTenant 在其上开 interactive 事务
+//   ③ src/instrumentation.ts  BYPASSRLS 启动哨兵（M5.1b F003 接入）——它要问的正是
+//      「应用运行时到底连的是谁」，因此必须拿**运行时 client** 本体：
+//        · 传 `prisma` 代理 → 开关开时无 ALS 作用域，代理抛 MissingTenantScopeError，
+//          而该异常被 app-role.ts 的「连不上库只告警」catch 吞掉 → status='unknown'，
+//          哨兵 enforced=true 却永远走不到判定，**安全装置静默失效**；
+//        · 传 privilegedDb → 恒是特权连接，哨兵恒答「特权」→ 永假警报。
 // 其余任何 src/ 文件 import 本模块都等于绕过 ALS 注入面。该清单由
 // tests/unit/db-layer-importer-census.test.ts 机械守住（新增 importer 即红并点名），
 // 不再依赖本注释自觉。

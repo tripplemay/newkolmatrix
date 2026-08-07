@@ -18,7 +18,9 @@ import { LOGIN_PATH } from 'lib/auth/config';
 import { resolveRequestOrigin } from 'lib/auth/access-policy';
 import { authRateLimitVerdict } from 'lib/auth/rate-limit';
 import { writeAuthAudit } from 'lib/auth/audit';
-import { prisma } from 'lib/db/prisma';
+// M5.1b F003（spec D-5）— **引导白名单**：登录限速留痕必须走特权连接。
+// 理由：同注册限速——判定在会话建立之前，留痕落审计占位租户。
+import { privilegedDb as prisma } from 'lib/db/privileged';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

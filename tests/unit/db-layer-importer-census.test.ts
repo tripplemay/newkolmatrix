@@ -41,7 +41,11 @@ const GUARDED: ReadonlyArray<{
 }> = [
   {
     module: 'src/lib/db/runtime',
-    expected: ['src/lib/db/prisma.ts', 'src/lib/db/tenant-scope.ts'],
+    expected: [
+      'src/instrumentation.ts',
+      'src/lib/db/prisma.ts',
+      'src/lib/db/tenant-scope.ts',
+    ],
     commentHome: 'src/lib/db/runtime.ts 文件头「谁在直接 import 本模块」段',
     why:
       'prisma.ts 是代理分支三（无 ALS + 开关未开 → 回落运行时 client）；' +
@@ -49,9 +53,15 @@ const GUARDED: ReadonlyArray<{
   },
   {
     module: 'src/lib/db/privileged',
-    // 刻意为空：privilegedDb 已存在但 src/ 尚无接线点——引导白名单是 F003 的交付物。
-    // F003 落地时这里会红，那是**预期行为**：它逼着来人同时更新期望集合与 runtime.ts 的分工注释。
-    expected: [],
+    // M5.1b F003 已接线：这 5 处即引导白名单（每处的「为什么必须绕过 RLS」写在调用点旁）。
+    // 本条守的是**文档面**（清单与实物同步）；越权面由 F003 自己的普查钉独立守，两者不互相派生。
+    expected: [
+      'src/app/api/auth/[...nextauth]/route.ts',
+      'src/app/api/auth/register/route.ts',
+      'src/lib/agent/context.ts',
+      'src/lib/auth/index.ts',
+      'src/lib/auth/register.ts',
+    ],
     commentHome: 'src/lib/db/privileged.ts 文件头「谁是引导」段 + F003 的白名单普查钉',
     why:
       'privilegedDb 绕过全部 RLS policy。src/ 下每多一个 importer 就是多一处后门，' +
@@ -74,14 +84,23 @@ function collectSources(dir: string, out: string[] = []): string[] {
 
 /**
  * 剥掉注释，避免把「注释里提到的模块路径」当成 import（假阳性①）。
- * 行注释按整行剥（本仓 db 层注释均为独占行），块注释按配对剥。
+ *
+ * 【顺序要紧：必须先剥行注释，再剥块注释】F003 实测踩中——
+ * `src/app/api/auth/[...nextauth]/route.ts:1` 的行注释里写着路由通配 `/api/auth/*`，
+ * 其中 `/*` 两个字符会开启一个**幻影块注释**；若先剥块注释，它会一路吃到 :30 的
+ * `/** … *​/` 才闭合，把中间**全部 import 连同代码**一起吞掉 —— 该文件于是在本钉里
+ * 恒为「无 import」，钉对它恒盲。这类形态（路由通配、glob、URL）在本仓很常见。
+ * 倒过来先剥行注释就不会：那一行整行消失，`/*` 随之消失。
+ *
+ * 行注释只剥**整行**（首个非空白字符是 `//`），故 `const u = 'https://x'` 这类
+ * 字符串里的 `//` 不受影响。
  */
 function stripComments(source: string): string {
-  const withoutBlocks = source.replace(/\/\*[\s\S]*?\*\//g, '');
-  return withoutBlocks
+  const withoutLineComments = source
     .split('\n')
     .filter((line) => !/^\s*\/\//.test(line))
     .join('\n');
+  return withoutLineComments.replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
 /** 只认三种真实 import 语法，不按标识符名匹配（避开假阳性②）。 */
@@ -180,6 +199,16 @@ describe('db 层 importer 清单机械钉（F008）', () => {
 
     // ③ 同名标识符 → 不算（假阳性②，rls-tenant-isolation.test.ts:52 的局部变量）
     expect(importSpecifiers(`const withTenant = models.filter(Boolean);`)).toEqual([]);
+
+    // ④ **回归**：行注释里的 `/*`（路由通配 / glob / URL）不得开启幻影块注释而吞掉后续 import。
+    //    这不是假想形态——F003 实测踩中 src/app/api/auth/[...nextauth]/route.ts:1 的
+    //    `/api/auth/*`，当时（先剥块注释）该文件全部 import 被吞，钉对它恒盲。
+    const phantom = [
+      '// M5 路由装配：/api/auth/*',
+      "import { privilegedDb } from 'lib/db/privileged';",
+      '/** 正常块注释 */',
+    ].join('\n');
+    expect(importSpecifiers(phantom)).toContain('lib/db/privileged');
 
     // ④ 路径归一：三种写法都要指向同一个模块
     expect(resolveToSrcModule('src/lib/db/prisma.ts', './runtime')).toBe(

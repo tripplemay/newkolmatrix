@@ -6,7 +6,7 @@
   "fix_rounds": 0,
   "current_sprint": "M5.1b-TENANT-INJECTION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-07T03:25",
+  "last_updated": "2026-08-07T03:40",
   "reference_docs": [
     "docs/specs/M5.1b-TENANT-INJECTION-spec.md",
     "docs/specs/M5.1-TENANT-INJECTION-spec.md",
@@ -28,7 +28,38 @@
     "applied_at": "2026-08-07T02:43:15Z"
   },
   "evaluator_feedback": null,
-  "generator_handoff": null,
+  "generator_handoff": {
+    "batch": "M5.1b-TENANT-INJECTION",
+    "lane": "fast (Generator=主上下文)",
+    "completed": [
+      "F008 @6a120a7",
+      "F002 @b3b15be",
+      "F003 @fadc1f4"
+    ],
+    "in_progress": {
+      "feature": "F004",
+      "commit": "85e0362",
+      "state": "迁移段已落库并全绿，**未完成**",
+      "done": [
+        "① 普查对账(实测 14 处而非 spec 的 15;原表把 delivery/register.ts:9 注释算成了调用点)",
+        "13 处迁移(11 回调 + 2 数组→回调);auth/register.ts:110 按 acceptance ② 刻意保留走 privilegedDb",
+        "withTenant 增第三参 txOptions(gate:364 的 90s 外呼超时必须保住)+ NestedTransactionOptionsError",
+        "④ 三套 smoke/e2e 全绿(gate:smoke / delivery:e2e / reach:e2e),输出见 commit 85e0362 正文",
+        "tsc exit=0 · 全量 146 files/1843 tests 与迁移前逐位相同(零回归)"
+      ],
+      "remaining": [
+        "③ 7 个要害点(gate×3 / delivery/register×3 / auth/register×1)各一条回滚后零残留的行为级用例——acceptance 允许复用既有用例但须指出 file:line;我尚未逐个核证既有覆盖",
+        "② 的独立断言:auth/register.ts 的事务不得混进 withTenant 租户路径",
+        "⑤ 变异证活:任选一处已迁移事务摘掉 withTenant 的回滚传播 → ③ 对应用例必须红"
+      ]
+    },
+    "pending": [
+      "F005 ALS 三上下文传播实测",
+      "F006 开关开六段最小闭环 e2e",
+      "F007 文档 + doc-freshness + 未覆盖入口清单"
+    ],
+    "notes_for_next": "F004 剩余三项做完才可标 completed。F005 起须注意:withTenant 现已有嵌套语义与选项抛错,入口面包裹时若内层带 txOptions 会抛 NestedTransactionOptionsError(刻意设计)。"
+  },
   "session_notes": {
     "Andy": null,
     "Reviewer": null,

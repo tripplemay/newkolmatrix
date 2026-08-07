@@ -1,15 +1,4 @@
 {
-  "batch": "M5.1-TENANT-INJECTION",
-  "features": [
-    {
-      "id": "F001",
-      "title": "三层 client 分工 + ALS 感知代理（prisma 导出名不变）",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-2 / D-4。新增 src/lib/db/privileged.ts（privilegedDb，恒 DATABASE_URL）与 src/lib/db/runtime.ts（运行时 client，按 DB_APP_ROLE_RUNTIME 取连接串，复用 app-role.ts:91-117 既有解析函数，不重写）；把 src/lib/db/prisma.ts 的 `prisma` 导出改为 ALS 感知代理。这是「206 处调用点零改写」的全部代价所在，代理的双态语义必须逐条可测。",
-      "acceptance": "① **双态语义三分支各有正向用例**：(a) ALS 有租户事务 → 代理解析为该事务的 tx client；(b) 无 ALS + DB_APP_ROLE_RUNTIME 未设 → 解析为运行时 client（= 特权，行为与今日一致）；(c) 无 ALS + DB_APP_ROLE_RUNTIME=1 → **抛 MissingTenantScopeError**（独立错误类，断言类型而非字符串——一旦有人改成回落，用例对「返回了 client」和「抛了别的错」两种情况都不放过）。② **开关关 = 逐位不变（D-8 继承，最硬的一条）**：全量 `npx vitest run` 与改动前**同样全绿**，且 142 个测试文件、73 个 src 导入点**零改动**（`git show --stat` 自证：本 feature 的 diff 不含 tests/ 与除 src/lib/db/ 外的 src/ 文件）。③ privilegedDb 与运行时 client 是**两个不同实例**且连接串来源不同：开关开时实测二者 `current_user` 不同（一个特权、一个 kol_app）；开关关时二者可指向同一串但仍是两个实例。④ 代理必须转发 $queryRawUnsafe / $executeRawUnsafe（ALS 有事务时落在该事务上——这是 B1-2「raw SQL 不在覆盖面」的根治点，须有正向用例：事务内 raw 查询看得见同事务写入的行）。⑤ **变异证活**：把 (c) 分支的抛错改成「回落运行时 client」→ 对应用例必须红；把代理对 raw 方法的转发摘掉 → ④ 的用例必须红。变异还原**不得用 git checkout**（spec D-8.2）。⑥ tsc/lint 绿。"
-    }
-  ],
-  "_scope_note": "本批次 2026-08-06 收口在 F001。F002-F007 原文移至 docs/specs/M5.1b-carryover-features.json，由 backlog BL-M51B-TENANT-INJECTION-REST 承接。spec 的 D-1~D-8 对两批同时适用。"
+  "batch": null,
+  "features": []
 }

@@ -1,139 +1,43 @@
 {
-  "status": "verifying",
-  "user_goal": "M5.1(机制底座):三层 client 分工(privilegedDb / 运行时 / ALS 感知代理)+ 单层 withTenant 事务内 SET LOCAL。零调用点接线、开关默认关——装上去不改变任何现有行为的惰性底座,可独立验收独立回滚。批次 2026-08-06 收口于 F001(用户裁决切快车道,active batch 不可改模式故走批次边界);F002-F007 原文移交 BL-M51B-TENANT-INJECTION-REST。",
-  "total_features": 1,
-  "completed_features": 1,
+  "status": "new",
+  "user_goal": null,
+  "total_features": 0,
+  "completed_features": 0,
   "fix_rounds": 0,
-  "current_sprint": "M5.1-TENANT-INJECTION",
+  "current_sprint": null,
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-07T02:30",
+  "last_updated": "2026-08-07T02:45",
   "reference_docs": [
+    "docs/test-reports/M5.1-verify-blocked-report.md",
     "docs/specs/M5.1-TENANT-INJECTION-spec.md",
     "docs/specs/M5.1b-carryover-features.json",
-    "docs/specs/M5-AUTH-RLS-F009-preimpl-audit.md",
-    "docs/test-reports/M5.1-F001-spec-lock-review.md",
-    "scripts/test/f009-injection-probe.ts"
+    "docs/test-reports/M5.1-F001-spec-lock-review.md"
   ],
   "docs": {
-    "spec": "docs/specs/M5.1-TENANT-INJECTION-spec.md",
+    "spec": null,
     "test_cases": null,
     "signoff": null,
     "framework_reviewed": false
   },
-  "role_assignments": {
-    "planner": null,
-    "generator": "local-cli--kimi--generator",
-    "evaluator": "local-cli--codex--evaluator"
-  },
-  "mode_intent": {
-    "intent_id": "e66dd7e5-d521-4f04-8e29-a73d9e3cabc4",
-    "applied_batch": "M5.1-TENANT-INJECTION",
-    "applied_at": "2026-08-06T06:06:53Z",
-    "signed_intent": {
-      "desired": {
-        "autonomy": {
-          "enabled": false
-        },
-        "execution": {
-          "profile": "heterogeneous",
-          "role_bindings": {
-            "evaluator": {
-              "invocation": "local-cli",
-              "tool": "codex"
-            },
-            "generator": {
-              "invocation": "local-cli",
-              "tool": "kimi"
-            },
-            "planner": null
-          }
-        }
-      },
-      "expected_head_sha": "1c8afd8c0bbf52939376057e055546305024987e",
-      "intent_expires_at": "2026-08-13T06:00:00.000Z",
-      "intent_id": "e66dd7e5-d521-4f04-8e29-a73d9e3cabc4",
-      "issued_at": "2026-08-06T06:00:44.413Z",
-      "issued_by": "tripplezhou@gmail.com",
-      "repo_key": "github.com/tripplemay/newkolmatrix",
-      "sig": "MuuIOVGtzZ6L9RmX2mQVHZuXBZpx7MHfe9+9DI4tmB1YNgzV1VEdUJIoMitw3u4UnlBM6YrCAI1NPySFvJQyBQ=="
-    },
-    "resolution": {
-      "evaluator": {
-        "agent_id": "local-cli--codex--evaluator",
-        "execution_provenance_sha256": "8fdf3314902f4eb644a982c2d84920cb108aac764630a01196f8246bb8cb4e1f",
-        "invocation": "local-cli",
-        "model_family": "codex",
-        "priority": 100,
-        "tool": "codex"
-      },
-      "generator": {
-        "agent_id": "local-cli--kimi--generator",
-        "execution_provenance_sha256": "f96f1e7332c386a31d80ebc1a367c1ab7ce6e677c1e62d768575a4d5ea0dd996",
-        "invocation": "local-cli",
-        "model_family": "kimi",
-        "priority": 90,
-        "tool": "kimi"
-      },
-      "planner": null
-    }
-  },
+  "role_assignments": null,
+  "mode_intent": null,
   "evaluator_feedback": null,
-  "generator_handoff": {
-    "feature": "F001",
-    "agent": "local-cli--kimi--generator (kimi 0.31.0, 独立克隆沙箱)",
-    "commit": "e6ecef1",
-    "duration_s": 2910,
-    "accept_state": "APPLIED",
-    "accept_verified": "沙箱真实 diff 与 files_touched 精确对账 + 在沙箱快照重跑 L1(lint/typecheck/vitest) + 禁改清单未触及。handoff 自报的 l1_ran 未被采信。",
-    "accept_not_verified": "acceptance 6 条判据是否满足、断言有无鉴别力(变异证活) —— 均属 verifying 面，收编不代表验收通过。",
-    "spec_lock_review": "docs/test-reports/M5.1-F001-spec-lock-review.md（violation=false，有条件放行）",
-    "carried_corrections": [
-      "src/lib/db/tenant-scope.ts:13-14 「全仓此刻没有任何 withTenant 调用点」经 grep 证伪（同批自带 5 处，在 tests/integration/tenant-injection-proxy.test.ts）→ 应改为「产品代码零调用点」",
-      "src/lib/db/runtime.ts:8-9 importer 清单两头都错（漏列真实 importer prisma.ts:23；写入的 instrumentation.ts 实际不 import runtime）→ 直接污染 F003 白名单口径，必须更正"
-    ],
-    "carried_conditions": [
-      "F002 不得以「F001 已实现 set_config」抵扣其 acceptance ①(a)，仍须交 set_config 断言 + 第三参 true→false 的变异实跑",
-      "F003 须显式决定要不要把 tests/ 侧的 db/privileged / db/runtime importer 纳入普查钉射程（acceptance ③ 现只写 src/）"
-    ],
-    "note": "更正无法回传 kimi：信封字段是白名单，按铁律 12 结构上塞不进反馈叙述。正规通道是 fixing 阶段的 evaluator_feedback。"
-  },
+  "generator_handoff": null,
   "session_notes": {
-    "Andy": "【M5.1 verifying 硬停 · 2026-08-07】codex evaluator 两次派发均 FAILED,配额用尽按 §3.4 硬停。第一次是网络瞬断(把真因盖住),重派才暴露确定性根因:个人 config 走自定义中转 provider,auth.json 的 key 属中转;--ignore-user-config 让 codex 忽略 provider 段直连 api.openai.com → 401 invalid_api_key。四项机械排除见 dispatch_hard_stop.ruled_out_mechanically。F001 **未经验收**;不得因『机械关都过了』就推 done —— 收编只证 diff/L1/禁改清单,不证 acceptance。待人类决:给沙箱专用 CODEX_HOME(含 provider 段+auth,剔除 danger-full-access/自定义指令) / 换 evaluator 绑定(须走批次边界) / 其他。",
+    "Andy": "【M5.1 重划 · 2026-08-07】批次以「未完成」收束,非 done。F001 代码在 main 但未经验收——下一批第一件事是补验(尤其 acceptance ⑤ 两条变异证活,机械收编证不了)。已清 role_assignments / mode_intent / lane:heterogeneous checkpoint 随批次收束,下一批须人类在控制台重新签发意图(选 fast 则 evaluator 走 claude 隔离 subagent;**不要再绑 codex**,除非先解自定义中转与 --ignore-user-config 的冲突)。阻塞全貌与 provenance 锁死链路见 docs/test-reports/M5.1-verify-blocked-report.md。",
     "Reviewer": null,
     "Mark": null
   },
-  "lane": "heterogeneous",
-  "dispatch_hard_stop": {
-    "phase": "verifying",
+  "lane": null,
+  "prior_batch_closure": {
     "batch": "M5.1-TENANT-INJECTION",
-    "feature": "F001",
-    "state": "evaluator_cannot_verify",
-    "rule": "dispatch-mode.md §3.4 —— 重派上限 1 次，仍不过则硬停 + 通知，绝不静默无限重跑",
-    "agent": "local-cli--codex--evaluator (codex-cli 0.146.0)",
-    "attempts": [
-      {
-        "task_id": "M5.1-TENANT-INJECTION-verify-ade233899ec6",
-        "outcome": "FAILED",
-        "exit": 1,
-        "duration_s": 159,
-        "cause": "网络瞬断:wss://api.openai.com TLS handshake eof ×5 → 回落 HTTPS 亦失败 ×5。事后实测本机与沙箱剥离环境均可达(http 401/~2s ×3 稳定),故判瞬时"
-      },
-      {
-        "task_id": "M5.1-TENANT-INJECTION-verify-ade233899ec6-r2",
-        "outcome": "FAILED",
-        "exit": 1,
-        "duration_s": 47,
-        "cause": "网络已通,401 invalid_api_key。真因:个人 config 定义了自定义中转 provider(base_url 非 api.openai.com),auth.json 里的 key 属该中转;适配器的 --ignore-user-config 使 codex 忽略该 provider 段、直连 api.openai.com,中转 key 被拒。确定性失败,重派无用"
-      }
-    ],
-    "root_cause": "认证两难复现(M5 已记):个人 config 依赖自定义 provider ↔ 隔离 config 即断认证。2026-08-05 为修 `~` 路径崩溃而启用的 --ignore-user-config 解了崩溃,却重建了断认证。注意个人 config 同时含 sandbox_mode=danger-full-access 与 approval_policy=never,故「直接摘掉该 flag」在安全上不可接受。",
-    "ruled_out_mechanically": [
-      "宿主未设 OPENAI_API_KEY;env_allowlist_extra 仅 CODEX_HOME → key 确实来自 ~/.codex/auth.json",
-      "沙箱剥离环境(env -i + 换 HOME + 仅 CODEX_HOME)下 curl api.openai.com 得 401/1.8s → 排除「沙箱剥代理致不通」",
-      "宿主无任何 proxy 变量 → 排除代理配置",
-      "codex 0.146.0 仍具适配器用到的全部旗标(--json/--ephemeral/--ignore-user-config/-C/-s) → 排除旗标漂移"
-    ],
-    "not_done_deliberately": "未回落隔离 subagent。dispatch-mode.md §3.4 规定硬停而非回落;且 evaluator 绑定属已消费签名 checkpoint,批次中途不可改(consume-mode-intent.sh:155-156)。F001 因此**未经验收**,不得据此推进 done。",
-    "status_unchanged": "verifying"
+    "closed_as": "未完成（incomplete）——不是 done",
+    "from_status": "verifying",
+    "authorized_by": "user（人类闸门破例；verifying→批次边界 在状态机流转图中无此边）",
+    "reason": "绑定 evaluator(codex) 确定性断认证，且修复路径全部撞 provenance 守卫或批次边界约束，形成锁死",
+    "delivered": "F001 实现已在 main @ e6ecef1（收编三道机械关已过）",
+    "NOT_delivered": "F001 的 acceptance 六条**一条未验**。收编只证 diff/L1/禁改清单，证不了断言鉴别力",
+    "carried_to": "backlog BL-M51B-TENANT-INJECTION-REST（含 F001 验收义务 + F002-F007）",
+    "report": "docs/test-reports/M5.1-verify-blocked-report.md"
   }
 }

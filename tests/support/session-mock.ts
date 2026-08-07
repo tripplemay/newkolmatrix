@@ -27,31 +27,53 @@ import type * as SessionTenantModule from '../../src/lib/auth/session-tenant';
 
 /** 可变支点：用例可在运行中改写，mock 每次调用都重读（同 loop 测试床 injected 范式）。 */
 export interface SessionSeam {
-  /** 空串 = 当前请求**没有会话**（负向路径）。 */
+  /** 空串 = 当前请求**没有会话**（负向路径）。`resolve` 给出结论时本字段不参与。 */
   tenantId: string;
   actor?: string;
+  /**
+   * **并发用例专用**（M5.1b F005）：每次调用重新解析「这一路请求是谁」。
+   *
+   * 【为什么扁平的 `tenantId` 不够】它是**一个**可变量：两路并发请求同时在跑时，
+   * 后写的那个会覆盖先写的，于是两路读到同一个租户——「并发不串」这类断言在这种支点上
+   * 恒绿，测不出东西。并发用例应让 `resolve` 从测试侧 AsyncLocalStorage 取本路的身份。
+   *
+   * 返回值三态：
+   *   · identity → 用它；
+   *   · `null`   → 当前请求**没有会话**（与空 `tenantId` 同义，负向路径）；
+   *   · `undefined` → 「本 seam 不管这次调用」→ **回落真实现**（走真 auth() 链）。
+   *     同一文件里既要顺序用例走真会话链、又要并发用例走注入缝时用这一态。
+   */
+  resolve?: () => SessionTenantModule.SessionIdentity | null | undefined;
 }
 
 export function makeSessionTenantMock(
   actual: typeof SessionTenantModule,
   seam: SessionSeam,
 ): typeof SessionTenantModule {
-  const read = (): SessionTenantModule.SessionIdentity | null =>
-    seam.tenantId
+  /** `undefined` = 本 seam 不作答，交回真实现。 */
+  const read = (): SessionTenantModule.SessionIdentity | null | undefined => {
+    if (seam.resolve) return seam.resolve();
+    return seam.tenantId
       ? { tenantId: seam.tenantId, actor: seam.actor ?? 'probe@test.local' }
       : null;
+  };
 
   return {
     ...actual,
-    readSessionIdentity: async () => read(),
+    readSessionIdentity: async () => {
+      const identity = read();
+      return identity === undefined ? actual.readSessionIdentity() : identity;
+    },
     requireSessionIdentity: async () => {
       const identity = read();
+      if (identity === undefined) return actual.requireSessionIdentity();
       // 与生产实现同一失败语义（同一错误类），负向断言因此对两边同时有效
       if (!identity) throw new actual.MissingSessionTenantError();
       return identity;
     },
     requireSessionTenantId: async () => {
       const identity = read();
+      if (identity === undefined) return actual.requireSessionTenantId();
       if (!identity) throw new actual.MissingSessionTenantError();
       return identity.tenantId;
     },

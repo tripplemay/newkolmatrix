@@ -86,20 +86,21 @@ vi.mock('../../src/lib/auth/index', () => ({
  * 入口 → withSessionTenant → withTenant → ALS → 代理 → 数据访问点 全程是真的，
  * 而那一段正是 F005 要证的东西。会话解析本身由 tests/unit/session-tenant-context.test.ts 守。
  *
- * seam 返回 null 时**回落真链**（`actual.requireSessionIdentity()`）——顺序用例因此仍走支点一。
+ * 复用仓内既有的 `tests/support/session-mock.ts`（本批为它加了 `resolve` 三态：identity / null /
+ * **undefined=不作答则回落真实现**）——顺序用例因此仍走支点一的真会话链，不必在本文件另造一个 mock。
  * ================================================================== */
-const identitySeam = vi.hoisted(() => ({
-  read: null as null | (() => { tenantId: string; actor: string } | null),
+const sessionSeam = vi.hoisted(() => ({
+  tenantId: '',
+  resolve: undefined as
+    | undefined
+    | (() => { tenantId: string; actor: string } | null | undefined),
 }));
 
 vi.mock('../../src/lib/auth/session-tenant', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('../../src/lib/auth/session-tenant')>();
-  return {
-    ...actual,
-    requireSessionIdentity: async () =>
-      identitySeam.read?.() ?? actual.requireSessionIdentity(),
-  };
+  const { makeSessionTenantMock } = await import('../support/session-mock');
+  return makeSessionTenantMock(actual, sessionSeam);
 });
 
 /* ================================================================== *
@@ -191,7 +192,8 @@ async function asSession<T>(tenantId: string, fn: () => Promise<T>): Promise<T> 
 
 /** 并发用例：每路请求各自的会话身份由测试侧 ALS 承载（见支点二头注）。 */
 const sessionAls = new AsyncLocalStorage<{ tenantId: string; actor: string }>();
-identitySeam.read = () => sessionAls.getStore() ?? null;
+// 没有测试侧作用域 → 返回 undefined = 「本 seam 不作答」→ 回落真实现（顺序用例走真会话链）。
+sessionSeam.resolve = () => sessionAls.getStore() ?? undefined;
 
 function asConcurrentSession<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
   return sessionAls.run({ tenantId, actor: `${tenantId}@f005.local` }, fn);

@@ -24,7 +24,7 @@
       "title": "withTenant 包装器（事务内 SET LOCAL）+ B1-4 原子性回归 + B3 残留回归",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-3 / §4.3。新增 src/lib/db/tenant-scope.ts：AsyncLocalStorage + withTenant(tenantId, fn) + MissingTenantScopeError。这是预裁决 Q2:B+C 的落地本体，也是 B1-4 / B3 两条审计实测缺陷的根治点。两条硬回归由 backlog 条目（立项时 id=BL-M51-TENANT-INJECTION，拆批后改写为 BL-M52-TENANT-COVERAGE）预写死，不得降级、不得改判据。",
       "acceptance": "① **三条硬语义各有用例**：(a) 事务内 SET LOCAL——withTenant 内第一条语句为 `SELECT set_config('app.tenant_id', $1, true)`，第三参 true；(b) 同租户嵌套 withTenant **复用既有 tx，不开第二事务**（实测判据：内外层 `txid_current()` 相同，或等价的事务身份证据——不接受「看代码没开」这类非机械依据）；(c) 不同租户嵌套（withTenant(A) 内调 withTenant(B)）**抛错**，不得静默切换也不得静默沿用 A。② **B1-4 原子性回归（预写死，不可改判据）**：withTenant 内写一行后主动抛错/回滚 → 库里**零残留**（这正是审计探针实测 `回滚后那一行仍存在=1` 的反面）。用例须真查库计数，不接受「Prisma 没报错」当证据。③ **B3 残留回归（预写死，不可改判据）**：withTenant 结束后，同一连接池上后续无关查询读到的 `current_setting('app.tenant_id', true)` 为 NULL；且**并发 ≥12 次**跨 withTenant 调用互不串租户（对齐审计 B3 的 12 次并发口径）。④ **变异证活四条**：把 set_config 第三参 true 改 false → ③ 必须红；把嵌套复用改成再开一个事务 → ② 必须红；把不同租户嵌套的抛错摘掉 → ①(c) 必须红；把 withTenant 的错误传播吞掉（catch 后 return）→ ② 必须红。每条须给出实跑红的输出，仅描述不算（铁律 13）。⑤ 清理段自身绝不可再抛：每步独立 try/catch 只告警，入删除清单的 id 先过滤，清理键不依赖「被测行为正确」才存在的字段（framework/patterns/testing-env-patterns.md §9.1）。⑥ tsc/lint 绿。"
     },

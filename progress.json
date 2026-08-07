@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "M5.1b:补上 M5.1 未完成的债 + 做完机制层其余六条。F001(evaluator)补验已落 main 的三层 client + ALS 代理实现——尤其两条变异证活,收编证不了断言鉴别力;F008 先修两条经 grep 证伪的注释(第二条会污染 F003 白名单口径)并把 importer 清单升级为机械钉;F002-F007 原文承接(withTenant 硬语义 + B1-4/B3 回归 → 引导白名单普查钉 → 15 处事务迁移 → ALS 三上下文实测 → 开关开六段最小闭环 e2e → 文档与未覆盖入口清单)。已知代价(D-9):F001 补验落在 verifying,即在未独立验证的底座上先盖六层;缓解=Generator 发现机制与 D-1/D-4 不符须立即停工提审计。",
   "total_features": 8,
-  "completed_features": 1,
+  "completed_features": 2,
   "fix_rounds": 0,
   "current_sprint": "M5.1b-TENANT-INJECTION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-07T03:00",
+  "last_updated": "2026-08-07T03:10",
   "reference_docs": [
     "docs/specs/M5.1b-TENANT-INJECTION-spec.md",
     "docs/specs/M5.1-TENANT-INJECTION-spec.md",

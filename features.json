@@ -51,7 +51,7 @@
       "title": "ALS 在 RSC / route handler / scheduler 三执行上下文的传播实测",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-6 最小闭环的支撑项，也是 backlog 预写的硬 acceptance 之一。审计 Q2-C 明确「ALS 在 Next 的 RSC / route / scheduler 三种执行上下文里的传播需实测（尤其 enterWith 的边界）」——这条不许用 mock 糊过去：mock 测试床对「上下文传播」是结构性盲区（framework/patterns/agent-loop-patterns.md §2 同款）。",
       "acceptance": "① **三个执行上下文各一条真跑用例**（不是 mock ALS、不是单元测里手工 als.run）：(a) RSC —— 一个 admin page 的 server component 渲染路径；(b) route handler —— 一个 app/api/**/route.ts 的 GET/POST；(c) scheduler —— src/lib/jobs/routines/ 下一个例程（无会话面，租户来自 systemContext）。每条断言「在数据访问点能从 ALS 取到正确的 tenantId」。② **跨请求不串**：并发 ≥2 个不同租户的请求，各自读到自己的租户（这是 B3 在应用层的对应面）。③ **enterWith vs run 的选型必须有实测依据**：选了哪个要在源码注释里写明，并给出「另一个在本仓某上下文下不成立」的实测证据，或如实写「两个都可用，选 X 的理由是 Y」。不接受「按惯例选 X」。④ **变异证活**：把某一个上下文的 ALS 作用域摘掉 → 该上下文的用例必须红（且在开关开时红成 MissingTenantScopeError，不是零行）。⑤ 若某个上下文实测**传播不了**（如 RSC 的某种渲染路径），**如实报告并给出替代接线**，不得为了绿而缩小用例范围。⑥ tsc/lint 绿。"
     },

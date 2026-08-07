@@ -17,6 +17,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { PendingAction, Prisma } from '@prisma/client';
 import { prisma } from 'lib/db/prisma';
+import { withTenant } from 'lib/db/tenant-scope';
 import { getTool } from '../tools/registry';
 import { ensureNativeToolsRegistered } from '../tools';
 import { executeTool } from '../execute';
@@ -246,7 +247,7 @@ export async function confirmPendingAction(
   const ticket = randomBytes(32).toString('hex');
   const ticketExpiresAt = new Date(Date.now() + TICKET_TTL_MS);
 
-  await prisma.$transaction(async (tx) => {
+  await withTenant(ctx.tenantId, async (tx) => {
     // 原子条件 UPDATE #1（消 R15）：并发双确认只有一方 count=1，败者 409。
     const r = await tx.pendingAction.updateMany({
       where: { id: pa.id, tenantId: ctx.tenantId, status: 'pending' },
@@ -361,7 +362,8 @@ export async function executePendingAction(
   const confirmationTokenHash = hashToken(token);
 
   try {
-    const output = await prisma.$transaction(
+    const output = await withTenant(
+      ctx.tenantId,
       async (tx) => {
         // 副作用 + 业务态变更（工具内 DB 写入走 ctx.db = tx，与收尾同一事务）。
         const result = await executeTool(pa.toolName, pa.inputJson, {
@@ -428,7 +430,7 @@ export async function rejectPendingAction(
   if (pa.status !== 'pending') {
     throw new GateError('GATE_ALREADY_DECIDED', '该动作已处理');
   }
-  await prisma.$transaction(async (tx) => {
+  await withTenant(ctx.tenantId, async (tx) => {
     const r = await tx.pendingAction.updateMany({
       where: { id: pa.id, tenantId: ctx.tenantId, status: 'pending' },
       data: { status: 'rejected', decidedAt: new Date() },

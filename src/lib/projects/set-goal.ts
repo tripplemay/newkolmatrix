@@ -12,6 +12,7 @@
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from 'lib/db/prisma';
+import { withTenant } from 'lib/db/tenant-scope';
 import { projectGoalSchema, type ProjectGoal } from 'lib/data/schemas/project';
 
 /**
@@ -77,7 +78,7 @@ export async function setProjectGoal(
   };
   const before = found.goal;
 
-  const [project, log] = await prisma.$transaction(async (tx) => {
+  const [project, log] = await withTenant(tenantId, async (tx) => {
     const p = await tx.project.update({
       where: { id: found.id },
       data: { goal: goal as unknown as Prisma.InputJsonValue },

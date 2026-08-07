@@ -9,6 +9,7 @@
 // **advance 失败不回滚批准**（如项目已在 reach / goal 缺失），结果原样带回响应注明。
 
 import { prisma } from 'lib/db/prisma';
+import { withTenant } from 'lib/db/tenant-scope';
 import { advanceStage, type AdvanceResult } from 'lib/domain/env-advance';
 
 export type ApprovePlanResult =
@@ -69,20 +70,22 @@ export async function approvePlan(
   }
 
   // P3 单选语义：批准 + 其余 draft 出局，同事务原子
-  await prisma.$transaction([
-    prisma.matchPlan.update({
+  // M5.1b F004：数组批量 → withTenant 回调内顺序 await。TransactionClient 没有 $transaction，
+  // 数组形态在 ALS 作用域内会当场崩；改回调后顺序与「要么全成要么全无」都保持不变。
+  await withTenant(tenantId, async (tx) => {
+    await tx.matchPlan.update({
       where: { id: plan.id },
       data: {
         status: 'approved',
         approvedBy: actor,
         approvedAt: new Date(),
       },
-    }),
-    prisma.matchPlan.updateMany({
+    });
+    await tx.matchPlan.updateMany({
       where: { projectId: plan.projectId, status: 'draft', id: { not: plan.id } },
       data: { status: 'superseded' },
-    }),
-  ]);
+    });
+  });
 
   // S10：cur='match' 的项目推进到 reach（守卫经 hasApprovedMatchPlan 放行）。
   // advance 被拒（已在 reach / 越过 match 等）不回滚批准——批准本身已生效，

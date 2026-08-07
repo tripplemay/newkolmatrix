@@ -10,6 +10,7 @@
 
 import { Prisma } from '@prisma/client';
 import { prisma } from 'lib/db/prisma';
+import { withTenant } from 'lib/db/tenant-scope';
 import { advanceDealTo } from 'lib/delivery/deal-status';
 import { assertKeyRefNotPlaintext } from 'lib/delivery/key-ref';
 import { checkDeliveryRow, type DeliveryCheckResult } from 'lib/domain/delivery-check';
@@ -93,7 +94,7 @@ export async function registerDealRefs(
   input: RegisterRefsInput,
   ctx: RegisterCtx,
 ): Promise<RegisterRefsResult> {
-  return prisma.$transaction(async (tx) => {
+  return withTenant(ctx.tenantId, async (tx) => {
     const deal = await tx.deal.findFirst({
       where: { id: dealId, tenantId: ctx.tenantId },
       select: {
@@ -200,7 +201,7 @@ export async function verifyDeliverable(
   input: VerifyDeliverableInput,
   ctx: RegisterCtx,
 ): Promise<VerifyDeliverableResult> {
-  return prisma.$transaction(async (tx) => {
+  return withTenant(ctx.tenantId, async (tx) => {
     const row = await tx.deliverable.findFirst({
       where: { id: deliverableId, tenantId: ctx.tenantId },
       select: {
@@ -286,7 +287,7 @@ export async function registerKeyPool(
   // 写入口守卫：形似明文激活码一律拒（在事务外先拦——不合法输入不该开事务）
   for (const ref of input.keyRefs) assertKeyRefNotPlaintext(ref);
 
-  return prisma.$transaction(async (tx) => {
+  return withTenant(ctx.tenantId, async (tx) => {
     const deal = await tx.deal.findFirst({
       where: { id: dealId, tenantId: ctx.tenantId },
       select: { id: true, projectId: true, status: true },

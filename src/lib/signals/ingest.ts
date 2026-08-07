@@ -9,6 +9,7 @@
 
 import { Prisma } from '@prisma/client';
 import { prisma } from 'lib/db/prisma';
+import { withTenant } from 'lib/db/tenant-scope';
 import { recomputeThreadStatus } from 'lib/reach/recompute-status';
 import type { NormalizedDeliverySignal } from './normalize';
 
@@ -46,7 +47,7 @@ export async function ingestDeliverySignal(
   // 四步收进**同一事务**（与交付登记同款范式）——中途失败不留「信号落了但状态没算」的半成品。
   // 防重：externalId @unique——create 撞 P2002 即同事件重放，事务回滚后走去重分支，不报错。
   try {
-    return await prisma.$transaction(async (tx) => {
+    return await withTenant(ctx.tenantId, async (tx) => {
       await tx.signal.create({
         data: {
           tenantId: ctx.tenantId,

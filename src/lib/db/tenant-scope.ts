@@ -96,12 +96,41 @@ export function getTenantTxScope(): TenantTxScope | undefined {
  *  ③ fn 抛错 → 事务回滚，错误原样上抛（原子性归调用方——审计 B1-4 实测「$extends 方案
  *     回滚后行仍在」的根治点）。
  */
+/** 透传给 `$transaction` 的事务选项（M5.1b F004：gate 的外呼事务需放宽超时）。 */
+export interface TenantTxOptions {
+  timeout?: number;
+  maxWait?: number;
+  isolationLevel?: Prisma.TransactionIsolationLevel;
+}
+
+/**
+ * 在**已有**租户作用域内又传事务选项时抛出（M5.1b F004）。
+ *
+ * 为什么不静默忽略：嵌套时不开新事务，选项无处可施。若静默吞掉，
+ * `withTenant(t, fn, { timeout: 90_000 })` 这种「我知道这段要跑很久」的显式声明会**悄悄失效**，
+ * 外层默认 5s 超时一到就把长事务打断——而调用点看起来明明写了 90s。
+ * 这在 M5.2 把入口面统一包进 withTenant 之后会真实发生（届时所有内层调用都变成嵌套），
+ * 故此处 fail-closed，逼调用方显式处理，而不是留一个只在生产超时才现形的坑。
+ */
+export class NestedTransactionOptionsError extends Error {
+  constructor(tenantId: string) {
+    super(
+      `[db] 已处于租户 ${tenantId} 的 withTenant 作用域内，此处又传了事务选项（timeout / maxWait /` +
+        ` isolationLevel）。嵌套不开新事务，这些选项无处可施——静默忽略会让「我知道这段要跑很久」` +
+        `的声明悄悄失效。请把选项提到最外层那次 withTenant，或让这段不要被嵌套。`,
+    );
+    this.name = 'NestedTransactionOptionsError';
+  }
+}
+
 export async function withTenant<T>(
   tenantId: string,
   fn: (tx: TenantTx) => Promise<T>,
+  txOptions?: TenantTxOptions,
 ): Promise<T> {
   const outer = getTenantTxScope();
   if (outer) {
+    if (txOptions) throw new NestedTransactionOptionsError(outer.tenantId);
     // 【嵌套语义（M5.1b F002，spec D-3 语义二/三）】
     // 跨租户 → 抛（理由见 CrossTenantNestingError）。
     if (outer.tenantId !== tenantId) {
@@ -118,5 +147,5 @@ export async function withTenant<T>(
   return getRuntimeDb().$transaction(async (tx) => {
     await tx.$queryRawUnsafe(`SELECT set_config('app.tenant_id', $1, true)`, tenantId);
     return tenantTxAls.run({ tenantId, tx }, () => fn(tx));
-  });
+  }, txOptions);
 }

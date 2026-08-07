@@ -12,6 +12,7 @@
 
 import type { Prisma } from '@prisma/client';
 import { prisma } from 'lib/db/prisma';
+import { withTenant } from 'lib/db/tenant-scope';
 import {
   assertPlanKolReasons,
   type PlanMetrics,
@@ -217,7 +218,7 @@ export async function buildMatchPlans(
 
   // P4 supersede 同事务：旧 draft → superseded + 新 3 组落库；approved 永不动
   //（updateMany 只圈 status=draft）。
-  const superseded = await prisma.$transaction(async (tx) => {
+  const superseded = await withTenant(project.tenantId, async (tx) => {
     const old = await tx.matchPlan.updateMany({
       where: { projectId, status: 'draft' },
       data: { status: 'superseded' },

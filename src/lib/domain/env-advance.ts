@@ -12,6 +12,7 @@
 
 import type { Prisma } from '@prisma/client';
 import { prisma } from 'lib/db/prisma';
+import { withTenant } from 'lib/db/tenant-scope';
 import { STAGE_LABEL, type Stage } from 'lib/agent/stage-routing';
 import { parseProjectGoal } from 'lib/data/schemas/project';
 import {
@@ -125,12 +126,13 @@ export async function advanceStage(
     maxReachedAfter,
   };
 
-  const [, log] = await prisma.$transaction([
-    prisma.project.update({
+  // M5.1b F004：数组批量 → withTenant 回调内顺序 await（理由同 approve-plan.ts）。
+  const log = await withTenant(tenantId, async (tx) => {
+    await tx.project.update({
       where: { id: project.id },
       data: { cur: to, maxReached: maxReachedAfter },
-    }),
-    prisma.operationLog.create({
+    });
+    return tx.operationLog.create({
       data: {
         tenantId,
         // architecture.md:800 定义 auto = 工具直接执行的可逆动作。
@@ -145,8 +147,8 @@ export async function advanceStage(
         // ref 不填：它专指 PendingAction.id（architecture.md:1358），语义单一（D13）
       },
       select: { id: true },
-    }),
-  ]);
+    });
+  });
 
   return {
     ok: true,

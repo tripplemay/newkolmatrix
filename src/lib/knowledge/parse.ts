@@ -15,6 +15,7 @@
 import { generateText } from 'ai';
 import type { Material } from '@prisma/client';
 import { prisma } from 'lib/db/prisma';
+import { withTenant } from 'lib/db/tenant-scope';
 import {
   chatModel,
   logUsage,
@@ -343,7 +344,7 @@ export async function parseMaterial(
     const sourceIds = assertSourceMaterialIds([material.id]); // FR-11.9
 
     // supersede 同事务（P3）：逐 kind 新链头落库 + 旧链头 supersededById 指新 + material 置 parsed
-    const parsed = await prisma.$transaction(async (tx) => {
+    const parsed = await withTenant(material.tenantId, async (tx) => {
       for (const draft of drafts) {
         const created = await tx.gameKnowledge.create({
           data: {

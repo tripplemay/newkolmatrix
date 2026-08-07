@@ -13,6 +13,7 @@
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from 'lib/db/prisma';
+import { withTenant } from 'lib/db/tenant-scope';
 
 export const createProjectInputSchema = z.object({
   /** 项目名（必填非空） */
@@ -61,7 +62,7 @@ export async function createProject(
   }
 
   // 事务：项目创建与留痕同生共死（记了没建 = 虚痕；建了没记 = 雷达盲区，两者都不可接受）
-  const [project, log] = await prisma.$transaction(async (tx) => {
+  const [project, log] = await withTenant(tenantId, async (tx) => {
     const p = await tx.project.create({
       data: {
         tenantId,

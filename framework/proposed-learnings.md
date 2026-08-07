@@ -321,14 +321,59 @@ gh run view "$RUN" --json headSha,conclusion   # 必须同时核 headSha == 本�
 
 **为什么不能简单摘掉该 flag：** 同一份个人 config 里有 `sandbox_mode = "danger-full-access"`、`approval_policy = "never"` 与自定义指令 profile。继承它 = 派发任务拿到全权限并被未知指令改写行为，与信封契约「契约随信封走、不依赖对方读机内任何文件」的信任模型正面冲突。**两头都不能要。**
 
-**建议修法（第三条路）：沙箱专用 `CODEX_HOME`。** 由 descriptor 的 `sandbox.env_set` 指向一份**框架托管的最小 codex home**，其中只保留连通性必需项（provider 段 + `auth.json`），**剔除** `danger-full-access` / `approval_policy=never` / `model_instructions_file` / MCP servers / notify 等一切行为面配置；同时**保留** `--ignore-user-config`（它防的是读到用户那份危险 config，而不是防读配置本身）。这样认证与隔离可以同时成立，而不是二选一。
-> 落地要点：该最小 home 的生成需人类参与（涉及凭据复制），不可由 agent 自动完成；建议 `local-cli.md` 补一节「自定义 provider 用户的接入步骤」，并在 `dispatch-mode.md` §5.2 写明「个人 config 隔离」与「保住认证」是两件事，flag 只解决前者。
+**～～建议修法（第三条路）：沙箱专用 `CODEX_HOME`～～ —— 已撤回，该修法自相矛盾。**
+中间稿曾提出「由 `sandbox.env_set` 指向一份框架托管的最小 codex home（只留 provider 段 + `auth.json`），
+同时保留 `--ignore-user-config`」。**这条走不通**：CLI help 原文是
+`--ignore-user-config  Do not load $CODEX_HOME/config.toml; auth still uses CODEX_HOME` ——
+它忽略的正是 `$CODEX_HOME/config.toml`，换了 home 之后那份最小 config 同样会被忽略，provider 段仍读不到。
+
+**正确修法（2026-08-07 三发探针实测，非推测）：保留 `--ignore-user-config`，用 `-c` 在命令行声明式注入 provider。**
+
+```
+--ignore-user-config
+-c model_provider=OpenAI
+-c 'model_providers.OpenAI={name="OpenAI",base_url="<中转>",wire_api="responses",requires_openai_auth=true}'
+-c model=<用户 config 原模型>        ← 必须钉，见下
+-c model_reasoning_effort=<原值>
+```
+
+实测证据（codex-cli 0.146.1）：
+
+| # | 做法 | 结果 |
+|---|---|---|
+| ① | `-c` 注入 `base_url=https://probe-does-not-exist.invalid/v1` | 报错 URL 即该假域名 → **`-c` 在该 flag 下确实覆盖 provider**；零成本，无真实调用 |
+| ② | 沙箱同款环境（`env -i` + `HOME=~/.harness-sandbox/codex` + 仅投喂 `CODEX_HOME`）+ 真实中转 | `turn.completed`，`PROBE_OK` → **认证与隔离同时成立** |
+| ③ | 追加 `-c model=… -c model_reasoning_effort=…` | `turn.completed`，`PROBE_OK_PINNED` → 模型可钉 |
+| ④ | **摘掉** `--ignore-user-config`（反证） | 精确复现 2026-08-05 原崩溃：`failed to read model instructions file …/.harness-sandbox/codex/.codex/codex_ctf_unrestricted_profile.md` → **该 flag 不能摘** |
+
+**必须显式钉 model（新发现的静默坑）：** config 被忽略后 `model` 回落到 CLI 默认值 ——
+等于在无人知情的情况下把 evaluator 换成另一个模型，独立性铁则第 5 条的 `model_family` 校验也随之失去实际意义。
+上面探针 ② 就是跑在默认模型上的（能跑通，但不是 config 里选的那个）。
+
+**顺带一条副作用：** `--ignore-user-config` 同时丢掉 config 里的 `[projects.*] trust_level`，
+故目标目录必须是 git 仓库，否则报 `Not inside a trusted directory and --skip-git-repo-check was not specified`。
+派发 worktree 天然满足，但换非仓库路径会撞。
+
+> **落地约束：** 改 argv 会让 `adapter_execution_contract_sha256` 漂移，resolver 硬停 ——
+> 只能在批次边界配合新签名 mode intent 生效。本次改动落在 M5.1b（`lane: fast` / `role_bindings: null`，
+> codex 未绑定）的窗口内，不阻塞在跑批次。
+> 中转 `base_url` 随 descriptor 入库（是 URL 不是凭据，key 仍只在 `auth.json`）；
+> 换成 env 注入可避免入库，但 provenance 就覆盖不到它，可审计性降一档，故选入库。
 
 **顺带一条排错规律（值得单列）：** 派活失败**第一次的错因可能只是噪声**。本次若只看第一次（TLS eof）就会判「瞬断，等等再来」，而真因要第二次才现形。反过来，若不做那次重派就会把确定性故障误记为偶发。**§3.4 的「重派上限 1 次」因此不只是容错额度，也是一次诊断手段** —— 建议在该节点明：两次错因**不同**时，以第二次为准并重新定性。
 
-**建议写入：** `framework/templates/claude/dispatch/transports/local-cli.md`（自定义 provider 接入节）· `framework/harness/dispatch-mode.md` §5.2（flag 只解隔离不解认证）+ §3.4（重派亦是诊断手段，两次错因不同以第二次为准）· 撤回上一条「设为模板默认」的建议
+> **2026-08-07 复核修正这一段的举例：** 本次两次**不是两个错因，是同一个错因换了张脸**。
+> 两次请求的目标 URL 都是 `api.openai.com`（日志已证），而这台机器正因为直连不通才配了中转；
+> 首派 TLS handshake eof、重派 401，差别只在于那一刻 `api.openai.com` 是否恰好可达。
+> 所以首派**不是噪声**，是同一确定性真因的网络面表现。
+> 规律本身（重派可作诊断手段、以更靠后的错因为准）仍成立，但本例不宜再当「两次错因不同」的样板 ——
+> 更准的表述是：**错因表述不同 ≠ 真因不同；定性前先核两次请求打到了哪里。**
 
-**状态：** 待确认
+**建议写入：** `framework/templates/claude/dispatch/transports/local-cli.md`（自定义 provider 接入节：`-c` 注入法 + 必须钉 model + trust_level 副作用）· `framework/harness/dispatch-mode.md` §5.2（flag 只解隔离不解认证，认证靠 `-c` 补回）+ §3.4（重派亦是诊断手段；但「错因表述不同」需核目标 URL 才能判是否真的两个真因）· 撤回上一条「设为模板默认」的建议
+
+**状态：** 项目侧**已修并实测**（2026-08-07，实物在 `.claude/dispatch/transports/adapters/codex.json`，三发探针 + 一发反证见上表）。
+framework 模板侧**未动**（沿用 2026-08-06 裁决：不提升为模板默认值）。上列「建议写入」四处文档仍**待确认**。
+**尚未做的：** 未跑完整信封派发链路（envelope → worktree → verdict 产物 → 回执），下次真实派 codex 时即是首验。
 
 ## [2026-08-06] Andy/Coordinator — 来源：M5.1 首次 local-cli Generator 派活在前置被拦
 

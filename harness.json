@@ -15,29 +15,19 @@
             "enabled": false
           },
           "execution": {
-            "profile": "heterogeneous",
-            "role_bindings": {
-              "planner": null,
-              "evaluator": {
-                "tool": "codex",
-                "invocation": "local-cli"
-              },
-              "generator": {
-                "tool": "kimi",
-                "invocation": "local-cli"
-              }
-            }
+            "profile": "fast",
+            "role_bindings": null
           }
         },
         "repo_key": "github.com/tripplemay/newkolmatrix",
-        "intent_id": "e66dd7e5-d521-4f04-8e29-a73d9e3cabc4",
-        "issued_at": "2026-08-06T06:00:44.413Z",
+        "intent_id": "7ccb35b8-de2e-49c9-941e-9010adeab46d",
+        "issued_at": "2026-08-07T02:39:56.709Z",
         "issued_by": "tripplezhou@gmail.com",
-        "expected_head_sha": "1c8afd8c0bbf52939376057e055546305024987e",
-        "intent_expires_at": "2026-08-13T06:00:00.000Z",
-        "sig": "MuuIOVGtzZ6L9RmX2mQVHZuXBZpx7MHfe9+9DI4tmB1YNgzV1VEdUJIoMitw3u4UnlBM6YrCAI1NPySFvJQyBQ=="
+        "expected_head_sha": "05b8322d0b89640b095b995c0159769c615622d4",
+        "intent_expires_at": "2026-08-14T02:39:00.000Z",
+        "sig": "9Zd5wQiOOLr4bzDWOW0SKFC1vcgdShCyp3Ic1gMBRvNfaWYKYkMAb0V2PVV8C0u4MlaFJLxQN6vTt4SsLU9SDw=="
       },
-      "staged_at": "2026-08-06T06:00:55.173Z"
+      "staged_at": "2026-08-07T02:40:47.575Z"
     }
   }
 }

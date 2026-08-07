@@ -33,7 +33,7 @@
       "title": "引导白名单（普查产出）+ 源码级普查钉",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-5。登录 / 注册 / slug→租户解析 / 登录留痕 / 启动哨兵这几件事发生在「租户已知」之前，在 kol_app 下必被 RLS 拒（审计 B2-1/2/3）。它们改用 privilegedDb，并由一条不可绕过的普查钉把例外钉成「可数、可钉、可复查」。**spec §D-5 的表是起草时刻快照（≥7 处 / 4 文件），不是真相源——开工必须重跑普查，以实测为准。**",
       "acceptance": "① **先普查后改**：开工第一步重跑引导点普查（判据自定但须**先证明它能看见目标**：拿 spec D-5 表里任一已知点验证模式能抓到它，`audit-methodology.md` §8），普查结果与 spec 表的差异**逐条如实登记**（多出的 / 少掉的都要写理由），不得直接照抄 spec 表。② 白名单内每一处改用 privilegedDb，**每条旁边写明理由**（为什么这里必须绕过 RLS）；改动后开关关时行为不变（既有 auth 相关测试全绿）。③ **普查钉**（新增 tests/unit/ 下测试，vitest 收集范围内）：扫 src/ 全仓，任何 import `db/privileged` 的文件必须在**写死在测试文件里**的白名单数组中，否则红**并点名文件**。扫描用 readFileSync 递归遍历，**不得用 `git grep`**（只搜已跟踪文件，新文件未 commit 时恒空绿——M4.5 building 期踩过）。④ **变异证活三条**：新建一个不在白名单的文件 import privilegedDb → 钉必须红并点名该文件；把白名单里一条摘掉而源码仍在用 → 必须红；用一种作者未采用的 import 写法（如 `import * as` / 重命名 import / 动态 import）引入 privilegedDb → **如实报告钉能不能抓到**，抓不到就写进盲区登记（不得为了绿而回避这条）。⑤ 白名单**恒不可从别处推导**：不读环境变量、不读配置文件、不从源码扫描结果反推——「改代码才能豁免」是刻意的（沿用 tests/unit/project-scope-census.test.ts 的豁免清单范式）。⑥ tsc/lint 绿。"
     },

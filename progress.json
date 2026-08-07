@@ -6,7 +6,7 @@
   "fix_rounds": 0,
   "current_sprint": "M5.1-TENANT-INJECTION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-06T07:50",
+  "last_updated": "2026-08-07T02:30",
   "reference_docs": [
     "docs/specs/M5.1-TENANT-INJECTION-spec.md",
     "docs/specs/M5.1b-carryover-features.json",
@@ -98,9 +98,42 @@
     "note": "更正无法回传 kimi：信封字段是白名单，按铁律 12 结构上塞不进反馈叙述。正规通道是 fixing 阶段的 evaluator_feedback。"
   },
   "session_notes": {
-    "Andy": null,
+    "Andy": "【M5.1 verifying 硬停 · 2026-08-07】codex evaluator 两次派发均 FAILED,配额用尽按 §3.4 硬停。第一次是网络瞬断(把真因盖住),重派才暴露确定性根因:个人 config 走自定义中转 provider,auth.json 的 key 属中转;--ignore-user-config 让 codex 忽略 provider 段直连 api.openai.com → 401 invalid_api_key。四项机械排除见 dispatch_hard_stop.ruled_out_mechanically。F001 **未经验收**;不得因『机械关都过了』就推 done —— 收编只证 diff/L1/禁改清单,不证 acceptance。待人类决:给沙箱专用 CODEX_HOME(含 provider 段+auth,剔除 danger-full-access/自定义指令) / 换 evaluator 绑定(须走批次边界) / 其他。",
     "Reviewer": null,
     "Mark": null
   },
-  "lane": "heterogeneous"
+  "lane": "heterogeneous",
+  "dispatch_hard_stop": {
+    "phase": "verifying",
+    "batch": "M5.1-TENANT-INJECTION",
+    "feature": "F001",
+    "state": "evaluator_cannot_verify",
+    "rule": "dispatch-mode.md §3.4 —— 重派上限 1 次，仍不过则硬停 + 通知，绝不静默无限重跑",
+    "agent": "local-cli--codex--evaluator (codex-cli 0.146.0)",
+    "attempts": [
+      {
+        "task_id": "M5.1-TENANT-INJECTION-verify-ade233899ec6",
+        "outcome": "FAILED",
+        "exit": 1,
+        "duration_s": 159,
+        "cause": "网络瞬断:wss://api.openai.com TLS handshake eof ×5 → 回落 HTTPS 亦失败 ×5。事后实测本机与沙箱剥离环境均可达(http 401/~2s ×3 稳定),故判瞬时"
+      },
+      {
+        "task_id": "M5.1-TENANT-INJECTION-verify-ade233899ec6-r2",
+        "outcome": "FAILED",
+        "exit": 1,
+        "duration_s": 47,
+        "cause": "网络已通,401 invalid_api_key。真因:个人 config 定义了自定义中转 provider(base_url 非 api.openai.com),auth.json 里的 key 属该中转;适配器的 --ignore-user-config 使 codex 忽略该 provider 段、直连 api.openai.com,中转 key 被拒。确定性失败,重派无用"
+      }
+    ],
+    "root_cause": "认证两难复现(M5 已记):个人 config 依赖自定义 provider ↔ 隔离 config 即断认证。2026-08-05 为修 `~` 路径崩溃而启用的 --ignore-user-config 解了崩溃,却重建了断认证。注意个人 config 同时含 sandbox_mode=danger-full-access 与 approval_policy=never,故「直接摘掉该 flag」在安全上不可接受。",
+    "ruled_out_mechanically": [
+      "宿主未设 OPENAI_API_KEY;env_allowlist_extra 仅 CODEX_HOME → key 确实来自 ~/.codex/auth.json",
+      "沙箱剥离环境(env -i + 换 HOME + 仅 CODEX_HOME)下 curl api.openai.com 得 401/1.8s → 排除「沙箱剥代理致不通」",
+      "宿主无任何 proxy 变量 → 排除代理配置",
+      "codex 0.146.0 仍具适配器用到的全部旗标(--json/--ephemeral/--ignore-user-config/-C/-s) → 排除旗标漂移"
+    ],
+    "not_done_deliberately": "未回落隔离 subagent。dispatch-mode.md §3.4 规定硬停而非回落;且 evaluator 绑定属已消费签名 checkpoint,批次中途不可改(consume-mode-intent.sh:155-156)。F001 因此**未经验收**,不得据此推进 done。",
+    "status_unchanged": "verifying"
+  }
 }

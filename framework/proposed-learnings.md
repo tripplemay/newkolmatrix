@@ -264,6 +264,31 @@
 
 **建议写入：** `framework/templates/claude/dispatch/transports/adapters/codex.json` + `framework/harness/dispatch-mode.md` §5.2 / `transports/local-cli.md` 核对清单
 
+**状态：** ⚠️ **建议撤回「设为模板默认」那半条** —— 见下方 2026-08-07 条目：该 flag 在**自定义 provider** 配置下会确定性断认证。原提案（修 `~` 路径崩溃）方向仍对，但修法要换。
+
+## [2026-08-07] Andy/Coordinator — 来源：M5.1 F001 verifying，codex evaluator 两派两停
+
+**类型：** 新坑（推翻上一条提案的修法）
+
+**内容：** `--ignore-user-config` 解了 `~` 路径崩溃，却**重建了它本要绕开的认证两难**，且这次是确定性的。
+
+实测链条（M5.1 F001 验收，两次派发均 FAILED，配额用尽硬停）：
+
+1. 第一次 FAILED(159s)：`wss://api.openai.com` TLS handshake eof ×5 → 回落 HTTPS 亦失败 ×5。**纯网络瞬断，把真因盖住了。**
+2. 重派 FAILED(47s)：网络已通，`401 invalid_api_key`。
+3. 真因：用户 `~/.codex/config.toml` 定义了 `[model_providers.OpenAI]`，其 `base_url` 指向**自定义中转**（非 `api.openai.com`），`auth.json` 里的 key 属于该中转。`--ignore-user-config` 让 codex 忽略整段 provider 定义、直连 `api.openai.com` → 中转 key 必被拒。**重派多少次都一样。**
+
+**这正是 M5 记过的「认证两难」原话**：个人 config 依赖自定义 provider ↔ 隔离 config 即断认证。上一条提案（2026-08-05）以为加 flag 就解了，实际只是把崩溃换成了断认证。
+
+**为什么不能简单摘掉该 flag：** 同一份个人 config 里有 `sandbox_mode = "danger-full-access"`、`approval_policy = "never"` 与自定义指令 profile。继承它 = 派发任务拿到全权限并被未知指令改写行为，与信封契约「契约随信封走、不依赖对方读机内任何文件」的信任模型正面冲突。**两头都不能要。**
+
+**建议修法（第三条路）：沙箱专用 `CODEX_HOME`。** 由 descriptor 的 `sandbox.env_set` 指向一份**框架托管的最小 codex home**，其中只保留连通性必需项（provider 段 + `auth.json`），**剔除** `danger-full-access` / `approval_policy=never` / `model_instructions_file` / MCP servers / notify 等一切行为面配置；同时**保留** `--ignore-user-config`（它防的是读到用户那份危险 config，而不是防读配置本身）。这样认证与隔离可以同时成立，而不是二选一。
+> 落地要点：该最小 home 的生成需人类参与（涉及凭据复制），不可由 agent 自动完成；建议 `local-cli.md` 补一节「自定义 provider 用户的接入步骤」，并在 `dispatch-mode.md` §5.2 写明「个人 config 隔离」与「保住认证」是两件事，flag 只解决前者。
+
+**顺带一条排错规律（值得单列）：** 派活失败**第一次的错因可能只是噪声**。本次若只看第一次（TLS eof）就会判「瞬断，等等再来」，而真因要第二次才现形。反过来，若不做那次重派就会把确定性故障误记为偶发。**§3.4 的「重派上限 1 次」因此不只是容错额度，也是一次诊断手段** —— 建议在该节点明：两次错因**不同**时，以第二次为准并重新定性。
+
+**建议写入：** `framework/templates/claude/dispatch/transports/local-cli.md`（自定义 provider 接入节）· `framework/harness/dispatch-mode.md` §5.2（flag 只解隔离不解认证）+ §3.4（重派亦是诊断手段，两次错因不同以第二次为准）· 撤回上一条「设为模板默认」的建议
+
 **状态：** 待确认
 
 ## [2026-08-06] Andy/Coordinator — 来源：M5.1 首次 local-cli Generator 派活在前置被拦

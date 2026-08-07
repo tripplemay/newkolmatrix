@@ -266,6 +266,45 @@
 
 **状态：** ⚠️ **建议撤回「设为模板默认」那半条** —— 见下方 2026-08-07 条目：该 flag 在**自定义 provider** 配置下会确定性断认证。原提案（修 `~` 路径崩溃）方向仍对，但修法要换。
 
+## [2026-08-07] Andy/Generator — 来源：M5.1b F008 push 后核 CI
+
+**类型：** 新坑 / 模板修订（`generator.md` §4.5 的取 run 方式有缺口）
+
+**内容：** `generator.md` §4.5 给的取 run 命令是
+`gh run list --workflow CI --branch main --limit 1 -q '.[0].databaseId'`。它**只过滤了 workflow 维度，
+没过滤 SHA 维度** —— push 之后立即执行时，GitHub 往往还没为新 push 建 run，`--limit 1` 于是返回
+**上一轮的旧 run**。随后 `gh run watch` + 核 conclusion 全部作用在那条旧 run 上，拿到一个与本次改动
+无关的 `success`。本次实测：push `ddd19e9` 后取到的是 `98b52c9` 的 run（`31092510461`），
+真正对应本次 push 的 `31142604479` 当时尚未创建。
+
+§4.5 已经吃过一次同源亏（v1.0.9：不过滤 workflow 会抓到同 SHA 其他 workflow 的 exit 0）。
+这次是同一个错误的另一维度：**「最新一条」不等于「我的那一条」。**
+
+**修法：** 按 SHA 取，而不是按时间取；取不到就等，不要回落到 `--limit 1`：
+
+```bash
+SHA=$(git rev-parse HEAD)
+# 轮询等待 run 被创建（push 后 run 可能延迟数秒出现）
+for _ in $(seq 1 30); do
+  RUN=$(gh run list --workflow CI --commit "$SHA" --json databaseId -q '.[0].databaseId')
+  [ -n "$RUN" ] && break; sleep 2
+done
+[ -n "$RUN" ] || { echo "该 SHA 无 CI run —— 先确认是否命中 paths-ignore，不要拿别的 run 顶替"; }
+gh run watch "$RUN" >/dev/null
+gh run view "$RUN" --json headSha,conclusion   # 必须同时核 headSha == 本地 HEAD
+```
+
+**顺带一条实物事实（值得写进文档，反直觉）：** **同一次 push 里的多个 commit 只有 tip 有 run。**
+本次 `6a120a7`（代码）与 `ddd19e9`（状态）同 push，Actions 按 push 事件建**一个** run 并钉在 tip
+（`ddd19e9`）上，`gh run list --commit 6a120a7` 返回空。所以「逐个 commit 核 CI」是空想，
+要核的是**push 的 tip**；而 `--commit <非 tip>` 查不到 run 不等于 CI 没跑。
+
+**建议写入：** `framework/harness/generator.md` §4.5（取 run 改按 SHA + 轮询 + 显式核 headSha；
+补「同 push 多 commit 只有 tip 有 run」的说明）· 连带项目根 `generator.md` 与
+`.auto-memory/role-context/generator.md` 的对应段（铁律 7 多副本一致）
+
+**状态：** 待确认
+
 ## [2026-08-07] Andy/Coordinator — 来源：M5.1 F001 verifying，codex evaluator 两派两停
 
 **类型：** 新坑（推翻上一条提案的修法）

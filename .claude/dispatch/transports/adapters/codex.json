@@ -50,6 +50,5 @@
     "{{artifact}}": "产物相对路径"
   },
   "_verified": true,
-  "_verified_note": "codex-cli 0.145.0 / 2026-07-25 端到端演练通过：信封经 stdin 送达、Codex 在 worktree 内写出合 schema 的 verdict 产物、回执判定 COMPLETED、沙箱四道锁全部生效（凭据不可见、push 被拒）。核对记录见 local-cli.md §7。",
-  "_verified_note_2026_08_07": "codex-cli 0.146.1 · 上面新增的 -c 覆盖三发探针实测（非推测）：① 注入 base_url=https://probe-does-not-exist.invalid/v1 → 报错 URL 即该假域名，证 -c 在 --ignore-user-config 下确实覆盖 provider，且不产生真实调用；② 沙箱同款环境（env -i + HOME=~/.harness-sandbox/codex + 仅投喂 CODEX_HOME）+ 真实中转 base_url → turn.completed，agent_message=PROBE_OK，证认证与配置隔离同时成立；③ 追加 -c model=gpt-5.6-sol -c model_reasoning_effort=xhigh → turn.completed，PROBE_OK_PINNED，证模型可钉。**尚未做的：** 未跑完整信封派发链路（envelope→worktree→verdict 产物→回执），下次真实派 codex 时即是首验。"
+  "_verified_note": "codex-cli 0.145.0 / 2026-07-25 端到端演练通过：信封经 stdin 送达、Codex 在 worktree 内写出合 schema 的 verdict 产物、回执判定 COMPLETED、沙箱四道锁全部生效（凭据不可见、push 被拒）。核对记录见 local-cli.md §7。\n\ncodex-cli 0.146.1 · 上面新增的 -c 覆盖三发探针实测（非推测）：① 注入 base_url=https://probe-does-not-exist.invalid/v1 → 报错 URL 即该假域名，证 -c 在 --ignore-user-config 下确实覆盖 provider，且不产生真实调用；② 沙箱同款环境（env -i + HOME=~/.harness-sandbox/codex + 仅投喂 CODEX_HOME）+ 真实中转 base_url → turn.completed，agent_message=PROBE_OK，证认证与配置隔离同时成立；③ 追加 -c model=gpt-5.6-sol -c model_reasoning_effort=xhigh → turn.completed，PROBE_OK_PINNED，证模型可钉。**尚未做的：** 未跑完整信封派发链路（envelope→worktree→verdict 产物→回执），下次真实派 codex 时即是首验。"
 }

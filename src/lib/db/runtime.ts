@@ -5,9 +5,22 @@
 //                                         RLS 真实生效）；否则 DATABASE_URL（与今日逐位一致，D-8）
 //   prisma（lib/db/prisma.ts）            ALS 感知代理，全部既有调用点不动
 //
-// 【谁能直接 import 本模块】只有两处：① lib/db/tenant-scope.ts（withTenant 内部开事务）；
-// ② src/instrumentation.ts（启动哨兵必须问到**真实运行时连接**是谁——F003 白名单接线）。
-// 其余任何 import 都等于绕过 ALS 注入面，F003 的普查钉会红。
+// 【谁在直接 import 本模块（as-built，实测）】src/ 下恰两处：
+//   ① lib/db/prisma.ts        代理的分支三：无 ALS 作用域且开关未开时回落到运行时 client
+//   ② lib/db/tenant-scope.ts  withTenant 在其上开 interactive 事务
+// 其余任何 src/ 文件 import 本模块都等于绕过 ALS 注入面。该清单由
+// tests/unit/db-layer-importer-census.test.ts 机械守住（新增 importer 即红并点名），
+// 不再依赖本注释自觉。
+//
+// > 更正记录（M5.1b F008）：原文写「只有 ① lib/db/tenant-scope.ts ② src/instrumentation.ts」，
+// > **两头都错**——漏列了真实 importer lib/db/prisma.ts；而 src/instrumentation.ts 动态 import 的
+// > 是 ./lib/db/prisma 与 ./lib/db/app-role（见该文件 :14-15），并不 import 本模块。该失实由
+// > M5.1 的 spec-lock 稽核以 grep 证伪，且会直接把 F003 的白名单口径带偏
+// > （docs/test-reports/M5.1-F001-spec-lock-review.md §4）。
+//
+// 【与 F003 白名单的分工，别混】本清单守的是「谁在用运行时 client」（注入面完整性）；
+// F003 的普查钉守的是「谁在用 privilegedDb」（越权面）。两者判据不得互相派生——
+// 互相派生则一处失效两处同时瞎。
 //
 // 连接串解析**复用** app-role.ts:91-117 的 resolveRuntimeDatabaseUrl / isAppRoleRuntimeEnabled
 //（M5 F007 已交付），不重写。schema.prisma 的 datasource 刻意不动：那会把 prisma migrate 的

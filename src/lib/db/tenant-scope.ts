@@ -10,9 +10,16 @@
 //（D-1：73 个 src 文件、206 处调用点零改写），代理本体在 lib/db/prisma.ts。
 //
 // 【嵌套语义归 F002】同租户嵌套复用既有 tx（不开第二事务）、跨租户嵌套抛错，连同 B1-4 原子性
-// 与 B3 残留两条硬回归，都是 F002 的 acceptance。本 feature（F001）只交付单层语义——全仓此刻
-// 没有任何 withTenant 调用点（15 处 $transaction 迁移是 F004），提前写嵌套分支 = 没有测试锚的
-// 死代码。在 F002 落地前**不要嵌套调用** withTenant。
+// 与 B3 残留两条硬回归，都是 F002 的 acceptance。本模块此刻只交付**单层**语义——**产品代码
+// （src/）零 withTenant 调用点**（15 处 $transaction 迁移是 F004），提前写嵌套分支 = 没有
+// 测试锚的死代码。在 F002 落地前**不要嵌套调用** withTenant：现在没有嵌套守卫，嵌套会静默
+// 开第二个事务（正是审计 B1-4 的病灶形态）。
+//
+// > 更正记录（M5.1b F008）：原文写「全仓此刻没有任何 withTenant 调用点」，**该陈述不成立**——
+// > 同批交付的 tests/integration/tenant-injection-proxy.test.ts 自带 5 处调用（:101 :117 :131
+// > :223 :247）。「全仓」与「产品代码」不是一回事，此处要的是后者。该失实由 M5.1 的 spec-lock
+// > 稽核以 grep 证伪（docs/test-reports/M5.1-F001-spec-lock-review.md §4）。
+// > 本段的 importer / 调用点类陈述现由 tests/unit/db-layer-importer-census.test.ts 机械守住。
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { Prisma } from '@prisma/client';

@@ -69,7 +69,7 @@
       "title": "文档同步 + doc-freshness 机械钉扩展 + 未覆盖入口清单落盘",
       "priority": "medium",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-6 末段 + planner.md「批内文档新鲜度」。本批的口径权威文档会被前六条 feature 反向漂移；同时 M5.2 的输入（未覆盖入口清单）必须在本批产出，不许留成「剩下的以后再说」。文档断言按 planner.md 硬要求从「批末 grep 复核」升级为「doc-freshness 断言」——人工 grep 已证不可靠（同坑四连踩）。",
       "acceptance": "① **文档同步三处**：docs/dev/architecture.md（注入机制 as-built）· docs/dev/agent-architecture.md:105（现写「M5.1 注入机制落地后 pgvector raw SQL 才由 DB 侧 policy 接管」——本批落地后须改为实况）· docs/dev/deploy.md:130（DB_APP_ROLE_RUNTIME 开关段，须写明本批只到最小闭环、全站收口在 M5.2、生产切换的前置与回滚）。② **doc-freshness 断言扩展**（tests/unit/architecture-doc-freshness.test.ts）：把「注入机制 as-built」纳入机械钉——文档里的计数/清单/机制名与实物 grep 比对。判据须**不带左括号**且含 `docs/` 范围，并**先验活**（构造一个已知命中项验证模式能抓到它，audit-methodology.md §8）。③ **未覆盖入口清单落盘**：产出 docs/specs/M5.1-uncovered-entrypoints.md，列出「全部入口 − 最小闭环已覆盖」的差集（入口面实测底数：31 API route + 13 admin page + 3 例程 + ~20 scripts），每条标注类型与租户来源（会话面 / 无会话面）。清单**由普查产出**，不是手写——并给出普查命令。④ **既有钉的状态复核**：tests/integration/rls-negative-suite.test.ts §0（断言 API 层 client 是特权连接）与 tests/unit/project-scope-census.test.ts 文件头「现在仍是主力」段，在本批（运行时默认仍未切）下**口径不变**；若本批改动了它们，须说明理由——无理由改动视为越界。⑤ **变异证活**：挑 ② 新增的任一条断言，改一处实物（如挪动文档某段、改一个计数）→ 该断言必须红并点名。⑥ backlog 销账口径：原条目 BL-M51-TENANT-INJECTION 已在 planning 阶段改写为 **BL-M52-TENANT-COVERAGE**（只留覆盖面那一半，机制层归本批）。Generator 不改 backlog.json，只需在 handoff 里说明本批兑现的边界（哪些机制已成立、哪些覆盖面未做），由 Planner 在 done 阶段据此销账。⑦ tsc/lint + 全量 vitest 绿。"
     }

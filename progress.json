@@ -1,12 +1,12 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "M5.1b:补上 M5.1 未完成的债 + 做完机制层其余六条。F001(evaluator)补验已落 main 的三层 client + ALS 代理实现——尤其两条变异证活,收编证不了断言鉴别力;F008 先修两条经 grep 证伪的注释(第二条会污染 F003 白名单口径)并把 importer 清单升级为机械钉;F002-F007 原文承接(withTenant 硬语义 + B1-4/B3 回归 → 引导白名单普查钉 → 15 处事务迁移 → ALS 三上下文实测 → 开关开六段最小闭环 e2e → 文档与未覆盖入口清单)。已知代价(D-9):F001 补验落在 verifying,即在未独立验证的底座上先盖六层;缓解=Generator 发现机制与 D-1/D-4 不符须立即停工提审计。",
   "total_features": 8,
-  "completed_features": 6,
+  "completed_features": 7,
   "fix_rounds": 0,
   "current_sprint": "M5.1b-TENANT-INJECTION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-08T02:40",
+  "last_updated": "2026-08-08T02:55",
   "reference_docs": [
     "docs/specs/M5.1b-TENANT-INJECTION-spec.md",
     "docs/specs/M5.1-TENANT-INJECTION-spec.md",
@@ -36,18 +36,27 @@
       "F002 @b3b15be",
       "F003 @fadc1f4",
       "F004 @85e0362+补测",
-      "F005 @7ec61df",
-      "F006 @86331c0"
+      "F005 @7ec61df (+ @f691fa0 会话支点复用重构)",
+      "F006 @86331c0",
+      "F007 @3baf293"
     ],
     "pending": [
-      "F007 文档 + doc-freshness + 未覆盖入口清单"
+      "F001（executor:evaluator）—— 补验 M5.1 遗留实现，归 Evaluator"
     ],
-    "notes_for_next": "F006 已完成：`npm run rls:e2e` → 15 passed（开关开 + kol_app + RLS 真生效）；默认 `npx vitest run` 仍 148 files / 1862 tests 全绿（e2e 不进默认收集范围）；tsc 0 / lint 0。F007 需要的输入：① **已包裹入口恰三条**（未覆盖清单的被减数就是它们）：src/app/api/nav-badges/route.ts · src/app/admin/knowledge/page.tsx · src/lib/jobs/scheduler.ts 的 health-scan。包裹点：src/lib/db/tenant-entry.ts 的 withSessionTenant（会话面）+ scheduler 里直接 withTenant（无会话面）。② 入口面底数须**重跑普查**，不要照抄 spec：本批实测 `find src/app/api -name route.ts` = 31。③ 文档要写的 as-built 事实：三层 client + ALS 代理 + withTenant 嵌套语义 + 两步开关（DB_APP_ROLE_RUNTIME 与 DATABASE_URL_APP 是两件事）+ 本批只到最小闭环、全站收口 M5.2。④ 已知待写进文档/清单的两条风险：**RSC loader 的兜底 catch 会把 MissingTenantScopeError 吞成静默空态**（实测 src/lib/insight/cross-surface-data.ts:124 与 surface-data.ts:154）；**带事务选项的 withTenant 恰两处**（gate.ts:392 的 90s、scheduler.ts:97 的 60s），M5.2 把外层入口包起来时它们会变成嵌套传选项 → NestedTransactionOptionsError，须逐条处置。⑤ F007 acceptance ④ 要复核的两条既有钉，本批**未改动**：tests/integration/rls-negative-suite.test.ts §0 与 tests/unit/project-scope-census.test.ts 文件头段（运行时默认仍未切，口径不变；全量 vitest 绿为证）。"
+    "l1_evidence": {
+      "tsc": "npx tsc --noEmit 退出 0",
+      "lint": "next lint -> 'No ESLint warnings or errors'",
+      "vitest_default": "npx vitest run -> 148 files / 1869 tests 全绿",
+      "rls_e2e": "npm run rls:e2e -> 15 passed（开关开 + 连 kol_app + RLS 真生效）",
+      "note": "以上四条均在 F007 落盘后实跑。test:visual 未跑（本批零 UI 变更，spec §7 已登记本机恒 15 passed / 2 failed 属 BL-VISUAL-DATA-ISOLATION，不计分）"
+    },
+    "notes_for_evaluator": "F001 是本批唯一 executor:evaluator 条目。验它需要知道的实物边界：① **验批末的树**（spec D-10）：F002 往 tenant-scope.ts 加了嵌套语义与 NestedTransactionOptionsError、F004 迁了 13 处事务调用点、F005 新增 src/lib/db/tenant-entry.ts 并包了三条入口、F008 改了两条注释——均属合法后续扩展。判据是 F001 acceptance 描述的**性质在批末是否仍成立**。② 跑测入口：默认面 `npx vitest run`；开关开的那一套是**独立 config**，入口 `npm run rls:e2e`（不进默认收集范围，见 vitest.e2e.config.ts 头注）。入口面普查 `npm run census:entrypoints`。③ **变异证活的两条规定动作（acceptance ⑤）落在 F001 自己的测试面上**，Generator 未代做：(a) 代理 (c) 分支抛错改回落 → 对应用例必须红；(b) 摘掉代理对 raw 方法的转发 → 原 ④ 用例必须红。④ 还原变异**不得用 git checkout**（会抹掉未提交编辑）；本批 Generator 侧全部变异均按此办，还原后以 shasum 逐位对账，可复用同一手法。⑤ 本批 Generator 已自曝的两处「量尺问题」值得一并复核：普查模块曾把自己判成已覆盖（已排除）；普查模块文案曾触发既有钉 system-context-convergence（已改文案、未动钉）。",
+    "backlog_reconciliation": "（acceptance ⑥ 口径，供 Planner 在 done 阶段销账 BL-M52-TENANT-COVERAGE）**本批兑现的是机制层，全部成立且有机械证据**：三层 client 分工 · ALS 感知代理三分支 · withTenant 事务内 SET LOCAL + 三条嵌套语义 + B1-4 原子性 / B3 残留两条硬回归 · 引导白名单（5 文件）+ 两道互不派生的普查钉 · 13 处 $transaction 迁移 · ALS 在 RSC/route/scheduler 三上下文的传播实测（含并发不串）· 开关开 + 连 kol_app + RLS 真生效下的六段最小闭环 e2e（含跨租户零行的 DB 层证据）· 哨兵双向自证。**本批未做、明确留给 M5.2 的是覆盖面**：入口面实测 78 条、已包裹 3 条，未覆盖 75 条（清单 docs/specs/M5.1-uncovered-entrypoints.md，由普查产出可复跑）。**生产行为零变化**：DB_APP_ROLE_RUNTIME 仍未设，运行时仍特权连接，本批不改 .env 默认值。**M5.2 开工必须先读的两条风险**：(1) RSC loader 的兜底 catch 会把 MissingTenantScopeError 吞成静默空态（实测 lib/insight/cross-surface-data.ts:124 与 surface-data.ts:154）；(2) 带事务选项的 withTenant 恰两处（gate.ts:392 的 90s、scheduler.ts:97 的 60s），外层入口一包就变成嵌套传选项 → NestedTransactionOptionsError，须逐条处置。"
   },
   "session_notes": {
     "Andy": null,
     "Reviewer": null,
-    "Mark": null
+    "Mark": "M5.1b building 全程快车道单会话完成 F005/F006/F007（F008/F002/F003/F004 为先前会话）。三条值得下次记住的：① vitest 4.1.10 对**动态 import** 模块的 mock 在并发下失效——并发用例不能靠 mock lib/auth/index 供给会话，须走 session-tenant 的静态注入缝（已扩 tests/support/session-mock 的 resolve 三态，既有 4 个消费者行为不变）。② `mergeConfig` 对数组是拼接不是替换：vitest e2e config 用它覆盖 include，首跑把默认 148 个文件拖进开关打开的进程，83 files 红。改成展开 base + 替换 test.include。③ 变异证活要看**红了几条**而不只是「红没红」：F005 变异 4 只红 2 条，暴露并发用例的「集合相等」是伪断言（A/B 互换作用域后集合仍相等），据此加固成逐条配对后同一变异红 4 条。两条已写进 framework/proposed-learnings.md 待裁。"
   },
   "lane": "fast",
   "prior_batch_closure": {

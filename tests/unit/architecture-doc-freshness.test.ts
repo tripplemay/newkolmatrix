@@ -8,12 +8,41 @@
 // 只钉「计数与实物一致」这类可机械判定的漂移；语义级翻牌仍归各批 F012 人工复核。
 
 import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { runCensus } from '../../scripts/test/m51b-entrypoint-census';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
 import { getPersona, listPersonas } from '../../src/lib/agent/registry';
 
 const DOC = readFileSync('docs/dev/architecture.md', 'utf8');
 const SCHEMA = readFileSync('prisma/schema.prisma', 'utf8');
+
+/** 递归收集 src/ 下全部 .ts/.tsx（readFileSync 遍历，不用 git grep —— 新文件未 commit 时恒空绿）。 */
+function collectSrc(dir = 'src'): string[] {
+  const out: string[] = [];
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) out.push(...collectSrc(p));
+    else if (/\.tsx?$/.test(e.name)) out.push(p);
+  }
+  return out;
+}
+
+/** src/ 下 import 了某模块的文件清单（实物 importer 集合）。 */
+function srcFilesImporting(module: RegExp): string[] {
+  const re = new RegExp(`from ['\"][^'\"]*${module.source}['\"]`);
+  return collectSrc().filter((f) => re.test(readFileSync(f, 'utf8')));
+}
+
+/** src/ 下**非 db 层**的 raw SQL 出现次数（代理转发面的实物底数）。 */
+function srcRawSqlOccurrences(): number {
+  return collectSrc()
+    .filter((f) => !f.startsWith(join('src', 'lib', 'db')))
+    .reduce(
+      (n, f) => n + (readFileSync(f, 'utf8').match(/queryRaw|executeRaw/g) ?? []).length,
+      0,
+    );
+}
 
 function docCount(pattern: RegExp, label: string): number {
   const m = DOC.match(pattern);
@@ -456,5 +485,155 @@ describe('M5 认证 + RLS as-built（F013）', () => {
     const line = DOC.split('\n').find((l) => l.includes('401 = 认证失败'));
     expect(line, '缺 M5 的 401 语义句').toBeTruthy();
     expect(line!, '403 闸门语义半句必须保留').toContain('403 仍专属闸门语义');
+  });
+});
+
+/* ================================================================== *
+ * M5.1b-TENANT-INJECTION F007 — 租户注入 as-built 的文档漂移面机械钉
+ *
+ * 【为什么这一族要单独扫 docs/ 全目录，而不是只读那两份 DOC 常量】
+ * M4.5 的文档漂移活过整个批次，成因是两道防线盲区重叠：机械门不覆盖 agent-architecture.md，
+ * 人工批末 grep 又**带左括号**（`stepCountIs(`，而文档写的是 `stepCountIs 5`）**且不搜 `docs/`**
+ * ——模式差一个字符就全盲（audit-methodology.md §8）。
+ * 故本族的判据一律：① 模式**不带左括号**；② 范围**含整个 `docs/`**；③ 先验活（下面第一条用例）。
+ *
+ * 【为什么计数不写死在测试里】写死 = 又造一份会过期的副本。这里的期望值全部**现算**：
+ * 入口面来自 `runCensus()`（同一份普查，文档也是它生成的）、白名单来自扫 src/ 实物 importer、
+ * raw SQL 来自扫 src/ 实物。实物变了而文档没翻 → 红并点名。
+ * ================================================================== */
+
+const DOCS_DIR = 'docs';
+
+/** 递归收集 docs/ 下全部 .md（不用 git grep：只搜已跟踪文件，新文件未 commit 时恒空绿）。 */
+function collectDocs(dir: string): string[] {
+  const out: string[] = [];
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = `${dir}/${e.name}`;
+    if (e.isDirectory()) out.push(...collectDocs(p));
+    else if (e.name.endsWith('.md')) out.push(p);
+  }
+  return out;
+}
+
+/** 在整个 docs/ 里找一个**纯字面量**（不带左括号）的句子，返回命中的 `文件:行`。 */
+function grepDocs(needle: string): string[] {
+  const hits: string[] = [];
+  for (const file of collectDocs(DOCS_DIR)) {
+    readFileSync(file, 'utf8')
+      .split('\n')
+      .forEach((line, i) => {
+        if (line.includes(needle)) hits.push(`${file}:${i + 1}`);
+      });
+  }
+  return hits;
+}
+
+/** 在整个 docs/ 里按 pattern 取全部计数锚点，返回 `[{at, values}]`。 */
+function scanDocCounts(
+  pattern: RegExp,
+): Array<{ at: string; values: number[] }> {
+  const found: Array<{ at: string; values: number[] }> = [];
+  for (const file of collectDocs(DOCS_DIR)) {
+    readFileSync(file, 'utf8')
+      .split('\n')
+      .forEach((line, i) => {
+        const m = line.match(pattern);
+        if (m) {
+          found.push({
+            at: `${file}:${i + 1}`,
+            values: m.slice(1).map((v) => Number(v)),
+          });
+        }
+      });
+  }
+  return found;
+}
+
+describe('M5.1b 注入机制 as-built 文档新鲜度（判据不带左括号 + 含 docs/ 范围）', () => {
+  it('🔒 检测器先验活：同一个扫描器必须能看见一个**已知在场**的句子', () => {
+    // 没有这一条，下面所有「零残留」结论都可能是由一个看不见目标的检测器产出的
+    // ——M4.5 F002 的漂移正是这样活过整批的（audit-methodology.md §8）。
+    expect(
+      grepDocs('租户注入机制').length,
+      '扫描器看不见 docs/ 下已知在场的句子 —— 下面的「零残留」结论全部不可信',
+    ).toBeGreaterThan(0);
+    expect(grepDocs('MissingTenantScopeError').length).toBeGreaterThan(0);
+  });
+
+  it('陈旧句零残留：注入机制已落地，文档不得再写「落地后才…」', () => {
+    for (const stale of [
+      'M5.1 注入机制落地后', // agent-architecture.md 旧句
+      '在租户变量注入（spec D-7 / F009）落地之前不要打开', // deploy.md 旧告警
+      '注入机制与引导白名单归 M5.1', // architecture.md 旧概览句
+    ]) {
+      expect(grepDocs(stale), `已作废的陈述仍在 docs/：「${stale}」`).toEqual([]);
+    }
+  });
+
+  it('db 层每个实物模块都在 architecture.md 登记（新增模块忘写文档 → 红并点名）', () => {
+    const modules = readdirSync('src/lib/db')
+      .filter((f) => f.endsWith('.ts'))
+      .map((f) => f.replace(/\.ts$/, ''));
+    // 兜底：目录空了或路径写错时，下面的循环会一条都不跑而假绿
+    expect(modules.length).toBeGreaterThan(0);
+    for (const m of modules) {
+      expect(
+        DOC,
+        `src/lib/db/${m}.ts 未登记进 architecture.md §7.1.1（数据层模块表）`,
+      ).toContain(`\`${m}.ts\``);
+    }
+  });
+
+  it('引导白名单文件数 = 实物 importer 数（改白名单忘翻文档 → 红）', () => {
+    const actual = srcFilesImporting(/db\/privileged/).length;
+    const anchors = scanDocCounts(/引导白名单（(\d+) 个文件）/);
+    expect(anchors.length, '文档里找不到「引导白名单（N 个文件）」锚点').toBeGreaterThan(0);
+    for (const a of anchors) {
+      expect(a.values[0], `${a.at} 的白名单计数与实物（${actual}）不符`).toBe(actual);
+    }
+  });
+
+  it('非 db 层 raw SQL 处数 = 实物（新增 raw SQL 忘翻文档 → 红）', () => {
+    const actual = srcRawSqlOccurrences();
+    const anchors = scanDocCounts(/全仓非 db 层共 (\d+) 处/);
+    expect(anchors.length, '文档里找不到「全仓非 db 层共 N 处」锚点').toBeGreaterThan(0);
+    for (const a of anchors) {
+      expect(a.values[0], `${a.at} 的 raw SQL 处数与实物（${actual}）不符`).toBe(actual);
+    }
+  });
+
+  it('入口面与已覆盖计数 = 普查实测（包了新入口 / 加了新 route 忘翻文档 → 红）', () => {
+    const census = runCensus();
+    const anchors = scanDocCounts(/入口面实测 (\d+) 条、已包裹 (\d+) 条/);
+    expect(
+      anchors.length,
+      '文档里找不到「入口面实测 N 条、已包裹 M 条」锚点',
+    ).toBeGreaterThan(0);
+    for (const a of anchors) {
+      expect(
+        { at: a.at, total: a.values[0], covered: a.values[1] },
+        `${a.at} 的入口面计数与普查实测不符`,
+      ).toEqual({
+        at: a.at,
+        total: census.entries.length,
+        covered: census.covered.length,
+      });
+    }
+  });
+
+  it('未覆盖清单文件的合计行 = 普查实测（忘重跑 `npm run census:entrypoints -- --write` → 红）', () => {
+    const census = runCensus();
+    const listing = readFileSync('docs/specs/M5.1-uncovered-entrypoints.md', 'utf8');
+    const row = listing
+      .split('\n')
+      .find((l) => l.startsWith('| **合计**'));
+    expect(row, '清单缺「合计」行（生成器格式变了须同步本测试）').toBeTruthy();
+    const nums = [...row!.matchAll(/\*\*(\d+)\*\*/g)].map((m) => Number(m[1]));
+    expect(nums, `合计行与普查实测不符：${row}`).toEqual([
+      census.scanned.length,
+      census.entries.length,
+      census.covered.length,
+      census.uncovered.length,
+    ]);
   });
 });

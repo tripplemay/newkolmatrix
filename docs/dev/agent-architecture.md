@@ -102,7 +102,8 @@ Agent 驱动产品的四根柱子。每柱一个明确的唯一入口，禁止�
 
 - **ToolContext 的租户来源变了,契约没变**：`buildToolContext` 从会话解析 `{tenantId, actor=登录邮箱}`（`src/lib/auth/session-tenant.ts` 唯一解析点）;无会话面（scheduler/scripts/webhook）走显式 `systemContext(tenantSlug)`;两条都没有 → 抛,**无隐式回落 dev**。工具执行、闸门、遥测的 ctx 契约零改动——13 个工具的 zod schema、两步票据、`OperationLog.actor` 归属全部照旧。
 - **`/api/agent` 在 middleware 保护面内**：未登录对话请求恒 401,copilot 面板依赖页面级会话。`ToolContext.actor?` 只用于留痕,不参与任何权限判定（D26 延续无 RBAC）。
-- **RLS 地基对 agent 层当前零影响**：运行时仍特权连接（`DB_APP_ROLE_RUNTIME` 默认关）;M5.1 注入机制落地后,pgvector raw SQL（search_kols 等 7 处）才由 DB 侧 policy 接管。
+- **RLS 对 agent 层当前仍零影响，但原因已经变了**：注入机制**已落地**（M5.1 + M5.1b：三层 client + ALS 感知代理 + `withTenant`，as-built 见 `architecture.md` §7.1.1）；零影响是因为**运行时开关仍默认关**（`DB_APP_ROLE_RUNTIME` 未设 → 代理走「无 ALS + 开关未开」那一支，回落运行时特权 client，行为与落地前逐位一致）。
+- **开关一开时 agent 层会怎样**：`prisma` 代理连 `$queryRawUnsafe` / `$executeRawUnsafe` 一并转发到 `withTenant` 的事务，故 agent 侧 raw SQL（`search-kols.ts` ×2 · `evaluate-creator.ts` ×1 · `match/generate-candidates.ts` ×1，另 `kol-sync/sync.ts` ×2 = 全仓非 db 层共 6 处）随之由 DB 侧 policy 接管——这是审计 B1-2「raw SQL 不在覆盖面」的根治点。**但入口面只包了 3 条**（M5.1b 最小闭环）：未包裹的入口在开关打开时**当场抛 `MissingTenantScopeError`**（fail-closed，不是静默零行），差集清单见 `docs/specs/M5.1-uncovered-entrypoints.md`，全站收口归 M5.2。
 
 ---
 

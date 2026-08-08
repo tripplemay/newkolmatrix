@@ -83,7 +83,7 @@ KOLMatrix 不是「CRUD-over-REST + AI 挂件」，而是以「工具结果协�
 | 客户端状态 | 不新增全局状态库：`useChat` 持对话、URL 持导航与筛选态（§6.5 四位）、`ConfiguratorContext` 持主题 | 已有 | FR-7.6/7.8 要求环节态可链接直达；URL 即状态天然满足（ADR-18） | zustand/jotai/Redux：当前无跨树共享可变状态诉求，引入即闲置 |
 | 单元/变异测试 | **vitest** | 已装（^4.1.10 + @vitest/coverage-v8，M1-A F001；`vitest.config.ts` 在仓） | 见 §12.6.3 as-built 口径 | — |
 | E2E / 视觉 | Playwright ^1.61.1（+ `playwright` ^1.61.1） | 已装 | 视觉回归已跑通（chromium 1512×982，darwin/linux 双 baseline，CI/linux 重生） | Cypress：迁移无收益 |
-| 认证 | **Auth.js v5 Credentials + JWT**（M5 as-built：邮箱+密码 · 开放注册即建租户 · `src/middleware.ts` 全站鉴权 · 登录/注册 fail-closed 限速 + 审计留痕） | ✅ 已实装（M5 F001-F006） | M5 spec D-1/D-2/D-4：JWT 会话无 adapter 表；租户来源仅「会话 / 显式 systemContext」两条路，**无隐式回落 dev**；403 仍专属闸门语义 | RLS 地基同批就位（kol_app + 24 表 policy + `DB_APP_ROLE_RUNTIME` 开关默认关）；运行时非特权切换归 M5.1（`BL-M51-TENANT-INJECTION`） |
+| 认证 | **Auth.js v5 Credentials + JWT**（M5 as-built：邮箱+密码 · 开放注册即建租户 · `src/middleware.ts` 全站鉴权 · 登录/注册 fail-closed 限速 + 审计留痕） | ✅ 已实装（M5 F001-F006） | M5 spec D-1/D-2/D-4：JWT 会话无 adapter 表；租户来源仅「会话 / 显式 systemContext」两条路，**无隐式回落 dev**；403 仍专属闸门语义 | RLS 地基同批就位（kol_app + 24 表 policy + `DB_APP_ROLE_RUNTIME` 开关默认关）；**租户注入机制已落地（M5.1 + M5.1b，见 §7.1.1）**，运行时切换仍未开启，全站入口收口归 M5.2（`BL-M52-TENANT-COVERAGE`） |
 | 部署 | Docker 四阶段（`deps`/`build`/`tools`/`runner`，node 20-alpine standalone）+ GH Actions：CI（push main → lint+tsc+build+visual）、CD 仅 `workflow_dispatch` 手动（VPS `newkol.guangai.ai:3300`） | 已装 | CICD-VPS + GO-LIVE 已 done；deploy/prod 永留人类闸门 | 自动部署 on push：违反人类闸门约束，禁止 |
 
 **附注 · AI SDK 版本族配对核查（ARCH-M05 F001 要求，2026-07-21 实测）**
@@ -106,7 +106,7 @@ KOLMatrix 不是「CRUD-over-REST + AI 挂件」，而是以「工具结果协�
 
 - **AI 唯一出口**：aigcgateway（OpenAI 兼容 baseURL），chat（tool-calling）+ embedding 双链路；密钥全走 env。默认 chat=`deepseek-v3`、embedding=`bge-m3`（`src/lib/ai/gateway.ts` 常量，env 可覆盖）。
 - **数据现状**：`scripts/seed/data/kol-seed-enriched-final.csv` **2,524 条**真实 KOL（含表头 2,525 行）入 git 可复现；Apify 采集、外购评估 API、平台一方 API 均后期。
-- **租户与认证（M5 as-built）**：真实认证已实装（Auth.js v5 Credentials + JWT，开放注册即建租户）；租户来源仅两条路——会话（`buildToolContext` → `requireSessionIdentity`）或显式 `systemContext(tenantSlug)`，**无隐式回落 dev**（缺则抛）。**RLS 地基已就位、运行时未切换**：`kol_app` 非特权角色 + 24 表 default-deny policy + BYPASSRLS 启动哨兵已落（M5 F007/F008），应用运行时仍特权连接，切换是显式开关 `DB_APP_ROLE_RUNTIME`（默认关，开而配错即抛）——注入机制与引导白名单归 M5.1（`BL-M51-TENANT-INJECTION`，实测依据 `docs/specs/M5-AUTH-RLS-F009-preimpl-audit.md`）。M4.8 的三口径 census 钉（`tests/unit/project-scope-census.test.ts`）在运行时切换前仍是主力防线。
+- **租户与认证（M5 as-built）**：真实认证已实装（Auth.js v5 Credentials + JWT，开放注册即建租户）；租户来源仅两条路——会话（`buildToolContext` → `requireSessionIdentity`）或显式 `systemContext(tenantSlug)`，**无隐式回落 dev**（缺则抛）。**RLS 地基已就位、注入机制已落地、运行时未切换**：`kol_app` 非特权角色 + 24 表 default-deny policy + BYPASSRLS 启动哨兵已落（M5 F007/F008）；三层 client + ALS 感知代理 + `withTenant` + 引导白名单已落（M5.1 + M5.1b，**as-built 见 §7.1.1**），并已用开关真开、连 `kol_app`、RLS 真生效的最小闭环 e2e 证明机制成立（`npm run rls:e2e`）。应用运行时**仍是特权连接**，切换是显式开关 `DB_APP_ROLE_RUNTIME`（默认关，开而配错即抛）。**本批只到最小闭环**：入口面实测 78 条、已包裹 3 条，差集清单见 `docs/specs/M5.1-uncovered-entrypoints.md`，全站收口归 M5.2（`BL-M52-TENANT-COVERAGE`）。M4.8 的三口径 census 钉（`tests/unit/project-scope-census.test.ts`）在运行时切换前仍是主力防线。
 - **资金边界**：合同/支付走 partner（电子签 + Stripe escrow）；本系统只做触发条件 + 闸门 + 状态追溯，不碰资金与税务。
 - **已交付地基**：DS-FOUNDATION（admin 外壳 / 色阶注入 / 深浅色 / 路由表 / 构建门）· **AGENT-FOUNDATION（M0：Prisma schema + pgvector + seed + gateway + 四柱 + 编排框架 + AI→人闸门）** · GO-LIVE（生产全栈化：db 容器 + migrate one-shot + `/api/health`）· FE-REFACTOR（前端整肃 + 视觉基线）。
 
@@ -212,7 +212,7 @@ flowchart LR
     LIB -. 同一字段契约接入 .-> EXT
 ```
 
-**边界声明（架构不做什么）**：不做人→人审批与组织权限层（RBAC 仍无，D26 延续：User 无 role 字段）；不碰资金流与税务（partner 域）；不自建模型服务（gateway 域）；多租户隔离已有真实认证 + 应用层 where + RLS 地基（M5），**运行时非特权切换与注入机制不在当前批**（M5.1）。
+**边界声明（架构不做什么）**：不做人→人审批与组织权限层（RBAC 仍无，D26 延续：User 无 role 字段）；不碰资金流与税务（partner 域）；不自建模型服务（gateway 域）；多租户隔离已有真实认证 + 应用层 where + RLS 地基（M5）+ 租户注入机制（M5.1 / M5.1b，§7.1.1），**运行时非特权切换与全站入口收口不在当前批**（M5.2）。
 
 | 外部系统 | 方向 | 交互 | 状态 |
 |---|---|---|---|
@@ -665,6 +665,49 @@ PostgreSQL **16** + pgvector（dev：`docker-compose.dev.yml`，宿主端口 543
 **D-INTEROP 稳定对外标识（as-built）**：核心实体 `Tenant`/`Kol`/`Project`/`Game` 带 `publicId String @unique @default(cuid())`，`Tenant`/`Project`/`Game` 另带 `slug String? @unique`——为 GEO / 外部 agent 引用留插座；`fieldProvenance`/`dataSource` 兼作对外可信层。JSON-LD 具体字段 = EXTENSION POINT，未实装。
 
 建表节奏：**M0 已建 8 表**（下表）→ as-built 已 24 表（§7.2.1；M4-INSIGHT F001 加 MetricSnapshot/WeeklyReport/ShareLink 三表 + ShareLinkScope 枚举，expand-only）；§5.2 领域表随环节批次建（M1 project/brief/knowledge 域、M2 match 域、M3 reach/delivery 域、✅ M4 insight 域）。
+
+### 7.1.1 租户注入机制（as-built，M5.1 + M5.1b）
+
+RLS policy 认的是会话变量 `app.tenant_id`，而该变量必须以 `is_local=true` 设在**事务内**。
+「谁来设、什么时候设、怎么让 206 处既有调用点不改写」就是本节这套机制。
+
+**数据层模块（`src/lib/db/`，6 个文件，各一职）**
+
+| 模块 | 职责 | 关键约束 |
+|---|---|---|
+| `app-role.ts` | 连接串解析 + BYPASSRLS 启动哨兵 | 开关关时哨兵只告警不阻断；开关开却连上特权 → 抛 `PrivilegedConnectionError` |
+| `privileged.ts` | `privilegedDb`：恒 `DATABASE_URL`，**绕过全部 RLS** | 仅**引导白名单**可 import；白名单 = 5 个文件（下述），由普查钉守 |
+| `runtime.ts` | 应用运行时 client：按开关取连接串 | 开关开 → `DATABASE_URL_APP`（`kol_app`，RLS 生效）；否则 `DATABASE_URL` |
+| `tenant-scope.ts` | `AsyncLocalStorage` + `withTenant` + 三个错误类 | 作用域用 `als.run` 而非 `enterWith`（理由见该文件注释，有实测依据） |
+| `prisma.ts` | 导出名 `prisma` 不变，实体是 **ALS 感知代理** | 每次属性访问按**当下**状态解析（三分支，下述） |
+| `tenant-entry.ts` | `withSessionTenant`：会话面入口的标准包裹 | 会话解析在事务**外**（读 JWT 不碰库，且 tenantId 是开作用域的入参） |
+
+**代理三分支（`prisma.ts`，D-4）** ① ALS 有租户事务 → 该事务的 tx client；② 无 ALS + 开关未开 →
+运行时 client（**行为与开关落地前逐位一致**）；③ 无 ALS + 开关已开 → 抛 `MissingTenantScopeError`
+（fail-closed）。第 ③ 分支刻意不回落——回落 = 无租户变量的 `kol_app` 查询 = default-deny 下**静默零行**，
+比报错危险得多。`$queryRawUnsafe` / `$executeRawUnsafe` 同样经代理转发到该事务，
+故非 db 层的 6 处 raw SQL（`search_kols` / `evaluate_creator` / `generate-candidates` / `kol-sync`）
+随之进入 policy 覆盖面——这是审计 B1-2「raw SQL 不在覆盖面」的根治点。
+
+**`withTenant` 语义** 开事务 → 第一条语句 `set_config('app.tenant_id', $1, true)` → 在 ALS 作用域内跑回调。
+嵌套：**同租户复用**外层事务（不开第二个，原子性归调用方）· **跨租户抛** `CrossTenantNestingError`
+（静默切换或静默沿用都是不报错的跨租户事故）· **嵌套再传事务选项抛** `NestedTransactionOptionsError`
+（嵌套不开新事务，选项无处可施；静默忽略会让「我知道这段要跑很久」的声明悄悄失效）。
+
+**引导白名单（5 个文件）** 登录查用户 / 失败登录留痕 / 注册建租户 / slug→租户解析 / 两处限速留痕——
+它们发生在「租户已知」**之前**，在 `kol_app` 下必被 policy 拒（审计 B2-1/2/3 实测：切过去就没人能登录）。
+故改走 `privilegedDb`，并由两道互不派生的普查钉守住：`tests/unit/bootstrap-whitelist-census.test.ts`
+（越权面：谁在用）与 `tests/unit/db-layer-importer-census.test.ts`（文档漂移面：注释里的清单与实物同步）。
+
+**两步开关（是两件事，别当成一件）** `DATABASE_URL_APP` = **事实**（有没有配 `kol_app` 串）；
+`DB_APP_ROLE_RUNTIME=1` = **决定**（运行时用不用它）。**当前生产两者均未开启**，运行时仍是特权连接，
+启动哨兵持续告警是刻意留的可见状态。切换前置与回滚见 `docs/dev/deploy.md`。
+
+**覆盖面：本批只到最小闭环** M5.1b 证的是**机制成立**（`npm run rls:e2e`：开关开 + 连 `kol_app` +
+RLS 真生效下走通登录 / 注册 / API route / RSC page / 例程 / 跨租户零行六段），**不是全站收口**。
+入口面实测 78 条、已包裹 3 条；差集清单（M5.2 的工作面）由普查产出，落盘在
+`docs/specs/M5.1-uncovered-entrypoints.md`。**未包裹的入口在开关打开时会 fail-closed 抛错**，
+不会静默读到零行——这是刻意的分批安全网。
 
 ### 7.2 数据模型
 
@@ -1595,7 +1638,7 @@ scheduler 触发 nightly-screen / signal-sync / health-scan …
 - **一切边界输入不可信**：API 入参、模型输出、上传素材、外部采集、信号 webhook → **先 zod 校验后处理**（NFR-S6）。`executeTool` 的入参 zod 校验是这条的核心落点。
 - **XSS**：canvas 只走受控组件树，禁 HTML 注入；素材文本净化（NFR-S7）。
 - **数据保护**：KOL 公开画像/联系方式最小化采集、可删除、可溯源（NFR-S11）；采集遵守平台条款并持续评估（NFR-S10）。
-- **多租户预留 → 兑现（NFR-S9，M5 F008 实证）**：运行时无状态 + 全表 `tenantId` → RLS 启用**确实没改上层**（24 表 policy 落地；既有测试 8 个 `.ts` 有改动，逐条归因：4 个是 F004 会话注入适配（`f009-evaluator-insight-surface` / `m45-g4-f004-planack` / `m45-g5-f006-f007` / `materials-upload`），另 4 个与会话无关（`project-scope-census` 走 F011 census 拓宽、`repo-hygiene` 走 F012 卫生条目、`architecture-doc-freshness` 走 F013 文档钉、`playwright.evaluator.config.ts` 走 F003/F012 登录前置）；另有 13 张视觉基线因登录留痕与新页重生。**RLS 面零翻修**、全量绿——预留兑现的机械证据）。当前所有查询带 `tenantId` 条件（`buildToolContext` 统一注入）仍**不得绕过**：运行时未切非特权连接前它是主力防线,切换后（M5.1）降为纵深。
+- **多租户预留 → 兑现（NFR-S9，M5 F008 实证）**：运行时无状态 + 全表 `tenantId` → RLS 启用**确实没改上层**（24 表 policy 落地；既有测试 8 个 `.ts` 有改动，逐条归因：4 个是 F004 会话注入适配（`f009-evaluator-insight-surface` / `m45-g4-f004-planack` / `m45-g5-f006-f007` / `materials-upload`），另 4 个与会话无关（`project-scope-census` 走 F011 census 拓宽、`repo-hygiene` 走 F012 卫生条目、`architecture-doc-freshness` 走 F013 文档钉、`playwright.evaluator.config.ts` 走 F003/F012 登录前置）；另有 13 张视觉基线因登录留痕与新页重生。**RLS 面零翻修**、全量绿——预留兑现的机械证据）。当前所有查询带 `tenantId` 条件（`buildToolContext` 统一注入）仍**不得绕过**：运行时未切非特权连接前它是主力防线,切换后（M5.2 全站收口）降为纵深。
 
 ### 12.3 可观测性
 
@@ -1830,7 +1873,7 @@ fail-fast 时机：`src/instrumentation.ts`（**本仓库有 `src/`，故不在�
 | ADR-01 | 单全栈 Next.js 应用，无独立后端/微服务/队列 | D1；KISS | 锁定 ✅ 已兑现 |
 | ADR-02 | Agent 运行时 = Vercel AI SDK；AI 唯一出口 = aigcgateway | D2 | 锁定 ✅ 已兑现 |
 | ADR-03 | 数据 = CSV seed + bge-m3 起步，采集/外购后期走同契约 | D3/D15 | 锁定 ✅ 已兑现 |
-| ADR-04 | 单租户 dev tenant + `tenantId` 占位，认证/RLS 留 M5 | D4 | **M5 已解除**：真实认证 + RLS 地基落地（运行时切换 M5.1）✅ |
+| ADR-04 | 单租户 dev tenant + `tenantId` 占位，认证/RLS 留 M5 | D4 | **M5 已解除**：真实认证 + RLS 地基落地；租户注入机制 M5.1/M5.1b 落地（§7.1.1），**运行时切换与全站收口 M5.2** ✅ |
 | ADR-05 | 激进 AI-native：对话面 + canvas 为主轴，表单兜底 | D5 | 锁定（A6 方向由 M0.5 mock 先行验证） |
 | ADR-06 | 单角色，无 role/scope/权限层/审批链 | D26 | 锁定 ✅ 已兑现（`User` 无权限列） |
 | ADR-07 | 删人→人审批，留 AI→人闸门；internal 不设闸门 | D27 | 锁定 ✅ 已兑现 |

@@ -128,9 +128,33 @@ push main → ci.yml 自动检查 + build-push.yml 自动推 app + tools 两镜�
 > 3. **迁移连接保持特权不变**：`migrate` 服务仍用 `DATABASE_URL`（kol）。建表与建 policy 需要
 >    owner 权限，切到 kol_app 会让 `prisma migrate deploy` 直接失败。
 > 4. **应用运行时切换 kol_app 是一个显式开关**：`DB_APP_ROLE_RUNTIME=1`。
->    ⚠️ **在租户变量注入（spec D-7 / F009）落地之前不要打开**——非特权连接下 RLS 生效，
->    而 policy 认的是会话变量 `app.tenant_id`；没有注入就打开，应用每条查询都会得零行
->    （不报错的"没数据"）。未打开时应用仍走特权连接，启动日志会持续告警「RLS 不生效」，
+>    ⚠️ **当前（M5.1b 批末）仍不要在生产打开** —— 理由已经变了，下面写清楚。
+>
+>    **注入机制本身：已落地。** M5.1 + M5.1b 交付了三层 client + ALS 感知代理 + `withTenant`
+>    + 引导白名单（as-built 见 `architecture.md` §7.1.1），并用 `npm run rls:e2e` 在
+>    「开关真开 + 真连 `kol_app` + RLS 真生效」下走通了六段最小闭环（登录 / 注册 / 一个 API route /
+>    一个 RSC page / 一个例程 / 跨租户零行含 DB 层证据）。审计 B2-1 那句「切过去就没人能登录」
+>    已由引导白名单解开。
+>
+>    **但覆盖面只到最小闭环。** 入口面实测 78 条、已包裹 3 条
+>    （`api/nav-badges` · `admin/knowledge` · 例程 `health-scan`）。差集清单由普查产出，落盘在
+>    `docs/specs/M5.1-uncovered-entrypoints.md`（重跑：`npm run census:entrypoints`）。
+>    **现在在生产打开开关 = 那 75 条入口全部当场抛 `MissingTenantScopeError`**——是 fail-closed
+>    的报错，不是静默零行（这一点比 M5.1 之前好，但对用户仍是全站 500）。**全站收口归 M5.2。**
+>
+>    **打开前置（逐条满足才动）：**
+>    1. M5.2 把差集清单清零（或明确豁免哪些入口，并说明豁免理由）；
+>    2. `DATABASE_URL_APP` 已配且 `kol_app` 角色在**生产库**存在（`npm run db:app-role` 是 dev 用法，
+>       生产见本节第 1-2 步）；
+>    3. 在 staging / 生产库副本上跑一次 `npm run rls:e2e`（它自带反向自证：连接串配回特权 → 抛
+>       `PrivilegedConnectionError`）；
+>    4. 确认迁移连接仍是特权（本节第 3 条）——切错会让 `prisma migrate deploy` 直接失败。
+>
+>    **回滚：把 `DB_APP_ROLE_RUNTIME` 从 `.env` 移除（或置空）并重启 app 服务即可**——
+>    运行时 client 按连接串缓存、开关关时解析回 `DATABASE_URL`，**无数据面变更、无迁移、不需回滚镜像**。
+>    RLS policy 与 `kol_app` 角色留在库里不受影响（它们是 M5 F007/F008 的地基，与本开关无关）。
+>
+>    未打开时应用仍走特权连接，启动日志会持续告警「RLS 不生效」，
 >    这是刻意留的可见状态，不是噪声。
 > 5. **先同步 compose 再部署**：`scp docker-compose.prod.yml deploysvr:/opt/apps/newkolmatrix/`
 >    （VPS 是人工副本）。M5-DEPLOY-FIX F001 起 app 服务多了必填的 `AUTH_SECRET` 行——

@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "M5.1b:补上 M5.1 未完成的债 + 做完机制层其余六条。F001(evaluator)补验已落 main 的三层 client + ALS 代理实现——尤其两条变异证活,收编证不了断言鉴别力;F008 先修两条经 grep 证伪的注释(第二条会污染 F003 白名单口径)并把 importer 清单升级为机械钉;F002-F007 原文承接(withTenant 硬语义 + B1-4/B3 回归 → 引导白名单普查钉 → 15 处事务迁移 → ALS 三上下文实测 → 开关开六段最小闭环 e2e → 文档与未覆盖入口清单)。已知代价(D-9):F001 补验落在 verifying,即在未独立验证的底座上先盖六层;缓解=Generator 发现机制与 D-1/D-4 不符须立即停工提审计。",
   "total_features": 8,
-  "completed_features": 5,
+  "completed_features": 6,
   "fix_rounds": 0,
   "current_sprint": "M5.1b-TENANT-INJECTION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-07T04:00",
+  "last_updated": "2026-08-08T02:40",
   "reference_docs": [
     "docs/specs/M5.1b-TENANT-INJECTION-spec.md",
     "docs/specs/M5.1-TENANT-INJECTION-spec.md",
@@ -36,13 +36,13 @@
       "F002 @b3b15be",
       "F003 @fadc1f4",
       "F004 @85e0362+补测",
-      "F005 @7ec61df"
+      "F005 @7ec61df",
+      "F006 @86331c0"
     ],
     "pending": [
-      "F006 开关开六段最小闭环 e2e",
       "F007 文档 + doc-freshness + 未覆盖入口清单"
     ],
-    "notes_for_next": "F005 已完成（tsc 0 / lint 0 warning / 全量 vitest 148 files 1862 tests 全绿，均实跑）。F006 起注意五点：① 已包裹的入口恰三条——nav-badges GET / admin/knowledge page / ROUTINES['health-scan']；包裹点是新模块 src/lib/db/tenant-entry.ts 的 withSessionTenant（会话面）与 scheduler 里直接的 withTenant（无会话面）。F006 的六段闭环里 (c)(d)(e) 可直接复用这三条，(a)(b) 登录/注册走 F003 白名单特权路径。② F005 刻意**不测 RLS 强制**：它跑在「DB_APP_ROLE_RUNTIME=1 + 显式 delete DATABASE_URL_APP」下，即 fail-closed 生效但连接串仍是特权。F006 才是连 kol_app 的那一条，跨租户零行的 DB 层证据归 F006。③ 全仓 withTenant 带事务选项的调用点恰两处（实测 grep）：gate.ts:392 的 90s 外呼、scheduler.ts:97 的 60s 巡检。F006/M5.2 若把更外层入口也包起来，这两处会变成嵌套传选项 → NestedTransactionOptionsError，须显式处置。④ **已登记的坑**：RSC loader 的兜底 catch 会把 MissingTenantScopeError 吞成静默空态——实测 src/lib/insight/cross-surface-data.ts:124 与 src/lib/insight/surface-data.ts:154 都是这种形态。F006 若选带这类 catch 的页面做 (d)，变异证活会红成「空态」而不是 MissingTenantScopeError。本批选的 knowledge/page-data.ts 没有该 catch。⑤ **测试床工具坑**：vitest 4.1.10 对动态 import 模块的 mock 在并发下失效（一路拿到真模块，泄漏后进缓存导致其后全部走真链）。`readSessionIdentity` 正是动态 import next-auth 的那种形态，故任何「并发多请求」用例都不能靠 mock src/lib/auth/index 供给会话，须改用 session-tenant 的静态注入缝。详见 framework/proposed-learnings.md 2026-08-07 条。"
+    "notes_for_next": "F006 已完成：`npm run rls:e2e` → 15 passed（开关开 + kol_app + RLS 真生效）；默认 `npx vitest run` 仍 148 files / 1862 tests 全绿（e2e 不进默认收集范围）；tsc 0 / lint 0。F007 需要的输入：① **已包裹入口恰三条**（未覆盖清单的被减数就是它们）：src/app/api/nav-badges/route.ts · src/app/admin/knowledge/page.tsx · src/lib/jobs/scheduler.ts 的 health-scan。包裹点：src/lib/db/tenant-entry.ts 的 withSessionTenant（会话面）+ scheduler 里直接 withTenant（无会话面）。② 入口面底数须**重跑普查**，不要照抄 spec：本批实测 `find src/app/api -name route.ts` = 31。③ 文档要写的 as-built 事实：三层 client + ALS 代理 + withTenant 嵌套语义 + 两步开关（DB_APP_ROLE_RUNTIME 与 DATABASE_URL_APP 是两件事）+ 本批只到最小闭环、全站收口 M5.2。④ 已知待写进文档/清单的两条风险：**RSC loader 的兜底 catch 会把 MissingTenantScopeError 吞成静默空态**（实测 src/lib/insight/cross-surface-data.ts:124 与 surface-data.ts:154）；**带事务选项的 withTenant 恰两处**（gate.ts:392 的 90s、scheduler.ts:97 的 60s），M5.2 把外层入口包起来时它们会变成嵌套传选项 → NestedTransactionOptionsError，须逐条处置。⑤ F007 acceptance ④ 要复核的两条既有钉，本批**未改动**：tests/integration/rls-negative-suite.test.ts §0 与 tests/unit/project-scope-census.test.ts 文件头段（运行时默认仍未切，口径不变；全量 vitest 绿为证）。"
   },
   "session_notes": {
     "Andy": null,

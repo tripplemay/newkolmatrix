@@ -60,7 +60,7 @@
       "title": "DB_APP_ROLE_RUNTIME=1 的最小闭环 e2e + 跨租户零行",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-6。本批「机制成立」的定论所在：开关真开着、连 kol_app、RLS 真生效的条件下走通六段闭环。审计 B2-1/2/3 实测过「切过去就没人能登录」，这条 e2e 就是证明引导白名单确实解开了那把锁。恒不外呼、不碰生产、不改 .env 默认值。",
       "acceptance": "① **进程级 env 覆盖跑**（DB_APP_ROLE_RUNTIME=1 + DATABASE_URL_APP 指向 kol_app），**不得修改 .env 默认值**——改了会污染其余 141 个测试文件的运行前提（spec §5.1）。脚本入口登记进 package.json scripts，并说明它不进默认 `npm test` 收集范围（或进但自动 skip 无 kol_app 环境，二选一并说明理由）。② **六段闭环逐段断言**：(a) 登录成功（走白名单特权路径）；(b) 注册成功且新租户 + 新用户 + 留痕三行同事务落库；(c) 一个 API route 返回本租户数据；(d) 一个 RSC page 渲染出本租户数据；(e) 一个例程跑完并落痕；(f) **跨租户零行**——A 租户会话下读 B 租户的行得零行，且该零行有 **DB 层证据**（kol_app 连接直查 raw SQL 得 0 行），不是只有应用层 where 的 404。③ **哨兵必须通过**：开关开 + kol_app 连接下 runConnectionRoleSentinel 返回 status=ok；反向自证——同样开关开但连接串配回特权 → 抛 PrivilegedConnectionError（app-role.ts 既有双向能力，此处只需接线证明）。④ **变异证活**：把 F003 白名单里的登录查询改回租户路径 → (a) 必须红（复现审计 B2-1「没人能登录」）；把某个入口的 ALS 作用域摘掉 → 对应段必须红成 MissingTenantScopeError。⑤ 夹具纪律（spec §5.2）：A/B 两租户带独一前缀；收尾两层清理——按登记 id 精确删 + **不从登记表派生**的全表前缀普查；清单必须覆盖软引用表（OperationLog / PendingAction 等无 FK 不级联）。跑完 `git status` 干净、dev 库无本次残留（实跑输出为证）。⑥ tsc/lint 绿。"
     },

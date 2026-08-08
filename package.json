@@ -45,7 +45,8 @@
     "delivery:e2e": "node --env-file=.env --import tsx scripts/test/delivery-e2e.ts",
     "insight:e2e": "node --env-file=.env --import tsx scripts/test/insight-e2e.ts",
     "agentloop:e2e": "node --env-file=.env --import tsx scripts/test/agentloop-e2e.ts",
-    "frontdesk:e2e": "node --env-file=.env --import tsx scripts/test/frontdesk-e2e.ts"
+    "frontdesk:e2e": "node --env-file=.env --import tsx scripts/test/frontdesk-e2e.ts",
+    "rls:e2e": "DB_APP_ROLE_RUNTIME=1 vitest run --config vitest.e2e.config.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.16",

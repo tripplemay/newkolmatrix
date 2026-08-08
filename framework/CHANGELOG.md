@@ -5,6 +5,39 @@
 
 ---
 
+## v1.7.1 — 2026-08-07（codex 自定义 provider：把确定性断认证前移成 fail-closed 前置）
+
+**来源：** newkolmatrix `M5.1-TENANT-INJECTION` verifying 两派两停的事后复核（tokenizer 侧独立会话取证）。
+
+- **真因：** v1.7.0 把 `--ignore-user-config` 采纳为模板默认，解了「`~` 路径展开落空致 codex 秒退」，
+  却重建了它本要绕开的认证两难，且这次是**确定性**的。该 flag 的 CLI help 原文是
+  `Do not load $CODEX_HOME/config.toml; auth still uses CODEX_HOME` —— **忽略 config、照读 auth**。
+  用户若把认证挂在自定义 provider（中转 / 自建网关 / Azure）上，被忽略的那段 provider 定义正是连通性所在，
+  codex 转而拿这把 key 直连 `api.openai.com` → `401 invalid_api_key`，重派无效。
+  实测代价：两次派活（159s + 47s）+ 烧光 §3.4 重派额度 + 批次锁死在 `verifying`（流转图上无边可退），
+  最终靠人类闸门破例重划批次才解开。
+- **修法不是回滚该 flag**（摘掉即精确复现原崩溃，已反证），而是**分开解决两件事**：
+  隔离配置继续由 flag 负责，连通性由 argv 里的 `-c` 声明式注入 provider 补回。
+  端点随 descriptor 走 → 进 git、进 `adapter_execution_contract_sha256`、可审计；凭据仍只在 `auth.json`。
+- **`sandbox-profile.sh` 新增派活前 fail-closed 前置：** adapter 是 codex、argv 带 `--ignore-user-config`、
+  且未用 `-c` 注入 provider，而 `$CODEX_HOME/config.toml` 的 `model_provider` 指向自定义 provider
+  → **拒派**，并打印**自动填好该用户真实 `base_url` 的可复制修法**。
+  两处信号都命中才拦；读不到 / 解析不出一律放行 —— 前置检查本身不得成为新的失败源。
+  不用 `tomllib`（要 python 3.11+，而机件的最低面是系统自带 python3，本机实测为 3.9.6），
+  只做两处窄正则匹配。另加一条非阻断 stderr 提醒：带该 flag 却未 `-c model=` 时，
+  实际跑的是 CLI 默认模型而非个人 config 里选的那个。
+- **模板 argv 不变**（`-c` 的值是每机器的，不进共享模板）；只在 `_flags_rationale` / `_comment` 写清陷阱与指引 ——
+  纯文档字段，实测执行契约摘要 `82083c6e…` 改前改后一致，不触发任何下游 resolver 漂移。
+- **文档：** `transports/local-cli.md` 新增 §8「自定义 provider 用户的接入」（含零成本自查探针：
+  注入一个不存在的 `base_url`，看报错 URL 是否即该假域名）；`dispatch-mode.md` 新增 §5.2.1
+  「隔离个人 config 与保住认证是两件事」并一般化为**给外部 CLI 加隔离旗标前先分清它切的是行为面还是连通面**；
+  §3.4 补「两次错因**表述**不同 ≠ 真因不同 —— 定性前先核两次日志的目标 URL 是否相同」
+  （本例首派 `tls handshake eof`、重派 `401`，实为同一真因换脸）。
+
+---
+
+---
+
 ## v1.7.0 — 2026-08-06（采纳上游 v1.7.0：真机验证的 vm-v1 bridge + deliverable_channels）
 
 **来源：** 上游 harness-template v1.7.0（e91fbbc）。本项目此前的 v1.6.5（铁律 13）已被上游 v1.7.0 吸收；本次把账本对齐到 v1.7.0，dispatch 运行时同步为经真机验证的 A 血统 vm-v1 provider（6 个 launch 修复）+ deliverable_channels + codex --ignore-user-config 硬化。

@@ -7,7 +7,9 @@
 // 3. 无效输入（白名单外类型 / >20MB / 图片最短边 ≤10px（vision 上游硬约束）/ 坏图）
 //    → HTTP 400/413 拒收，不落盘不落库（P5：上传时校验优于解析时炸）。
 
-import { imageSize } from 'image-size';
+import { disableTypes, imageSize } from 'image-size';
+
+disableTypes(['heif', 'icns', 'jxl', 'jxl-stream']);
 
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB
 /** vision 上游硬约束（立项实测：最短边 ≤10px 报 InvalidParameter）。 */

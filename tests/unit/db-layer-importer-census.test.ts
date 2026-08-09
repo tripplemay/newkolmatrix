@@ -27,6 +27,10 @@
 // > **真实 import 语法**当时也漏抓（侧效应 import 后跟 from-import；反引号动态 import），
 // > 二者已修并配回归用例。教训：已知边界清单本身也会「声称的覆盖面 > 实际覆盖面」——
 // > 它只是「已经想到并验过的」，不等于「其余全都抓得到」。
+// > fix-4 再更正：fix-3 那次的改法自身又换来两类新漏抓（行尾注释含引号 / ES2022 字符串绑定名），
+// > 已撤回并改用惰性可选。**本段仍只是「已经想到并验过的」清单**——下面这些是当前已知**仍**
+// > 抓不到的：`import{a}from'x'` 与 `import'x'`（无空格写法）、动态 import attributes
+// > （`import('./x', { with: {...} })` / assert 版）。它们本仓零使用，且正则层面要全覆盖须上 AST。
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, normalize, posix } from 'node:path';
@@ -124,13 +128,29 @@ function stripComments(source: string): string {
 function importSpecifiers(source: string): string[] {
   const code = stripComments(source);
   const specs: string[] = [];
-  // 【M5.1b fix-3：三条 pattern 均已修，原因是实测漏抓，不是防御性调整】
-  //   · 静态/侧效应：原写 `(?:[\s\S]*?\sfrom\s+)?`。`(?:...)?` 是**贪婪**可选（不是 `??`），
-  //     所以它先尝试匹配一次，内部惰性 `[\s\S]*?` 便**跨行**去找下一条语句的 ` from `，
-  //     把侧效应 specifier 连同 import 关键字一起吞掉。实测：
+  // 【M5.1b fix-4：改法换了，原因写在这里】
+  //   · 静态/侧效应的病根：原写 `(?:[\s\S]*?\sfrom\s+)?`。`(?:...)?` 是**贪婪**可选
+  //     （不是 `??`），引擎先尝试匹配该组一次，内部 `[\s\S]*?` 便**跨行**去找下一条语句的
+  //     ` from `，把侧效应 specifier 连同 import 关键字一起吞掉。实测：
   //       `import './runtime';` 单独一行 → 抓到；其后再跟任意一条 from-import → **漏**。
-  //     改法：把 from 之前的区域限制成不含引号与分号，跨不过语句边界（仍允许换行，
-  //     因为 `import {\n a,\n} from 'x'` 是合法写法）。
+  //   · **fix-3 的改法（把 from 之前的区域限制成不含引号与分号）已被撤回。** 它虽然解掉了
+  //     上面那条，却换来两类新漏抓，且两类都由复验实测点名：
+  //       (a) 多行 import 的**行尾注释**里含引号/反引号/分号即整条漏抓——`stripComments`
+  //           只剥整行 `//`，行尾注释原样进入正则，新字符类跨不过去；本仓注释大量用反引号
+  //           引标识符，这是普通编辑就会踩到的形态；
+  //       (b) ES2022 arbitrary module namespace names（`import { "weird-name" as w, x }
+  //           from '...'`）——**合法模块语法**，绑定区里就带引号。
+  //   · **现改法：只把那个可选组从贪婪改惰性（`?` → `??`），字符类还原。** 惰性可选优先
+  //     尝试**跳过**该组，于是 `import './runtime';` 直接命中引号；真有 from 子句时再回溯
+  //     匹配一次。一个字符的改动，同时解掉原吞噬与上面 (a)(b) 两类。
+  //     独立复算（复验方 21 条探针）：原版漏 5 / fix-3 版漏 6 / 本版漏 **0**；
+  //     假阳性探针（模板串里的 import 语句、拼接动态路径、变量动态路径）与前两版一致，无新增误命中。
+  //   · re-export **不能照搬**：它的 `[\s\S]*?` 是必选段（不是可选组），且 fix-3 对它的收紧
+  //     修掉了一处**真实假阳性**——旧写法会跨过 `export const dynamic = 'force-dynamic';`
+  //     粘到下一行的 `import Card from '...'`（复验方在 admin/campaigns/page.tsx 上实测到）。
+  //     故这里既不能还原成 `[\s\S]*?`（假阳性回来），也不能留 `[^'"`;]*?`（行尾注释带引号即漏）。
+  //     取中：`[^;]*?` —— 跨不过语句边界（假阳性仍被挡），但允许注释里的引号。
+  //     **残留边界如实登记**：多行 export 子句的行尾注释里若含分号，仍会漏；本仓零使用。
   //   · 动态：原只认 ['"]，反引号**静态**路径 `import(\`../db/runtime\`)` 漏抓 ——
   //     而 src/instrumentation.ts 现在就在用动态 import 引 db 层模块。已补反引号。
   //   · re-export：同一贪婪可选形态，一并按同样口径收紧。
@@ -139,10 +159,10 @@ function importSpecifiers(source: string): string[] {
   //     能覆盖就不留登记，故直接补上而不是写进已知边界。
   // 三条的漏抓与修复后行为均由文件末「活性证明」里的回归用例钉住（fix-3 新增）。
   const patterns = [
-    /\bimport\s+(?:type\s+)?(?:[^'"`;]*?\sfrom\s+)?['"`]([^'"`]+)['"`]/g, // static / side-effect
+    /\bimport\s+(?:type\s+)?(?:[\s\S]*?\sfrom\s+)??['"`]([^'"`]+)['"`]/g, // static / side-effect
     /\bimport\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g, // dynamic
-    /\bexport\s+[^'"`;]*?\sfrom\s+['"`]([^'"`]+)['"`]/g, // re-export
-    /\brequire\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g, // CJS require（fix-3 补，见下）
+    /\bexport\s+[^;]*?\sfrom\s+['"`]([^'"`]+)['"`]/g, // re-export
+    /\brequire\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g, // CJS require
   ];
   for (const re of patterns) {
     let m: RegExpExecArray | null;
@@ -295,15 +315,51 @@ describe('db 层 importer 清单机械钉（F008）', () => {
     ).toContain('../db/runtime');
   });
 
-  it('🔒 回归：CJS require 与「后文任意字符串含 from」两种形态', () => {
-    // 前者是对抗复核额外点出的未覆盖形态（本仓 ESM、当前零使用，属预防）；
-    // 后者是它对逃逸条件的加宽：不必是 from-import，**文件后文任意位置**出现 ` from `
-    // （哪怕在一个普通字符串里）就足以触发原来的吞噬。
+  it('🔒 回归：CJS require 形态要抓到', () => {
+    // 对抗复核额外点出的未覆盖形态（本仓 ESM、当前零使用，属预防性覆盖）。
     expect(importSpecifiers("const m = require('./runtime');")).toContain('./runtime');
+  });
+
+  it('🔒 回归：后文普通字符串里的 from 不得吞掉侧效应 specifier', () => {
+    // 【fix-4 更正：上一版这条是死钉】原输入写的是 `const s = 'a from b';`，实测它在**未修的
+    // 旧 pattern 下也是绿的**——旧写法要求 ` from ` 之后紧跟引号，而 `'a from b'` 里跟的是 b，
+    // 回溯后照样抓得到。于是那半条断言既不会因回归而红，其行内注释还断言了一件对该输入
+    // 不成立的事（复验方 D-2 点名）。
+    // 真正能触发那种吞噬的形态是 ` from ` 后紧跟一个引号，例如字符串拼接：
     expect(
-      importSpecifiers("import './runtime';\nconst s = 'a from b';"),
-      '后文普通字符串里的 from 又把侧效应 specifier 吞掉了',
+      importSpecifiers("import './runtime';\nconst s = 'a from ' + 'b';"),
+      '后文字符串里的 from 又把侧效应 specifier 吞掉了',
     ).toContain('./runtime');
+  });
+
+  it('🔒 回归：多行 import 的行尾注释含引号/反引号/分号，不得整条漏抓', () => {
+    // fix-3 的字符类改法在此翻车（复验方点名）：stripComments 只剥整行 //，行尾注释原样
+    // 进入正则，而 [^'"`;]*? 跨不过去。本仓注释大量用反引号引标识符，属普通编辑就会踩到的形态。
+    expect(importSpecifiers("import {\n  a, // 见 `runtime`\n} from './bt';")).toContain('./bt');
+    expect(importSpecifiers("import {\n  a, // it's fine\n} from './ap';")).toContain('./ap');
+    expect(importSpecifiers("import {\n  a, // foo; bar\n} from './sc';")).toContain('./sc');
+  });
+
+  it('🔒 回归：re-export pattern 不得跨过语句边界重复计入下一条 import', () => {
+    // fix-3 顺带修掉的一处**真实假阳性**（复验方在 src/app/admin/campaigns/page.tsx 上实测：
+    // 旧 re-export 写法跨过 `export const dynamic = 'force-dynamic';` 粘到下一行的 import，
+    // 使该文件 specifier 数 18 → 17）。修好了就得有人守，否则下次还原 pattern 时无声退回。
+    const specs = importSpecifiers(
+      "export const dynamic = 'force-dynamic';\nimport Card from 'components/card';",
+    );
+    expect(specs, 're-export pattern 跨过语句边界，把下一条 import 重复计入了').toEqual([
+      'components/card',
+    ]);
+  });
+
+  it('🔒 回归：ES2022 字符串绑定名（合法模块语法）要抓到', () => {
+    // 同样栽在 fix-3 的字符类上：绑定区里就带引号。这条是语言语法本身，不是编辑习惯。
+    expect(
+      importSpecifiers('import { "weird-name" as w, x } from "./es2022";'),
+    ).toContain('./es2022');
+    expect(
+      importSpecifiers('export { x as "a-b" } from "./es2022x";'),
+    ).toContain('./es2022x');
   });
 
   it('🔒 已登记边界仍如实：字符串拼接的动态路径确实抓不到（不是声称，是实测）', () => {
@@ -348,8 +404,13 @@ const TENANT_SCOPE_FILE = 'src/lib/db/tenant-scope.ts';
  * 既有「没有嵌套守卫」也有「不要嵌套调用」），于是第 ① 条「只交付单层语义」根本没人守 ——
  * 逐字写回说明段，全仓 1875 条全绿。复验与对抗复核用「同一行位置换成别的黑名单串则当场红」
  * 的对照排除了「扫描器没看见」这一反向解释（`M5.1b-adversarial-rv1-F008.md`）。
- * 现在改成 claim → patterns 的结构：**条数就是 CLAIMS.length**，声称的覆盖面与实际覆盖面
- * 由同一个数据结构产出，不可能再对不上。
+ * 现在改成 claim → patterns 的结构：条数取自 CLAIMS.length，不再由人另行数一遍。
+ *
+ * > fix-4 删除（用户裁决）：此处原接着写「声称的覆盖面与实际覆盖面由同一个数据结构产出，
+ * > **不可能再对不上**」。该句已被 rv2 与 rv3 两轮各自实测证伪——把某条 claim 的 pattern
+ * > 换成简繁形近字，条数仍是 3、每条仍有 pattern，而守护面实际缩水，🔒②b 一声不吭。
+ * > 本组断言**不对自身覆盖面作任何承诺**：它守的就是下面这几条 pattern 能匹配到的东西，
+ * > 仅此而已；已知绕过形态见本文件其余用例与「已知边界」段。
  */
 const FALSIFIED_CLAIMS: ReadonlyArray<{ claim: string; patterns: readonly RegExp[] }> = [
   {

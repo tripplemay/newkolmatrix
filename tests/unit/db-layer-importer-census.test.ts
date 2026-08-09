@@ -21,8 +21,12 @@
 //   ② 同名标识符 —— tests/integration/rls-tenant-isolation.test.ts:52 有个局部变量叫
 //      `withTenant`，与本模块毫无关系。故只匹配 import/export-from/动态 import 三种语法，
 //      不按标识符名匹配。
-// 已知边界（如实登记，非本批解决）：字符串拼接出来的动态路径
-// （`import('./' + name)`）扫不到。本仓 db 层无此写法，见文件末的活性证明。
+// 已知边界（如实登记）：**字符串拼接出来的动态路径**（`import('./' + name)`）扫不到 ——
+// 这条无解于正则层面，要堵得上 AST。本仓 db 层无此写法（见文件末的活性证明）。
+// > fix-3 更正：上一版这里只登记了拼接路径一条，给人「其余都覆盖」的印象。实测另有两种
+// > **真实 import 语法**当时也漏抓（侧效应 import 后跟 from-import；反引号动态 import），
+// > 二者已修并配回归用例。教训：已知边界清单本身也会「声称的覆盖面 > 实际覆盖面」——
+// > 它只是「已经想到并验过的」，不等于「其余全都抓得到」。
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, normalize, posix } from 'node:path';
@@ -120,10 +124,21 @@ function stripComments(source: string): string {
 function importSpecifiers(source: string): string[] {
   const code = stripComments(source);
   const specs: string[] = [];
+  // 【M5.1b fix-3：三条 pattern 均已修，原因是实测漏抓，不是防御性调整】
+  //   · 静态/侧效应：原写 `(?:[\s\S]*?\sfrom\s+)?`。`(?:...)?` 是**贪婪**可选（不是 `??`），
+  //     所以它先尝试匹配一次，内部惰性 `[\s\S]*?` 便**跨行**去找下一条语句的 ` from `，
+  //     把侧效应 specifier 连同 import 关键字一起吞掉。实测：
+  //       `import './runtime';` 单独一行 → 抓到；其后再跟任意一条 from-import → **漏**。
+  //     改法：把 from 之前的区域限制成不含引号与分号，跨不过语句边界（仍允许换行，
+  //     因为 `import {\n a,\n} from 'x'` 是合法写法）。
+  //   · 动态：原只认 ['"]，反引号**静态**路径 `import(\`../db/runtime\`)` 漏抓 ——
+  //     而 src/instrumentation.ts 现在就在用动态 import 引 db 层模块。已补反引号。
+  //   · re-export：同一贪婪可选形态，一并按同样口径收紧。
+  // 三条的漏抓与修复后行为均由文件末「活性证明」里的回归用例钉住（fix-3 新增）。
   const patterns = [
-    /\bimport\s+(?:type\s+)?(?:[\s\S]*?\sfrom\s+)?['"]([^'"]+)['"]/g, // static / side-effect
-    /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g, // dynamic
-    /\bexport\s+[\s\S]*?\sfrom\s+['"]([^'"]+)['"]/g, // re-export
+    /\bimport\s+(?:type\s+)?(?:[^'"`;]*?\sfrom\s+)?['"`]([^'"`]+)['"`]/g, // static / side-effect
+    /\bimport\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g, // dynamic
+    /\bexport\s+[^'"`;]*?\sfrom\s+['"`]([^'"`]+)['"`]/g, // re-export
   ];
   for (const re of patterns) {
     let m: RegExpExecArray | null;
@@ -236,6 +251,50 @@ describe('db 层 importer 清单机械钉（F008）', () => {
     // 作用域包不误判成本仓模块
     expect(resolveToSrcModule('src/lib/db/runtime.ts', '@prisma/client')).toBeNull();
   });
+
+  // ══════════════════════════════════════════════════════════════════
+  // fix-3 回归：两种**真实 import 语法**曾经漏抓，这里逐条钉住
+  //
+  // 来源：M5.1b 第二次复验实测（docs/test-reports/M5.1b-rv2-F008-F001.md）。
+  // 当时 runtime.ts 的文件头写着「新增 importer 即红并点名」，而这两种形态下钉全绿 ——
+  // 即那句话为假。修 pattern 的同时把两种形态钉成回归用例，避免下次改正则又静默漏回去。
+  // ══════════════════════════════════════════════════════════════════
+  it('🔒 回归：侧效应 import 后跟 from-import，两个 specifier 都要抓到', () => {
+    // 曾经的错法：`(?:[\s\S]*?\sfrom\s+)?` 是**贪婪**可选，内部惰性跨行找到下一条语句的
+    // ` from `，把侧效应那条连同 import 关键字一起吞掉 —— 实测只得到 ['zod']。
+    const code = ["import './runtime';", "import { z } from 'zod';"].join('\n');
+    const specs = importSpecifiers(code);
+    expect(specs, '侧效应 specifier 被后续 from-import 吞掉了').toContain('./runtime');
+    expect(specs).toContain('zod');
+
+    // 顺序反过来（曾经能抓到）也必须继续抓到——防止修法把另一头改瞎
+    const reversed = ["import { z } from 'zod';", "import './runtime';"].join('\n');
+    expect(importSpecifiers(reversed)).toEqual(
+      expect.arrayContaining(['zod', './runtime']),
+    );
+
+    // 多行 import 仍须成立（收紧字符集时最容易误伤的合法写法）
+    expect(
+      importSpecifiers("import {\n  a,\n  b,\n} from './multi';"),
+    ).toContain('./multi');
+  });
+
+  it('🔒 回归：反引号静态路径的动态 import 要抓到', () => {
+    // src/instrumentation.ts 现在就在用动态 import 引 db 层模块；原 pattern 只认 ['"]，
+    // 反引号写法整条看不见。
+    expect(
+      importSpecifiers('const m = await import(`../db/runtime`);'),
+    ).toContain('../db/runtime');
+    // 单引号（原本就抓得到）不得因修法而回退
+    expect(
+      importSpecifiers("const m = await import('../db/runtime');"),
+    ).toContain('../db/runtime');
+  });
+
+  it('🔒 已登记边界仍如实：字符串拼接的动态路径确实抓不到（不是声称，是实测）', () => {
+    // 这一条**故意断言「抓不到」**：已知边界要有实测支撑，否则「已登记」也会变成空话。
+    expect(importSpecifiers("const m = await import('./' + name);")).toEqual([]);
+  });
 });
 
 /* ================================================================== *
@@ -347,10 +406,36 @@ describe('src/lib/db 说明段的事实性陈述（M5.1b fix-1 立，fix-2 补�
     ).toEqual([]);
   });
 
-  it('🔒 ④ 射程如实登记：本组只做字面/句式匹配，改写措辞可绕过', () => {
-    // 复验实测的绕过形态：同义改写、中文数字、「个」替「处」、语序颠倒 —— 均不被抓。
-    // 这不是缺陷（③ 的措辞已精确到「N 处 withTenant 调用点」这一句式），但**必须写在这里**：
-    // 本组断言的全部意义就是不让「声称的覆盖面」超过「实际覆盖面」，自己更不能犯。
-    expect(source).toContain('按句式匹配');
+  it('🔒 ④ 被守文件的注释只许指路，不许承诺本组的覆盖面（用户裁决，fix-3）', () => {
+    // 【为什么这条从「射程写在产品注释里」改成「产品注释不许承诺」】
+    // 同一族缺陷（声称的覆盖面 > 实际覆盖面）在本批复发三次，每次都发生在「为消灭它而写的
+    // 那句话」里：F008 的「已由本钉守住」→ 假；fix-1 的「三条…不得复活」→ 实际两条；
+    // fix-2 的「条数就是数据结构本身，不可能再对不上」→ 简繁形近字即可绕过。
+    // 用户据此裁决：**注释只指向钉的位置，不承诺完备性**。射程与盲区的唯一权威位置是本文件。
+    // 于是这条断言改为钉住那个「不承诺」的立场本身 —— 谁把承诺写回产品注释，这里就红。
+    expect(
+      source,
+      'tenant-scope.ts 的注释必须明写「不对本组钉的覆盖面作承诺」并指向本文件',
+    ).toContain('不对那组钉的覆盖面作任何承诺');
+
+    // 反向：**现行叙述**里不得再出现承诺完备性的措辞。
+    //
+    // 【为什么要剔掉 `// >` 前缀行】那些是更正记录，职责就是**原文引用**被推翻的旧措辞
+    //（「原来写的是 X，实测为假」）。把它们纳入黑名单等于要求历史记录不许提到历史 ——
+    // 这与 F007 那道 doc-freshness 钉撞上验收报告是同一个结构冲突，沿用同一个处置先例
+    //（那次把 docs/test-reports 与 docs/archive 剔出扫描面）。
+    // **代价如实登记：** 有人若把新的过度声称写成 `// >` 开头，这条看不见。
+    // 该风险可接受 —— `// >` 在本仓的既定用法就是引用/更正块；但它是本条的已知盲区。
+    const currentNarrative = source
+      .split('\n')
+      .filter((line) => !line.trimStart().startsWith('// >'))
+      .join('\n');
+    const overclaims = ['即红并点名', '不可能再对不上', '机械守住'].filter((p) =>
+      currentNarrative.includes(p),
+    );
+    expect(
+      overclaims,
+      `tenant-scope.ts 的现行叙述里出现了承诺覆盖面的措辞：${overclaims.join(' / ')}`,
+    ).toEqual([]);
   });
 });

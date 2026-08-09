@@ -1,12 +1,12 @@
 {
-  "status": "building",
+  "status": "verifying",
   "user_goal": "M5.1c：把 M5.1b 遗留的普查扫描器缺陷从根上解掉。两条用户裁决：① 扫描器改用 TS AST 而非继续修补正则（复验方已实证全仓 384 文件 0 分歧，typescript 本就是依赖）；② 叙述面「删承诺句、不再加钉」——不写承诺就不存在「声称 > 实际」，从根上退出 M5.1b 打了四轮的那个递归。",
   "total_features": 2,
-  "completed_features": 1,
+  "completed_features": 2,
   "fix_rounds": 0,
   "current_sprint": "M5.1c-CENSUS-SCANNER",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-09T14:10",
+  "last_updated": "2026-08-09T14:20",
   "reference_docs": [
     "docs/specs/M5.1c-CENSUS-SCANNER-spec.md",
     "docs/specs/M5.1b-TENANT-INJECTION-spec.md",
@@ -28,7 +28,7 @@
   "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": null,
+    "Andy": "M5.1c building 完成（2/2），进 verifying。两条裁决都落到实处：判据换 AST 后 U1–U5 与无空格写法/import attributes/尾逗号一并溶掉，等价性审计 384 文件多重集 1241 vs 1241、0 分歧；叙述面走消除而非加固，零新增断言。三件留给验收方注意：① **M10 变异全绿**——把预扫那行的第二参数摘掉，21 条一条不红，已在用例注释里登记为盲区并把用例名收窄；② 我的变异台首轮把 M9 误报成「全绿/无鉴别力」（变异让文件在收集期抛，vitest 打印 `Tests no tests`，而我的输出解析只认 `Tests N failed | M passed`），修仪器后复跑才显真相——判据先验活这族的第七例，这次坑在仪器上；③ F002 射程外发现三处陈旧计数（tenant-entry 30/12 vs 实测 28/5 · app-role 135 vs 149 · prisma.ts 自相矛盾的 73/206），**故意没改**，见该 commit 正文末段。",
     "Reviewer": null,
     "Mark": null
   },

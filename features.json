@@ -1,77 +1,23 @@
 {
-  "batch": "M5.1b-TENANT-INJECTION",
+  "batch": "M5.1c-CENSUS-SCANNER",
   "features": [
     {
       "id": "F001",
-      "title": "补验 M5.1 遗留实现（三层 client + ALS 感知代理 + 单层 withTenant）",
-      "priority": "high",
-      "executor": "evaluator",
-      "status": "completed",
-      "description": "M5.1 以「未完成」收束遗留的债：实现已在 main @ e6ecef1（kimi/local-cli 交付，收编三道机械关已过），但 acceptance 六条一条未验——收编只证沙箱 diff 与 files_touched 对账、L1 在快照重跑、禁改清单未触及，**证不了断言有无鉴别力**。原 acceptance 六条全文存档于 docs/specs/M5.1-F001-unverified.json（verified:false）。口径见本批 spec D-10（验批末的树而非 e6ecef1 快照；② 的字面边界改判为实质性质）与 D-11（变异证活是硬门）。",
-      "acceptance": "① **逐条判**：按 docs/specs/M5.1-F001-unverified.json 里 F001 的 acceptance 六条（①~⑥）各给 PASS/PARTIAL/FAIL，判不了就写判不了，不为凑齐而软化。每条结论必须附命令输出或文件:行——不得以 commit message、代码注释、handoff 自述或本 spec 的任何转述作为通过依据（铁律 13 同样约束 Evaluator 的 verdict）。② **两条口径按 spec D-10 执行**：(a) 验的是**批末的树**——F002 往 tenant-scope.ts 加嵌套语义、F004 改 15 处事务调用点、F008 改注释，均属合法后续扩展，不构成 F001 缺陷；判据是 F001 acceptance 描述的**性质在批末是否仍成立**（三层分工 / 代理三分支 / raw 转发 / 开关关时逐位不变），不是「文件有没有被动过」。(b) 原 acceptance ② 的「diff 不含 tests/ 与除 src/lib/db/ 外的 src/」字面在本批不适用（F002-F007 本就要改这些地方），改判为**「开关关时行为与 M5.1 之前逐位不变」是否仍成立**：全量 vitest 绿 + 既有测试文件未被为迁就 RLS 而翻修。两个方向都要防——既不许用过期字面把合法演进误判成 FAIL，也不许用「批次变了」当借口把实质性质放过。③ **acceptance ⑤ 的两条变异必须实施并实跑**（spec D-11，硬门）：(a) 把代理 (c) 分支的抛错改成「回落运行时 client」→ 对应用例必须红；(b) 摘掉代理对 raw 方法的转发 → 原 acceptance ④ 的用例必须红。**只读代码判断不算证活**；每条须贴实跑红的输出。变异还原**不得用 git checkout**（会抹掉未提交的正身编辑）；还原后须自证树干净（git status + 关键文件 hash 前后一致）。④ **鉴别力主动探查**：除 ③ 的两条规定动作外，自行构造 ≥2 种作者未采用的写法/改动去打代理与三层分工的断言（例：绕过代理直接 import runtime、用 Reflect/解构取属性、Symbol 属性访问、ALS 作用域内再取 $transaction 等）。抓到就点名文件:行；**抓不到就如实写进盲区登记**，不得为了好看而回避。⑤ **F008 的更正须核实**：两条经证伪的注释（tenant-scope.ts:13-14 / runtime.ts:8-9）在批末是否已改对，且改后的表述**自己再 grep 核一遍**是否属实（不得只看它改了就算数——原缺陷正是「注释与实物不符」）。⑥ 只写测试产物（tests/ · scripts/test/）与报告（docs/test-cases/ · docs/test-reports/）；**不得修改任何产品代码**、不得改 progress.json / features.json / 规格 / 配置、不得 push。⑦ L2 未授权：不连真实外部服务、不触发部署、不产生计费或生产写入；撞到需 L2 才能判的项 → 该项 PARTIAL 并写明。"
-    },
-    {
-      "id": "F008",
-      "title": "更正 F001 遗留的两条失实注释 + 防再犯机械钉",
+      "title": "importSpecifiers 换成 TypeScript AST + 回归用例随实现换代整备",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "spec D-12。M5.1 的 spec-lock 稽核用 grep 证伪了两条注释（docs/test-reports/M5.1-F001-spec-lock-review.md）。第二条会**直接污染 F003 的白名单口径**（照它写死白名单会漏掉真实 importer prisma.ts、并写入一个不存在的 instrumentation.ts），故本条必须先于 F003 完成。",
-      "acceptance": "① **两条注释逐条改对**：(a) src/lib/db/tenant-scope.ts:13-14「全仓此刻没有任何 withTenant 调用点」→ 实测同批测试自带 5 处，应改为「**产品代码**零调用点」类准确表述；(b) src/lib/db/runtime.ts:8-9 的 importer 清单两头都错（漏列真实 importer src/lib/db/prisma.ts:23；写入的 src/instrumentation.ts 实际 import 的是 db/prisma 与 db/app-role，并不 import runtime）→ 按实测重写。② **改完自己 grep 核一遍**：新写的每一句事实性断言都要有对应的一条命令输出作依据（铁律 13）。原缺陷正是「注释与实物不符」，改成另一句同样未核的话 = 未修复。核对命令与输出写进 commit 正文。③ **防再犯机械钉**（新增 tests/unit/ 下测试，vitest 收集范围内）：把「runtime.ts / privileged.ts 的 importer 清单」从注释升级为**机械断言**——扫 src/ 全仓实际 importer 集合，与写死在测试文件里的期望集合比对，不一致即红**并点名文件**。扫描用 readFileSync 递归遍历，**不得用 git grep**（只搜已跟踪文件，新文件未 commit 时恒空绿）。这条钉与 F003 的白名单钉**守的不是同一件事**：F003 守「谁能 import privileged（越权面）」，本条守「注释里的 importer 清单与实物同步（文档漂移面）」；两者判据不得互相派生，否则一处失效两处同时瞎。④ **变异证活**：新增一个文件 import db/runtime → ③ 的钉必须红并点名；把期望集合里的 prisma.ts 摘掉 → 必须红。每条给实跑红的输出，仅描述不算。变异还原不得用 git checkout。⑤ tsc/lint + 全量 vitest 绿。"
+      "status": "pending",
+      "description": "spec D-1 / D-3 / D-4。把 tests/unit/db-layer-importer-census.test.ts 的 importSpecifiers 从正则堆叠换成 TS 编译器 API 遍历。根因不是「某条正则写错」而是判据形态选错——M5.1b 三轮里每次「修好」都换来新的漏抓（fix-3 解掉侧效应吞噬却引入行尾注释与 ES2022 两类；fix-4 解掉那两类却引入 U2 跨语句误捕）。实现与用例必须同一 commit：先换实现会让该文件测试全红，不满足「不提交无法运行的代码」。",
+      "acceptance": "① **遍历面逐个覆盖并各有用例**：ImportDeclaration · ExportDeclaration（含 `export * from` 与 `export * as ns from`）· ImportEqualsDeclaration（`import Foo = require()`）· 动态 `import()` · `require()`。每类至少一条正向用例，且**每条都要在 AST 实现上打一个必须让它红的变异**（如摘掉对应的 visitor 分支），贴实跑红的输出——只读代码推断不算证活（spec D-3）。② **U1–U5 与已知边界多数条目须实测溶掉**：逐条给出「换代前漏 / 换代后抓到」的对照输出，至少覆盖 —— U1 行尾注释含 ` from './old'`（原版既误捕又漏真 specifier）· U2 `export const a = 1`（无分号）后文散文含 ` from '…'`（原版凭空捏造 importer）· U3 `` import(`./${name}`) `` · U4 普通字符串里的 import 语句 · U5 动态 import 尾逗号 · 无空格写法 `import{a}from'x'` 与 `import'x'` · import attributes（`with` / `assert`）。③ **仍抓不到的边界如实登记 + 配「故意断言抓不到」的用例**：运行期才能确定的路径（`import('./' + name)` / 模板串带替换）——AST 看得见调用点但看不见值，属静态分析固有边界。该用例必须实跑，不得只写一句声明（spec D-1 末段）。④ **等价性审计（spec D-4）**：对 `src/` 全量 `.ts/.tsx` 逐文件比对新旧实现的 specifier **多重集**（**不得去重**——去重会藏起重复捕获类假阳性）；差异**逐条归因**（修正 / 回归 / 本仓不存在的写法）；判据本身先做活性自测（正向能看见已知目标、负向对已知不该命中的不误报），并把自测输出一并给出。⑤ **GUARDED 期望清单不得变更**（spec §4.2）。若实测 importer 集合发生变化，须查明并归因，**不得改期望去迁就实现**。审计后须给出「两个被守模块的实测集合与期望逐条相符」的输出。⑥ **保留下来的旧用例逐条重验**（spec D-3）：现有回归用例是针对正则形态写的，换实现后可能静默退化为恒真。每条保留的用例都要在 AST 实现上重新证活；证不活的**改写或删除并说明理由**，**不得以「它以前是活的」为由保留**。删除了哪几条、为什么，逐条写进 commit 正文。⑦ `src/` 产品代码零改动（spec §4.3）。tsc/lint + 全量 vitest 绿。"
     },
     {
       "id": "F002",
-      "title": "withTenant 包装器（事务内 SET LOCAL）+ B1-4 原子性回归 + B3 残留回归",
+      "title": "src/lib/db 叙述面承诺句清理（删而非加钉）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
-      "description": "spec D-3 / §4.3。新增 src/lib/db/tenant-scope.ts：AsyncLocalStorage + withTenant(tenantId, fn) + MissingTenantScopeError。这是预裁决 Q2:B+C 的落地本体，也是 B1-4 / B3 两条审计实测缺陷的根治点。两条硬回归由 backlog 条目（立项时 id=BL-M51-TENANT-INJECTION，拆批后改写为 BL-M52-TENANT-COVERAGE）预写死，不得降级、不得改判据。",
-      "acceptance": "① **三条硬语义各有用例**：(a) 事务内 SET LOCAL——withTenant 内第一条语句为 `SELECT set_config('app.tenant_id', $1, true)`，第三参 true；(b) 同租户嵌套 withTenant **复用既有 tx，不开第二事务**（实测判据：内外层 `txid_current()` 相同，或等价的事务身份证据——不接受「看代码没开」这类非机械依据）；(c) 不同租户嵌套（withTenant(A) 内调 withTenant(B)）**抛错**，不得静默切换也不得静默沿用 A。② **B1-4 原子性回归（预写死，不可改判据）**：withTenant 内写一行后主动抛错/回滚 → 库里**零残留**（这正是审计探针实测 `回滚后那一行仍存在=1` 的反面）。用例须真查库计数，不接受「Prisma 没报错」当证据。③ **B3 残留回归（预写死，不可改判据）**：withTenant 结束后，同一连接池上后续无关查询读到的 `current_setting('app.tenant_id', true)` 为 NULL；且**并发 ≥12 次**跨 withTenant 调用互不串租户（对齐审计 B3 的 12 次并发口径）。④ **变异证活四条**：把 set_config 第三参 true 改 false → ③ 必须红；把嵌套复用改成再开一个事务 → ② 必须红；把不同租户嵌套的抛错摘掉 → ①(c) 必须红；把 withTenant 的错误传播吞掉（catch 后 return）→ ② 必须红。每条须给出实跑红的输出，仅描述不算（铁律 13）。⑤ 清理段自身绝不可再抛：每步独立 try/catch 只告警，入删除清单的 id 先过滤，清理键不依赖「被测行为正确」才存在的字段（framework/patterns/testing-env-patterns.md §9.1）。⑥ tsc/lint 绿。"
-    },
-    {
-      "id": "F003",
-      "title": "引导白名单（普查产出）+ 源码级普查钉",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-5。登录 / 注册 / slug→租户解析 / 登录留痕 / 启动哨兵这几件事发生在「租户已知」之前，在 kol_app 下必被 RLS 拒（审计 B2-1/2/3）。它们改用 privilegedDb，并由一条不可绕过的普查钉把例外钉成「可数、可钉、可复查」。**spec §D-5 的表是起草时刻快照（≥7 处 / 4 文件），不是真相源——开工必须重跑普查，以实测为准。**",
-      "acceptance": "① **先普查后改**：开工第一步重跑引导点普查（判据自定但须**先证明它能看见目标**：拿 spec D-5 表里任一已知点验证模式能抓到它，`audit-methodology.md` §8），普查结果与 spec 表的差异**逐条如实登记**（多出的 / 少掉的都要写理由），不得直接照抄 spec 表。② 白名单内每一处改用 privilegedDb，**每条旁边写明理由**（为什么这里必须绕过 RLS）；改动后开关关时行为不变（既有 auth 相关测试全绿）。③ **普查钉**（新增 tests/unit/ 下测试，vitest 收集范围内）：扫 src/ 全仓，任何 import `db/privileged` 的文件必须在**写死在测试文件里**的白名单数组中，否则红**并点名文件**。扫描用 readFileSync 递归遍历，**不得用 `git grep`**（只搜已跟踪文件，新文件未 commit 时恒空绿——M4.5 building 期踩过）。④ **变异证活三条**：新建一个不在白名单的文件 import privilegedDb → 钉必须红并点名该文件；把白名单里一条摘掉而源码仍在用 → 必须红；用一种作者未采用的 import 写法（如 `import * as` / 重命名 import / 动态 import）引入 privilegedDb → **如实报告钉能不能抓到**，抓不到就写进盲区登记（不得为了绿而回避这条）。⑤ 白名单**恒不可从别处推导**：不读环境变量、不读配置文件、不从源码扫描结果反推——「改代码才能豁免」是刻意的（沿用 tests/unit/project-scope-census.test.ts 的豁免清单范式）。⑥ tsc/lint 绿。"
-    },
-    {
-      "id": "F004",
-      "title": "15 处 $transaction 调用点迁移到 withTenant",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-4 末段。ALS 有事务时代理解析为 TransactionClient，而它**没有** $transaction 方法——这是本批唯一必须改写的调用点类别。实测 15 处 / 10 文件：build-plans.ts:220 · auth/register.ts:107 · projects/set-goal.ts:80 · signals/ingest.ts:49 · match/approve-plan.ts:72 · projects/create.ts:64 · agent/gate/gate.ts:249,364,431 · knowledge/parse.ts:346 · delivery/register.ts:96,203,289 · domain/env-advance.ts:128。其中 gate.ts（两步票据）、register.ts（注册）、delivery/register.ts（放款）三处是「原子性就是全部意义」的地方。",
-      "acceptance": "① **迁移前先重跑普查**（`grep -rn '\\$transaction' src --include=\"*.ts\" --include=\"*.tsx\"`），实测条数与 spec 的 15 处对账；有出入以实测为准并如实登记（spec 数字取自 2026-08-06，可能已漂移）。② 15 处（或实测条数）**逐处**迁移，**每处独立可审**：commit message 能对应到具体文件。auth/register.ts:107 是**白名单事务**（F003），迁移后仍走 privilegedDb，不得混进 withTenant 的租户路径——这一条单独断言。③ **原子性不得回归**：gate.ts 三处 + delivery/register.ts 三处 + register.ts 一处这 7 个「原子性即全部意义」的点，每处至少一条**回滚后零残留**的行为级用例（可复用既有测试里的回滚用例，若既有已覆盖则如实指出文件:行，不重复造）。④ 既有 gate/delivery/reach 的 smoke 与 e2e（`npm run gate:smoke` / `delivery:e2e` / `reach:e2e`）在开关关状态下全绿，输出原样附上。⑤ **变异证活**：任选一处已迁移的事务，把 withTenant 的回滚传播摘掉 → ③ 对应用例必须红。⑥ tsc/lint + 全量 vitest 绿。"
-    },
-    {
-      "id": "F005",
-      "title": "ALS 在 RSC / route handler / scheduler 三执行上下文的传播实测",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-6 最小闭环的支撑项，也是 backlog 预写的硬 acceptance 之一。审计 Q2-C 明确「ALS 在 Next 的 RSC / route / scheduler 三种执行上下文里的传播需实测（尤其 enterWith 的边界）」——这条不许用 mock 糊过去：mock 测试床对「上下文传播」是结构性盲区（framework/patterns/agent-loop-patterns.md §2 同款）。",
-      "acceptance": "① **三个执行上下文各一条真跑用例**（不是 mock ALS、不是单元测里手工 als.run）：(a) RSC —— 一个 admin page 的 server component 渲染路径；(b) route handler —— 一个 app/api/**/route.ts 的 GET/POST；(c) scheduler —— src/lib/jobs/routines/ 下一个例程（无会话面，租户来自 systemContext）。每条断言「在数据访问点能从 ALS 取到正确的 tenantId」。② **跨请求不串**：并发 ≥2 个不同租户的请求，各自读到自己的租户（这是 B3 在应用层的对应面）。③ **enterWith vs run 的选型必须有实测依据**：选了哪个要在源码注释里写明，并给出「另一个在本仓某上下文下不成立」的实测证据，或如实写「两个都可用，选 X 的理由是 Y」。不接受「按惯例选 X」。④ **变异证活**：把某一个上下文的 ALS 作用域摘掉 → 该上下文的用例必须红（且在开关开时红成 MissingTenantScopeError，不是零行）。⑤ 若某个上下文实测**传播不了**（如 RSC 的某种渲染路径），**如实报告并给出替代接线**，不得为了绿而缩小用例范围。⑥ tsc/lint 绿。"
-    },
-    {
-      "id": "F006",
-      "title": "DB_APP_ROLE_RUNTIME=1 的最小闭环 e2e + 跨租户零行",
-      "priority": "high",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-6。本批「机制成立」的定论所在：开关真开着、连 kol_app、RLS 真生效的条件下走通六段闭环。审计 B2-1/2/3 实测过「切过去就没人能登录」，这条 e2e 就是证明引导白名单确实解开了那把锁。恒不外呼、不碰生产、不改 .env 默认值。",
-      "acceptance": "① **进程级 env 覆盖跑**（DB_APP_ROLE_RUNTIME=1 + DATABASE_URL_APP 指向 kol_app），**不得修改 .env 默认值**——改了会污染其余 141 个测试文件的运行前提（spec §5.1）。脚本入口登记进 package.json scripts，并说明它不进默认 `npm test` 收集范围（或进但自动 skip 无 kol_app 环境，二选一并说明理由）。② **六段闭环逐段断言**：(a) 登录成功（走白名单特权路径）；(b) 注册成功且新租户 + 新用户 + 留痕三行同事务落库；(c) 一个 API route 返回本租户数据；(d) 一个 RSC page 渲染出本租户数据；(e) 一个例程跑完并落痕；(f) **跨租户零行**——A 租户会话下读 B 租户的行得零行，且该零行有 **DB 层证据**（kol_app 连接直查 raw SQL 得 0 行），不是只有应用层 where 的 404。③ **哨兵必须通过**：开关开 + kol_app 连接下 runConnectionRoleSentinel 返回 status=ok；反向自证——同样开关开但连接串配回特权 → 抛 PrivilegedConnectionError（app-role.ts 既有双向能力，此处只需接线证明）。④ **变异证活**：把 F003 白名单里的登录查询改回租户路径 → (a) 必须红（复现审计 B2-1「没人能登录」）；把某个入口的 ALS 作用域摘掉 → 对应段必须红成 MissingTenantScopeError。⑤ 夹具纪律（spec §5.2）：A/B 两租户带独一前缀；收尾两层清理——按登记 id 精确删 + **不从登记表派生**的全表前缀普查；清单必须覆盖软引用表（OperationLog / PendingAction 等无 FK 不级联）。跑完 `git status` 干净、dev 库无本次残留（实跑输出为证）。⑥ tsc/lint 绿。"
-    },
-    {
-      "id": "F007",
-      "title": "文档同步 + doc-freshness 机械钉扩展 + 未覆盖入口清单落盘",
-      "priority": "medium",
-      "executor": "generator",
-      "status": "completed",
-      "description": "spec D-6 末段 + planner.md「批内文档新鲜度」。本批的口径权威文档会被前六条 feature 反向漂移；同时 M5.2 的输入（未覆盖入口清单）必须在本批产出，不许留成「剩下的以后再说」。文档断言按 planner.md 硬要求从「批末 grep 复核」升级为「doc-freshness 断言」——人工 grep 已证不可靠（同坑四连踩）。",
-      "acceptance": "① **文档同步三处**：docs/dev/architecture.md（注入机制 as-built）· docs/dev/agent-architecture.md:105（现写「M5.1 注入机制落地后 pgvector raw SQL 才由 DB 侧 policy 接管」——本批落地后须改为实况）· docs/dev/deploy.md:130（DB_APP_ROLE_RUNTIME 开关段，须写明本批只到最小闭环、全站收口在 M5.2、生产切换的前置与回滚）。② **doc-freshness 断言扩展**（tests/unit/architecture-doc-freshness.test.ts）：把「注入机制 as-built」纳入机械钉——文档里的计数/清单/机制名与实物 grep 比对。判据须**不带左括号**且含 `docs/` 范围，并**先验活**（构造一个已知命中项验证模式能抓到它，audit-methodology.md §8）。③ **未覆盖入口清单落盘**：产出 docs/specs/M5.1-uncovered-entrypoints.md，列出「全部入口 − 最小闭环已覆盖」的差集（入口面实测底数：31 API route + 13 admin page + 3 例程 + ~20 scripts），每条标注类型与租户来源（会话面 / 无会话面）。清单**由普查产出**，不是手写——并给出普查命令。④ **既有钉的状态复核**：tests/integration/rls-negative-suite.test.ts §0（断言 API 层 client 是特权连接）与 tests/unit/project-scope-census.test.ts 文件头「现在仍是主力」段，在本批（运行时默认仍未切）下**口径不变**；若本批改动了它们，须说明理由——无理由改动视为越界。⑤ **变异证活**：挑 ② 新增的任一条断言，改一处实物（如挪动文档某段、改一个计数）→ 该断言必须红并点名。⑥ backlog 销账口径：原条目 BL-M51-TENANT-INJECTION 已在 planning 阶段改写为 **BL-M52-TENANT-COVERAGE**（只留覆盖面那一半，机制层归本批）。Generator 不改 backlog.json，只需在 handoff 里说明本批兑现的边界（哪些机制已成立、哪些覆盖面未做），由 Planner 在 done 阶段据此销账。⑦ tsc/lint + 全量 vitest 绿。"
+      "status": "pending",
+      "description": "spec D-2。M5.1b 四轮里有三轮栽在「声称的覆盖面 > 实际覆盖面」，每次都复发在为消灭它而写的那句话里。上一批已裁决「再加断言钉断言」收益递减；本批改走消除路线：**不写承诺，就不存在声称 > 实际**。",
+      "acceptance": "① **普查后清理**：先扫 `src/lib/db/*.ts` 的叙述面（文件头注释与 JSDoc），把所有**覆盖面承诺**列出来（形如「X 守住 / 即红并点名 / 不可能再对不上 / 机械守住 / 完备 / 一条不漏」），逐条改为**纯指路**——只说钉在哪个文件，射程与盲区以那个文件为准。**普查判据须先证明能看见目标**（拿一条已知在场的承诺句验证模式能抓到它，audit-methodology.md §8）。② **历史更正记录里的引用不算承诺**：`// >` 前缀的更正段职责就是原文引用旧措辞，**不得为了清理而抹掉历史记录**——那会让「为什么改成这样」失去依据。清理对象是**现行叙述**。③ **保留 `🔒④` 现有黑名单**（它守的正是承诺句不得复活，与本决策同向），并**复核它仍有鉴别力**：往现行叙述写回任一黑名单词 → 必须红并点名；实跑输出为证。④ **不做**（spec D-2 明确排除，写进 commit 正文以免被误读为遗漏）：`🔒②b` 语义化 · 扩守护面到 `runtime.ts`/`prisma.ts` · census 自身叙述面上钉。这三项留在 `BL-M51B-CARRYOVER`。⑤ **清理后自核**：改后的每一句事实性断言都要有对应的一条命令输出作依据（铁律 13）；**引用被证伪的历史原句时须改述**（M5.1b 实测：照抄会被 `🔒④` 自己钉红，已发生三次）。⑥ `src/` 除注释外零改动——须用机械判据自证（如比对去注释后的 AST/emit 或 token 流，并先做活性自测）。tsc/lint + 全量 vitest 绿。"
     }
   ]
 }

@@ -1,12 +1,12 @@
 {
-  "status": "reverifying",
+  "status": "done",
   "user_goal": "M5.1b:补上 M5.1 未完成的债 + 做完机制层其余六条。F001(evaluator)补验已落 main 的三层 client + ALS 代理实现——尤其两条变异证活,收编证不了断言鉴别力;F008 先修两条经 grep 证伪的注释(第二条会污染 F003 白名单口径)并把 importer 清单升级为机械钉;F002-F007 原文承接(withTenant 硬语义 + B1-4/B3 回归 → 引导白名单普查钉 → 15 处事务迁移 → ALS 三上下文实测 → 开关开六段最小闭环 e2e → 文档与未覆盖入口清单)。已知代价(D-9):F001 补验落在 verifying,即在未独立验证的底座上先盖六层;缓解=Generator 发现机制与 D-1/D-4 不符须立即停工提审计。",
   "total_features": 8,
   "completed_features": 8,
   "fix_rounds": 4,
   "current_sprint": "M5.1b-TENANT-INJECTION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-09T03:40",
+  "last_updated": "2026-08-09T05:10",
   "reference_docs": [
     "docs/specs/M5.1b-TENANT-INJECTION-spec.md",
     "docs/specs/M5.1-TENANT-INJECTION-spec.md",
@@ -18,7 +18,7 @@
   "docs": {
     "spec": "docs/specs/M5.1b-TENANT-INJECTION-spec.md",
     "test_cases": null,
-    "signoff": null,
+    "signoff": "docs/test-reports/M5.1b-TENANT-INJECTION-signoff.md",
     "framework_reviewed": false
   },
   "role_assignments": null,
@@ -27,7 +27,100 @@
     "applied_batch": "M5.1b-TENANT-INJECTION",
     "applied_at": "2026-08-07T02:43:15Z"
   },
-  "evaluator_feedback": null,
+  "evaluator_feedback": {
+    "summary": "第四次复验（fix_rounds=4 的验收）+ 独立签收：**8/8 全 PASS，签收 GRANTED**。被验 HEAD = ff33b54。签收方自行确认「全 PASS」前提、独立复跑 L1、自做一条变异，并**纠正了编排者转述中的一处失实**（见 coordinator_correction）。",
+    "pass_count": 8,
+    "partial_count": 0,
+    "fail_count": 0,
+    "issues": [
+      {
+        "feature_id": "F008",
+        "result": "PASS",
+        "description": "rv3 点名的三条实证缺陷全部闭合且经变异证实：(1) 两条已知漏抓（多行 import 行尾注释含引号/反引号/分号、ES2022 字符串绑定名）在 fix-3 版实测 FAIL(got=[])、在 HEAD 实测 PASS；(2) 那条死钉已复活——变异 1 下它与侧效应吞噬条一起红；(3) 断言形态的自陈「不可能再对不上」已移除，幸存三处全部是引用它以说明其为假。acceptance 五项逐条满足。**判 PASS 的关键正向证据是与 TypeScript AST 的全仓对照**：384 文件、全 specifier 无过滤比对 **0 分歧**，且 GUARDED 期望集合与 AST 实物完全一致——先证明判据看得见（探针 + 变异 6），再报无差异。判据构造：用 esbuild 从 4114b6a / 73e72d3 / ff33b54 三个 commit **机械抽取**扫描器函数（不手抄正则），46 条探针三版并排跑 → ORIG 13 FAIL / CHAR 16 FAIL / HEAD 9 FAIL，每条已知 bug 恰好在拥有该 bug 的那一版上红。残留项均为潜伏、当前 src/ 零触发。**一条如实的定性**：CHAR→HEAD 在真实 src/ 上多重集差异为 0，本轮改动的收益全部落在当前仓里不存在的写法上，**属预防性，不是修好了当下正在漏的东西**。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv4-F008.md（46 条探针 × 三版扫描器 + AST oracle + 6 条变异）"
+      },
+      {
+        "feature_id": "F001",
+        "result": "PASS",
+        "description": "回归确认通过。`src/` 本轮逐字节未变——判据用**内容寻址的 git tree OID** 而非 git diff（diff 为空可能来自 pathspec 打错或 rename 检测），并先拿一个已知改过 src/ 的 commit 做活性自测证明判据敏感：`a122b7d:src == ff33b54:src == 542baa15`。承载测试面全绿；补跑了被验方登记未跑的四套（rls:e2e 15/15 · gate:smoke · delivery:e2e · reach:e2e 降级），其中对 rls:e2e 另做**非空跑证明**（include 结构只收单文件 / 15 条用例名逐条列出 / 登录注册四条稳定 214-233ms 符合 bcrypt cost 12 量级）。三条变异各自精准：F003 植入未登记的 privilegedDb 使用点 → 红并点名；F004 把 confirmPendingAction 反向迁移 → 红成 `expected 'confirmed' to be 'pending'`（正是审计 B1-4 形态），8 条只红 1 条；F007 改文档计数 → 红并报出实物差值。库残留判据先验活（植入探针行 → 判据看见 → 删除 → 回 0），本批夹具残留合计 **0**，且全库量级非零排除「空库恒 0」。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv4-regression-L1.md"
+      },
+      {
+        "feature_id": "F002",
+        "result": "PASS",
+        "description": "回归确认通过。`src/` 本轮逐字节未变——判据用**内容寻址的 git tree OID** 而非 git diff（diff 为空可能来自 pathspec 打错或 rename 检测），并先拿一个已知改过 src/ 的 commit 做活性自测证明判据敏感：`a122b7d:src == ff33b54:src == 542baa15`。承载测试面全绿；补跑了被验方登记未跑的四套（rls:e2e 15/15 · gate:smoke · delivery:e2e · reach:e2e 降级），其中对 rls:e2e 另做**非空跑证明**（include 结构只收单文件 / 15 条用例名逐条列出 / 登录注册四条稳定 214-233ms 符合 bcrypt cost 12 量级）。三条变异各自精准：F003 植入未登记的 privilegedDb 使用点 → 红并点名；F004 把 confirmPendingAction 反向迁移 → 红成 `expected 'confirmed' to be 'pending'`（正是审计 B1-4 形态），8 条只红 1 条；F007 改文档计数 → 红并报出实物差值。库残留判据先验活（植入探针行 → 判据看见 → 删除 → 回 0），本批夹具残留合计 **0**，且全库量级非零排除「空库恒 0」。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv4-regression-L1.md"
+      },
+      {
+        "feature_id": "F003",
+        "result": "PASS",
+        "description": "回归确认通过。`src/` 本轮逐字节未变——判据用**内容寻址的 git tree OID** 而非 git diff（diff 为空可能来自 pathspec 打错或 rename 检测），并先拿一个已知改过 src/ 的 commit 做活性自测证明判据敏感：`a122b7d:src == ff33b54:src == 542baa15`。承载测试面全绿；补跑了被验方登记未跑的四套（rls:e2e 15/15 · gate:smoke · delivery:e2e · reach:e2e 降级），其中对 rls:e2e 另做**非空跑证明**（include 结构只收单文件 / 15 条用例名逐条列出 / 登录注册四条稳定 214-233ms 符合 bcrypt cost 12 量级）。三条变异各自精准：F003 植入未登记的 privilegedDb 使用点 → 红并点名；F004 把 confirmPendingAction 反向迁移 → 红成 `expected 'confirmed' to be 'pending'`（正是审计 B1-4 形态），8 条只红 1 条；F007 改文档计数 → 红并报出实物差值。库残留判据先验活（植入探针行 → 判据看见 → 删除 → 回 0），本批夹具残留合计 **0**，且全库量级非零排除「空库恒 0」。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv4-regression-L1.md"
+      },
+      {
+        "feature_id": "F004",
+        "result": "PASS",
+        "description": "回归确认通过。`src/` 本轮逐字节未变——判据用**内容寻址的 git tree OID** 而非 git diff（diff 为空可能来自 pathspec 打错或 rename 检测），并先拿一个已知改过 src/ 的 commit 做活性自测证明判据敏感：`a122b7d:src == ff33b54:src == 542baa15`。承载测试面全绿；补跑了被验方登记未跑的四套（rls:e2e 15/15 · gate:smoke · delivery:e2e · reach:e2e 降级），其中对 rls:e2e 另做**非空跑证明**（include 结构只收单文件 / 15 条用例名逐条列出 / 登录注册四条稳定 214-233ms 符合 bcrypt cost 12 量级）。三条变异各自精准：F003 植入未登记的 privilegedDb 使用点 → 红并点名；F004 把 confirmPendingAction 反向迁移 → 红成 `expected 'confirmed' to be 'pending'`（正是审计 B1-4 形态），8 条只红 1 条；F007 改文档计数 → 红并报出实物差值。库残留判据先验活（植入探针行 → 判据看见 → 删除 → 回 0），本批夹具残留合计 **0**，且全库量级非零排除「空库恒 0」。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv4-regression-L1.md"
+      },
+      {
+        "feature_id": "F005",
+        "result": "PASS",
+        "description": "回归确认通过。`src/` 本轮逐字节未变——判据用**内容寻址的 git tree OID** 而非 git diff（diff 为空可能来自 pathspec 打错或 rename 检测），并先拿一个已知改过 src/ 的 commit 做活性自测证明判据敏感：`a122b7d:src == ff33b54:src == 542baa15`。承载测试面全绿；补跑了被验方登记未跑的四套（rls:e2e 15/15 · gate:smoke · delivery:e2e · reach:e2e 降级），其中对 rls:e2e 另做**非空跑证明**（include 结构只收单文件 / 15 条用例名逐条列出 / 登录注册四条稳定 214-233ms 符合 bcrypt cost 12 量级）。三条变异各自精准：F003 植入未登记的 privilegedDb 使用点 → 红并点名；F004 把 confirmPendingAction 反向迁移 → 红成 `expected 'confirmed' to be 'pending'`（正是审计 B1-4 形态），8 条只红 1 条；F007 改文档计数 → 红并报出实物差值。库残留判据先验活（植入探针行 → 判据看见 → 删除 → 回 0），本批夹具残留合计 **0**，且全库量级非零排除「空库恒 0」。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv4-regression-L1.md"
+      },
+      {
+        "feature_id": "F006",
+        "result": "PASS",
+        "description": "回归确认通过。`src/` 本轮逐字节未变——判据用**内容寻址的 git tree OID** 而非 git diff（diff 为空可能来自 pathspec 打错或 rename 检测），并先拿一个已知改过 src/ 的 commit 做活性自测证明判据敏感：`a122b7d:src == ff33b54:src == 542baa15`。承载测试面全绿；补跑了被验方登记未跑的四套（rls:e2e 15/15 · gate:smoke · delivery:e2e · reach:e2e 降级），其中对 rls:e2e 另做**非空跑证明**（include 结构只收单文件 / 15 条用例名逐条列出 / 登录注册四条稳定 214-233ms 符合 bcrypt cost 12 量级）。三条变异各自精准：F003 植入未登记的 privilegedDb 使用点 → 红并点名；F004 把 confirmPendingAction 反向迁移 → 红成 `expected 'confirmed' to be 'pending'`（正是审计 B1-4 形态），8 条只红 1 条；F007 改文档计数 → 红并报出实物差值。库残留判据先验活（植入探针行 → 判据看见 → 删除 → 回 0），本批夹具残留合计 **0**，且全库量级非零排除「空库恒 0」。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv4-regression-L1.md"
+      },
+      {
+        "feature_id": "F007",
+        "result": "PASS",
+        "description": "回归确认通过。`src/` 本轮逐字节未变——判据用**内容寻址的 git tree OID** 而非 git diff（diff 为空可能来自 pathspec 打错或 rename 检测），并先拿一个已知改过 src/ 的 commit 做活性自测证明判据敏感：`a122b7d:src == ff33b54:src == 542baa15`。承载测试面全绿；补跑了被验方登记未跑的四套（rls:e2e 15/15 · gate:smoke · delivery:e2e · reach:e2e 降级），其中对 rls:e2e 另做**非空跑证明**（include 结构只收单文件 / 15 条用例名逐条列出 / 登录注册四条稳定 214-233ms 符合 bcrypt cost 12 量级）。三条变异各自精准：F003 植入未登记的 privilegedDb 使用点 → 红并点名；F004 把 confirmPendingAction 反向迁移 → 红成 `expected 'confirmed' to be 'pending'`（正是审计 B1-4 形态），8 条只红 1 条；F007 改文档计数 → 红并报出实物差值。库残留判据先验活（植入探针行 → 判据看见 → 删除 → 回 0），本批夹具残留合计 **0**，且全库量级非零排除「空库恒 0」。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv4-regression-L1.md"
+      }
+    ],
+    "verification_form": {
+      "round": "reverify-4（fix_rounds=4 的验收）+ signoff",
+      "verified_head": "ff33b54410d0b600391f5cda71b34844b3dd5731",
+      "fan_out": "rv4b-F008 / rv4b-regression-L1（各自独立 worktree）+ signoff-M51b（第三个独立 evaluator 写签收）",
+      "no_adversarial_this_round": "本轮无 FAIL/PARTIAL，按 orchestration-patterns §4 无需对抗复核。",
+      "reports": [
+        "docs/test-reports/M5.1b-rv4-F008.md",
+        "docs/test-reports/M5.1b-rv4-regression-L1.md",
+        "docs/test-reports/M5.1b-TENANT-INJECTION-signoff.md"
+      ]
+    },
+    "signoff": {
+      "verdict": "GRANTED",
+      "by": "独立 evaluator（隔离 worktree，非编排者代笔）",
+      "open_items_count": 17,
+      "own_evidence": "① 自行闭合一处口径缺口：rv4 两位给 F001–F007 的是**回归面**判定而非 acceptance 重放，该判定要能顺延，前提是交付树仍等同于当初判 acceptance 的那棵树。它机械核实：`git diff -U0 8c5fee1..HEAD -- src/` 滤掉注释行后**零输出**（78 处增量全是注释），故首轮/rv1 的 acceptance 判定对 ff33b54 成立。② 自做一条变异，专打本批唯一被证明过的「恒绿假保证」：重放首轮 `[...deriveFromScan()]` 对 F003 acceptance ⑤ 的绕过 → `1 failed | 4 passed`，报文『白名单声明里出现了展开运算符』，反向编辑还原、哈希回到基线。③ 独立复现 F004 孤儿泄漏：OperationLog 787→793、PendingAction 219→222，租户恒 4。④ 机械确认 commit 归属偏差：`git log -S \"DOCS_EXCLUDED\"` 只命中 57998bf（subject 标 F008），其 --stat 含 F007 的钉文件 +20 而正文未提 —— 触铁律 1 而非铁律 10（F008 是真实条目），故登记不阻断。⑤ 对两次编排事故明确表态：属仓外过程事实，**它无法独立验证**，如实说明；能验的部分它验了（主仓 src/ 哈希 b1111ab5…/396 文件，与其 worktree 同值）。"
+    },
+    "coordinator_correction": "**签收方纠正了编排者的一处失实转述，如实记录。** 编排者在派活 prompt 与近几轮复述中写「真网关起草段本批无任何证据覆盖」，**该陈述对首轮不成立**：`docs/test-reports/M5.1b-verify-F003-F004.md` §0 与 :273 明确申报首轮发生过 1 次真实网关 chat 调用（`model=deepseek-v3 in=282 out=139 est≈$0.000126`），系 F004 acceptance ④ 强制跑 `reach:e2e` 所致；rv1–rv4 才是降级跑。编排者在首轮的 `l2_status` 里**记录正确**，是后续复述时丢失了该事实。签收方同时指出：这是 **acceptance 要求与 L2 未授权边界之间的真实冲突**，应进记录而非抹平。（此条与本批打了四轮的『叙述与实物不符』同族，这次发生在编排者自己的记录里。）",
+    "l1_evidence_independent": {
+      "note": "签收方独立复跑，不采信任何报告里的数字；rv4b-regression-L1 亦各自跑过，数字重合",
+      "tsc": "exit 0，零诊断",
+      "lint": "exit 0，'No ESLint warnings or errors'",
+      "vitest": "148 files / 1885 tests，exit 0（签收方 12.24s，收尾复跑同值）",
+      "rls_e2e": "1 file / 15 tests，exit 0",
+      "extra": "签收方另加跑 gate:smoke / delivery:e2e / SKIP_DRAFT_LLM=true reach:e2e，三项均 PASS",
+      "test_visual": "**全批未跑**（spec §7 登记为不计分项 BL-VISUAL-DATA-ISOLATION）"
+    },
+    "open_items_carried": [
+      "[裁决暂缓 ×4，rv4 实测确认仍在树上] 扩叙述面守护到 runtime.ts/prisma.ts · 🔒④ 换语义级判据 · 🔒②b 查 pattern 有效性 · census 自身叙述面无钉。变异 5 实测：换个简繁形近字即绕过 🔒②b，18 passed 一条不红。",
+      "[本批修复引入的潜伏回归 U2] re-export 从 `[^'\"`;]*?` 放宽成 `[^;]*?`，重新放进跨语句误捕——`export const a = 1`（无分号）后文散文含 ` from 'lib/db/privileged'` 会**凭空捏造** importer。当前因 Prettier 强制分号不可达；建议改成结构化子句匹配。**优先级最高**。",
+      "[扫描器潜伏形态 U1/U3/U4/U5] 行尾注释含 ` from './old'` 既误捕又漏真 specifier · 模板串带替换 import(`./${name}`) 捕到字面量 · 普通字符串里的 import 语句误捕 · 动态 import 尾逗号漏抓。均当前零触发；代码的已知边界段**未声称完备**，故不构成对已交付陈述的证伪。",
+      "[清态] tests/integration/f004-transaction-atomicity.test.ts 每跑一次泄漏 6 条孤儿 OperationLog + 3 条 PendingAction（两位 evaluator 各自机械证实），单调增长永不回收；并入已登记的 dev 库跨批次孤儿行。",
+      "[承接未处置] F003 三种未登记绕过 · F007 收窄误伤 Planner 每批必读的 docs/test-reports/user_report/ · docs/archive 排除最小性未达 · NestedTransactionOptionsError 零测试覆盖 · 代理非 get 陷阱 fail-open · prisma.ts『方法必须 bind』无钉守 · acceptance ④『提交路径』用例无鉴别力。",
+      "[流程] F007 的改动混在 subject 标 F008 的 commit 57998bf 里（铁律 1 偏差，签收方机械确认）。",
+      "[方法学] `find src -type f -exec cat {} +` 对未改动内容三次给出三个不同哈希（文件顺序不定），不能用作还原对账判据——须先 sort。"
+    ],
+    "process_incidents": "三个 evaluator 进程被 watchdog 判 stalled（600s 无进展）；编排者一次误删 worktree 导致一轮 evaluator 工作全部丢失。每次主仓均经核实未受污染（worktree 隔离两次兜住意外，其中一次兜的是编排者自己的操作失误）。签收方对这两件事明确表态：属仓外过程事实、它无法独立验证，只验证了能验的部分。",
+    "l2_status": "L2 全程未授权。**首轮发生过 1 次真实网关 chat 调用**（est≈$0.000126，由该轮 evaluator 主动申报，系 acceptance ④ 强制），rv1–rv4 与签收均以 SKIP_DRAFT_LLM=true 降级跑（gateway chat 0 次 / 真实投递 0 封）。未授权 L2 面——真实投递 / 资金动作 / 生产库 / staging / 部署——全部未验。"
+  },
   "generator_handoff": {
     "batch": "M5.1b-TENANT-INJECTION",
     "lane": "fast (Generator=主上下文)",
@@ -49,7 +142,7 @@
   },
   "session_notes": {
     "Andy": null,
-    "Reviewer": "第二次复验：上一轮缺口经独立重放确认已堵上；新查出的两条同族缺陷经对抗复核 3/3 UPHELD。本轮最有价值的两件事：① 对抗复核纠正了根因方向（是「外层 ? 贪婪」不是「惰性」），并把逃逸条件加宽到「文件后文任意位置出现 from 即可触发」——发现方与编排者最初的理解都不够准；② 它给出定界「失实的是保证句、不是清单」，避免把一个文档缺陷误读成数据缺陷。另：rv2-F008-F001 因跑全量卡死被 watchdog 中断，唤醒续跑时明确禁止再跑全量、要求用已有证据下判定并标注未验项——worktree 隔离使中断没有污染主仓。",
+    "Reviewer": "批次以 8/8 全 PASS 签收。四轮 fix_rounds 里三轮打的是同一个缺陷族（声称的覆盖面 > 实际覆盖面），每次都复发在「为消灭它而写的那句话」里；靠用户的第二次裁决（有界收口 + 整族转 backlog）才退出递归。签收方做了一件编排者没想到的事：指出 rv4 给 F001–F007 的是**回归面**判定而非 acceptance 重放，并机械证明交付树相对 acceptance 判定点只有注释差异，从而把顺延的合法性补上了。它还纠正了编排者一处失实转述（首轮实际发生过 1 次真实网关调用），——同一族毛病这次出在编排者自己的记录里。",
     "Mark": "fix-4 的教训比修法本身重要：fix-3 我选了「收紧字符类」，它解掉了目标 bug 却换来两类新漏抓——其中 ES2022 字符串绑定名是**合法模块语法**，不是边角。而正确解只是把可选组从贪婪改惰性，一个字符。差别在于：我当时是「让目标用例变绿」，没有回头问「这个改法还会挡住什么」。第二条：用户裁决把「叙述面完备性」整族转 backlog 之后，这一条终于收敛了——前三轮都在同一个递归里打转（加断言钉断言），而两位 evaluator 各自独立指出这一点比我自己察觉要早。"
   },
   "lane": "fast",

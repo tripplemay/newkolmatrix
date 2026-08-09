@@ -25,9 +25,33 @@
 //              `const KEY = 'privileged' + 'Db'; (await import('./db/privileged'))[KEY]`
 //            —— 本钉按词边界扫标识符，拼接出来的名字看不见。
 //
-// **但该形态被 F008 那道钉抓住了**（它扫的是 import specifier `./db/privileged`，与名字无关）。
-// 这正是两道钉刻意不互相派生的价值：判据不同 ⇒ 盲区不重叠。**实测互补，不是声称互补。**
-// 若将来有人把 F008 那道钉删掉或改成从本钉派生，这个缺口就会真正打开。
+// **该形态的一部分被 F008 那道钉抓住了**（它扫的是 import specifier `./db/privileged`，与名字无关）。
+//
+// > **更正（M5.1b fix-1）：上一版这里写「判据不同 ⇒ 盲区不重叠，实测互补」——该结论过强，已被证伪。**
+// > 首轮验收的对抗复核实测：**拼接路径 + 拼接键**同时逃出两道钉——
+// >   `const P = 'lib/db/' + 'privileged'; (await import(P))['privileged' + 'Db']`
+// > 本钉看不见（标识符从未作为完整 token 出现），F008 那道钉也看不见（import specifier 是变量
+// > 而非字面量）。两道钉的盲区**在动态拼接这一维上是重叠的**。
+// > 判据不同只保证「不会因同一处修改而同时失效」，不保证「盲区不相交」——这两件事被混为一谈了。
+// >（docs/test-reports/M5.1b-verify-F003-F004.md · M5.1b-adversarial-F003.md）
+// > 该缺口目前无产品代码命中（本仓 db 层无动态拼接写法），登记在此不做修复：要堵它得上 AST /
+// > 运行时插桩，成本与收益不匹配，且真正的兜底是 F006 那条「开关开 + 连 kol_app」的 e2e——
+// > 走后门取到特权连接的代码，在那条 e2e 里读得到别租户的行，会被跨租户零行断言逮住。
+//
+// 若将来有人把 F008 那道钉删掉或改成从本钉派生，import specifier 那一维的缺口也会打开。
+//
+// 【tests/ 侧是否纳入射程 —— 显式决定：**不纳入**（M5.1b spec §4 硬约束第 2 条要求表态）】
+// 两道钉守的是**产品越权面**：产品代码里谁在动这把绕过 RLS 的钥匙。测试夹具用 privilegedDb
+// 建/删数据是本项目的既定纪律（F002 / F005 / F006 的夹具都这么写，理由各自写在文件头）——
+// 夹具是脚手架，不是越权面；它本来就该绕过 RLS，否则连测试数据都建不起来。
+// 若纳入，等于要求为每个测试文件登记一条 reason，而那些 reason 会全是同一句「夹具需要绕过
+// RLS」——一份所有条目理由相同的清单没有复查价值，只剩维护噪声（本钉的价值恰恰在 reason 各不相同）。
+//
+// **代价如实登记：** tests/ 侧若有人把 privilegedDb 用于**验证产品行为**（而不是建夹具），
+// 这两道钉看不见。那种误用的典型表现是「用特权连接去验 RLS 生效没生效」——它会恒绿。
+// 防线不在这道钉，而在验收判据纪律：F006 acceptance ②(f) 明确要求跨租户零行的证据必须来自
+// **kol_app 连接**，特权连接上的零行不作数。
+// 该决定同样写在 tests/unit/db-layer-importer-census.test.ts 的 SRC_ROOT 旁（两钉射程一致）。
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, posix } from 'node:path';
@@ -183,10 +207,55 @@ describe('引导白名单越权面普查钉（F003）', () => {
   });
 
   it('白名单**恒不可**从别处推导（不读 env、不读配置、不从扫描结果反推）', () => {
+    // 【M5.1b fix-1：这条断言原先是恒绿的假保证，已重写】
+    // 首轮验收实测：原判据只看「BOOTSTRAP_WHITELIST 后 200 字内没有 process.env」+
+    // 「声明以 `= [` 开头」。把清单换成 `const BOOTSTRAP_WHITELIST = [...deriveFromScan()]`
+    //（正是本条明令禁止的第三种形态）后，本文件 5 条全绿——闸门形同虚设。
+    // 对抗复核进一步证明这不是纸面问题：它另建一个「取用 privilegedDb 但不 import 该模块」
+    // 的后门探针，在派生清单下**全仓 1869 条测试无一察觉**，在字面量清单下会被本钉点名红。
+    // 即那条变异拿掉的是真实且不可替代的防护。
+    //（docs/test-reports/M5.1b-verify-F003-F004.md · M5.1b-adversarial-F003.md）
+    //
+    // 【新判据：正向白名单，不是负向黑名单】取出声明整段 → 抹掉字符串字面量 →
+    // 断言骨架里出现的标识符**只能**是这 6 个。任何函数调用、展开、变量引用都会引入
+    // 新标识符而当场翻红；黑名单式的「不含 process.env」则永远漏掉没想到的第 N 种写法
+    //（audit-methodology.md §7：正向精确匹配 > 黑名单否定）。
     const selfSource = readFileSync('tests/unit/bootstrap-whitelist-census.test.ts', 'utf8');
     const code = stripComments(selfSource);
-    // 白名单必须是字面量数组：出现 process.env / readFile 到别的清单文件 / 由 actual 派生，都是失格
-    expect(/BOOTSTRAP_WHITELIST[\s\S]{0,200}process\.env/.test(code)).toBe(false);
-    expect(/const BOOTSTRAP_WHITELIST[^=]*=\s*\[/.test(code)).toBe(true);
+
+    const start = code.indexOf('const BOOTSTRAP_WHITELIST');
+    expect(start, '找不到白名单声明（格式变更须同步本断言）').toBeGreaterThanOrEqual(0);
+    const end = code.indexOf('\n];', start);
+    expect(end, '找不到白名单声明的结尾 `\\n];`').toBeGreaterThan(start);
+    const declaration = code.slice(start, end + 3);
+
+    // 先抹字符串字面量：reason 里含中文、含 `...`（`[...nextauth]` 路由名），
+    // 不先抹掉会把它们误当成展开运算符与代码标识符。
+    const skeleton = declaration.replace(/'(?:[^'\\]|\\.)*'/g, "''");
+
+    // ① 骨架里不得有展开 / 模板串（两者都是把别处内容灌进来的通道）
+    expect(skeleton, '白名单声明里出现了展开运算符 —— 清单被从别处灌入').not.toMatch(/\.\.\./);
+    expect(skeleton, '白名单声明里出现了模板字符串').not.toMatch(/`/);
+
+    // ② 骨架里允许出现的标识符只有这 6 个；多一个就说明清单不再是纯字面量
+    const ALLOWED = new Set([
+      'const',
+      'BOOTSTRAP_WHITELIST',
+      'ReadonlyArray',
+      'file',
+      'string',
+      'reason',
+    ]);
+    const foreign = [...new Set(skeleton.match(/[A-Za-z_$][\w$]*/g) ?? [])].filter(
+      (id) => !ALLOWED.has(id),
+    );
+    expect(
+      foreign,
+      `白名单声明里出现了不该有的标识符 ${foreign.join(' / ')} —— 说明它不再是写死的字面量清单，` +
+        '而是从别处推导出来的（env / 配置 / 扫描结果）。「改代码才能豁免」是刻意的设计。',
+    ).toEqual([]);
+
+    // ③ 扫描器不空转：骨架必须真取到了内容（否则上面两条在空串上恒绿）
+    expect(skeleton.length, '白名单声明取到的内容异常短').toBeGreaterThan(200);
   });
 });

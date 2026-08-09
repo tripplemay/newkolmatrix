@@ -28,6 +28,19 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, normalize, posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+/**
+ * 扫描面 = `src/`。**tests/ 侧显式决定：不纳入**（M5.1b spec §4 硬约束第 2 条要求表态，
+ * M5.1b fix-1 补写——首轮验收查出两道钉都只是硬编码 'src' 而无任何表态，属「默认略过」）。
+ *
+ * 理由：本钉守的是「模块文件头注释里的 importer 清单与实物同步」，而那些文件头描述的是
+ * **产品运行时**的注入面（谁在用运行时 client / 特权 client）。测试文件 import 这两个模块是
+ * 为了建夹具与做对照组（F002 / F005 / F006 的夹具都这么写），它们不构成运行时注入面，
+ * 纳入只会让期望清单随测试增删而反复变更，把这道钉变成噪声源。
+ *
+ * **代价如实登记：** tests/ 侧新增的 db 层 importer 不会被本钉记账，故「注入面完整性」这一
+ * 结论只对 src/ 成立。同一决定与同一代价写在 tests/unit/bootstrap-whitelist-census.test.ts
+ * 文件头（两钉射程保持一致，避免一钉扫一边造成假的互补感）。
+ */
 const SRC_ROOT = 'src';
 
 /** 被守护的模块 → 期望的 src/ 内 importer 清单（**写死在这里，改代码才能改期望**）。 */

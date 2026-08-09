@@ -7,19 +7,36 @@
 // 用会话级（false）会粘连接池，审计 B3 实测 12 次并发有 1 次看得见别租户数据，比没有 RLS 更坏。
 // withTenant 把「开事务 → SET LOCAL → 业务回调」钉成一个不可拆开的整体，ALS 把这次事务的
 // tx client 传给它作用域内的所有数据访问点——注入落点因此能做成 ALS 感知代理
-//（D-1：73 个 src 文件、206 处调用点零改写），代理本体在 lib/db/prisma.ts。
+//（D-1 的收益：既有调用点零改写、零感知），代理本体在 lib/db/prisma.ts。
 //
-// 【嵌套语义归 F002】同租户嵌套复用既有 tx（不开第二事务）、跨租户嵌套抛错，连同 B1-4 原子性
-// 与 B3 残留两条硬回归，都是 F002 的 acceptance。本模块此刻只交付**单层**语义——**产品代码
-// （src/）零 withTenant 调用点**（15 处 $transaction 迁移是 F004），提前写嵌套分支 = 没有
-// 测试锚的死代码。在 F002 落地前**不要嵌套调用** withTenant：现在没有嵌套守卫，嵌套会静默
-// 开第二个事务（正是审计 B1-4 的病灶形态）。
+// 【as-built 语义（M5.1b 批末，四条）】
+//   · 单层：开事务 → 第一条语句 SET LOCAL app.tenant_id（set_config 第三参 true）→ 在 ALS
+//     作用域内跑回调；回调抛错 → 事务回滚、错误原样上抛（原子性归调用方）。
+//   · 同租户嵌套：**复用外层 tx**，不开第二事务、不重设变量。
+//   · 跨租户嵌套：抛 CrossTenantNestingError（静默切换与静默沿用都是不报错的跨租户事故）。
+//   · 嵌套时再传事务选项：抛 NestedTransactionOptionsError（嵌套不开新事务，选项无处可施）。
+// 会话面入口的标准包裹在 lib/db/tenant-entry.ts；无会话面在解析出 tenantId 后显式调用本函数。
 //
-// > 更正记录（M5.1b F008）：原文写「全仓此刻没有任何 withTenant 调用点」，**该陈述不成立**——
-// > 同批交付的 tests/integration/tenant-injection-proxy.test.ts 自带 5 处调用（:101 :117 :131
-// > :223 :247）。「全仓」与「产品代码」不是一回事，此处要的是后者。该失实由 M5.1 的 spec-lock
-// > 稽核以 grep 证伪（docs/test-reports/M5.1-F001-spec-lock-review.md §4）。
-// > 本段的 importer / 调用点类陈述现由 tests/unit/db-layer-importer-census.test.ts 机械守住。
+// 【本段刻意不写「有几处调用点 / 覆盖了几条入口」这类数字 —— 这是踩过的坑，不是省事】
+// M5.1b 首轮验收实测：本段原先断言「产品代码里一个 withTenant 调用点都没有」，被同批
+// F004/F005 带假（批末实测 15 处 / 11 文件），而当时挂在段尾那句「已由
+// db-layer-importer-census 机械守住」的钉**根本不守这件事**——该钉的 GUARDED 只有 runtime
+// 与 privileged 两个 importer 条目，于是全仓 1869 条测试全绿、没有一条会红。
+//（此处刻意改述而非照抄原句：守着本段的那组断言按**字面**匹配那几条已被证伪的句子，
+//  照抄会把自己钉红——这一条是写这段注释时实测撞到的。）
+// 两个独立 evaluator 各自查证到同一结论
+//（docs/test-reports/M5.1b-verify-F001.md · M5.1b-verify-F002-F008.md ·
+//  M5.1b-adversarial-F008.md）。
+//
+// 教训落成规矩：**注释里的可变数字要么有钉守着，要么不写。** 会漂的计数统一放进
+// docs/specs/M5.1-uncovered-entrypoints.md（由 scripts/test/m51b-entrypoint-census.ts 普查
+// 产出，计数由 tests/unit/architecture-doc-freshness.test.ts 与实物比对）。本文件的说明段
+// 因此只写不随批次漂移的**设计性质**。
+//
+// 该规矩本身有机械守护：tests/unit/db-layer-importer-census.test.ts 的「说明段事实性陈述」
+// 一组断言守着本段——① 上面那条政策句不得被删；② 三条已被实测证伪的绝对句不得复活；
+// ③ 本段不得再出现「N 处 withTenant 调用点」形态的计数。**该组断言配有变异证活实跑记录**
+//（见那个文件的用例头注），不是又一句「已被守住」的空话。
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { Prisma } from '@prisma/client';

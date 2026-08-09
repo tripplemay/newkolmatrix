@@ -32,8 +32,17 @@ function resolveDelegate(): PrismaClient | Prisma.TransactionClient {
 }
 
 /**
- * 全部既有调用点（73 个 src 文件 / 206 处模型调用 / 15 处 $transaction）经此代理。
- * 类型保持 PrismaClient，调用点零改写、零感知。
+ * 全部既有调用点经此代理。类型保持 PrismaClient，调用点零改写、零感知。
+ *
+ * 【这里原本写着三个数字，M5.1b fix-1 删掉了】原文「73 个 src 文件 / 206 处模型调用 /
+ * 15 处 $transaction」经首轮验收实测在批末已全部陈旧（F004 把事务调用点迁走了大半）。
+ * 同批 tenant-scope.ts 栽在同一件事上，处置口径统一（理由见该文件说明段）：
+ * **注释里的可变数字要么有钉守着，要么不写。**
+ *
+ * 顺带一条自己踩到的：改这段时想复述一个「当前有多少个 src 文件 import 本模块」的数，
+ * 结果 `grep -rl "db/prisma'"` 与 `grep -rl 'db/prisma'` 给出的答案就不一样（一个含尾引号、
+ * 一个不含）—— 同一件事换个判据换个数字，正说明这类数不该刻进注释。要看当下实况，
+ * 跑 `npm run census:entrypoints`（口径写在脚本里，可复跑、可审）。
  */
 export const prisma = new Proxy({} as PrismaClient, {
   get(_target, prop) {

@@ -504,8 +504,28 @@ describe('M5 认证 + RLS as-built（F013）', () => {
 
 const DOCS_DIR = 'docs';
 
+/**
+ * 扫描面排除的子目录 —— **历史记录面**，不是现行文档面（M5.1b fix-1 补）。
+ *
+ * 【为什么必须排除，而不是「顺手也扫上」】验收报告与归档的职责就是**原文引用**当时的陈述
+ * （「原句是 X，实测为假」），归档同理。把它们纳入「陈旧句零残留」的扫描面，等于要求
+ * 历史记录不许提到历史——报告一落盘就把仓库钉红。M5.1b 首轮验收后落 8 份报告，实测
+ * 其中 docs/test-reports/M5.1b-verify-F007-L1.md 的两处引用当场让这道钉翻红。
+ * 同理适用于计数锚点：报告里写的是**当时**的计数，M5.2 一改覆盖面，历史报告会集体翻红。
+ *
+ * 【排除的边界与代价，如实登记】排除之后，这组断言守的是「现行文档面」= docs/dev/ +
+ * docs/specs/（人会照着做事的那一份）。**代价是：若有人把作废陈述写进 test-reports/ 当作
+ * 现行说明，这道钉看不见。** 该风险可接受，因为 test-reports/ 按目录约定只放验收产物、
+ * 由 Evaluator 写、且带批次日期；但它是这道钉的已知盲区，写在这里而不是假装没有。
+ *
+ * 判据仍满足 acceptance ② 的「含 docs/ 范围」：M4.5 那次漏检的成因是**压根不搜 docs/**，
+ * 现行文档面全在扫描内。
+ */
+const DOCS_EXCLUDED = ['docs/test-reports', 'docs/archive'];
+
 /** 递归收集 docs/ 下全部 .md（不用 git grep：只搜已跟踪文件，新文件未 commit 时恒空绿）。 */
 function collectDocs(dir: string): string[] {
+  if (DOCS_EXCLUDED.some((ex) => dir === ex || dir.startsWith(`${ex}/`))) return [];
   const out: string[] = [];
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const p = `${dir}/${e.name}`;

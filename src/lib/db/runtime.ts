@@ -18,11 +18,17 @@
 // tests/unit/db-layer-importer-census.test.ts 机械守住（新增 importer 即红并点名），
 // 不再依赖本注释自觉。
 //
-// > 更正记录（M5.1b F008）：原文写「只有 ① lib/db/tenant-scope.ts ② src/instrumentation.ts」，
-// > **两头都错**——漏列了真实 importer lib/db/prisma.ts；而 src/instrumentation.ts 动态 import 的
-// > 是 ./lib/db/prisma 与 ./lib/db/app-role（见该文件 :14-15），并不 import 本模块。该失实由
+// > 更正记录（M5.1b F008；行号部分经首轮验收再次更正，见下）：原文写「只有
+// > ① lib/db/tenant-scope.ts ② src/instrumentation.ts」，**两头都错**——漏列了真实 importer
+// > lib/db/prisma.ts；而 src/instrumentation.ts 当时动态 import 的并不是本模块。该失实由
 // > M5.1 的 spec-lock 稽核以 grep 证伪，且会直接把 F003 的白名单口径带偏
 // > （docs/test-reports/M5.1-F001-spec-lock-review.md §4）。
+// >
+// > 二次更正（M5.1b fix-1）：上一版更正记录里写的「见该文件 :14-15」在批末已失实——F003 把
+// > instrumentation.ts 的哨兵改成取**运行时 client 本体**之后，那两条动态 import 变成
+// > `./lib/db/runtime` 与 `./lib/db/app-role`，位置也随之移动。**故此处不再写行号**：
+// > 行号是最容易漂的一类事实，而本段没有钉守它。上面那份 importer 清单（① ② ③）才是
+// > 有钉守的部分（tests/unit/db-layer-importer-census.test.ts 扫实物比对，新增即红并点名）。
 //
 // 【与 F003 白名单的分工，别混】本清单守的是「谁在用运行时 client」（注入面完整性）；
 // F003 的普查钉守的是「谁在用 privilegedDb」（越权面）。两者判据不得互相派生——

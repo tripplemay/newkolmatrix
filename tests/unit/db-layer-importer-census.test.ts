@@ -224,3 +224,82 @@ describe('db 层 importer 清单机械钉（F008）', () => {
     expect(resolveToSrcModule('src/lib/db/runtime.ts', '@prisma/client')).toBeNull();
   });
 });
+
+/* ================================================================== *
+ * M5.1b fix-1（F008 复发防线）— `src/lib/db/` 说明段的事实性陈述
+ *
+ * 【为什么加这一组】F008 的任务是「把两条失实注释改对」，它改完又在段尾写下
+ * 「本段的 importer / 调用点类陈述现由 tests/unit/db-layer-importer-census.test.ts 机械守住」
+ * —— 而这道钉的 GUARDED 只有 runtime 与 privileged 两个 **importer** 条目，从来不看
+ * withTenant 调用点，也从不扫 tests/。于是那句话**写下的那一刻就是假的**：首轮验收实测，
+ * 同一 HEAD 上「产品代码零 withTenant 调用点」已被 15 个反例证伪，而本文件 4 passed、
+ * 全量 1869 passed 全绿 —— 一句为假的陈述加一个全绿的仓，等于全仓无一条断言在守它。
+ *（两个独立 evaluator 各自查证到同一结论，对抗复核 0/3 证伪；
+ *  docs/test-reports/M5.1b-verify-F001.md · M5.1b-verify-F002-F008.md · M5.1b-adversarial-F008.md）
+ *
+ * 【这一组守什么、不守什么】守的是「说明段不得再出现会漂的绝对句与计数」这条**规矩本身**：
+ *   ① 政策句不得被删（正向，非空转 —— 删掉即红）
+ *   ② 三条已被实测证伪的绝对句不得复活（负向黑名单，形态精确）
+ *   ③ 说明段不得再写「N 处 withTenant 调用点」这类计数（负向模式）
+ * **不守**「注释描述的设计语义是否正确」—— 那是人读代码的事，机械判据够不着，故不声称。
+ *
+ * 【变异证活（M5.1b fix-1 实跑，记录见 commit 正文）】
+ *   · 删掉 tenant-scope.ts 里的政策句      → ① 红
+ *   · 把「零 withTenant 调用点」写回说明段 → ② 红并点名该句
+ *   · 在说明段写「产品代码 3 处 withTenant 调用点」→ ③ 红
+ * ================================================================== */
+
+const TENANT_SCOPE_FILE = 'src/lib/db/tenant-scope.ts';
+
+/** 取文件开头的整块行注释（第一行非 `//` 即止）—— 说明段就在这里。 */
+function leadingLineComment(source: string): string {
+  const out: string[] = [];
+  for (const line of source.split('\n')) {
+    if (line.startsWith('//')) out.push(line);
+    else if (line.trim() === '') continue;
+    else break;
+  }
+  return out.join('\n');
+}
+
+describe('src/lib/db 说明段的事实性陈述（M5.1b fix-1：F008 复发防线）', () => {
+  const header = leadingLineComment(readFileSync(TENANT_SCOPE_FILE, 'utf8'));
+
+  it('扫描器不空转：说明段确实取到了内容', () => {
+    // 没有这条，下面两条负向断言会在「header 恒为空串」时恒绿（F003 那道恒真闸门的同款形态）
+    expect(header.length, `${TENANT_SCOPE_FILE} 的开头行注释块取不到内容`).toBeGreaterThan(500);
+  });
+
+  it('🔒 ① 「可变数字要么有钉守、要么不写」这条政策句不得被删', () => {
+    expect(
+      header,
+      `${TENANT_SCOPE_FILE} 说明段缺少那条政策句 —— 它是本组断言存在的理由，删了它这一组就成了无主之钉`,
+    ).toContain('注释里的可变数字要么有钉守着，要么不写');
+  });
+
+  it('🔒 ② 已被实测证伪的绝对句不得复活', () => {
+    // 形态取自首轮验收逐条点名的原文（docs/test-reports/M5.1b-verify-F002-F008.md）
+    const falsified = [
+      '零 withTenant 调用点',
+      '没有嵌套守卫',
+      '不要嵌套调用',
+    ];
+    const revived = falsified.filter((s) => header.includes(s));
+    expect(
+      revived,
+      `${TENANT_SCOPE_FILE} 说明段复活了已被实测证伪的绝对句：${revived.join(' / ')}`,
+    ).toEqual([]);
+  });
+
+  it('🔒 ③ 说明段不得再写「N 处 withTenant 调用点」这类会漂的计数', () => {
+    // 允许叙述历史（「批末实测 15 处 / 11 文件」出现在讲教训的那段，带明确的过去时语境）；
+    // 禁止的是把计数写成**当下事实**的那种形态：紧邻 withTenant 调用点的裸计数断言。
+    const counting = [...header.matchAll(/(\d+)\s*处\s*(?:\/\s*\d+\s*文件\s*)?withTenant\s*调用点/g)]
+      .map((m) => m[0])
+      .filter((s) => !header.includes(`批末实测 ${s}`));
+    expect(
+      counting,
+      `${TENANT_SCOPE_FILE} 说明段出现了未经钉守的 withTenant 调用点计数：${counting.join(' / ')}`,
+    ).toEqual([]);
+  });
+});

@@ -11,19 +11,38 @@
 //     要么在 ALS 作用域内拿到 TransactionClient 而 $transaction 不存在（当场炸，红）
 // 两种退化都逃不过。这条判据同时覆盖了 acceptance ③ 的「回滚后零残留」与「确实在同一事务里」。
 //
-// 【已由既有用例覆盖的 3 处，不重复造（acceptance ③ 允许）】
-//   · gate.ts:364 executePendingAction  → tests/integration/create-share-link.test.ts:218
-//     （pending→confirm 窗口内项目被删 → execute 拒 + 无 irrev 行 + 业务回滚无 ShareLink 行）
-//     与 tests/integration/payout-gate.test.ts:274（业务写入随事务回滚：无 Payout 行）
+// 【已由既有用例覆盖的 1 处，不重复造（acceptance ③ 允许）】
 //   · auth/register.ts:110 registerAccount → tests/integration/auth-register.test.ts:192
 //     （事务内最后一步失败 → 前面两张表全部回滚，真 Postgres 非 mock）
-// 本文件补的是其余 4 处 + acceptance ② 的反向断言。
+//
+// > **更正（M5.1b fix-1）：上一版这里把 gate.ts:365 也列为「已由既有用例覆盖」，该登记失实。**
+// > 首轮验收实测：被引用的 create-share-link.test.ts:218 与 payout-gate.test.ts:274 走的都是
+// > **工具在写入之前就被拒**（`resolveShare` / `resolveAndAssertReady` 先抛错，其后的
+// > `db.shareLink.create` / `db.payout.create` 根本不可达），所以「无 ShareLink 行 / 无 Payout 行」
+// > 在「压根没写过」时同样成立 —— 对「业务写入逃出调用方事务」这个病灶零鉴别力。
+// > 对抗复核用**不新增 import 的等价变异**（把 gate.ts 注入的 `db: tx` 换成运行时 client 缓存）
+// > 跑全量：vitest 148 files / 1869 tests 全绿 + gate:smoke / delivery:e2e / rls:e2e / reach:e2e
+// > 全部 exit=0，**翻红清单为空**——产品性质正确，但当时完全无人守。
+// >（docs/test-reports/M5.1b-verify-F003-F004.md · M5.1b-adversarial-F004.md）
+// > 本文件末尾的 §gate.ts:365 一组即为补上的那道守卫。
+//
+// 本文件补的是其余 5 处（含 gate.ts:365）+ acceptance ② 的反向断言。
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
 import { privilegedDb } from '../../src/lib/db/privileged';
 import { withTenant } from '../../src/lib/db/tenant-scope';
-import { confirmPendingAction, createPendingAction, rejectPendingAction } from '../../src/lib/agent/gate/gate';
+import {
+  confirmPendingAction,
+  createPendingAction,
+  executePendingAction,
+  rejectPendingAction,
+} from '../../src/lib/agent/gate/gate';
+import { z } from 'zod';
+import { prisma } from '../../src/lib/db/prisma';
+import { executeTool } from '../../src/lib/agent/execute';
+import { isPendingEnvelope, HARM_LABEL } from '../../src/lib/agent/gate/harm';
+import { registerTool } from '../../src/lib/agent/tools/registry';
 import { registerDealRefs, registerKeyPool, verifyDeliverable } from '../../src/lib/delivery/register';
 import type { ToolContext } from '../../src/lib/agent/tools/types';
 
@@ -253,5 +272,122 @@ describe('acceptance ②：auth/register.ts 的注册事务走 privilegedDb，�
     } catch (err) {
       console.warn(`[F004] 清理注册租户失败：${(err as Error).message}`);
     }
+  });
+});
+
+/* ================================================================== *
+ * gate.ts:365 executePendingAction —— acceptance ③ 的第 2 点（M5.1b fix-1 补）
+ *
+ * 【为什么这一处不能套用本文件其余各处的「外层 withTenant 包一层」判据】
+ * executePendingAction 那次 withTenant 传了事务选项（`{ timeout: 90_000, maxWait: 5_000 }`，
+ * 为外呼留的时间）。从外层作用域里调它 = 嵌套时再传选项 → 当场抛
+ * NestedTransactionOptionsError（tenant-scope.ts 的 fail-closed，刻意设计）。
+ * 于是这一处必须换一种判据。
+ *
+ * 【换成什么】注册一个**先经 ctx.db 真写一行、再抛错**的 outbound 工具，走完整两步票据。
+ * 判据钉在「写进去之后有没有被调用方事务回滚带走」：
+ *   · db 注入的是调用方 tx  → 工具抛错 → 整个事务回滚 → 探针行零残留 ✅
+ *   · db 若逃出调用方事务（审计 B1-4 病灶）→ 那一行独立提交 → 回滚带不走 → 残留 ❌
+ * 「先真写再抛」是关键：既有的 create-share-link / payout-gate 用例都是**写之前就被拒**，
+ * 它们的「无行」在「压根没写过」时同样成立，对本病灶零鉴别力（见文件头更正段）。
+ *
+ * 【变异证活（M5.1b fix-1 实跑，记录见 commit 正文）】
+ * 把 gate.ts 注入的 `db: tx` 换成运行时 client（不新增 import，取 globalThis 缓存）→ 本用例红。
+ * ================================================================== */
+
+const PROBE_TOOL = `f004_rollback_probe_${process.pid}`;
+const PROBE_MARKER = `${TAG}-gate365-probe`;
+const PROBE_BOOM = '探针刻意抛错（写在前，抛在后）';
+
+registerTool({
+  name: PROBE_TOOL,
+  description: '[test-only] 经 ctx.db 真写一行 OperationLog 后抛错，用于验回滚传播。',
+  class: 'outbound',
+  source: 'native',
+  inputSchema: z.object({}),
+  buildHarm: () => ({
+    action: PROBE_TOOL,
+    summary: 'F004 回滚传播探针',
+    targets: ['探针目标'],
+    quantity: 1,
+    irreversible: true,
+    evidence: '探针：无任何外部副作用，只写一行 OperationLog 后抛错。',
+    expiresAt: new Date().toISOString(),
+    label: HARM_LABEL,
+  }),
+  execute: async (_input: unknown, c: ToolContext) => {
+    // 走 ctx.db —— gate 注入的那条缝。缺省回落 prisma 代理只为类型完整，正常路径必有 db。
+    const db = c.db ?? prisma;
+    await db.operationLog.create({
+      data: {
+        tenantId: c.tenantId,
+        kind: 'auto',
+        actor: c.agentId ?? 'probe',
+        summary: PROBE_MARKER,
+        ref: c.gateActionId ?? null,
+      },
+    });
+    throw new Error(PROBE_BOOM);
+  },
+});
+
+describe('gate.ts:365 executePendingAction：工具的业务写入随调用方事务回滚', () => {
+  const probeRows = () =>
+    privilegedDb.operationLog.count({ where: { tenantId, summary: PROBE_MARKER } });
+
+  it('🔒 工具先真写一行再抛错 → 回滚后零残留（而不是「压根没写过」的零）', async () => {
+    const before = await probeRows();
+
+    const r = await executeTool(PROBE_TOOL, {}, ctx);
+    if (!isPendingEnvelope(r.output)) throw new Error('outbound 动作应停在闸门（pending）');
+    const paId = r.output.pendingActionId;
+
+    const conf = await confirmPendingAction(paId, ctx);
+    await expect(
+      executePendingAction(paId, conf.ticket, ctx),
+    ).rejects.toThrowError(new RegExp(PROBE_BOOM));
+
+    // 判据本体：探针行必须被回滚带走
+    expect(await probeRows(), '工具的业务写入没有随调用方事务回滚 —— 它逃出了那个事务').toBe(
+      before,
+    );
+
+    // 对照：G5 的两条既有断言在同一链路上仍成立（它们对本病灶无鉴别力，此处仅作旁证）
+    const pa = await privilegedDb.pendingAction.findUnique({
+      where: { id: paId },
+      select: { status: true },
+    });
+    expect(pa?.status).toBe('failed');
+    expect(
+      await privilegedDb.operationLog.count({
+        where: { tenantId, kind: 'irrev', ref: paId },
+      }),
+    ).toBe(0);
+  });
+
+  it('探针工具确实会写（防止上一条因「工具压根没执行」而空绿）', async () => {
+    // 不经闸门直调 execute：这次没有外层事务，写入自动提交 → 必须看得见那一行。
+    // 没有这条，「回滚后零残留」与「execute 从没跑过」在观测上完全一样。
+    const def = { tenantId, agentId: 'delivery', env: 'default' as const };
+    await expect(
+      (async () => {
+        const { getTool } = await import('../../src/lib/agent/tools/registry');
+        const tool = getTool(PROBE_TOOL)!;
+        // registry 对外统一收窄成 ToolDefinition<never, unknown>（禁止调用方假设入参类型），
+        // 故此处显式放宽——本探针的 inputSchema 就是 z.object({})。
+        const execute = tool.execute as (
+          input: unknown,
+          c: ToolContext,
+        ) => Promise<unknown>;
+        await execute({}, { ...def, db: undefined } as ToolContext);
+      })(),
+    ).rejects.toThrowError(new RegExp(PROBE_BOOM));
+
+    const written = await probeRows();
+    expect(written, '探针工具没有真的写入 —— 上一条用例是空绿').toBeGreaterThan(0);
+    // 清掉这次自动提交的行，避免污染上一条用例的基线（顺序无关：各自取 before）
+    await privilegedDb.operationLog.deleteMany({
+      where: { tenantId, summary: PROBE_MARKER },
+    });
   });
 });

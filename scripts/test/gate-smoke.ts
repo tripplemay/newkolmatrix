@@ -481,7 +481,14 @@ async function main(): Promise<void> {
       (await prisma.operationLog.count({
         where: { tenantId: ctx.tenantId, kind: 'irrev', ref: paD },
       })) === 0,
-      'G7: failed 无 irrev 行（业务写入随事务回滚）',
+      // M5.1b fix-1 更名：原名括号里写「业务写入随事务回滚」，**该半句没有对应判据**——
+      // gate_smoke_failing_tool 的 execute 是 `async () => { throw ... }`，一次 DB 写入都不做，
+      // 而 irrev 行由 gate 在工具成功之后才写，工具抛错时压根走不到。于是这条断言只证了
+      // 「没走到那一步」，证不了「写了之后被回滚带走」。首轮验收对抗复核实测点名
+      //（docs/test-reports/M5.1b-adversarial-F004.md §1.2 与「附带核实」段）。
+      // 回滚传播的真判据在 tests/integration/f004-transaction-atomicity.test.ts 的
+      // §gate.ts:365 一组（工具先经 ctx.db 真写一行再抛错），并已配变异证活。
+      'G7: failed 无 irrev 行（工具未成功 ⇒ 不留 irrev；回滚传播另由 f004 原子性用例守）',
     );
 
     const paF = await newPending(ctx, fx, 'G7 executing 认账');

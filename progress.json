@@ -1,12 +1,12 @@
 {
-  "status": "verifying",
+  "status": "fixing",
   "user_goal": "M5.1c：把 M5.1b 遗留的普查扫描器缺陷从根上解掉。两条用户裁决：① 扫描器改用 TS AST 而非继续修补正则（复验方已实证全仓 384 文件 0 分歧，typescript 本就是依赖）；② 叙述面「删承诺句、不再加钉」——不写承诺就不存在「声称 > 实际」，从根上退出 M5.1b 打了四轮的那个递归。",
   "total_features": 2,
   "completed_features": 2,
-  "fix_rounds": 0,
+  "fix_rounds": 1,
   "current_sprint": "M5.1c-CENSUS-SCANNER",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-09T14:20",
+  "last_updated": "2026-08-09T15:10",
   "reference_docs": [
     "docs/specs/M5.1c-CENSUS-SCANNER-spec.md",
     "docs/specs/M5.1b-TENANT-INJECTION-spec.md",
@@ -25,7 +25,57 @@
     "applied_batch": "M5.1b-TENANT-INJECTION",
     "applied_at": "2026-08-07T02:43:15Z"
   },
-  "evaluator_feedback": null,
+  "evaluator_feedback": {
+    "summary": "首轮验收：**2/2 全部 PARTIAL**。两位隔离 evaluator 各验一条 feature（独立 worktree、fresh context），第三个隔离 agent 做对抗复核（默认立场「这两条发现是误报」）——**两条 PARTIAL 均被维持，其中一条被判定为低估**。两条阻断点都不在实现上，而在写于实现旁边的**叙述**里：F001 的三条新增探针在换代前的全部 5 个世代上都是绿的，却被注释声称「实测红过」；F002 为删除一句过度承诺而写的更正段把被引原文读反了。实现本身经独立 oracle 与六世代矩阵复核，判为过硬。",
+    "pass_count": 0,
+    "partial_count": 2,
+    "fail_count": 0,
+    "issues": [
+      {
+        "feature_id": "F001",
+        "result": "PARTIAL",
+        "description": "**F001 = PARTIAL**（① ③ ④ ⑤ ⑥ ⑦ PASS，② PARTIAL）。换代本身的实质是过硬的：四代判据横向对照 26 条探针，原版错 12 / fix-3 错 14 / fix-4 错 9 / **AST 错 0**；独立 oracle（`ts.preProcessFile`，与手写 visitor 不同代码路径）复核 384 文件 1241 条 specifier 逐文件多重集吻合，2 处差异全为模块增广 `declare module`，归因为正确差异 —— 「0 分歧」不是两侧同错造成的。卡住的是 acceptance ② 的**举证要求**：U1 与 U2 两条被钉住的探针，在**换代前的三代正则实现上一样是绿的**——即它们不构成「换代前漏 / 换代后抓到」的对照，而文件却在注释里明写这两种形态「正则版实测红过」「fix-4 版会凭空捏造 importer……现在有实测钉着」。这是本批立项要根治的那一族（声称 > 实际）在 F001 交付物内部的第四次复发，且可由一条命令证伪。\n必修（② 的三个子项）：1. `📜 语料` (e)(f) 两条探针换成**在换代前会红**的形态（U1′ 多行 import 行尾注释 / U2′ 散文不在整行注释里）；2. `:373`「每种形态在正则版上都实测红过」按实测改述或删；3. 补齐 acceptance ② 要求的**逐条**「换代前漏 / 换代后抓到」对照输出。\n建议同批顺手（不单独构成 FAIL）：4. `:251`「且只红它」按实测改述（N-1：E1 红 6 / E2 红 2 / E4 红 4，与 commit 正文自记的 M1→红6 矛盾）；5. `🔒 字面出现不算 import` 按文件自己的 `🔒/📜` 约定改标或加注（N-2：它只在 E15 这种极端假阳性变异下红，摘任何 visitor 分支都保持绿，无独立鉴别力却带 `🔒` 前缀）。\n不必做：换代的实现本身、等价性审计脚本、GUARDED 清单、`src/` —— 均经独立复核通过，**不要动**。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1c-verify-F001.md（16 条变异 + 四代对照台 + ts.preProcessFile 独立 oracle）与 docs/test-reports/M5.1c-adversarial.md §2（六世代 × 十探针矩阵，四道活性自测先行）"
+      },
+      {
+        "feature_id": "F002",
+        "result": "PARTIAL",
+        "description": "**F002 = PARTIAL**（① ② ③ ④ ⑥ PASS，⑤ PARTIAL）。唯一阻断点是一句话，改动量约一行。\n阻断点：`src/lib/db/privileged.ts:19-20` 新增的 `// >` 更正段写「『盲区登记』段就列着四种作者未采用的写法能绕过它」，与其点名引用的 `tests/unit/bootstrap-whitelist-census.test.ts:21-26` 相反（该段列的是 4 种**被抓到** + 1 种**漏**），且探针实测第 1 种写法（`import * as ns` 后 `ns.privilegedDb`）被那道钉当场点名红。违反 acceptance ⑤「每一句事实性断言都要有命令输出作依据」。\n为什么计 PARTIAL 而非笔误 soft-watch：位置在**「为删掉一句过度承诺而写下的那段更正」里**——与 M5.1b 四轮里三轮的复发位置完全同构。方向虽是镜像的（这次是**把钉说弱**而非说强），但「落笔时未核、事后被证伪」这个机制一模一样。\n措辞不准（不单独扣分，随上条一并修更省事）：`privileged.ts:21` 用「」作字面引用写「别互相派生」，而 bootstrap 侧原文是「**不得**互相派生」；语义一致，实质断言成立，仅引号用法不严。\nSoft-watch（不改判定）：S1 `tenant-scope.ts:73` 残留一句覆盖面承诺「「返回了 client」和「抛了别的错」两种退化都逃不过用例」，未指向任何文件——**实测为真**（D1/D2 各 6 条红），主语非 D-2 目标，本批不扣分，建议下批改成指路。S2 F002 实际清理的两个文件（privileged.ts / runtime.ts）**无任何钉守护**：原样写回被删的承诺，1888 条全绿——spec D-2 主动划走，属已知且已裁决的残留风险，登记备查。S3 `backlog.json` 的 `BL-DB-STALE-COUNTS` 写「三处」，实际至少四处，漏的第四处就在被引用行的隔壁（`prisma.ts:4`「既有 142 个测试文件」，实测 149/148）——同一族在归档层的一次复现。S4 commit 正文「射程外三处发现」里 tenant-entry / app-role 两处数字经独立复核属实。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1c-verify-F002.md（8 次变异，反向编辑 + shasum 对账）与 docs/test-reports/M5.1c-adversarial.md §3（盲区登记 5 种写法逐种打钉 + 端到端）"
+      }
+    ],
+    "adversarial_review": "**两条 PARTIAL 判定均予维持，且发现 1 被低估。** 复核方按任务书逐项试过六条「发现本身是误报」的路径（抽错版本 / esbuild 改语义 / shell 转义 / 方向写反 / A 形态套 B 形态 / 注释措辞与断言输入混为一谈），全部不成立。\n发现 1（F001 ②）= **成立（低估）**：复核方不接受「三代」这个指认，改由哈希判定——取全部 9 个触碰过该文件的commit、用 TS AST 逐字抽出实现文本按 sha256 去重，得**换代前是 5 代不是 3 代**（两位验收方漏测 G2 与 G4）。**补齐 G2/G4 后 (e)(f) 依然在全部 5 个换代前世代上全绿**，证伪失败。反而查出**第三条**：(g) 幻影块注释同样 5 代全绿——写进文件的那条合成探针只有两行、不含闭合 `*/`，触发不了幻影块注释；而拿实物 route.ts 去打，G1 返回 `[]`（7 条 import 全丢），说明形态与危害都是真的，只是**落进文件的那个实例不复现它**。对照组：同一形态换个实例（U1′/U2′）**5 代全红**，证明是探针钉错而非判据苛刻。\n严重性**下修一处**（对被复核报告）：②-b 类比 M5.1b F003「恒绿的假保证」偏重——该段自陈非守卫，且全文件对回退仍有安全网：把实现改回 fix-4，全文件会红 7 条（无空格写法/尾逗号/import attributes 等由🔒 遍历面①④ 守着）。**但 📜 语料自己那 10 条会红 0 条**，而它自陈用途正是「谁想把判据改回文本匹配，这里是现成的反例清单」——对最可能的回退目标，这份清单的召回 = 0。故定性记在「声称 > 实际」一族，非「防线破口」。\n发现 2（F002 ⑤）= **成立**：盲区登记 5 种写法逐种实测——被抓到 4、**能绕过 1**；端到端实跑一致。错源是把原文谓语「打过本钉」偷换成「能绕过它」。\n对两份被复核报告本身查出 6 处瑕疵（均不改变其判定）：A-1 称「三代」实为 5 代；A-2 引作 `:373` 实际在 `:372`；A-3 只点 (e)(f) 漏掉 (g)，必修项应扩到三条；A-4 严重性类比偏重；B-1 只实测 5 种里的第 1 种就下结论，结论正确但取证不足；B-2「那段列的四种是抓到的」略糙（原文「四种」指被拿去测试的四种写法）。\n另附一条两份报告均未提及的射程外瑕疵：`tests/unit/db-layer-importer-census.test.ts:384` 用例名写「正则时代**六种**漏抓/误捕形态」，而 AST 实测该用例含 **7 个**字母段 (a)–(g)，文件头自陈账目也是 7。\n**建议编排者在回填 fixing 清单时，把 F001 必修项 1 由「(e)(f) 两条探针」扩为「(e)(f)(g) 三条」，并顺带修 `:384` 的「六种」与 `:372` 的「每种形态…实测红过」。**",
+    "verification_form": {
+      "round": "verify-1（首轮）",
+      "verified_head": "bb2884220a8f7d989aa02b92156467b84d7c87bb",
+      "fan_out": "verify-F001 / verify-F002（各自独立 worktree）→ adversarial-M51c（第三个隔离 agent，对两条 PARTIAL 做证伪尝试）",
+      "reports": [
+        "docs/test-reports/M5.1c-verify-F001.md",
+        "docs/test-reports/M5.1c-verify-F002.md",
+        "docs/test-reports/M5.1c-adversarial.md"
+      ]
+    },
+    "fix_list_authoritative": [
+      "F001-1（对抗复核扩项）：`📜 语料` **(e)(f)(g) 三条**探针换成在换代前会红的形态；(g) 是对抗复核新查出的第三条，其合成输入缺闭合 `*/`，在任何世代都触发不了幻影块注释。",
+      "F001-2：文件 `:372`（**不是 :373**，A-2 更正）「下面每种形态在正则版上都实测红过」为假（7 种里 3 种从未红过）——按实测改述或删。",
+      "F001-3：补齐 acceptance ② 要求的**逐条**「换代前漏 / 换代后抓到」对照输出。",
+      "F001-4（建议）：`:251`「摘掉对应分支即红，且只红它」字面为假（E1 红 6 / E2 红 2 / E4 红 4）——改述。",
+      "F001-5（建议）：`🔒 字面出现不算 import` 无独立鉴别力却带 `🔒` 前缀——按文件自己的 `🔒/📜` 约定改标或加注。",
+      "F001-6（对抗复核新查）：`:384` 用例名写「六种」，实测 7 个字母段 (a)–(g)，文件头自陈账目也是 7——计数失准。",
+      "F002-1：`src/lib/db/privileged.ts:19-20`「『盲区登记』段就列着四种作者未采用的写法能绕过它」——实为被抓到 4 种、能绕过 1 种（拼接键）。改正数量与归属，或删去计数只作指路。",
+      "F002-2（建议）：`privileged.ts:21` 字面引用「别互相派生」，bootstrap 侧原文为「不得互相派生」。",
+      "**不必做**（三方一致）：AST 换代的实现本身、等价性审计脚本、GUARDED 清单、`src/` 产品代码——均经独立复核通过。"
+    ],
+    "l1_evidence": {
+      "note": "三个 agent 各自独立复跑，未采信彼此数字",
+      "tsc": "exit 0",
+      "lint": "No ESLint warnings or errors",
+      "vitest": "148 files / 1888 tests，exit 0",
+      "census_scanner_equiv": "384 文件，老 1241 / 新 1241，0 分歧；反退化闸门实测可用（--base 指向换代后即抛）",
+      "test_visual": "未跑（spec §6 登记为不计分）"
+    },
+    "l2_status": "L2 全程未授权。三个 agent 均未连真实外部服务、未触发部署、未产生计费或生产写入。本机 dev 库被 F002 验收方用于集成测试。"
+  },
   "generator_handoff": null,
   "session_notes": {
     "Andy": "M5.1c building 完成（2/2），进 verifying。两条裁决都落到实处：判据换 AST 后 U1–U5 与无空格写法/import attributes/尾逗号一并溶掉，等价性审计 384 文件多重集 1241 vs 1241、0 分歧；叙述面走消除而非加固，零新增断言。三件留给验收方注意：① **M10 变异全绿**——把预扫那行的第二参数摘掉，21 条一条不红，已在用例注释里登记为盲区并把用例名收窄；② 我的变异台首轮把 M9 误报成「全绿/无鉴别力」（变异让文件在收集期抛，vitest 打印 `Tests no tests`，而我的输出解析只认 `Tests N failed | M passed`），修仪器后复跑才显真相——判据先验活这族的第七例，这次坑在仪器上；③ F002 射程外发现三处陈旧计数（tenant-entry 30/12 vs 实测 28/5 · app-role 135 vs 149 · prisma.ts 自相矛盾的 73/206），**故意没改**，见该 commit 正文末段。",

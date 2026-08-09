@@ -6,7 +6,7 @@
       "title": "importSpecifiers 换成 TypeScript AST + 回归用例随实现换代整备",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "spec D-1 / D-3 / D-4。把 tests/unit/db-layer-importer-census.test.ts 的 importSpecifiers 从正则堆叠换成 TS 编译器 API 遍历。根因不是「某条正则写错」而是判据形态选错——M5.1b 三轮里每次「修好」都换来新的漏抓（fix-3 解掉侧效应吞噬却引入行尾注释与 ES2022 两类；fix-4 解掉那两类却引入 U2 跨语句误捕）。实现与用例必须同一 commit：先换实现会让该文件测试全红，不满足「不提交无法运行的代码」。",
       "acceptance": "① **遍历面逐个覆盖并各有用例**：ImportDeclaration · ExportDeclaration（含 `export * from` 与 `export * as ns from`）· ImportEqualsDeclaration（`import Foo = require()`）· 动态 `import()` · `require()`。每类至少一条正向用例，且**每条都要在 AST 实现上打一个必须让它红的变异**（如摘掉对应的 visitor 分支），贴实跑红的输出——只读代码推断不算证活（spec D-3）。② **U1–U5 与已知边界多数条目须实测溶掉**：逐条给出「换代前漏 / 换代后抓到」的对照输出，至少覆盖 —— U1 行尾注释含 ` from './old'`（原版既误捕又漏真 specifier）· U2 `export const a = 1`（无分号）后文散文含 ` from '…'`（原版凭空捏造 importer）· U3 `` import(`./${name}`) `` · U4 普通字符串里的 import 语句 · U5 动态 import 尾逗号 · 无空格写法 `import{a}from'x'` 与 `import'x'` · import attributes（`with` / `assert`）。③ **仍抓不到的边界如实登记 + 配「故意断言抓不到」的用例**：运行期才能确定的路径（`import('./' + name)` / 模板串带替换）——AST 看得见调用点但看不见值，属静态分析固有边界。该用例必须实跑，不得只写一句声明（spec D-1 末段）。④ **等价性审计（spec D-4）**：对 `src/` 全量 `.ts/.tsx` 逐文件比对新旧实现的 specifier **多重集**（**不得去重**——去重会藏起重复捕获类假阳性）；差异**逐条归因**（修正 / 回归 / 本仓不存在的写法）；判据本身先做活性自测（正向能看见已知目标、负向对已知不该命中的不误报），并把自测输出一并给出。⑤ **GUARDED 期望清单不得变更**（spec §4.2）。若实测 importer 集合发生变化，须查明并归因，**不得改期望去迁就实现**。审计后须给出「两个被守模块的实测集合与期望逐条相符」的输出。⑥ **保留下来的旧用例逐条重验**（spec D-3）：现有回归用例是针对正则形态写的，换实现后可能静默退化为恒真。每条保留的用例都要在 AST 实现上重新证活；证不活的**改写或删除并说明理由**，**不得以「它以前是活的」为由保留**。删除了哪几条、为什么，逐条写进 commit 正文。⑦ `src/` 产品代码零改动（spec §4.3）。tsc/lint + 全量 vitest 绿。"
     },
@@ -15,7 +15,7 @@
       "title": "src/lib/db 叙述面承诺句清理（删而非加钉）",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "spec D-2。M5.1b 四轮里有三轮栽在「声称的覆盖面 > 实际覆盖面」，每次都复发在为消灭它而写的那句话里。上一批已裁决「再加断言钉断言」收益递减；本批改走消除路线：**不写承诺，就不存在声称 > 实际**。",
       "acceptance": "① **普查后清理**：先扫 `src/lib/db/*.ts` 的叙述面（文件头注释与 JSDoc），把所有**覆盖面承诺**列出来（形如「X 守住 / 即红并点名 / 不可能再对不上 / 机械守住 / 完备 / 一条不漏」），逐条改为**纯指路**——只说钉在哪个文件，射程与盲区以那个文件为准。**普查判据须先证明能看见目标**（拿一条已知在场的承诺句验证模式能抓到它，audit-methodology.md §8）。② **历史更正记录里的引用不算承诺**：`// >` 前缀的更正段职责就是原文引用旧措辞，**不得为了清理而抹掉历史记录**——那会让「为什么改成这样」失去依据。清理对象是**现行叙述**。③ **保留 `🔒④` 现有黑名单**（它守的正是承诺句不得复活，与本决策同向），并**复核它仍有鉴别力**：往现行叙述写回任一黑名单词 → 必须红并点名；实跑输出为证。④ **不做**（spec D-2 明确排除，写进 commit 正文以免被误读为遗漏）：`🔒②b` 语义化 · 扩守护面到 `runtime.ts`/`prisma.ts` · census 自身叙述面上钉。这三项留在 `BL-M51B-CARRYOVER`。⑤ **清理后自核**：改后的每一句事实性断言都要有对应的一条命令输出作依据（铁律 13）；**引用被证伪的历史原句时须改述**（M5.1b 实测：照抄会被 `🔒④` 自己钉红，已发生三次）。⑥ `src/` 除注释外零改动——须用机械判据自证（如比对去注释后的 AST/emit 或 token 流，并先做活性自测）。tsc/lint + 全量 vitest 绿。"
     }

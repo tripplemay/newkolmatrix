@@ -134,11 +134,15 @@ function importSpecifiers(source: string): string[] {
   //   · 动态：原只认 ['"]，反引号**静态**路径 `import(\`../db/runtime\`)` 漏抓 ——
   //     而 src/instrumentation.ts 现在就在用动态 import 引 db 层模块。已补反引号。
   //   · re-export：同一贪婪可选形态，一并按同样口径收紧。
+  //   · CJS `require()`：对抗复核额外点出的未覆盖形态。本仓是 ESM、src/ 下当前零使用，
+  //     属「登记面缺口而非当下的洞」——但按本批新口径（注释只指路，钉的边界段是唯一权威），
+  //     能覆盖就不留登记，故直接补上而不是写进已知边界。
   // 三条的漏抓与修复后行为均由文件末「活性证明」里的回归用例钉住（fix-3 新增）。
   const patterns = [
     /\bimport\s+(?:type\s+)?(?:[^'"`;]*?\sfrom\s+)?['"`]([^'"`]+)['"`]/g, // static / side-effect
     /\bimport\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g, // dynamic
     /\bexport\s+[^'"`;]*?\sfrom\s+['"`]([^'"`]+)['"`]/g, // re-export
+    /\brequire\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g, // CJS require（fix-3 补，见下）
   ];
   for (const re of patterns) {
     let m: RegExpExecArray | null;
@@ -289,6 +293,17 @@ describe('db 层 importer 清单机械钉（F008）', () => {
     expect(
       importSpecifiers("const m = await import('../db/runtime');"),
     ).toContain('../db/runtime');
+  });
+
+  it('🔒 回归：CJS require 与「后文任意字符串含 from」两种形态', () => {
+    // 前者是对抗复核额外点出的未覆盖形态（本仓 ESM、当前零使用，属预防）；
+    // 后者是它对逃逸条件的加宽：不必是 from-import，**文件后文任意位置**出现 ` from `
+    // （哪怕在一个普通字符串里）就足以触发原来的吞噬。
+    expect(importSpecifiers("const m = require('./runtime');")).toContain('./runtime');
+    expect(
+      importSpecifiers("import './runtime';\nconst s = 'a from b';"),
+      '后文普通字符串里的 from 又把侧效应 specifier 吞掉了',
+    ).toContain('./runtime');
   });
 
   it('🔒 已登记边界仍如实：字符串拼接的动态路径确实抓不到（不是声称，是实测）', () => {

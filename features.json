@@ -6,7 +6,7 @@
       "title": "补验 M5.1 遗留实现（三层 client + ALS 感知代理 + 单层 withTenant）",
       "priority": "high",
       "executor": "evaluator",
-      "status": "pending",
+      "status": "completed",
       "description": "M5.1 以「未完成」收束遗留的债：实现已在 main @ e6ecef1（kimi/local-cli 交付，收编三道机械关已过），但 acceptance 六条一条未验——收编只证沙箱 diff 与 files_touched 对账、L1 在快照重跑、禁改清单未触及，**证不了断言有无鉴别力**。原 acceptance 六条全文存档于 docs/specs/M5.1-F001-unverified.json（verified:false）。口径见本批 spec D-10（验批末的树而非 e6ecef1 快照；② 的字面边界改判为实质性质）与 D-11（变异证活是硬门）。",
       "acceptance": "① **逐条判**：按 docs/specs/M5.1-F001-unverified.json 里 F001 的 acceptance 六条（①~⑥）各给 PASS/PARTIAL/FAIL，判不了就写判不了，不为凑齐而软化。每条结论必须附命令输出或文件:行——不得以 commit message、代码注释、handoff 自述或本 spec 的任何转述作为通过依据（铁律 13 同样约束 Evaluator 的 verdict）。② **两条口径按 spec D-10 执行**：(a) 验的是**批末的树**——F002 往 tenant-scope.ts 加嵌套语义、F004 改 15 处事务调用点、F008 改注释，均属合法后续扩展，不构成 F001 缺陷；判据是 F001 acceptance 描述的**性质在批末是否仍成立**（三层分工 / 代理三分支 / raw 转发 / 开关关时逐位不变），不是「文件有没有被动过」。(b) 原 acceptance ② 的「diff 不含 tests/ 与除 src/lib/db/ 外的 src/」字面在本批不适用（F002-F007 本就要改这些地方），改判为**「开关关时行为与 M5.1 之前逐位不变」是否仍成立**：全量 vitest 绿 + 既有测试文件未被为迁就 RLS 而翻修。两个方向都要防——既不许用过期字面把合法演进误判成 FAIL，也不许用「批次变了」当借口把实质性质放过。③ **acceptance ⑤ 的两条变异必须实施并实跑**（spec D-11，硬门）：(a) 把代理 (c) 分支的抛错改成「回落运行时 client」→ 对应用例必须红；(b) 摘掉代理对 raw 方法的转发 → 原 acceptance ④ 的用例必须红。**只读代码判断不算证活**；每条须贴实跑红的输出。变异还原**不得用 git checkout**（会抹掉未提交的正身编辑）；还原后须自证树干净（git status + 关键文件 hash 前后一致）。④ **鉴别力主动探查**：除 ③ 的两条规定动作外，自行构造 ≥2 种作者未采用的写法/改动去打代理与三层分工的断言（例：绕过代理直接 import runtime、用 Reflect/解构取属性、Symbol 属性访问、ALS 作用域内再取 $transaction 等）。抓到就点名文件:行；**抓不到就如实写进盲区登记**，不得为了好看而回避。⑤ **F008 的更正须核实**：两条经证伪的注释（tenant-scope.ts:13-14 / runtime.ts:8-9）在批末是否已改对，且改后的表述**自己再 grep 核一遍**是否属实（不得只看它改了就算数——原缺陷正是「注释与实物不符」）。⑥ 只写测试产物（tests/ · scripts/test/）与报告（docs/test-cases/ · docs/test-reports/）；**不得修改任何产品代码**、不得改 progress.json / features.json / 规格 / 配置、不得 push。⑦ L2 未授权：不连真实外部服务、不触发部署、不产生计费或生产写入；撞到需 L2 才能判的项 → 该项 PARTIAL 并写明。"
     },
@@ -15,7 +15,7 @@
       "title": "更正 F001 遗留的两条失实注释 + 防再犯机械钉",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "spec D-12。M5.1 的 spec-lock 稽核用 grep 证伪了两条注释（docs/test-reports/M5.1-F001-spec-lock-review.md）。第二条会**直接污染 F003 的白名单口径**（照它写死白名单会漏掉真实 importer prisma.ts、并写入一个不存在的 instrumentation.ts），故本条必须先于 F003 完成。",
       "acceptance": "① **两条注释逐条改对**：(a) src/lib/db/tenant-scope.ts:13-14「全仓此刻没有任何 withTenant 调用点」→ 实测同批测试自带 5 处，应改为「**产品代码**零调用点」类准确表述；(b) src/lib/db/runtime.ts:8-9 的 importer 清单两头都错（漏列真实 importer src/lib/db/prisma.ts:23；写入的 src/instrumentation.ts 实际 import 的是 db/prisma 与 db/app-role，并不 import runtime）→ 按实测重写。② **改完自己 grep 核一遍**：新写的每一句事实性断言都要有对应的一条命令输出作依据（铁律 13）。原缺陷正是「注释与实物不符」，改成另一句同样未核的话 = 未修复。核对命令与输出写进 commit 正文。③ **防再犯机械钉**（新增 tests/unit/ 下测试，vitest 收集范围内）：把「runtime.ts / privileged.ts 的 importer 清单」从注释升级为**机械断言**——扫 src/ 全仓实际 importer 集合，与写死在测试文件里的期望集合比对，不一致即红**并点名文件**。扫描用 readFileSync 递归遍历，**不得用 git grep**（只搜已跟踪文件，新文件未 commit 时恒空绿）。这条钉与 F003 的白名单钉**守的不是同一件事**：F003 守「谁能 import privileged（越权面）」，本条守「注释里的 importer 清单与实物同步（文档漂移面）」；两者判据不得互相派生，否则一处失效两处同时瞎。④ **变异证活**：新增一个文件 import db/runtime → ③ 的钉必须红并点名；把期望集合里的 prisma.ts 摘掉 → 必须红。每条给实跑红的输出，仅描述不算。变异还原不得用 git checkout。⑤ tsc/lint + 全量 vitest 绿。"
     },

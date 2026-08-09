@@ -3,10 +3,10 @@
   "user_goal": "M5.1b:补上 M5.1 未完成的债 + 做完机制层其余六条。F001(evaluator)补验已落 main 的三层 client + ALS 代理实现——尤其两条变异证活,收编证不了断言鉴别力;F008 先修两条经 grep 证伪的注释(第二条会污染 F003 白名单口径)并把 importer 清单升级为机械钉;F002-F007 原文承接(withTenant 硬语义 + B1-4/B3 回归 → 引导白名单普查钉 → 15 处事务迁移 → ALS 三上下文实测 → 开关开六段最小闭环 e2e → 文档与未覆盖入口清单)。已知代价(D-9):F001 补验落在 verifying,即在未独立验证的底座上先盖六层;缓解=Generator 发现机制与 D-1/D-4 不符须立即停工提审计。",
   "total_features": 8,
   "completed_features": 7,
-  "fix_rounds": 2,
+  "fix_rounds": 3,
   "current_sprint": "M5.1b-TENANT-INJECTION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-09T00:35",
+  "last_updated": "2026-08-09T02:00",
   "reference_docs": [
     "docs/specs/M5.1b-TENANT-INJECTION-spec.md",
     "docs/specs/M5.1-TENANT-INJECTION-spec.md",
@@ -27,7 +27,105 @@
     "applied_batch": "M5.1b-TENANT-INJECTION",
     "applied_at": "2026-08-07T02:43:15Z"
   },
-  "evaluator_feedback": null,
+  "evaluator_feedback": {
+    "summary": "第二次复验（fix_rounds=2 之后）：2 个隔离 evaluator + 1 条对抗复核。6 PASS / 2 PARTIAL / 0 FAIL。上一轮缺口经独立重放确认**已堵上**；F008/F001 的 PARTIAL 由两条**新**发现驱动，对抗复核 3/3 UPHELD 且追加两处校准。",
+    "pass_count": 6,
+    "partial_count": 2,
+    "fail_count": 0,
+    "issues": [
+      {
+        "feature_id": "F008",
+        "result": "PARTIAL",
+        "description": "上一轮点名的缺口已真堵上（我自己重放：逐字复活首轮第①条『本模块此刻只交付**单层**语义』→ 当场红并点名；rv1 的 B7 盲区『黑名单句放到说明段之外』也已闭合，JSDoc 位与文件末位两处同时被抓）。Generator 声称的三件事（claim→patterns 改结构 / 守护面扩到整文件 / 射程写进注释并加断言）我实跑六条变异逐条打，全部真的会红且只红该红的那条。但新查出两条同族缺陷（『声称的覆盖面 > 实际覆盖面』），驱动 PARTIAL：【发现1，不需要动测试就能触发】src/lib/db/runtime.ts:17-19 写着『该清单由 tests/unit/db-layer-importer-census.test.ts 机械守住（新增 importer 即红并点名）』——实测两种真实 import 形态逃逸：(a) 侧效应 import 后跟任一 from-import → 钉 10 passed 全绿；根因是 pattern-1 里 `(?:[\\s\\S]*?\\sfrom\\s+)?` 惰性跨行吞噬，把侧效应 specifier 连同 import 关键字一起吃掉；该损耗在本仓是活的——src/ 384 个文件里有 2 个文件共 5 个 specifier 当前正被吞（AppWrappers.tsx 4 个 css + MiniCalendar.tsx 1 个）。(b) 反引号动态 import（`await import(\\`../db/runtime\\`)`）→ 钉 10 passed 全绿；pattern-2 只认 ['\"]，而文件 :24-25 登记的已知边界只写了『字符串拼接出来的动态路径』，反引号静态路径不在登记内，且 src/instrumentation.ts:22-25 现在就在用动态 import 引这个模块。两条均有控制组证明判据看得见目标。【发现2，需动测试文件才触发】src/lib/db/tenant-scope.ts:51『条数就是数据结构本身，声称与实际不可能再对不上』被证伪：🔒②b 只查 CLAIMS.length===3 与每条 patterns.length>0，不查 pattern 有没有效；把第①条 pattern 的『单层/语义』换成简繁形近的『單層/語義』（条数仍 3、每条仍有 1 个 pattern），再把首轮第①条逐字写回说明段 → 单文件 10 passed、全量 148 files/1877 tests 全绿，②b 一声不吭。acceptance 逐项：①(a) PASS ①(b) PASS ② 不成立 ③ PARTIAL ④ PASS ⑤ PASS。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv2-F008-F001.md §3；最小复现：对钉内三条 pattern 直接跑 importSpecifiers 等价逻辑，输入 `import './runtime';\\nimport { z } from 'zod';` → 返回 ['zod']（./runtime 消失）；控制组只留第一行 → 返回 ['./runtime']。"
+      },
+      {
+        "feature_id": "F001",
+        "result": "PARTIAL",
+        "description": "原 acceptance 六条本轮**全部 PASS**，两条规定变异我亲手实施并实跑（未沿用任何历史记录）：变异 A（代理 (c) 分支抛错改回落）→ 3 failed | 8 passed，红的三条全部落在 ①(c)，无一误伤；变异 B（摘掉代理对 raw 方法的转发）→ 4 failed | 7 passed，spec D-11 点名要红的『④ 事务外不可见 / 回滚零残留』确实红。另自造 3 条产品变异证活其余条目（变异 E 打 ①(a)、变异 F 打 ③），以及 4 组前两轮未探过的正向探查全部防线成立，其中标签模板 $executeRaw 写侧闭合了 rv1 登记的盲区。**PARTIAL 唯一驱动 = M5.1b features.json 里 F001 的批次级 acceptance ⑤（核实 F008 的更正）**：两条被指派更正的注释本身都改对了（我自己 grep 复核逐条属实），**但同一段里新写的『新增 importer 即红并点名』经实测不属实**（见 F008 发现 1）。acceptance ⑤ 明写『改后的表述自己再 grep 核一遍是否属实（不得只看它改了就算数）』，改成另一句同样不属实的话不算修复，故本条不成立。另登记一条不驱动判定的发现：prisma.ts:53-55『PrismaClient 的方法依赖 this，必须绑到解析出的真实 client』——把 value.bind(delegate) 整条摘掉 → 单文件 11 passed 全绿，这条设计断言全仓无钉守。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv2-F008-F001.md §4-§5；两条规定变异的实跑输出逐条附在报告内。"
+      },
+      {
+        "feature_id": "F002",
+        "result": "PASS",
+        "description": "回归确认无回归（本轮为回归确认，非 acceptance 全量重放，PASS 的精确含义是「未检出回归」）。独立核实 Generator「仅注释」之说：自设判据 = TypeScript scanner token 流逐 token 比对（刻意不同于 rv1 那位用的 transpileModule emit 比对），5 个活性探针方向全部正确（含专防「字符串字面量被当 trivia 丢掉」的 P4），判定 prisma.ts 136/136、tenant-scope.ts 236/236 token 流相同，并在这两个文件本身上各施一次单 token 翻转复验判据未失灵。另补跑 Generator 本轮登记未跑的三套：rls:e2e 15 passed · gate:smoke 全绿 · delivery:e2e 全绿 · reach:e2e（SKIP_DRAFT_LLM 降级）全绿。挑 F002 做「防全绿但钉已死」实打变异：set_config 第三参 true→false，B3 残留两条断言当场红；挑 F003 做重命名 import 后门探针，钉红并点名。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv2-regression-L1.md"
+      },
+      {
+        "feature_id": "F003",
+        "result": "PASS",
+        "description": "回归确认无回归（本轮为回归确认，非 acceptance 全量重放，PASS 的精确含义是「未检出回归」）。独立核实 Generator「仅注释」之说：自设判据 = TypeScript scanner token 流逐 token 比对（刻意不同于 rv1 那位用的 transpileModule emit 比对），5 个活性探针方向全部正确（含专防「字符串字面量被当 trivia 丢掉」的 P4），判定 prisma.ts 136/136、tenant-scope.ts 236/236 token 流相同，并在这两个文件本身上各施一次单 token 翻转复验判据未失灵。另补跑 Generator 本轮登记未跑的三套：rls:e2e 15 passed · gate:smoke 全绿 · delivery:e2e 全绿 · reach:e2e（SKIP_DRAFT_LLM 降级）全绿。挑 F002 做「防全绿但钉已死」实打变异：set_config 第三参 true→false，B3 残留两条断言当场红；挑 F003 做重命名 import 后门探针，钉红并点名。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv2-regression-L1.md"
+      },
+      {
+        "feature_id": "F004",
+        "result": "PASS",
+        "description": "回归确认无回归（本轮为回归确认，非 acceptance 全量重放，PASS 的精确含义是「未检出回归」）。独立核实 Generator「仅注释」之说：自设判据 = TypeScript scanner token 流逐 token 比对（刻意不同于 rv1 那位用的 transpileModule emit 比对），5 个活性探针方向全部正确（含专防「字符串字面量被当 trivia 丢掉」的 P4），判定 prisma.ts 136/136、tenant-scope.ts 236/236 token 流相同，并在这两个文件本身上各施一次单 token 翻转复验判据未失灵。另补跑 Generator 本轮登记未跑的三套：rls:e2e 15 passed · gate:smoke 全绿 · delivery:e2e 全绿 · reach:e2e（SKIP_DRAFT_LLM 降级）全绿。挑 F002 做「防全绿但钉已死」实打变异：set_config 第三参 true→false，B3 残留两条断言当场红；挑 F003 做重命名 import 后门探针，钉红并点名。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv2-regression-L1.md"
+      },
+      {
+        "feature_id": "F005",
+        "result": "PASS",
+        "description": "回归确认无回归（本轮为回归确认，非 acceptance 全量重放，PASS 的精确含义是「未检出回归」）。独立核实 Generator「仅注释」之说：自设判据 = TypeScript scanner token 流逐 token 比对（刻意不同于 rv1 那位用的 transpileModule emit 比对），5 个活性探针方向全部正确（含专防「字符串字面量被当 trivia 丢掉」的 P4），判定 prisma.ts 136/136、tenant-scope.ts 236/236 token 流相同，并在这两个文件本身上各施一次单 token 翻转复验判据未失灵。另补跑 Generator 本轮登记未跑的三套：rls:e2e 15 passed · gate:smoke 全绿 · delivery:e2e 全绿 · reach:e2e（SKIP_DRAFT_LLM 降级）全绿。挑 F002 做「防全绿但钉已死」实打变异：set_config 第三参 true→false，B3 残留两条断言当场红；挑 F003 做重命名 import 后门探针，钉红并点名。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv2-regression-L1.md"
+      },
+      {
+        "feature_id": "F006",
+        "result": "PASS",
+        "description": "回归确认无回归（本轮为回归确认，非 acceptance 全量重放，PASS 的精确含义是「未检出回归」）。独立核实 Generator「仅注释」之说：自设判据 = TypeScript scanner token 流逐 token 比对（刻意不同于 rv1 那位用的 transpileModule emit 比对），5 个活性探针方向全部正确（含专防「字符串字面量被当 trivia 丢掉」的 P4），判定 prisma.ts 136/136、tenant-scope.ts 236/236 token 流相同，并在这两个文件本身上各施一次单 token 翻转复验判据未失灵。另补跑 Generator 本轮登记未跑的三套：rls:e2e 15 passed · gate:smoke 全绿 · delivery:e2e 全绿 · reach:e2e（SKIP_DRAFT_LLM 降级）全绿。挑 F002 做「防全绿但钉已死」实打变异：set_config 第三参 true→false，B3 残留两条断言当场红；挑 F003 做重命名 import 后门探针，钉红并点名。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv2-regression-L1.md"
+      },
+      {
+        "feature_id": "F007",
+        "result": "PASS",
+        "description": "回归确认无回归（本轮为回归确认，非 acceptance 全量重放，PASS 的精确含义是「未检出回归」）。独立核实 Generator「仅注释」之说：自设判据 = TypeScript scanner token 流逐 token 比对（刻意不同于 rv1 那位用的 transpileModule emit 比对），5 个活性探针方向全部正确（含专防「字符串字面量被当 trivia 丢掉」的 P4），判定 prisma.ts 136/136、tenant-scope.ts 236/236 token 流相同，并在这两个文件本身上各施一次单 token 翻转复验判据未失灵。另补跑 Generator 本轮登记未跑的三套：rls:e2e 15 passed · gate:smoke 全绿 · delivery:e2e 全绿 · reach:e2e（SKIP_DRAFT_LLM 降级）全绿。挑 F002 做「防全绿但钉已死」实打变异：set_config 第三参 true→false，B3 残留两条断言当场红；挑 F003 做重命名 import 后门探针，钉红并点名。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv2-regression-L1.md"
+      }
+    ],
+    "verification_form": {
+      "round": "reverify-2（fix_rounds=2 的验收）",
+      "verified_head": "4114b6a50af37afd571b5266d05d9affa168a203",
+      "fan_out": "rv2-F008-F001 / rv2-regression-L1（各自独立 worktree）+ adv-rv2-F008",
+      "incident": "rv2-F008-F001 首次运行因 watchdog 判定 stalled（跑全量 vitest 时 600s 无进展）而中断；编排者核实主仓未被触碰（其 worktree 只余未跟踪探针），随后以「禁止再跑全量、用已有证据下判定、未跑完项标未验」的指令唤醒续跑并交出结论。该 agent 已如实登记因中断而未完成的部分。",
+      "reports": [
+        "docs/test-reports/M5.1b-rv2-F008-F001.md",
+        "docs/test-reports/M5.1b-rv2-regression-L1.md",
+        "docs/test-reports/M5.1b-adversarial-rv2-F008.md"
+      ]
+    },
+    "adversarial_review": [
+      {
+        "target": "F008 的两条新发现（同时覆盖 F001 的 PARTIAL 驱动）",
+        "verdict": "UPHELD",
+        "detail": "3/3 子发现均未被证伪，且追加两处校准与两条新事实。① **根因方向纠正**：机制要点不是「惰性」而是「**外层 ? 贪婪**」——引擎优先尝试匹配可选组一次，组内惰性量词再跨行扩张到 ` from `。逃逸条件因此比发现方描述的更宽：**不必是 from-import**，文件后文任意位置出现 ` from `（哪怕在一个普通字符串里）就足以触发。② **量化独立复算**：384 个 .ts/.tsx、2 个文件、5 个 specifier，与发现方逐位一致；并加一条定界——被吞的 5 个全是 CSS，两份 GUARDED 清单此刻输出仍正确，**失实的是「保证句」不是「清单」**。③ **严重度校准**：发现 1(b) 被发现方略微**低估**——src/instrumentation.ts:22-25 是本仓唯一动态引 lib/db/runtime 处，引号改反引号是风格中性、review 极易放行的编辑，一次即可致盲该钉；且它明确不在已登记边界内（该边界原文只写了「字符串拼接出来的动态路径」，引用属实）。④ 额外点出一条同样未覆盖的形态：`require('./runtime')`（本仓 ESM、src/ 下零使用，登记为缺口而非当下的洞）。⑤ 三条发现各自都配了「同文件、同路径、只差一处字符」的控制组，结构上排除了环境/扫描面类解释；并逐条对照 testing-env-patterns 排除已知误报（尤其 §11 git grep 恒空绿——探针未 commit 而控制组照样红）。"
+      }
+    ],
+    "coordinator_note_on_flow": "本轮出现一次**流程压缩**，如实登记：判定为 PARTIAL 后、状态尚未切 fixing 时，用户在会话中直接下达裁决（「修发现 1，注释改成只指向钉不承诺完备性」）。Generator 据此立即实施，故本轮未经过独立的 fixing 状态段，由 reverifying 直接推进到下一轮 reverifying（fix_rounds 2→3）。修复落在 commit 1ea4abb（扫描器两处漏抓 + 注释口径改写 + 裁决机械化）与 2bc02aa（补 CJS require 形态）。编排者在实施前独立写最小复现确认了发现 1 属实（并纠正了自己先前「该可选组是惰性、本应匹配」的错误判断），未依赖被验方或发现方的转述。",
+    "l1_evidence_independent": {
+      "note": "由 rv2-regression-L1 独立复跑（含 Generator 本轮登记未跑的三套）",
+      "tsc": "exit 0",
+      "lint": "No ESLint warnings or errors",
+      "vitest": "148 files / 1877 tests 全绿（复验时点）",
+      "rls_e2e": "15 passed",
+      "gate_smoke": "exit 0",
+      "delivery_e2e": "exit 0",
+      "reach_e2e": "SKIP_DRAFT_LLM=true 降级全绿；**降级代价登记：真网关起草段本轮未被执行**",
+      "post_fix": "修复后 Generator 复跑：tsc 0 · lint 净 · 全量 148 files / 1881 tests 全绿（待下一轮 evaluator 独立复核）"
+    },
+    "blind_spots_registered": [
+      "[F008 已修但需复核] 扫描器两处漏抓已修并配回归钉，CJS require 形态一并覆盖；修法是否引入新的误判/漏判由下一轮独立复核。",
+      "[F008 新判据的已知盲区] 反向黑名单（禁承诺措辞）剔除 `// >` 前缀行——那是更正记录的引用面。代价：新过度声称若写成 `// >` 开头，这条看不见。已写进用例注释。",
+      "[F008 承接] 已知边界仍在：字符串拼接出来的动态路径（`import('./' + name)`）扫不到，正则层面无解，要堵得上 AST。已配「故意断言抓不到」的用例做实测支撑。",
+      "[F001] prisma.ts 的『方法必须 bind 到真实 client』这条设计断言全仓无钉守（摘掉 bind 后单文件 11 passed 全绿）。它今天能跑通取决于 Prisma 内部实现。",
+      "[F001 承接] 代理写侧 / 非 get 陷阱（set / defineProperty / delete / has / ownKeys）仍 fail-open；acceptance ④『提交路径』用例无鉴别力；$executeRawUnsafe 提交路径同款。",
+      "[F008 测试面] db-layer-importer-census.test.ts 的 describe 标题写『src/lib/db 说明段』而实物只读 tenant-scope.ts 一个文件——同族轻症，复验已登记。",
+      "[F008 🔒④ 射程] 该断言守的是 token（`toContain`）而非语义：射程登记句可被整段反转成过度声称而该条照绿（复验实测）。fix-3 后正向断言改钉「不承诺」立场，该性质是否改善由下一轮复核。",
+      "[环境] rv2-F008-F001 首次运行卡死在全量 vitest；同一次跑中观察到一批与被测项无关的超时/限速类红（与并行 evaluator 共用同一 dev 库的时序争用一致），**未单独复跑确认，故不记 FAIL**，登记为「观察到但未复现」。",
+      "[承接未处置] F003 新守卫的三种未登记绕过（声明后 push / 模板串诱饵 / 扫描面偏移）；F007 收窄把 Planner 每批必读的 docs/test-reports/user_report/ 一并排除（rv1 已验证更小改法）；docs/archive 排除的最小性未达；NestedTransactionOptionsError 零测试覆盖；dev 库跨批次孤儿行累积。",
+      "[流程] F007 的改动混在 subject 标 F008 的 commit 里（铁律 1 偏差，rv1 登记，本轮未处置）。"
+    ],
+    "l2_status": "L2 未授权。全部结论产自本机 dev Postgres 与进程内测试。reach:e2e 以脚本自带 SKIP_DRAFT_LLM=true 降级跑完，gateway chat 0 次 / 真实投递 0 封；真网关起草段未执行。"
+  },
   "generator_handoff": {
     "batch": "M5.1b-TENANT-INJECTION",
     "lane": "fast (Generator=主上下文)",
@@ -45,7 +143,7 @@
   },
   "session_notes": {
     "Andy": null,
-    "Reviewer": "复验一轮：首轮 4 条 PARTIAL 里 3 条已消（F003/F004 + F007 的收窄争议判不削弱），剩 F008/F001 由同一条发现驱动 —— **同一个缺陷族在「为消灭它而写的那句话」里复发**：注释声称守三条已被证伪的绝对句，黑名单实际只覆盖其中两条。对抗复核用「同一行位置换成黑名单串则当场红」的对照排除了「扫描器没看见」这一反向解释。本轮三个 evaluator 各自都因「判据先验活」救过一次场（emit 比对器方向反了 / 自己的探针污染普查计数 / 父目录短路），全部自查发现并如实报告 —— 这条纪律的价值本轮又被证了三次。",
+    "Reviewer": "第二次复验：上一轮缺口经独立重放确认已堵上；新查出的两条同族缺陷经对抗复核 3/3 UPHELD。本轮最有价值的两件事：① 对抗复核纠正了根因方向（是「外层 ? 贪婪」不是「惰性」），并把逃逸条件加宽到「文件后文任意位置出现 from 即可触发」——发现方与编排者最初的理解都不够准；② 它给出定界「失实的是保证句、不是清单」，避免把一个文档缺陷误读成数据缺陷。另：rv2-F008-F001 因跑全量卡死被 watchdog 中断，唤醒续跑时明确禁止再跑全量、要求用已有证据下判定并标注未验项——worktree 隔离使中断没有污染主仓。",
     "Mark": "fix-2 只有一条 feature，但值得记的是「修法选择」：复验说『修法一行』，照做能消掉实例、留住形状。改成 claim→patterns 后，「三条」不再是我数出来的而是 CLAIMS.length，并加了一条专门钉住「守的条数 = 首轮点名的条数」的断言——即这个缺陷再复发时会当场红，不必等下一轮验收。另：写更正段时又被自己的钉钉红一次（引用了被证伪原句），已改述；这是同一条纪律第二次实测生效。"
   },
   "lane": "fast",

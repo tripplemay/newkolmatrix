@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "M5.1c：把 M5.1b 遗留的普查扫描器缺陷从根上解掉。两条用户裁决：① 扫描器改用 TS AST 而非继续修补正则（复验方已实证全仓 384 文件 0 分歧，typescript 本就是依赖）；② 叙述面「删承诺句、不再加钉」——不写承诺就不存在「声称 > 实际」，从根上退出 M5.1b 打了四轮的那个递归。",
   "total_features": 2,
-  "completed_features": 0,
+  "completed_features": 1,
   "fix_rounds": 0,
   "current_sprint": "M5.1c-CENSUS-SCANNER",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-09T06:20",
+  "last_updated": "2026-08-09T14:10",
   "reference_docs": [
     "docs/specs/M5.1c-CENSUS-SCANNER-spec.md",
     "docs/specs/M5.1b-TENANT-INJECTION-spec.md",

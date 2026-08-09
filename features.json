@@ -15,7 +15,7 @@
       "title": "更正 F001 遗留的两条失实注释 + 防再犯机械钉",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-12。M5.1 的 spec-lock 稽核用 grep 证伪了两条注释（docs/test-reports/M5.1-F001-spec-lock-review.md）。第二条会**直接污染 F003 的白名单口径**（照它写死白名单会漏掉真实 importer prisma.ts、并写入一个不存在的 instrumentation.ts），故本条必须先于 F003 完成。",
       "acceptance": "① **两条注释逐条改对**：(a) src/lib/db/tenant-scope.ts:13-14「全仓此刻没有任何 withTenant 调用点」→ 实测同批测试自带 5 处，应改为「**产品代码**零调用点」类准确表述；(b) src/lib/db/runtime.ts:8-9 的 importer 清单两头都错（漏列真实 importer src/lib/db/prisma.ts:23；写入的 src/instrumentation.ts 实际 import 的是 db/prisma 与 db/app-role，并不 import runtime）→ 按实测重写。② **改完自己 grep 核一遍**：新写的每一句事实性断言都要有对应的一条命令输出作依据（铁律 13）。原缺陷正是「注释与实物不符」，改成另一句同样未核的话 = 未修复。核对命令与输出写进 commit 正文。③ **防再犯机械钉**（新增 tests/unit/ 下测试，vitest 收集范围内）：把「runtime.ts / privileged.ts 的 importer 清单」从注释升级为**机械断言**——扫 src/ 全仓实际 importer 集合，与写死在测试文件里的期望集合比对，不一致即红**并点名文件**。扫描用 readFileSync 递归遍历，**不得用 git grep**（只搜已跟踪文件，新文件未 commit 时恒空绿）。这条钉与 F003 的白名单钉**守的不是同一件事**：F003 守「谁能 import privileged（越权面）」，本条守「注释里的 importer 清单与实物同步（文档漂移面）」；两者判据不得互相派生，否则一处失效两处同时瞎。④ **变异证活**：新增一个文件 import db/runtime → ③ 的钉必须红并点名；把期望集合里的 prisma.ts 摘掉 → 必须红。每条给实跑红的输出，仅描述不算。变异还原不得用 git checkout。⑤ tsc/lint + 全量 vitest 绿。"
     },
@@ -33,7 +33,7 @@
       "title": "引导白名单（普查产出）+ 源码级普查钉",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-5。登录 / 注册 / slug→租户解析 / 登录留痕 / 启动哨兵这几件事发生在「租户已知」之前，在 kol_app 下必被 RLS 拒（审计 B2-1/2/3）。它们改用 privilegedDb，并由一条不可绕过的普查钉把例外钉成「可数、可钉、可复查」。**spec §D-5 的表是起草时刻快照（≥7 处 / 4 文件），不是真相源——开工必须重跑普查，以实测为准。**",
       "acceptance": "① **先普查后改**：开工第一步重跑引导点普查（判据自定但须**先证明它能看见目标**：拿 spec D-5 表里任一已知点验证模式能抓到它，`audit-methodology.md` §8），普查结果与 spec 表的差异**逐条如实登记**（多出的 / 少掉的都要写理由），不得直接照抄 spec 表。② 白名单内每一处改用 privilegedDb，**每条旁边写明理由**（为什么这里必须绕过 RLS）；改动后开关关时行为不变（既有 auth 相关测试全绿）。③ **普查钉**（新增 tests/unit/ 下测试，vitest 收集范围内）：扫 src/ 全仓，任何 import `db/privileged` 的文件必须在**写死在测试文件里**的白名单数组中，否则红**并点名文件**。扫描用 readFileSync 递归遍历，**不得用 `git grep`**（只搜已跟踪文件，新文件未 commit 时恒空绿——M4.5 building 期踩过）。④ **变异证活三条**：新建一个不在白名单的文件 import privilegedDb → 钉必须红并点名该文件；把白名单里一条摘掉而源码仍在用 → 必须红；用一种作者未采用的 import 写法（如 `import * as` / 重命名 import / 动态 import）引入 privilegedDb → **如实报告钉能不能抓到**，抓不到就写进盲区登记（不得为了绿而回避这条）。⑤ 白名单**恒不可从别处推导**：不读环境变量、不读配置文件、不从源码扫描结果反推——「改代码才能豁免」是刻意的（沿用 tests/unit/project-scope-census.test.ts 的豁免清单范式）。⑥ tsc/lint 绿。"
     },
@@ -42,7 +42,7 @@
       "title": "15 处 $transaction 调用点迁移到 withTenant",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "spec D-4 末段。ALS 有事务时代理解析为 TransactionClient，而它**没有** $transaction 方法——这是本批唯一必须改写的调用点类别。实测 15 处 / 10 文件：build-plans.ts:220 · auth/register.ts:107 · projects/set-goal.ts:80 · signals/ingest.ts:49 · match/approve-plan.ts:72 · projects/create.ts:64 · agent/gate/gate.ts:249,364,431 · knowledge/parse.ts:346 · delivery/register.ts:96,203,289 · domain/env-advance.ts:128。其中 gate.ts（两步票据）、register.ts（注册）、delivery/register.ts（放款）三处是「原子性就是全部意义」的地方。",
       "acceptance": "① **迁移前先重跑普查**（`grep -rn '\\$transaction' src --include=\"*.ts\" --include=\"*.tsx\"`），实测条数与 spec 的 15 处对账；有出入以实测为准并如实登记（spec 数字取自 2026-08-06，可能已漂移）。② 15 处（或实测条数）**逐处**迁移，**每处独立可审**：commit message 能对应到具体文件。auth/register.ts:107 是**白名单事务**（F003），迁移后仍走 privilegedDb，不得混进 withTenant 的租户路径——这一条单独断言。③ **原子性不得回归**：gate.ts 三处 + delivery/register.ts 三处 + register.ts 一处这 7 个「原子性即全部意义」的点，每处至少一条**回滚后零残留**的行为级用例（可复用既有测试里的回滚用例，若既有已覆盖则如实指出文件:行，不重复造）。④ 既有 gate/delivery/reach 的 smoke 与 e2e（`npm run gate:smoke` / `delivery:e2e` / `reach:e2e`）在开关关状态下全绿，输出原样附上。⑤ **变异证活**：任选一处已迁移的事务，把 withTenant 的回滚传播摘掉 → ③ 对应用例必须红。⑥ tsc/lint + 全量 vitest 绿。"
     },

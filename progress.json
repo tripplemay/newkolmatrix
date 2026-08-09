@@ -1,12 +1,12 @@
 {
-  "status": "fixing",
+  "status": "reverifying",
   "user_goal": "M5.1b:补上 M5.1 未完成的债 + 做完机制层其余六条。F001(evaluator)补验已落 main 的三层 client + ALS 代理实现——尤其两条变异证活,收编证不了断言鉴别力;F008 先修两条经 grep 证伪的注释(第二条会污染 F003 白名单口径)并把 importer 清单升级为机械钉;F002-F007 原文承接(withTenant 硬语义 + B1-4/B3 回归 → 引导白名单普查钉 → 15 处事务迁移 → ALS 三上下文实测 → 开关开六段最小闭环 e2e → 文档与未覆盖入口清单)。已知代价(D-9):F001 补验落在 verifying,即在未独立验证的底座上先盖六层;缓解=Generator 发现机制与 D-1/D-4 不符须立即停工提审计。",
   "total_features": 8,
-  "completed_features": 4,
-  "fix_rounds": 0,
+  "completed_features": 7,
+  "fix_rounds": 1,
   "current_sprint": "M5.1b-TENANT-INJECTION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-08T08:05",
+  "last_updated": "2026-08-08T09:10",
   "reference_docs": [
     "docs/specs/M5.1b-TENANT-INJECTION-spec.md",
     "docs/specs/M5.1-TENANT-INJECTION-spec.md",
@@ -27,147 +27,32 @@
     "applied_batch": "M5.1b-TENANT-INJECTION",
     "applied_at": "2026-08-07T02:43:15Z"
   },
-  "evaluator_feedback": {
-    "summary": "5 个隔离 evaluator（各自独立 git worktree）逐条验收 + 3 条对抗复核。4 PASS / 4 PARTIAL / 0 FAIL；4 条 PARTIAL 对应的事实陈述全部经对抗复核 UPHELD，0 条被证伪（F001 与 F008 共用同一事实陈述，由 adv-F008 一并复核）。",
-    "pass_count": 4,
-    "partial_count": 4,
-    "fail_count": 0,
-    "issues": [
-      {
-        "feature_id": "F001",
-        "result": "PARTIAL",
-        "description": "原 acceptance ①~⑥ 六条全部 PASS（每条附实跑输出或文件:行），两条规定变异均实跑证活，机制本体成立。判 PARTIAL 的唯一驱动是 M5.1b F001 acceptance ⑤ 的核实结果：F008 更正的两条注释中，runtime.ts:8-16 的 importer 清单批末属实（grep 实测 src/ 内恰三处：src/lib/db/prisma.ts:23 · src/lib/db/tenant-scope.ts:26 · src/instrumentation.ts:23 动态 import，与文件头清单逐条相同）；但 src/lib/db/tenant-scope.ts:12-22 的更正文本在批末已再次失实，四条独立证伪 —— (1) :13「本模块此刻只交付单层语义」假，同文件 :143-168 已含嵌套语义（CrossTenantNestingError :153-155、同租户复用外层 tx :162、NestedTransactionOptionsError :150）；(2) :13-14「产品代码（src/）零 withTenant 调用点」假，实测 15 处（build-plans.ts:221 approve-plan.ts:75 set-goal.ts:81 ingest.ts:50 create.ts:65 gate.ts:250,365,433 parse.ts:347 register.ts:97,204,290 tenant-entry.ts:48 scheduler.ts:94 env-advance.ts:130）；(3) :15-16「现在没有嵌套守卫，在 F002 落地前不要嵌套调用」假，守卫在 :148-163；(4) :22「本段的 importer / 调用点类陈述现由 tests/unit/db-layer-importer-census.test.ts 机械守住」假 —— 该钉的 GUARDED（:42-69）只含 src/lib/db/runtime 与 src/lib/db/privileged 两个 importer 条目，不含 tenant-scope、不含任何 withTenant 调用点判据；机械反证是 src/ 从 0 变成 15 处调用点而该钉全程绿（全量 148 files 全绿）。这正是 D-12 立项要消灭的缺陷类别（注释与实物不符）在同一批次内的复发，外加一条对防线覆盖面的失实声明，故不判 PASS。附带同类：src/lib/db/prisma.ts:35「73 个 src 文件 / 206 处模型调用 / 15 处 $transaction」三个数字已陈旧（实测 grep -rl 'db/prisma' src = 70；src/ 内真实 $transaction( 仅剩 2 处：lib/auth/register.ts:110 与 lib/db/tenant-scope.ts:164），所述性质仍成立、数字失实。",
-        "steps_to_reproduce": "在批末树 8c5fee1 上：(1) grep -rn 'withTenant(' src | grep -v 'export async function withTenant' | grep -vE ':[0-9]+:\\s*(//|\\*|/\\*)' | wc -l → 15，与 src/lib/db/tenant-scope.ts:13-14 的「零调用点」直接矛盾；(2) sed -n '143,168p' src/lib/db/tenant-scope.ts 看到嵌套守卫已在，与 :13 的「只交付单层语义」及 :15-16 的「现在没有嵌套守卫」矛盾；(3) sed -n '42,69p' tests/unit/db-layer-importer-census.test.ts 看到 GUARDED 只有 runtime / privileged 两条，且 npx vitest run tests/unit/db-layer-importer-census.test.ts 全绿 —— 证明 :22 声称的机械守护对该段陈述不存在；(4) grep -rl 'db/prisma' src | wc -l → 70（prisma.ts:35 写 73）。"
-      },
-      {
-        "feature_id": "F003",
-        "result": "PARTIAL",
-        "description": "①②③④⑥ PASS（三处 spec D-13 更正我全部独立复现；5 处白名单旁注理由齐；钉用 readFileSync 递归扫 src/、白名单写死、违规红且点名——三条变异我逐条实跑）。两处不达标：(a) acceptance ⑤「白名单恒不可从别处推导」的守卫无鉴别力——它只检查 `BOOTSTRAP_WHITELIST` 后 200 字内无 `process.env` 且声明以 `= [` 开头（tests/unit/bootstrap-whitelist-census.test.ts:185-191）。我把白名单换成直接从扫描结果反推的 `const BOOTSTRAP_WHITELIST = [...deriveFromScan()]`（正是 ⑤ 明令禁止的第三条），实测「Test Files 1 passed / Tests 5 passed」五条全绿；而这样改之后整道钉退化为恒真（unauthorized 按构造恒空）仍不翻红。当前代码本身无缺陷（确是字面量数组），失效的是那道闸门本身，且该否定断言从未做过变异证活（违 spec D-8.1）。(b) spec §4 硬约束第 2 条「F003 须显式决定要不要把 tests/ 侧 db/privileged / db/runtime importer 纳入普查钉射程，决定写进代码注释，不得默认略过」——全仓检索无任何此类注释：`grep -rn '射程|tests/ 侧|tests 侧'` 仅命中 spec 与 M5.1 稽核报告自身，src/ 与 tests/ 侧零命中；`git show fadc1f4 | grep -n 'tests/'` 4 处均非射程决定；两钉 SRC_ROOT 硬编码 'src'（:36 / :31）默认略过。该问题不空谈：tests/ 侧现有 5 个文件 import db/privileged、4 个 import db/runtime。",
-        "steps_to_reproduce": "(a) 在 tests/unit/bootstrap-whitelist-census.test.ts 中把 BOOTSTRAP_WHITELIST 的字面量数组替换为 `function deriveFromScan(){return collectSources(SRC_ROOT).filter(f=>usesPrivileged(readFileSync(f,'utf8'))).map(toPosix).filter(f=>f!=='src/lib/db/privileged.ts').map(file=>({file,reason:'<任意 >30 字的理由>'}));} const BOOTSTRAP_WHITELIST = [...deriveFromScan()];` → `npx vitest run tests/unit/bootstrap-whitelist-census.test.ts` → 5 passed（应当红）。(b) `grep -rn '射程\\|tests/ 侧\\|tests 侧' --include=*.ts --include=*.tsx --include=*.md .` 与 `grep -rn '不含 tests\\|不扫 tests\\|只扫 src\\|扫描面' tests/unit/bootstrap-whitelist-census.test.ts tests/unit/db-layer-importer-census.test.ts src/lib/db/*.ts` 均无射程决定注释。"
-      },
-      {
-        "feature_id": "F004",
-        "result": "PARTIAL",
-        "description": "①②④⑤⑥ PASS（我自跑普查与被验方登记逐位相符；13 处确已迁走，HEAD 只剩白名单 register.ts:110 与 withTenant 自身 tenant-scope.ts:164；register 白名单反向断言经我变异证明有鉴别力；三套 smoke/e2e 全绿；我自打的机制级变异——摘掉 withTenant 嵌套复用的回滚传播——让原子性文件 5/6 翻红；tsc 0 / lint 净 / 全量 vitest 148 files 1869 tests 绿）。acceptance ③ 未达标：7 个「原子性即全部意义」点中 gate.ts:364（executePendingAction）没有任何有鉴别力的回滚用例。被验方引用的既有覆盖 tests/integration/create-share-link.test.ts:218 与 tests/integration/payout-gate.test.ts:274 走的都是「工具在写入之前就拒绝」，根本没有业务写入发生，所以「无 ShareLink 行 / 无 Payout 行」不是回滚的结果。变异实证：把 src/lib/agent/gate/gate.ts:372 的 `db: tx` 改成 `db: getRuntimeDb()`（业务写入逃出调用方事务 = B1-4 病灶）后，这两个文件 23 tests 全绿、`npm run gate:smoke` 整套仍 exit=0（含那条「G7: failed 无 irrev 行（业务写入随事务回滚）」）。为排除空转，我另建探针（注册一个先经 ctx.db 真写一行 OperationLog 再抛错的 outbound 工具，走完整两步票据）：变异在场 RED（expected 1 to be +0），还原后 GREEN。即产品性质正确但完全无人守。补用例不能套用「外层 withTenant 包一层」——gate.ts:364 传了 {timeout:90_000,maxWait:5_000}，嵌套传选项会抛 NestedTransactionOptionsError（src/lib/db/tenant-scope.ts:150）。另记铁律 13 一笔（不改判定）：commit 85e0362 正文称「spec 的表把 delivery/register.ts:9 一行注释算进了调用点」，实物核对 spec 枚举里只有 :96,:203,:289，没有 :9，该归因无机械依据。",
-        "steps_to_reproduce": "1) `npx vitest run tests/integration/f004-transaction-atomicity.test.ts` → 6 passed（基线，但不含 gate.ts:364）。2) 把 src/lib/agent/gate/gate.ts 的 `db: tx,`（executePendingAction 内，约 :372）改成 `db: getRuntimeDb(),` 并补 `import { getRuntimeDb } from 'lib/db/runtime';`。3) `npx vitest run tests/integration/create-share-link.test.ts tests/integration/payout-gate.test.ts` → 23 passed（应当红）；`npm run gate:smoke` → 全绿 exit=0（应当红）。4) 新建探针测试：注册一个 execute 内先 `await (c.db ?? privilegedDb).operationLog.create({...})` 再 throw 的 outbound 工具，createPendingAction→confirmPendingAction→executePendingAction，断言该行 count===0 → 变异下 RED（expected 1 to be +0），还原 gate.ts 后 GREEN。"
-      },
-      {
-        "feature_id": "F008",
-        "result": "PARTIAL",
-        "description": "③④⑤①(b) 成立，①(a)② 不成立。【成立】①(b) runtime.ts:8-16 声明的三个 importer 与实测逐条对上（grep -rn \"from './runtime'\" src → prisma.ts:23 + tenant-scope.ts:26；grep -rn 'db/runtime' src → instrumentation.ts:23），且 F008 落地当时清单与期望集合均为 2 处、F003 接线时被这道钉逼着同步改成 3 处（git show 6a120a7:tests/unit/db-layer-importer-census.test.ts 实读），是钉起作用的旁证。③ 钉用 readFileSync/readdirSync 递归遍历，全文件零 git grep 零 execSync，报文点名文件，自带活性证明（含幻影块注释回归、扫描器不空转防呆），与 F003 的 bootstrap-whitelist-census 各自独立扫描、判据面不同（import specifier vs 标识符取用）、互不 import，不互相派生。④ 两条变异我独立实跑均红且点名。⑤ tsc 0 / lint 净 / 全量 1869 全绿。【不成立 ①(a)】tenant-scope.ts:12-16 在被验 HEAD 上三条事实性断言同时为假：(1)「产品代码（src/）零 withTenant 调用点」→ 实测 15 处 / 11 文件（create.ts:65 approve-plan.ts:75 build-plans.ts:221 set-goal.ts:81 ingest.ts:50 gate.ts:250,365,433 register.ts:97,204,290 parse.ts:347 tenant-entry.ts:48 scheduler.ts:94 env-advance.ts:130）；(2)「本模块此刻只交付单层语义」→ 嵌套语义就在同一文件 :148-163，我的变异 M2/M3 已证其为活代码；(3)「F002 落地前不要嵌套调用：现在没有嵌套守卫」→ F002 已落地。归因如实登记：F008 落地当时（6a120a7）该段成立，是被同批 F002（b3b15be，改的正是这个文件）与 F004（85e0362）带假而无人回来同步；但按 spec D-10「验批末的树」，交付到验收台上的实物里，F008 被指派去修的那段注释是假的。【不成立 ②】F008 自己新写的 tenant-scope.ts:22「本段的 importer / 调用点类陈述现由 tests/unit/db-layer-importer-census.test.ts 机械守住」是无依据且为假的断言：该钉 GUARDED 数组（测试文件 :41-70）只有 src/lib/db/runtime 与 src/lib/db/privileged 两项，无 tenant-scope 条目，全文件无任何 withTenant 调用点计数断言（grep -n withTenant 该文件只命中 :22/:201 两处假阳性说明）。机械证明：同一 HEAD 上该句所声称守护的陈述已被 15 个反例证伪，而钉 4 passed、全量 1869 passed / 0 failed —— 一句为假的陈述加一个全绿的仓，等于全仓无一条断言在守它。这正是 acceptance ② 逐字禁止的「改成另一句同样未核的话 = 未修复」，且属「已被守住」型断言，比普通失实更坏（让后来人不再人工核；本批 F002/F004 改完无人回同步即是实例）。另登记一处小瑕：runtime.ts:21-25 更正记录中「instrumentation.ts 动态 import 的是 ./lib/db/prisma 与 ./lib/db/app-role（见该文件 :14-15）」在批末已失实（实为 :23-24 的 ./lib/db/runtime + ./lib/db/app-role）。修复须两条一起做：重写 tenant-scope.ts:12-16 至批末实物；:22 那句要么删除/改为如实的「本段无机械守护」，要么真给 GUARDED 加一条守 src/lib/db/tenant-scope 的条目并配变异证活。",
-        "steps_to_reproduce": "① 证 :13-14 为假：grep -rn 'withTenant(' src | grep -v '^src/lib/db/tenant-scope.ts' | wc -l → 15。② 证 :13 与 :15-16 为假：读 src/lib/db/tenant-scope.ts:148-163（嵌套守卫在同一文件）。③ 证 :22 为假：读 tests/unit/db-layer-importer-census.test.ts:41-70（GUARDED 只有 runtime + privileged）；grep -n 'withTenant' tests/unit/db-layer-importer-census.test.ts → 仅 :22 :201 两处与调用点计数无关；npx vitest run tests/unit/db-layer-importer-census.test.ts → 4 passed；npx vitest run → 1869 passed / 0 failed（全绿即证无断言守它）。④ 证 ①(b) 成立：grep -rn \"from './runtime'\" src 与 grep -rn 'db/runtime' src 合计恰 3 个 importer。"
-      },
-      {
-        "feature_id": "F002",
-        "result": "PASS",
-        "description": "六项 acceptance 全部实测成立。①(a) set_config 在事务回调第一条语句、第三参字面量 true（tenant-scope.ts:164-166），用例断言回调拿到控制权时变量已设好（tenant-scope-semantics.test.ts:124）+ 事务内外 txid 不同（:131）；①(b) 内外层 txid_current() 相同 + ALS tx 引用相同（:150,:170）；①(c) 断言 CrossTenantNestingError 类型并核 outer/inner id 字段（:186,:195）；② 四条原子性用例真查库计数且走 privilegedDb 绕开事务（:216,:232,:252,:262），含同事务内先自证「确实写进去了」以排伪绿；③ 12 次事务后查询全 null + 12 路并发不串 + 并发后无残留（:291,:306,:315）；⑤ afterAll 两层清理每步独立 try/catch 只告警、第二层不从登记表派生，实测 M2 变异产生的未登记脏行被兜住（跑完 slug LIKE 'f002scope-%' 得 0 行）；⑥ tsc exit 0 / lint 无告警 / 全量 vitest 148 files 1869 tests 全绿。§4 硬约束未违反：F002 交出的是新增文件 323 行 14 条新用例（git show b3b15be --name-status = A，git log --all 仅此一条 commit），commit 正文与 generator_handoff 中均无「已在 F001 落地，此处复用」类抵扣叙述，且第三参变异由我独立实跑复现 → 无 VIOLATION。",
-        "steps_to_reproduce": "cd worktree; ln -s 主仓 node_modules; cp 主仓 .env; npx vitest run tests/integration/tenant-scope-semantics.test.ts → 14 passed；npx tsc --noEmit → exit 0；npx next lint → No ESLint warnings or errors；npx vitest run → 148 files / 1869 tests passed。四条变异见 mutations_run。"
-      },
-      {
-        "feature_id": "F005",
-        "result": "PASS",
-        "description": "ALS 三执行上下文传播实测全项达标，且以变异实跑证活（非只读推断）。① 三条用例走的是产品入口本体：tests/integration/als-context-propagation.test.ts:154 import KnowledgePage 默认导出、:155 import { GET as navBadgesGet }、:164 ROUTINES['health-scan'].run；租户 ALS 是产品 src/lib/db/tenant-scope.ts:99 的 tenantTxAls，测试内另建的两处 AsyncLocalStorage 分别是测试侧会话载体(:194)与 §③ 对照探针(:565/:576)，均非被测 ALS；三个 leaf 探针经 importOriginal 后仍调 actual（:117-152，包而非替换），每上下文另配作用域外反证(:395/:418/:450) rejects MissingTenantScopeError。基线 13 passed。② 并发三条各断言逐条配对 expectScopeMatchesQuery(:247-254)，不是集合相等空绿——A↔B 真互换实测仍红（见 mutations_run M4）。③ 选型依据写在 src/lib/db/tenant-scope.ts:82-98，形态是「两个都可用，选 run 的理由是 enterWith 没有出口」，非按惯例；我另写独立探针复跑四条断言全部与注释一致，其中「enterWith 写在第一个 await 之后不泄漏」这半句交付用例并未覆盖，由我补测得 null（成立）。④ 四条变异全部由我实跑，红的条数与位置逐条核对。⑤ 三上下文均传播得了；文件头登记的两条限制经核属实：src/lib/insight/cross-surface-data.ts:122-127 与 src/lib/insight/surface-data.ts:151-157 确为 catch→返回空态。⑥ npx tsc --noEmit 退出 0；npx next lint → No ESLint warnings or errors。旁证：10 个相关既有测试文件 91 passed 无回归。登记的口径边界（非缺陷）：并发用例把 lib/auth/session-tenant 整模块换成注入缝（会话身份来源是假的，入口→withTenant→ALS→代理→数据访问点全真），原因在测试文件 :70-91 显式登记（vitest 4.1.10 对该模块动态 import 的 mock 在 Promise.all 下泄漏真模块）；探针落在 leaf 入口而非最内层 prisma 调用点；RSC 用例断言 server component 返回的 element props，不做 React 渲染。",
-        "steps_to_reproduce": "cd <worktree>; ln -s <主仓>/node_modules node_modules; cp <主仓>/.env .env; npx vitest run tests/integration/als-context-propagation.test.ts → 13 passed；npx tsc --noEmit → 0；npx next lint → 无警告。变异复现见 mutations_run。"
-      },
-      {
-        "feature_id": "F006",
-        "result": "PASS",
-        "description": "最小闭环 e2e 六段 + 跨租户零行全项达标。① 入口 package.json:49 \"rls:e2e\": \"DB_APP_ROLE_RUNTIME=1 vitest run --config vitest.e2e.config.ts\"，开关是命令行 env 前缀；.env 无 DB_APP_ROLE_RUNTIME（grep 无命中，保持未设）；git log 6a120a7~1..HEAD -- .env.example 为空（整批未动）；「不进默认收集范围」是结构事实：vitest.config.ts:42 include 只含 tests/unit/** 与 tests/integration/**，机械核对 `npx vitest list | grep -c tests/e2e` → 0（默认共 1869 条用例），`DB_APP_ROLE_RUNTIME=1 npx vitest list --config vitest.e2e.config.ts` → 15 条全在 tests/e2e/tenant-rls-min-loop.e2e.test.ts；git show --stat 86331c0 仅 3 文件（package.json / e2e 测试 / e2e config），无 src/ 与 .env 改动。② 六段逐段有断言，(f) 的 DB 层证据经核为真：SQL 原文 :408 `SELECT count(*)::int AS c FROM \"Game\" WHERE id = $1` 不含任何租户谓词，经 prisma 代理（src/lib/db/prisma.ts:38-47）落到 withTenant 的 tx（tenant-scope.ts:164 → getRuntimeDb() = kol_app），三重对照齐备（own=1 正对照 / foreign=0 / 同一行 privilegedDb=1 反对照），另有产品路径 findUnique→null 与写侧越权被拒且真没写进去；(b) 的「同事务」用失败方向证（重复 email → email_taken 且孤儿租户零残留），该断言的鉴别力由我用 M8 变异证实。③ 哨兵正向 status=ok/enforced=true + 反向传 privilegedDb 抛 PrivilegedConnectionError，另断言运行时 client superuser=false/bypassRls=false；接线层面再由 M7 反向证活。④ acceptance 指名的两条变异我都实跑复现，另加两条加验。⑤ 夹具 TAG=f006rls-<pid>，两层清理，软引用表在两层清单里都逐个点名；跑完 git status 只余我自建的 node_modules 符号链接（porcelain 1 行）；dev 库残留我做的是全库前后对照而非只信它自己的普查：跑前/跑后 {tenants:4,users:1,logs:374,pendings:24,games:4,projects:4,orphanLogs:170,orphanPending:24} 逐位相同，前缀普查独立复核 f006rls-/f005als- 六项全 0。⑥ tsc 退出 0、lint 无警告。登记两处口径观察（不影响判定）：(d) 那条断言在运行时被换成特权连接时仍绿（M7 红项里没有 §5），因 getKnowledgePageData 自带应用层 where——acceptance 对 (d) 只要求渲染出本租户数据，DB 层证据的义务在 (f) 且 (f) 扛住了；普查层 ② 对 OperationLog 的谓词是 summary contains TAG，而产品写的留痕（`[auth] register ok domain=f006.local`、health-scan 巡检痕）不含 TAG，这类行只被层 ① 按 tenantId 精确删覆盖，层 ② 只能经 tenant.count(name startsWith TAG) 间接察觉（M8 实测该间接通路是通的）。",
-        "steps_to_reproduce": "cd <worktree>; ln -s <主仓>/node_modules node_modules; cp <主仓>/.env .env; npm run rls:e2e → 15 passed (15)。结构事实核对：npx vitest list | grep -c 'tests/e2e' → 0。残留核对：跑前跑后各执行一次全库计数脚本（tenant/user/operationLog/pendingAction/game/project + 孤儿行 LEFT JOIN 统计），比对为零增量。变异复现见 mutations_run。"
-      },
-      {
-        "feature_id": "F007",
-        "result": "PASS",
-        "description": "F007 七条 acceptance 全部满足，判据均落在实物与实跑输出上，未采信 commit message / 注释 / generator_handoff 的自述。① 文档同步三处全部到位且行号对得上（agent-architecture.md:105 旧句已换、deploy.md:130 正是 DB_APP_ROLE_RUNTIME 条且四要素「最小闭环/M5.2 收口/4 条前置/回滚」齐全、architecture.md 新增 §7.1.1）；文中每条 as-built 数字我都独立数过实物：db 层 6 模块、引导白名单 5 文件（与 spec D-13 名单逐个同名）、非 db 层 raw SQL 恰 6 处（generate-candidates:144 / evaluate-creator:105 / search-kols:69,76 / sync:213,227）、代理三分支（prisma.ts:27-32）、withTenant 三条嵌套语义（tenant-scope.ts:150/154/165）、回滚无数据面变更（runtime.ts:60-70 按串重解析）。② doc-freshness +7 条，git show --numstat 显示 179 增 0 删（纯增量，未削弱既有断言）；判据无码形左括号、collectDocs 递归覆盖整个 docs/、首条即检测器验活；三条陈旧句 needle 我回删除行核对均为本批前真实在场的原文，非空炮。③ 清单「由普查产出」用最强判据验证：renderMarkdown(runCensus()) 与落盘文件逐字节相同（IDENTICAL = true），排除「手写再补脚本」；我自跑 npm run census:entrypoints 得 78/3/75、scanned 102、scannedTotals {31,18,4,49}、adminPage 13，与表格逐格一致；3 条已覆盖逐条反查均为真阳性（假阳性方向已排除）。④ 我用比被验方更严的区间复核——它引用的 af8ca20..HEAD 位于本批中段，不覆盖 F008/F002/F003/F004；改用真正批次起点 90b61f8..HEAD，两条既有钉仍零 commit 零 diff，末次改动停在 2ff56d2（M5-AUTH-RLS-F011），且读实物确认口径内容仍正确而非仅仅没动。⑤ 变异证活我另挑两条被验方未碰的断言实打并贴红输出（见 mutations_run）。⑥ backlog.json 全批零改动，条目已是 BL-M52-TENANT-COVERAGE，handoff 有 backlog_reconciliation 边界说明。⑦ L1 三条由我独立复跑全绿。另登记两条盲区（BLIND-1 锚点删除不翻红、BLIND-2 普查看不见自建 PrismaClient），均属已交付物的强度边界，不构成 acceptance 缺项，故不降为 PARTIAL——理由见 blind_spots。",
-        "steps_to_reproduce": "在被验 HEAD 8c5fee1 的工作副本（node_modules 软链主仓、.env 拷贝主仓）依次执行：(1) npx tsc --noEmit; npx next lint; npx vitest run —— 三条全绿。(2) npm run census:entrypoints —— 应得「入口合计 78（已覆盖 3 / 未覆盖 75）」。(3) 写一段 tsx 比对 renderMarkdown(runCensus()) 与 readFileSync('docs/specs/M5.1-uncovered-entrypoints.md') —— 应为 true。(4) git log --oneline 90b61f8..HEAD -- tests/integration/rls-negative-suite.test.ts tests/unit/project-scope-census.test.ts —— 应无输出（注意用 90b61f8 而非 commit 正文里的 af8ca20）。(5) git show --numstat 3baf293 -- tests/unit/architecture-doc-freshness.test.ts —— 应为 179 0。(6) 实物计数复核：ls src/lib/db/*.ts | wc -l = 6；grep -rn \"from '[^']*db/privileged'\" src/ = 5 行；grep -rno 'queryRaw\\|executeRaw' src/ | grep -v '^src/lib/db/' = 6 行。"
-      }
-    ],
-    "verification_form": {
-      "lane": "fast (2a 同会话隔离 evaluator subagent)",
-      "verified_head": "8c5fee13311caad05cf0d8e666e26c8c1f815b1b",
-      "fan_out": "F001 / F002+F008 / F003+F004 / F005+F006 / F007+L1，各自独立 worktree（node_modules 符号链接 + .env 拷贝），避免变异证活互相污染；共用同一本机 dev Postgres，夹具按 pid 前缀隔离",
-      "head_drift_note": "验收期间主仓落入框架升级 commit bc9ed3e（v1.7.0->v1.7.1）。已机械核实：git diff --quiet 8c5fee1 HEAD -- src/ tests/ prisma/ docs/dev/ docs/specs/ package.json vitest*.config.ts scripts/ -> 零差异，验收结论对当前 HEAD 同样成立",
-      "reports": [
-        "docs/test-reports/M5.1b-verify-F001.md",
-        "docs/test-reports/M5.1b-verify-F002-F008.md",
-        "docs/test-reports/M5.1b-verify-F003-F004.md",
-        "docs/test-reports/M5.1b-verify-F005-F006.md",
-        "docs/test-reports/M5.1b-verify-F007-L1.md",
-        "docs/test-reports/M5.1b-adversarial-F003.md",
-        "docs/test-reports/M5.1b-adversarial-F004.md",
-        "docs/test-reports/M5.1b-adversarial-F008.md"
-      ]
-    },
-    "adversarial_review": [
-      {
-        "target": "F008（同时覆盖 F001 的 PARTIAL 驱动）",
-        "verdict": "UPHELD",
-        "detail": "0/3 子发现被证伪。追加两条强化事实：(a) git diff 6a120a7^ 6a120a7 证明该段注释系 F008 自己重写、「现在没有嵌套守卫」是它新加；(b) 该钉在 F008 自己那个 commit 上就已无 tenant-scope 条目、也从不扫 tests/，故 :22 是**写下即为假**，免疫「批末 vs 快照」口径争议。D-10 口径问题以 spec 原文作答：不构成豁免（D-10 收尾句明禁「用『批次变了』当借口把实质性质放过」）。复核员自曝一次未加引号的 zsh glob 令首条计数静默返回 0，若照单全收会错误证伪，靠先做活性自测抓住。"
-      },
-      {
-        "target": "F003",
-        "verdict": "UPHELD",
-        "detail": "两条子发现均未被证伪。(a) 追加取证加重：复核员自建探针 B（取用 privilegedDb 但不 import 该模块，走 globalThis 单例）在派生白名单下全仓 1869 条无一察觉，在字面量白名单下会被点名红 -> 该变异拿掉的是真实且不可替代的防护。同时以 acceptance ⑤ 原文重划严重度：⑤ 要求的是「实现不得从别处推导」而非「必须有守卫」，as-built 白名单对 ⑤ 合规，故 (a) 落在 D-8.1 交付纪律面（「只写断言不证活 = 未交付」），非 acceptance 逐项面。(b) 以对照组证明检索能看见同类目标（§4 硬约束第 1 条在 tenant-scope-semantics.test.ts:12 有落实），抓不到第 2 条即真无。建议修复二选一，不要两头空：加固断言并按 D-8.1 交变异实跑红，或删掉只留字面量数组 + 旁注；保留一条恒绿的假保证是最坏选项。"
-      },
-      {
-        "target": "F004",
-        "verdict": "UPHELD",
-        "detail": "决定性一步：构造**不新增 import 的等价变异**（db 取自 globalThis.runtimeClients 缓存），在其在场时全量 vitest 148 files / 1869 tests 全绿、gate:smoke / delivery:e2e / rls:e2e / reach:e2e 全部 exit=0，翻红清单为空 -> 「完全无人守」坐实。另核实：7 点中其余 6 点均有在册用例（逐条列出 guarded_by），缺口仅第 2 点。附带查出 scripts/test/gate-smoke.ts:484 断言名「G7: failed 无 irrev 行（业务写入随事务回滚）」括号内半句无对应判据（失败工具一次 DB 写入都不做），以及 tests/integration/f004-transaction-atomicity.test.ts:14-17 把 gate.ts:364 登记为「已由既有用例覆盖」属失实。"
-      }
-    ],
-    "l1_evidence_independent": {
-      "note": "由 eval-F007-L1 独立复跑（其余 evaluator 只跑与自己 feature 相关的文件），另 eval-F001 / eval-F002-F008 / eval-F003-F004 各自也跑过全量，结果一致",
-      "tsc": "npx tsc --noEmit -> 零输出 exit 0",
-      "lint": "npx next lint -> 'No ESLint warnings or errors'",
-      "vitest": "npx vitest run -> 148 files / 1869 tests 全绿 exit 0（跑 3 次：基线 / 变异期间 / 还原后）",
-      "rls_e2e": "npm run rls:e2e -> 15 passed（开关开 + 真连 kol_app + RLS 生效）",
-      "test_visual": "未跑 —— spec §7 登记为不计分项（本机恒 15 passed / 2 failed，归 BL-VISUAL-DATA-ISOLATION），且本批 src/ 零 UI 变更"
-    },
-    "blind_spots_registered": [
-      "[F001] prisma 代理只装 get 陷阱：开关开且无作用域时 'x' in prisma / Object.keys(prisma) / 展开 prisma / getOwnPropertyDescriptor 均**不抛**，静默给出空；Reflect.get / 解构 / Symbol 访问正常抛。当前 src/ 无这些写法故不可达（三条 grep 零命中），M5.2 铺开入口面时会真实暴露。",
-      "[F001] acceptance ④ 的「提交路径」用例经变异 B 实测无鉴别力（变异下仍绿）——只证写得进去、不证落在同一事务。④ 的判定依据是同组「回滚路径」那条。",
-      "[F001] $queryRaw / $executeRaw（标签模板版）无实跑用例覆盖，属「读代码推断」，按项目口径不算证活。",
-      "[F003+F008] 两道普查钉的**共同盲区**：拼接路径 + 拼接键（动态 import 拼串 + 拼接属性名）实测同时逃出两钉，证伪 F003 钉文件头 :29「盲区不重叠，实测互补」的结论。",
-      "[F003] 「先普查后改」的时序无法事后机械核实——只能核实普查结论正确，证不了它发生在改动之前。",
-      "[F004] NestedTransactionOptionsError 是会抛的产品路径但 tests/ 下零覆盖（grep 零命中）；M5.2 入口面一包就会触发。",
-      "[F006] (d) RSC 断言对 RLS 不敏感：把运行时换成特权连接后该段仍绿（getKnowledgePageData 自带应用层 where）。DB 层隔离举证义务全压在 (f)，(f) 已由反向变异证实有效。",
-      "[F006] 夹具普查层 ② 对 OperationLog 用 summary contains TAG，而产品写的留痕不含 TAG，这类行只被层 ① 按 tenantId 精确删覆盖。本次全库前后对照实测零增量。",
-      "[F007] BLIND-1（已实跑证实）：「入口面实测 N 条、已包裹 M 条」在 docs/ 有 3 份副本，断言为「anchors >= 1 且逐条值正确」-> **删掉任一份都不会红**。实测把 deploy.md 那句运维告警整句摘掉，全量 1869 tests 依然全绿。建议 M5.2 改登记表形态。",
-      "[F007] BLIND-2：普查分类器不认自建 new PrismaClient()、且只扫 .ts —— 5 个真碰租户数据的文件不在 78 条台账里（m2a-f001-db-verify.ts / m2a-readiness-db-state.ts / m2a-readiness-residue-probe.ts / rv/rv-kpi.mjs / rv/rv-census.mjs）。不影响承重数字（它们不经 ALS 代理、开关开时本就不 fail-closed），但台账完备性有缺口，且该边界未写进清单的「判定口径」段。",
-      "[方法学] 被验方 commit 正文用 af8ca20..HEAD 作为「既有钉零改动」的证据区间，而该 SHA 位于本批中段。结论经真正批次起点 90b61f8..HEAD 复核仍成立，但自证区间偏窄——建议后续批次一律以 planning 完成那个 commit 为区间起点。",
-      "[环境] dev 库孤儿行（无对应 Tenant）历史累积：OperationLog 233 / PendingAction 60。跨批次累积，非本批产物，登记供 Planner 排期。"
-    ],
-    "l2_status": "L2 未授权，全部结论产自本机 dev Postgres 与进程内测试；无一条 acceptance 因 L2 未授权而无法判定。reach:e2e 由 adv-F004 以脚本自带 SKIP_DRAFT_LLM=true 降级跑完，gateway chat 0 次 / 真实投递 0 封；eval-F003-F004 跑该脚本时产生 1 次 chat 调用（约 $0.000126），已申报。"
-  },
+  "evaluator_feedback": null,
   "generator_handoff": {
     "batch": "M5.1b-TENANT-INJECTION",
     "lane": "fast (Generator=主上下文)",
-    "completed": [
-      "F008 @6a120a7",
-      "F002 @b3b15be",
-      "F003 @fadc1f4",
-      "F004 @85e0362+补测",
-      "F005 @7ec61df (+ @f691fa0 会话支点复用重构)",
-      "F006 @86331c0",
-      "F007 @3baf293"
-    ],
-    "pending": [
-      "F001（executor:evaluator）—— 补验 M5.1 遗留实现，归 Evaluator"
+    "round": "fix-1（首轮验收 4 PASS / 4 PARTIAL 之后）",
+    "fixed": [
+      "F008 @57998bf —— 重写批末失实的说明段；把「已被守住」那句话配上真钉（新增一组 4 用例，3 条变异证活）",
+      "F003 @8b51756 —— 把恒绿的假保证换成正向标识符白名单判据（2 条变异分别证明两层）；补写 tests/ 射程决定 + 更正被证伪的「盲区不重叠」结论",
+      "F004 @f1be627 —— 补上 gate.ts:365 唯一缺的回滚守卫（+2 用例，含防空绿断言）；更正两处失实叙述"
     ],
     "l1_evidence": {
-      "tsc": "npx tsc --noEmit 退出 0",
+      "tsc": "npx tsc --noEmit exit 0",
       "lint": "next lint -> 'No ESLint warnings or errors'",
-      "vitest_default": "npx vitest run -> 148 files / 1869 tests 全绿",
-      "rls_e2e": "npm run rls:e2e -> 15 passed（开关开 + 连 kol_app + RLS 真生效）",
-      "note": "以上四条均在 F007 落盘后实跑。test:visual 未跑（本批零 UI 变更，spec §7 已登记本机恒 15 passed / 2 failed 属 BL-VISUAL-DATA-ISOLATION，不计分）"
+      "vitest": "npx vitest run -> 148 files / 1875 tests 全绿（修复前 1869，本轮净增 6 条用例）",
+      "rls_e2e": "npm run rls:e2e -> 15 passed",
+      "gate_smoke": "npm run gate:smoke -> exit 0",
+      "delivery_e2e": "npm run delivery:e2e -> exit 0",
+      "reach_e2e": "未跑 —— 本轮改动不触及触达链路，且该脚本 draft 段会走真网关（如实登记，非「全绿」）",
+      "residue": "dev 库 f004atomic- 前缀 tenants=0 / logs=0"
     },
-    "notes_for_evaluator": "F001 是本批唯一 executor:evaluator 条目。验它需要知道的实物边界：① **验批末的树**（spec D-10）：F002 往 tenant-scope.ts 加了嵌套语义与 NestedTransactionOptionsError、F004 迁了 13 处事务调用点、F005 新增 src/lib/db/tenant-entry.ts 并包了三条入口、F008 改了两条注释——均属合法后续扩展。判据是 F001 acceptance 描述的**性质在批末是否仍成立**。② 跑测入口：默认面 `npx vitest run`；开关开的那一套是**独立 config**，入口 `npm run rls:e2e`（不进默认收集范围，见 vitest.e2e.config.ts 头注）。入口面普查 `npm run census:entrypoints`。③ **变异证活的两条规定动作（acceptance ⑤）落在 F001 自己的测试面上**，Generator 未代做：(a) 代理 (c) 分支抛错改回落 → 对应用例必须红；(b) 摘掉代理对 raw 方法的转发 → 原 ④ 用例必须红。④ 还原变异**不得用 git checkout**（会抹掉未提交编辑）；本批 Generator 侧全部变异均按此办，还原后以 shasum 逐位对账，可复用同一手法。⑤ 本批 Generator 已自曝的两处「量尺问题」值得一并复核：普查模块曾把自己判成已覆盖（已排除）；普查模块文案曾触发既有钉 system-context-convergence（已改文案、未动钉）。",
-    "backlog_reconciliation": "（acceptance ⑥ 口径，供 Planner 在 done 阶段销账 BL-M52-TENANT-COVERAGE）**本批兑现的是机制层，全部成立且有机械证据**：三层 client 分工 · ALS 感知代理三分支 · withTenant 事务内 SET LOCAL + 三条嵌套语义 + B1-4 原子性 / B3 残留两条硬回归 · 引导白名单（5 文件）+ 两道互不派生的普查钉 · 13 处 $transaction 迁移 · ALS 在 RSC/route/scheduler 三上下文的传播实测（含并发不串）· 开关开 + 连 kol_app + RLS 真生效下的六段最小闭环 e2e（含跨租户零行的 DB 层证据）· 哨兵双向自证。**本批未做、明确留给 M5.2 的是覆盖面**：入口面实测 78 条、已包裹 3 条，未覆盖 75 条（清单 docs/specs/M5.1-uncovered-entrypoints.md，由普查产出可复跑）。**生产行为零变化**：DB_APP_ROLE_RUNTIME 仍未设，运行时仍特权连接，本批不改 .env 默认值。**M5.2 开工必须先读的两条风险**：(1) RSC loader 的兜底 catch 会把 MissingTenantScopeError 吞成静默空态（实测 lib/insight/cross-surface-data.ts:124 与 surface-data.ts:154）；(2) 带事务选项的 withTenant 恰两处（gate.ts:392 的 90s、scheduler.ts:97 的 60s），外层入口一包就变成嵌套传选项 → NestedTransactionOptionsError，须逐条处置。"
+    "notes_for_evaluator": "首轮的 evaluator_feedback 按 generator.md fixing 模式清空，原文在 git 历史（commit 01881ea 的 progress.json）与 8 份报告里：docs/test-reports/M5.1b-verify-*.md 与 M5.1b-adversarial-*.md。复验需要知道的边界：① **本轮多改了一个 F007 的文件**（tests/unit/architecture-doc-freshness.test.ts）。不是越界：F007 那道「陈旧句零残留」钉递归扫整个 docs/，而验收报告为可审必须原文引用旧句——8 份报告一落盘就把它钉红（实测 1 failed / 1872 passed）。已把扫描面收窄为现行文档面（排除 docs/test-reports/ 与 docs/archive/），排除的代价写进代码注释；收窄后仍满足 F007 acceptance ② 的「含 docs/ 范围」，并已用变异复核（把作废句写进 docs/dev/ → 仍红）。**F007 首轮判 PASS，此改动请一并复验。**② 三条修复的变异证活均在主仓工作树内做、反向编辑还原、shasum 逐位对账，未用 git checkout。F004 那条刻意用**不新增 import** 的等价变异（取 globalThis.runtimeClients），避免 F008 的 importer 钉替它翻红造成假的守护感——复验若要重放，请沿用这个形态。③ 本轮**未处置**的首轮登记项（不在三条 PARTIAL 的 acceptance 内，留给 Planner 排期）：prisma 代理只装 get 陷阱（'x' in prisma / Object.keys 静默给空，当前 src/ 不可达）；NestedTransactionOptionsError 零测试覆盖；F006 (d) RSC 断言对 RLS 不敏感；F007 BLIND-1 计数锚点删除不翻红（3 份副本，断言是 anchors>=1）；F007 BLIND-2 普查分类器不认自建 PrismaClient、只扫 .ts；两道普查钉在「拼接路径+拼接键」这一维盲区重叠（已在钉的文件头如实登记并说明为何不修）。④ F001（executor:evaluator）仍 pending：它首轮的 PARTIAL 唯一驱动是 acceptance ⑤「F008 的更正须核实」，F008 已修，请据批末实物重核。"
   },
   "session_notes": {
     "Andy": null,
     "Reviewer": "本轮 verifying 采用 fan-out：5 个隔离 evaluator 各自独立 git worktree（node_modules 符号链接 + .env 拷贝），解决了「变异证活必须改产品代码」与「并行验收」的结构冲突——共享工作树下并行变异必然互相污染。3 条 PARTIAL 全部走对抗复核，0 条被证伪，其中 2 条被复核员反向加强。值得沉淀的两条方法学：① 对抗复核员自曝未加引号的 zsh glob 令计数静默返回 0（照单全收会错误证伪），靠先做活性自测抓住——「判据先验活」这条纪律在复核端同样适用；② 三条 PARTIAL 中有两条是同一形态：**产品性质正确，但声称在守它的那道防线并不存在**（F008 的 :22「已由某钉守住」写下即为假；F004 的 gate.ts:364 有既有用例被登记为覆盖但实测零鉴别力）。这类缺陷全绿的仓库看不见，只能靠变异跑全量来暴露。",
-    "Mark": "M5.1b building 全程快车道单会话完成 F005/F006/F007（F008/F002/F003/F004 为先前会话）。三条值得下次记住的：① vitest 4.1.10 对**动态 import** 模块的 mock 在并发下失效——并发用例不能靠 mock lib/auth/index 供给会话，须走 session-tenant 的静态注入缝（已扩 tests/support/session-mock 的 resolve 三态，既有 4 个消费者行为不变）。② `mergeConfig` 对数组是拼接不是替换：vitest e2e config 用它覆盖 include，首跑把默认 148 个文件拖进开关打开的进程，83 files 红。改成展开 base + 替换 test.include。③ 变异证活要看**红了几条**而不只是「红没红」：F005 变异 4 只红 2 条，暴露并发用例的「集合相等」是伪断言（A/B 互换作用域后集合仍相等），据此加固成逐条配对后同一变异红 4 条。两条已写进 framework/proposed-learnings.md 待裁。"
+    "Mark": "fix-1 三条修复的共同形态值得记：首轮 4 条 PARTIAL 里有 3 条是「产品对的，但声称在守它的防线不存在」。修法统一为「先定规矩 → 再给规矩配钉 → 钉配变异证活」，而不是把假话换成另一句话。两处自己撞到的：① 写 F008 那段注释时照抄了被证伪的原句去讲教训，新加的钉当场把我钉红——钉起作用的第一个实例，已把「引用历史原句请改述」写进注释；② 自核 `$transaction` 计数时用双引号写 `\"\\.\\$transaction(\"`，$ 被当行尾锚点**静默返回空**，差点据此写下错误结论，改单引号并先做判据活性自证才取数。另：F007 的 doc-freshness 钉扫整个 docs/，验收报告一落盘就自钉红，已收窄扫描面并登记代价。"
   },
   "lane": "fast",
   "prior_batch_closure": {

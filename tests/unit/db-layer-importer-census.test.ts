@@ -15,25 +15,30 @@
 // 【为什么用 readFileSync 递归遍历而不是 `git grep`】`git grep` 只搜**已跟踪**文件，
 // 新文件未 commit 时恒空绿（M4.5 building 期踩过，见 project-status 关键技术坑）。
 //
-// 【扫描口径与两类已知假阳性】本钉只认**真实 import 语法**，不认字面出现：
-//   ① 注释里提到模块路径 —— runtime.ts:3 的分工表就写着 `lib/db/privileged.ts`，
-//      朴素 grep 会把它当 importer。故先剥注释再匹配。
+// 【扫描口径】本钉只认**真实 import 语法**，不认字面出现。两类典型的字面出现：
+//   ① 注释里提到模块路径 —— runtime.ts:3 的分工表就写着 `lib/db/privileged.ts`；
 //   ② 同名标识符 —— tests/integration/rls-tenant-isolation.test.ts:52 有个局部变量叫
-//      `withTenant`，与本模块毫无关系。故只匹配 import/export-from/动态 import 三种语法，
-//      不按标识符名匹配。
-// 已知边界（如实登记）：**字符串拼接出来的动态路径**（`import('./' + name)`）扫不到 ——
-// 这条无解于正则层面，要堵得上 AST。本仓 db 层无此写法（见文件末的活性证明）。
-// > fix-3 更正：上一版这里只登记了拼接路径一条，给人「其余都覆盖」的印象。实测另有两种
-// > **真实 import 语法**当时也漏抓（侧效应 import 后跟 from-import；反引号动态 import），
-// > 二者已修并配回归用例。教训：已知边界清单本身也会「声称的覆盖面 > 实际覆盖面」——
-// > 它只是「已经想到并验过的」，不等于「其余全都抓得到」。
-// > fix-4 再更正：fix-3 那次的改法自身又换来两类新漏抓（行尾注释含引号 / ES2022 字符串绑定名），
-// > 已撤回并改用惰性可选。**本段仍只是「已经想到并验过的」清单**——下面这些是当前已知**仍**
-// > 抓不到的：`import{a}from'x'` 与 `import'x'`（无空格写法）、动态 import attributes
-// > （`import('./x', { with: {...} })` / assert 版）。它们本仓零使用，且正则层面要全覆盖须上 AST。
+//      `withTenant`，与本模块毫无关系。
+// 二者都由「按语法树取，不按文本取」自然排除（下方 importSpecifiers）。
+//
+// 【M5.1c F001：判据从正则换成 TypeScript AST】
+// 换代的理由是三轮实测账，不是偏好。M5.1b 的正则版被逐版探针量过：
+//   原始版漏 5 种 → fix-3 版漏 6 种 → fix-4 版漏 0 种（复验方 21 条探针），
+// 但**每一次「修好」都换来新的漏抓**：fix-3 解掉侧效应吞噬却引入「行尾注释含引号整条漏抓」
+// 与「ES2022 字符串绑定名」两类；fix-4 解掉那两类却把 re-export 放宽成 `[^;]*?`，
+// 重新放进跨语句误捕（无分号的 `export const a = 1` 后文散文含 ` from '…'` → **凭空捏造** importer）。
+// 到第三轮，改一处就要重验另外五处。根因不是某条正则写错，是判据形态选错了。
+//
+// 【本版仍抓不到的（如实登记，且各配一条「故意断言抓不到」的用例）】
+//   **运行期才能确定的路径**：`import('./' + name)`、`` import(`./${name}`) ``。
+//   语法树看得见调用点，看不见值——这是静态分析的固有边界，不是判据缺陷。
+//   要覆盖它得做常量折叠/数据流分析，那是另一个量级的东西，本批不做。
+// 本段不对「除此之外全都抓得到」作任何断言；实际射程 = 下面 importSpecifiers 的五个分支
+// 加上各自的用例，以那些用例为准。
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, normalize, posix } from 'node:path';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 /**
@@ -104,70 +109,65 @@ function collectSources(dir: string, out: string[] = []): string[] {
 }
 
 /**
- * 剥掉注释，避免把「注释里提到的模块路径」当成 import（假阳性①）。
+ * 取出一份源码里全部 module specifier —— **按语法树取，不按文本取**。
  *
- * 【顺序要紧：必须先剥行注释，再剥块注释】F003 实测踩中——
- * `src/app/api/auth/[...nextauth]/route.ts:1` 的行注释里写着路由通配 `/api/auth/*`，
- * 其中 `/*` 两个字符会开启一个**幻影块注释**；若先剥块注释，它会一路吃到 :30 的
- * `/** … *​/` 才闭合，把中间**全部 import 连同代码**一起吞掉 —— 该文件于是在本钉里
- * 恒为「无 import」，钉对它恒盲。这类形态（路由通配、glob、URL）在本仓很常见。
- * 倒过来先剥行注释就不会：那一行整行消失，`/*` 随之消失。
+ * 【为什么第二个参数是文件名，而且必须传真的】
+ * `ts.createSourceFile` 由扩展名推断 ScriptKind，而 **TS 与 TSX 的解析结果会互相吞 import**。
+ * 本批实测（两个方向都探过）：
+ *   · `.ts` 源当 `.tsx` 解析 → `const x = <string>y;` 被当成未闭合 JSX，**其后的 import 整条消失**；
+ *   · `.tsx` 源当 `.ts` 解析 → 本次探针里侥幸没丢（解析器错误恢复兜住了），但不可依赖。
+ * 前一个方向正是「钉对整个文件恒盲」的形态——与 M5.1b 那次幻影块注释同款，只是换了成因。
+ * 故 `actualImporters` 一律传入真实路径；下面 `🔒 ScriptKind` 那条用例守住这件事。
+ * 默认值 `scan.ts` 只服务于直接传源码串的单元用例。
  *
- * 行注释只剥**整行**（首个非空白字符是 `//`），故 `const u = 'https://x'` 这类
- * 字符串里的 `//` 不受影响。
+ * 【五个分支 = 本判据的全部射程】每个分支各有一条用例，且各自变异证活过（摘掉该分支 → 那条红）：
+ *   ① ImportDeclaration          —— 含侧效应 `import 'x'`、`import type`、import attributes
+ *   ② ExportDeclaration          —— 含 `export * from` / `export * as ns from` / `export type … from`
+ *   ③ ImportEqualsDeclaration    —— `import Foo = require('x')`
+ *   ④ 动态 `import()`
+ *   ⑤ CJS `require()`
+ *
+ * `isStringLiteralLike` 而非 `isStringLiteral`：前者含 NoSubstitutionTemplateLiteral，
+ * 即反引号**无替换**的静态路径（`` import(`../db/runtime`) ``，src/instrumentation.ts 在用）。
+ * 带替换的模板串是 TemplateExpression，不在此列——那正是上面登记的运行期边界。
  */
-function stripComments(source: string): string {
-  const withoutLineComments = source
-    .split('\n')
-    .filter((line) => !/^\s*\/\//.test(line))
-    .join('\n');
-  return withoutLineComments.replace(/\/\*[\s\S]*?\*\//g, '');
-}
-
-/** 只认三种真实 import 语法，不按标识符名匹配（避开假阳性②）。 */
-function importSpecifiers(source: string): string[] {
-  const code = stripComments(source);
+function importSpecifiers(source: string, fileName = 'scan.ts'): string[] {
+  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, false);
   const specs: string[] = [];
-  // 【M5.1b fix-4：改法换了，原因写在这里】
-  //   · 静态/侧效应的病根：原写 `(?:[\s\S]*?\sfrom\s+)?`。`(?:...)?` 是**贪婪**可选
-  //     （不是 `??`），引擎先尝试匹配该组一次，内部 `[\s\S]*?` 便**跨行**去找下一条语句的
-  //     ` from `，把侧效应 specifier 连同 import 关键字一起吞掉。实测：
-  //       `import './runtime';` 单独一行 → 抓到；其后再跟任意一条 from-import → **漏**。
-  //   · **fix-3 的改法（把 from 之前的区域限制成不含引号与分号）已被撤回。** 它虽然解掉了
-  //     上面那条，却换来两类新漏抓，且两类都由复验实测点名：
-  //       (a) 多行 import 的**行尾注释**里含引号/反引号/分号即整条漏抓——`stripComments`
-  //           只剥整行 `//`，行尾注释原样进入正则，新字符类跨不过去；本仓注释大量用反引号
-  //           引标识符，这是普通编辑就会踩到的形态；
-  //       (b) ES2022 arbitrary module namespace names（`import { "weird-name" as w, x }
-  //           from '...'`）——**合法模块语法**，绑定区里就带引号。
-  //   · **现改法：只把那个可选组从贪婪改惰性（`?` → `??`），字符类还原。** 惰性可选优先
-  //     尝试**跳过**该组，于是 `import './runtime';` 直接命中引号；真有 from 子句时再回溯
-  //     匹配一次。一个字符的改动，同时解掉原吞噬与上面 (a)(b) 两类。
-  //     独立复算（复验方 21 条探针）：原版漏 5 / fix-3 版漏 6 / 本版漏 **0**；
-  //     假阳性探针（模板串里的 import 语句、拼接动态路径、变量动态路径）与前两版一致，无新增误命中。
-  //   · re-export **不能照搬**：它的 `[\s\S]*?` 是必选段（不是可选组），且 fix-3 对它的收紧
-  //     修掉了一处**真实假阳性**——旧写法会跨过 `export const dynamic = 'force-dynamic';`
-  //     粘到下一行的 `import Card from '...'`（复验方在 admin/campaigns/page.tsx 上实测到）。
-  //     故这里既不能还原成 `[\s\S]*?`（假阳性回来），也不能留 `[^'"`;]*?`（行尾注释带引号即漏）。
-  //     取中：`[^;]*?` —— 跨不过语句边界（假阳性仍被挡），但允许注释里的引号。
-  //     **残留边界如实登记**：多行 export 子句的行尾注释里若含分号，仍会漏；本仓零使用。
-  //   · 动态：原只认 ['"]，反引号**静态**路径 `import(\`../db/runtime\`)` 漏抓 ——
-  //     而 src/instrumentation.ts 现在就在用动态 import 引 db 层模块。已补反引号。
-  //   · re-export：同一贪婪可选形态，一并按同样口径收紧。
-  //   · CJS `require()`：对抗复核额外点出的未覆盖形态。本仓是 ESM、src/ 下当前零使用，
-  //     属「登记面缺口而非当下的洞」——但按本批新口径（注释只指路，钉的边界段是唯一权威），
-  //     能覆盖就不留登记，故直接补上而不是写进已知边界。
-  // 三条的漏抓与修复后行为均由文件末「活性证明」里的回归用例钉住（fix-3 新增）。
-  const patterns = [
-    /\bimport\s+(?:type\s+)?(?:[\s\S]*?\sfrom\s+)??['"`]([^'"`]+)['"`]/g, // static / side-effect
-    /\bimport\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g, // dynamic
-    /\bexport\s+[^;]*?\sfrom\s+['"`]([^'"`]+)['"`]/g, // re-export
-    /\brequire\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g, // CJS require
-  ];
-  for (const re of patterns) {
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(code)) !== null) specs.push(m[1]);
-  }
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isImportDeclaration(node)) {
+      // ① 静态 import（moduleSpecifier 在合法语法下恒为字符串字面量；语法错误时可能不是）
+      if (ts.isStringLiteralLike(node.moduleSpecifier)) specs.push(node.moduleSpecifier.text);
+    } else if (ts.isExportDeclaration(node)) {
+      // ② re-export。**`node.moduleSpecifier` 必须判空**：`export { x };` 是没有 from 子句的
+      //    本地导出，此处为 undefined —— 漏判会当场抛，而不是安静地多抓一条。
+      if (node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier)) {
+        specs.push(node.moduleSpecifier.text);
+      }
+    } else if (ts.isImportEqualsDeclaration(node)) {
+      // ③ `import Foo = require('x')`（TS 特有）。`Foo = Bar.Baz` 那种别名不是外部模块引用。
+      if (
+        ts.isExternalModuleReference(node.moduleReference) &&
+        ts.isStringLiteralLike(node.moduleReference.expression)
+      ) {
+        specs.push(node.moduleReference.expression.text);
+      }
+    } else if (ts.isCallExpression(node)) {
+      // ④⑤ 动态 import() 与 CJS require()。前者的 expression 是 ImportKeyword 而非标识符，
+      //     故无法与名叫 import 的变量混淆；后者按标识符名认，与语言无关的约定俗成。
+      const isDynamicImport = node.expression.kind === ts.SyntaxKind.ImportKeyword;
+      const isRequire = ts.isIdentifier(node.expression) && node.expression.text === 'require';
+      const first = node.arguments[0];
+      // 尾逗号、第二参数（import attributes）都不影响：arguments[0] 照样是路径。
+      if ((isDynamicImport || isRequire) && first && ts.isStringLiteralLike(first)) {
+        specs.push(first.text);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+
+  visit(sourceFile);
   return specs;
 }
 
@@ -188,13 +188,17 @@ function resolveToSrcModule(fromFile: string, spec: string): string | null {
   return resolved.split(/[\\/]/).join(posix.sep).replace(/\.(ts|tsx)$/, '');
 }
 
-/** 实测：src/ 下真正 import 目标模块的文件（排除模块自身）。 */
-function actualImporters(module: string, files: string[]): string[] {
+/**
+ * 实测：src/ 下真正 import 目标模块的文件（排除模块自身）。
+ *
+ * `scanned` 是「文件 → 该文件全部 specifier」的预扫结果。预扫一次而不是每个被守模块各扫一遍：
+ * 建 AST 比跑正则贵，src/ 有 384 个文件、GUARDED 有 2 条，重复解析就是 768 次。
+ */
+function actualImporters(module: string, scanned: ReadonlyMap<string, readonly string[]>): string[] {
   const hits: string[] = [];
-  for (const file of files) {
+  for (const [file, specs] of scanned) {
     const selfModule = file.split(/[\\/]/).join(posix.sep).replace(/\.(ts|tsx)$/, '');
     if (selfModule === module) continue;
-    const specs = importSpecifiers(readFileSync(file, 'utf8'));
     if (specs.some((s) => resolveToSrcModule(file, s) === module)) {
       hits.push(file.split(/[\\/]/).join(posix.sep));
     }
@@ -202,17 +206,31 @@ function actualImporters(module: string, files: string[]): string[] {
   return hits.sort();
 }
 
-describe('db 层 importer 清单机械钉（F008）', () => {
+describe('db 层 importer 清单机械钉（F008 立，M5.1c F001 换 AST 判据）', () => {
   const files = collectSources(SRC_ROOT);
+  /** 预扫一次：文件 → 全部 specifier。传入真实路径，让 ScriptKind 随扩展名走。 */
+  const scanned = new Map<string, readonly string[]>(
+    files.map((f) => [f, importSpecifiers(readFileSync(f, 'utf8'), f)]),
+  );
 
   it('src/ 下确实扫到了文件（防止扫描器空转恒绿）', () => {
     expect(files.length).toBeGreaterThan(50);
     expect(files).toContain(join('src', 'lib', 'db', 'runtime.ts'));
   });
 
+  it('预扫确实取到了 specifier（防止「解析全失败 → 处处空集」恒绿）', () => {
+    // 没有这条，若 AST 解析整体失效（传错 ScriptKind、typescript 版本不兼容、
+    // visit 写漏），每个模块的实测 importer 都会是空集；而 GUARDED 里两条都非空，
+    // 那时会红——但红成「缺失」而非「扫描器坏了」，排障方向会被带偏。这条先把话说清楚。
+    const nonEmpty = [...scanned.values()].filter((s) => s.length > 0).length;
+    expect(nonEmpty, 'src/ 下没有任何文件解析出 specifier —— 扫描器整体失效').toBeGreaterThan(
+      files.length * 0.8,
+    );
+  });
+
   for (const guard of GUARDED) {
     it(`${guard.module} 的 importer 清单与实物一致`, () => {
-      const actual = actualImporters(guard.module, files);
+      const actual = actualImporters(guard.module, scanned);
       const expectedSorted = [...guard.expected].sort();
       const missing = expectedSorted.filter((f) => !actual.includes(f));
       const unexpected = actual.filter((f) => !expectedSorted.includes(f));
@@ -229,142 +247,176 @@ describe('db 层 importer 清单机械钉（F008）', () => {
     });
   }
 
-  // 【活性证明】扫描器能不能看见目标？——「0 findings」的判据必须先证明它看得见
-  //（audit-methodology.md §8）。下面三条把「剥注释」「认语法」「归一路径」各证一次。
-  it('活性证明：能认出真实 import，且不被注释与同名标识符骗到', () => {
-    // ① 真实 import 认得出
-    expect(
-      importSpecifiers(`import { getRuntimeDb } from './runtime';`),
-    ).toContain('./runtime');
-    expect(importSpecifiers(`const m = await import('./lib/db/prisma');`)).toContain(
-      './lib/db/prisma',
-    );
-    expect(importSpecifiers(`export { x } from 'lib/db/runtime';`)).toContain(
-      'lib/db/runtime',
-    );
+  // ══════════════════════════════════════════════════════════════════
+  // 遍历面逐分支证活。**每条各自摘掉对应 visitor 分支即红，且只红它**——
+  // 这是「变异要看红了几条」（audit-methodology.md §7.1 推论一）的直接落实：
+  // 若一条用例只能与全文件一起红，它就没有独立鉴别力，不该冒充守卫。
+  // ══════════════════════════════════════════════════════════════════
+  it('🔒 遍历面① ImportDeclaration：具名 / 默认 / 侧效应 / type / attributes', () => {
+    expect(importSpecifiers(`import { getRuntimeDb } from './runtime';`)).toEqual(['./runtime']);
+    expect(importSpecifiers(`import Card from 'components/card';`)).toEqual(['components/card']);
+    // 侧效应 import 后跟 from-import —— 正则版最顽固的那处吞噬，AST 下是两个平行节点
+    expect(importSpecifiers("import './runtime';\nimport { z } from 'zod';")).toEqual([
+      './runtime',
+      'zod',
+    ]);
+    expect(importSpecifiers(`import type { A } from './t';`)).toEqual(['./t']);
+    expect(importSpecifiers(`import j from './d.json' with { type: 'json' };`)).toEqual([
+      './d.json',
+    ]);
+    // 无空格写法（正则版已知抓不到，登记在案）
+    expect(importSpecifiers(`import{a}from'x';`)).toEqual(['x']);
+    expect(importSpecifiers(`import'x';`)).toEqual(['x']);
+  });
 
-    // ② 注释里提到路径 → 不算（假阳性①，runtime.ts:3 的分工表就是这形态）
+  it('🔒 遍历面② ExportDeclaration：re-export / export * / export * as ns / export type', () => {
+    expect(importSpecifiers(`export { x } from 'lib/db/runtime';`)).toEqual(['lib/db/runtime']);
+    expect(importSpecifiers(`export * from './all';`)).toEqual(['./all']);
+    expect(importSpecifiers(`export * as ns from './ns';`)).toEqual(['./ns']);
+    expect(importSpecifiers(`export type { A } from './te';`)).toEqual(['./te']);
+    // 没有 from 子句的本地导出：moduleSpecifier 为 undefined。
+    // 漏掉那道判空不是「多抓一条」，是当场抛 —— 这条同时守住那个判空。
+    expect(importSpecifiers(`export { x };`)).toEqual([]);
+    expect(importSpecifiers(`export const dynamic = 'force-dynamic';`)).toEqual([]);
+  });
+
+  it('🔒 遍历面③ ImportEqualsDeclaration：import Foo = require(...)', () => {
+    expect(importSpecifiers(`import Foo = require('./legacy');`)).toEqual(['./legacy']);
+    // 命名空间别名不是外部模块引用，不得误捕
+    expect(importSpecifiers(`import Alias = Some.Namespace.Member;`)).toEqual([]);
+  });
+
+  it('🔒 遍历面④ 动态 import()：含第二参数与尾逗号', () => {
+    expect(importSpecifiers(`const m = await import('./lib/db/prisma');`)).toEqual([
+      './lib/db/prisma',
+    ]);
+    // 尾逗号（正则版漏抓，U5）
+    expect(importSpecifiers(`const m = await import('./trail',);`)).toEqual(['./trail']);
+    // import attributes 作第二参数（正则版漏抓）
+    expect(
+      importSpecifiers(`const m = await import('./x', { with: { type: 'json' } });`),
+    ).toEqual(['./x']);
+  });
+
+  it('🔒 遍历面⑤ CJS require()：认调用，不认同名的别的东西', () => {
+    expect(importSpecifiers(`const m = require('./runtime');`)).toEqual(['./runtime']);
+    // 非字面量实参不算（值要运行期才知道）
+    expect(importSpecifiers(`const m = require(name);`)).toEqual([]);
+  });
+
+  it('🔒 字面量形态：反引号无替换要认，带替换的模板串必须不认', () => {
+    // 这条钉住 `isStringLiteralLike` 而不是 `isStringLiteral` —— 两个方向都守：
+    //   · 收窄成 isStringLiteral → 第一段红（src/instrumentation.ts 正在用反引号动态 import）
+    //   · 放宽到接受 TemplateExpression → 第二段红（会把 './${name}' 的字面片段当成真路径）
+    expect(importSpecifiers('const m = await import(`../db/runtime`);')).toEqual([
+      '../db/runtime',
+    ]);
+    expect(importSpecifiers('const m = await import(`./${name}`);')).toEqual([]);
+  });
+
+  it('🔒 importSpecifiers 的 ScriptKind 随传入的文件名走（守不住「预扫有没有传」，见注释）', () => {
+    // 【本批实测发现，不是假想】`.ts` 源当 `.tsx` 解析时，`<string>y` 被当成未闭合 JSX，
+    // **其后的 import 整条消失** —— 钉对该文件恒盲，与 M5.1b 那次幻影块注释同款形态。
+    // 变异证活：把 importSpecifiers 里的 fileName 写死成 'scan.tsx' → 本条红（且只红本条）。
+    //
+    // 【本条守不住什么 —— 如实登记】它守的是 importSpecifiers **拿到文件名之后**的行为。
+    // 上面预扫那行若把第二参数摘掉（`importSpecifiers(readFileSync(f,'utf8'))`），本条
+    // **一声不吭**：实测 21 条全绿。原因是本仓当前没有任何文件在 TS / TSX 两种模式下结果不同
+    //（等价性审计：384 文件两侧 specifier 多重集完全一致），因此没有任何行为差异可供断言。
+    // 要守住它得往 src/ 塞一个专供测试的畸形文件，代价大于收益，本批不做。
+    // 用例名已按此收窄——**断言的名字不得大于它机械守得住的东西**（audit-methodology.md §7.1 推论二）。
+    const tsSource = `const x = <string>y;\nimport { a } from './after-ts';`;
+    expect(importSpecifiers(tsSource, 'a.ts'), 'TS 源被按 TSX 解析，import 被 JSX 吞掉').toEqual(
+      ['./after-ts'],
+    );
+    // 反方向：.tsx 源必须按 TSX 解析（JSX 是合法语法，不该报废整棵树）
+    const tsxSource = `const C = () => <div className="x">hi</div>;\nimport { b } from './after-tsx';`;
+    expect(importSpecifiers(tsxSource, 'b.tsx')).toEqual(['./after-tsx']);
+  });
+
+  it('🔒 字面出现不算 import：注释 / 字符串 / 同名标识符', () => {
+    // ① 注释里提到路径（runtime.ts:3 的分工表就是这形态）
     expect(
       importSpecifiers(`//   privilegedDb（lib/db/privileged.ts）  恒 DATABASE_URL`),
     ).toEqual([]);
     expect(importSpecifiers(`/* import { x } from './runtime'; */`)).toEqual([]);
-
-    // ③ 同名标识符 → 不算（假阳性②，rls-tenant-isolation.test.ts:52 的局部变量）
+    // ② 普通字符串里的 import 语句（正则版误捕，U4）
+    expect(importSpecifiers(`const s = "import { x } from './fake';";`)).toEqual([]);
+    // ③ 同名标识符（rls-tenant-isolation.test.ts:52 的局部变量）
     expect(importSpecifiers(`const withTenant = models.filter(Boolean);`)).toEqual([]);
+  });
 
-    // ④ **回归**：行注释里的 `/*`（路由通配 / glob / URL）不得开启幻影块注释而吞掉后续 import。
-    //    这不是假想形态——F003 实测踩中 src/app/api/auth/[...nextauth]/route.ts:1 的
-    //    `/api/auth/*`，当时（先剥块注释）该文件全部 import 被吞，钉对它恒盲。
-    const phantom = [
-      '// M5 路由装配：/api/auth/*',
-      "import { privilegedDb } from 'lib/db/privileged';",
-      '/** 正常块注释 */',
-    ].join('\n');
-    expect(importSpecifiers(phantom)).toContain('lib/db/privileged');
+  it('🔒 已登记边界仍如实：运行期才定的路径确实抓不到（不是声称，是实测）', () => {
+    // 这两条**故意断言「抓不到」**：已知边界要有实测支撑，否则「已登记」也会变成空话。
+    // 它们也是上面「不认 TemplateExpression」那条的另一半——那里守判据，这里守登记。
+    expect(importSpecifiers("const m = await import('./' + name);")).toEqual([]);
+    expect(importSpecifiers('const m = await import(`./${name}`);')).toEqual([]);
+    expect(importSpecifiers('const m = await import(pathFromConfig);')).toEqual([]);
+  });
 
-    // ④ 路径归一：三种写法都要指向同一个模块
-    expect(resolveToSrcModule('src/lib/db/prisma.ts', './runtime')).toBe(
-      'src/lib/db/runtime',
-    );
+  it('路径归一：三种写法指向同一模块，作用域包不误判', () => {
+    expect(resolveToSrcModule('src/lib/db/prisma.ts', './runtime')).toBe('src/lib/db/runtime');
     expect(resolveToSrcModule('src/lib/agent/context.ts', 'lib/db/runtime')).toBe(
       'src/lib/db/runtime',
     );
     expect(resolveToSrcModule('src/app/api/x/route.ts', '@/lib/db/runtime')).toBe(
       'src/lib/db/runtime',
     );
-    // 作用域包不误判成本仓模块
     expect(resolveToSrcModule('src/lib/db/runtime.ts', '@prisma/client')).toBeNull();
   });
 
   // ══════════════════════════════════════════════════════════════════
-  // fix-3 回归：两种**真实 import 语法**曾经漏抓，这里逐条钉住
+  // 📜 正则时代的漏抓/误捕语料
   //
-  // 来源：M5.1b 第二次复验实测（docs/test-reports/M5.1b-rv2-F008-F001.md）。
-  // 当时 runtime.ts 的文件头写着「新增 importer 即红并点名」，而这两种形态下钉全绿 ——
-  // 即那句话为假。修 pattern 的同时把两种形态钉成回归用例，避免下次改正则又静默漏回去。
+  // 【这一条不是守卫，是语料 —— 如实说明，免得它冒充鉴别力】
+  // 下面每种形态在正则版上都实测红过（来源逐条标注），换 AST 后**按构造不可能复发**：
+  // 它们全都是「文本层看不出语句边界」造成的，而语法树里语句边界是节点边界。
+  // 因此本条**没有独立的变异**：唯一能让它红的改动（摘掉 visitor 分支）会同时红掉
+  // 上面五条遍历面用例。保留它的理由只有一个 —— 记住这些形态曾经真的漏过，
+  // 谁若哪天想把判据改回文本匹配，这里是现成的反例清单。
+  //
+  // M5.1c F001 按 spec D-3 逐条重验了 M5.1b 留下的 7 条正则期回归用例：
+  //   · 3 条在 AST 下仍有独立鉴别力 → 已改写并上移（反引号动态 import → 「字面量形态」；
+  //     CJS require → 遍历面⑤；re-export 跨语句 → 遍历面②）
+  //   · 4 条在 AST 下无独立变异（侧效应吞噬 / 后文字符串 from / 行尾注释含引号 / ES2022 绑定名）
+  //     → 并入本条语料，不再单列为 🔒
   // ══════════════════════════════════════════════════════════════════
-  it('🔒 回归：侧效应 import 后跟 from-import，两个 specifier 都要抓到', () => {
-    // 曾经的错法：`(?:[\s\S]*?\sfrom\s+)?` 是**贪婪**可选，内部惰性跨行找到下一条语句的
-    // ` from `，把侧效应那条连同 import 关键字一起吞掉 —— 实测只得到 ['zod']。
-    const code = ["import './runtime';", "import { z } from 'zod';"].join('\n');
-    const specs = importSpecifiers(code);
-    expect(specs, '侧效应 specifier 被后续 from-import 吞掉了').toContain('./runtime');
-    expect(specs).toContain('zod');
-
-    // 顺序反过来（曾经能抓到）也必须继续抓到——防止修法把另一头改瞎
-    const reversed = ["import { z } from 'zod';", "import './runtime';"].join('\n');
-    expect(importSpecifiers(reversed)).toEqual(
-      expect.arrayContaining(['zod', './runtime']),
-    );
-
-    // 多行 import 仍须成立（收紧字符集时最容易误伤的合法写法）
-    expect(
-      importSpecifiers("import {\n  a,\n  b,\n} from './multi';"),
-    ).toContain('./multi');
-  });
-
-  it('🔒 回归：反引号静态路径的动态 import 要抓到', () => {
-    // src/instrumentation.ts 现在就在用动态 import 引 db 层模块；原 pattern 只认 ['"]，
-    // 反引号写法整条看不见。
-    expect(
-      importSpecifiers('const m = await import(`../db/runtime`);'),
-    ).toContain('../db/runtime');
-    // 单引号（原本就抓得到）不得因修法而回退
-    expect(
-      importSpecifiers("const m = await import('../db/runtime');"),
-    ).toContain('../db/runtime');
-  });
-
-  it('🔒 回归：CJS require 形态要抓到', () => {
-    // 对抗复核额外点出的未覆盖形态（本仓 ESM、当前零使用，属预防性覆盖）。
-    expect(importSpecifiers("const m = require('./runtime');")).toContain('./runtime');
-  });
-
-  it('🔒 回归：后文普通字符串里的 from 不得吞掉侧效应 specifier', () => {
-    // 【fix-4 更正：上一版这条是死钉】原输入写的是 `const s = 'a from b';`，实测它在**未修的
-    // 旧 pattern 下也是绿的**——旧写法要求 ` from ` 之后紧跟引号，而 `'a from b'` 里跟的是 b，
-    // 回溯后照样抓得到。于是那半条断言既不会因回归而红，其行内注释还断言了一件对该输入
-    // 不成立的事（复验方 D-2 点名）。
-    // 真正能触发那种吞噬的形态是 ` from ` 后紧跟一个引号，例如字符串拼接：
-    expect(
-      importSpecifiers("import './runtime';\nconst s = 'a from ' + 'b';"),
-      '后文字符串里的 from 又把侧效应 specifier 吞掉了',
-    ).toContain('./runtime');
-  });
-
-  it('🔒 回归：多行 import 的行尾注释含引号/反引号/分号，不得整条漏抓', () => {
-    // fix-3 的字符类改法在此翻车（复验方点名）：stripComments 只剥整行 //，行尾注释原样
-    // 进入正则，而 [^'"`;]*? 跨不过去。本仓注释大量用反引号引标识符，属普通编辑就会踩到的形态。
-    expect(importSpecifiers("import {\n  a, // 见 `runtime`\n} from './bt';")).toContain('./bt');
-    expect(importSpecifiers("import {\n  a, // it's fine\n} from './ap';")).toContain('./ap');
-    expect(importSpecifiers("import {\n  a, // foo; bar\n} from './sc';")).toContain('./sc');
-  });
-
-  it('🔒 回归：re-export pattern 不得跨过语句边界重复计入下一条 import', () => {
-    // fix-3 顺带修掉的一处**真实假阳性**（复验方在 src/app/admin/campaigns/page.tsx 上实测：
-    // 旧 re-export 写法跨过 `export const dynamic = 'force-dynamic';` 粘到下一行的 import，
-    // 使该文件 specifier 数 18 → 17）。修好了就得有人守，否则下次还原 pattern 时无声退回。
-    const specs = importSpecifiers(
-      "export const dynamic = 'force-dynamic';\nimport Card from 'components/card';",
-    );
-    expect(specs, 're-export pattern 跨过语句边界，把下一条 import 重复计入了').toEqual([
-      'components/card',
+  it('📜 语料：正则时代六种漏抓/误捕形态在 AST 下的实际表现（无独立鉴别力，见上方注释）', () => {
+    // (a) 侧效应 import 被后续 from-import 吞掉（原始版；`(?:...)?` 是贪婪可选）
+    expect(importSpecifiers("import './runtime';\nimport { z } from 'zod';")).toEqual([
+      './runtime',
+      'zod',
     ]);
-  });
-
-  it('🔒 回归：ES2022 字符串绑定名（合法模块语法）要抓到', () => {
-    // 同样栽在 fix-3 的字符类上：绑定区里就带引号。这条是语言语法本身，不是编辑习惯。
+    // (b) 后文字符串里的 ` from ` 紧跟引号，同样触发吞噬（fix-4 修正过的那条死钉的真形态）
+    expect(importSpecifiers("import './runtime';\nconst s = 'a from ' + 'b';")).toEqual([
+      './runtime',
+    ]);
+    // (c) 多行 import 的行尾注释含引号/反引号/分号 → fix-3 版整条漏抓
+    expect(importSpecifiers("import {\n  a, // 见 `runtime`\n} from './bt';")).toEqual(['./bt']);
+    expect(importSpecifiers("import {\n  a, // it's fine\n} from './ap';")).toEqual(['./ap']);
+    expect(importSpecifiers("import {\n  a, // foo; bar\n} from './sc';")).toEqual(['./sc']);
+    // (d) ES2022 arbitrary module namespace names（合法语法，绑定区带引号）→ fix-3 版漏抓
+    expect(importSpecifiers('import { "weird-name" as w, x } from "./es2022";')).toEqual([
+      './es2022',
+    ]);
+    expect(importSpecifiers('export { x as "a-b" } from "./es2022x";')).toEqual(['./es2022x']);
+    // (e) U1：行尾注释里写着旧路径 —— 正则版既误捕注释里的 './old'，又漏掉真的 './new'
+    expect(importSpecifiers("import { a } from './new'; // 旧版 from './old'")).toEqual([
+      './new',
+    ]);
+    // (f) U2：无分号的 export 语句 + 后文散文含 ` from '…'` —— fix-4 版会**凭空捏造** importer。
+    //     这是本批立项的头号理由（BL-M51B-CARRYOVER 第 ② 组，当时靠 Prettier 强制分号才不可达）。
+    const u2 = "export const a = 1\n// 说明：本模块的数据 from 'lib/db/privileged' 而来";
+    expect(importSpecifiers(u2), 'U2 复发：凭空捏造了一个 importer').toEqual([]);
+    // (g) 幻影块注释：行注释里的 `/*`（路由通配）曾让整个文件的 import 被吞
+    //     （F003 实测于 src/app/api/auth/[...nextauth]/route.ts:1 的 `/api/auth/*`）
     expect(
-      importSpecifiers('import { "weird-name" as w, x } from "./es2022";'),
-    ).toContain('./es2022');
-    expect(
-      importSpecifiers('export { x as "a-b" } from "./es2022x";'),
-    ).toContain('./es2022x');
-  });
-
-  it('🔒 已登记边界仍如实：字符串拼接的动态路径确实抓不到（不是声称，是实测）', () => {
-    // 这一条**故意断言「抓不到」**：已知边界要有实测支撑，否则「已登记」也会变成空话。
-    expect(importSpecifiers("const m = await import('./' + name);")).toEqual([]);
+      importSpecifiers(
+        ['// M5 路由装配：/api/auth/*', "import { privilegedDb } from 'lib/db/privileged';"].join(
+          '\n',
+        ),
+      ),
+    ).toEqual(['lib/db/privileged']);
   });
 });
 

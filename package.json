@@ -47,7 +47,8 @@
     "agentloop:e2e": "node --env-file=.env --import tsx scripts/test/agentloop-e2e.ts",
     "frontdesk:e2e": "node --env-file=.env --import tsx scripts/test/frontdesk-e2e.ts",
     "rls:e2e": "DB_APP_ROLE_RUNTIME=1 vitest run --config vitest.e2e.config.ts",
-    "census:entrypoints": "node --env-file=.env --import tsx scripts/test/m51b-entrypoint-census.ts"
+    "census:entrypoints": "node --env-file=.env --import tsx scripts/test/m51b-entrypoint-census.ts",
+    "census:scanner-equiv": "node --import tsx scripts/test/m51c-scanner-equivalence.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.16",

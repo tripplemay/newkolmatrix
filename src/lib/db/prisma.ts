@@ -7,7 +7,9 @@
 //   ① ALS 有租户事务（withTenant 作用域内）→ 该事务的 tx client。
 //      模型调用与 $queryRawUnsafe / $executeRawUnsafe 都落在这同一个事务上
 //     （后者是审计 B1-2「raw SQL 不在覆盖面」的根治点）。TransactionClient 没有
-//      $transaction —— 作用域内调它会在运行期当场暴露，15 处调用点的迁移是 F004。
+//      $transaction —— 作用域内调它会在运行期当场暴露；那些调用点的迁移是 F004 做的
+//      （此处**刻意不写条数**：复验点名原文「15 处调用点的迁移是 F004」是无钉守的陈旧计数，
+//       且与本文件下方自己立的「可变数字要么有钉守要么不写」直接矛盾。要看实况跑 grep）。
 //   ② 无 ALS + DB_APP_ROLE_RUNTIME 未开 → 运行时 client（= 特权连接，行为与今日逐位一致，
 //      D-8：既有测试面 / dev server / scripts 零改动零影响）。
 //   ③ 无 ALS + DB_APP_ROLE_RUNTIME=1 → 抛 MissingTenantScopeError（fail-closed）。

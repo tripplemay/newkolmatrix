@@ -264,55 +264,93 @@ describe('db 层 importer 清单机械钉（F008）', () => {
 
 const TENANT_SCOPE_FILE = 'src/lib/db/tenant-scope.ts';
 
-/** 取文件开头的整块行注释（第一行非 `//` 即止）—— 说明段就在这里。 */
-function leadingLineComment(source: string): string {
-  const out: string[] = [];
-  for (const line of source.split('\n')) {
-    if (line.startsWith('//')) out.push(line);
-    else if (line.trim() === '') continue;
-    else break;
-  }
-  return out.join('\n');
-}
+/**
+ * 首轮验收**逐条点名**的三条被证伪陈述（`docs/test-reports/M5.1b-verify-F002-F008.md` 与
+ * `M5.1b-verify-F001.md` 各自独立点名，两份的三条一致）。
+ *
+ * 【为什么按「条」而不是按「字符串」组织 —— fix-2 的直接教训】
+ * 上一版把三条拍平成三个字符串：`零 withTenant 调用点` / `没有嵌套守卫` / `不要嵌套调用`。
+ * 数组恰好 3 条，看起来对得上「三条」，**实际上后两个同出首轮第 ③ 条**（原文那一句里
+ * 既有「没有嵌套守卫」也有「不要嵌套调用」），于是第 ① 条「只交付单层语义」根本没人守 ——
+ * 逐字写回说明段，全仓 1875 条全绿。复验与对抗复核用「同一行位置换成别的黑名单串则当场红」
+ * 的对照排除了「扫描器没看见」这一反向解释（`M5.1b-adversarial-rv1-F008.md`）。
+ * 现在改成 claim → patterns 的结构：**条数就是 CLAIMS.length**，声称的覆盖面与实际覆盖面
+ * 由同一个数据结构产出，不可能再对不上。
+ */
+const FALSIFIED_CLAIMS: ReadonlyArray<{ claim: string; patterns: readonly RegExp[] }> = [
+  {
+    claim: '① 本模块此刻只交付「单层」语义',
+    // 允许中间夹 markdown 星号：`只交付**单层**语义`。刻意不匹配 `· 单层：开事务 →` 那种
+    // 合法的语义清单行（那里没有「只交付」也没有「语义」紧跟）。
+    patterns: [/只交付\W{0,4}单层\W{0,4}语义/],
+  },
+  {
+    claim: '② 产品代码（src/）零 withTenant 调用点',
+    patterns: [/零\s*withTenant\s*调用点/],
+  },
+  {
+    claim: '③ 现在没有嵌套守卫 / F002 落地前不要嵌套调用',
+    patterns: [/没有嵌套守卫/, /不要嵌套调用/],
+  },
+];
 
-describe('src/lib/db 说明段的事实性陈述（M5.1b fix-1：F008 复发防线）', () => {
-  const header = leadingLineComment(readFileSync(TENANT_SCOPE_FILE, 'utf8'));
+describe('src/lib/db 说明段的事实性陈述（M5.1b fix-1 立，fix-2 补射程）', () => {
+  // 【fix-2 起扫描**整个文件**，不再只读开头的 // 块】
+  // 复验实测：把三条被证伪句原样写进 withTenant 之前的 JSDoc（说明段之外 20 行处），
+  // 上一版守护面看不见（8 passed 全绿）。守护面小于「这些话不该出现在本文件任何地方」
+  // 这个意图，就还是「声称的覆盖面 > 实际覆盖面」——本组断言存在的理由正是消灭这一族。
+  // 放宽的安全性已实测：三条 pattern 在当前文件的合法内容上零命中（讲教训那段一律改述）。
+  const source = readFileSync(TENANT_SCOPE_FILE, 'utf8');
 
-  it('扫描器不空转：说明段确实取到了内容', () => {
-    // 没有这条，下面两条负向断言会在「header 恒为空串」时恒绿（F003 那道恒真闸门的同款形态）
-    expect(header.length, `${TENANT_SCOPE_FILE} 的开头行注释块取不到内容`).toBeGreaterThan(500);
+  it('扫描器不空转：文件确实读到了内容', () => {
+    // 没有这条，下面的负向断言会在「source 恒为空串」时恒绿（F003 那道恒真闸门的同款形态）
+    expect(source.length, `${TENANT_SCOPE_FILE} 读不到内容`).toBeGreaterThan(2000);
   });
 
   it('🔒 ① 「可变数字要么有钉守、要么不写」这条政策句不得被删', () => {
     expect(
-      header,
-      `${TENANT_SCOPE_FILE} 说明段缺少那条政策句 —— 它是本组断言存在的理由，删了它这一组就成了无主之钉`,
+      source,
+      `${TENANT_SCOPE_FILE} 缺少那条政策句 —— 它是本组断言存在的理由，删了它这一组就成了无主之钉`,
     ).toContain('注释里的可变数字要么有钉守着，要么不写');
   });
 
-  it('🔒 ② 已被实测证伪的绝对句不得复活', () => {
-    // 形态取自首轮验收逐条点名的原文（docs/test-reports/M5.1b-verify-F002-F008.md）
-    const falsified = [
-      '零 withTenant 调用点',
-      '没有嵌套守卫',
-      '不要嵌套调用',
-    ];
-    const revived = falsified.filter((s) => header.includes(s));
+  it('🔒 ② 首轮逐条点名的三条被证伪陈述，一条都不得复活', () => {
+    const revived = FALSIFIED_CLAIMS.filter((c) =>
+      c.patterns.some((re) => re.test(source)),
+    ).map((c) => c.claim);
     expect(
       revived,
-      `${TENANT_SCOPE_FILE} 说明段复活了已被实测证伪的绝对句：${revived.join(' / ')}`,
+      `${TENANT_SCOPE_FILE} 复活了已被实测证伪的陈述：${revived.join(' / ')}`,
     ).toEqual([]);
   });
 
-  it('🔒 ③ 说明段不得再写「N 处 withTenant 调用点」这类会漂的计数', () => {
-    // 允许叙述历史（「批末实测 15 处 / 11 文件」出现在讲教训的那段，带明确的过去时语境）；
-    // 禁止的是把计数写成**当下事实**的那种形态：紧邻 withTenant 调用点的裸计数断言。
-    const counting = [...header.matchAll(/(\d+)\s*处\s*(?:\/\s*\d+\s*文件\s*)?withTenant\s*调用点/g)]
-      .map((m) => m[0])
-      .filter((s) => !header.includes(`批末实测 ${s}`));
+  it('🔒 ②b 覆盖面自洽：守的条数 = 首轮点名的条数（防「声称三条实际两条」复发）', () => {
+    // 这一条守的是**上一版那个缺陷本身**：条数对不上时当场红，而不是等下一轮验收来发现。
+    expect(
+      FALSIFIED_CLAIMS.length,
+      '首轮两份报告各自逐条点名的是三条陈述；CLAIMS 条数与之不符即说明覆盖面又缩了',
+    ).toBe(3);
+    for (const c of FALSIFIED_CLAIMS) {
+      expect(c.patterns.length, `${c.claim} 没有任何 pattern —— 空条目等于没守`).toBeGreaterThan(0);
+    }
+  });
+
+  it('🔒 ③ 不得再写「N 处 withTenant 调用点」这类会漂的计数', () => {
+    // 正则要求计数紧邻「withTenant 调用点」，故讲教训那段的「批末实测 15 处 / 11 文件」
+    // （其后不接该短语）不会误伤。
+    const counting = [
+      ...source.matchAll(/(\d+)\s*处\s*(?:\/\s*\d+\s*文件\s*)?withTenant\s*调用点/g),
+    ].map((m) => m[0]);
     expect(
       counting,
-      `${TENANT_SCOPE_FILE} 说明段出现了未经钉守的 withTenant 调用点计数：${counting.join(' / ')}`,
+      `${TENANT_SCOPE_FILE} 出现了未经钉守的 withTenant 调用点计数：${counting.join(' / ')}`,
     ).toEqual([]);
+  });
+
+  it('🔒 ④ 射程如实登记：本组只做字面/句式匹配，改写措辞可绕过', () => {
+    // 复验实测的绕过形态：同义改写、中文数字、「个」替「处」、语序颠倒 —— 均不被抓。
+    // 这不是缺陷（③ 的措辞已精确到「N 处 withTenant 调用点」这一句式），但**必须写在这里**：
+    // 本组断言的全部意义就是不让「声称的覆盖面」超过「实际覆盖面」，自己更不能犯。
+    expect(source).toContain('按句式匹配');
   });
 });

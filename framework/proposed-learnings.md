@@ -460,7 +460,7 @@ F004 那条若只看「有没有红」，会被 F008 的 importer 钉误判成�
 **建议写入：** `framework/patterns/audit-methodology.md` §7（防线归属类断言必须变异证活）·
 同文件 §8（「含 docs/ 范围」补排除历史记录面）· 视情况补 `framework/README.md` §经验教训
 
-**状态：** 待确认
+**状态：** ✅ **已沉淀 v1.0.14（2026-08-09 用户裁决）** → 规律 → `audit-methodology.md` **§7.1**（含三条推论：红了几条 / 断言名不得大于射程 / 递归需规格层止损）· 判据坑 → 同文件 **§8.1**（六次救场实录）。「doc-freshness 须排除历史记录面」那半条随 §8.1 一并落地。
 
 ---
 
@@ -480,7 +480,7 @@ F004 那条若只看「有没有红」，会被 F008 的 importer 钉误判成�
 
 **建议写入：** `framework/patterns/testing-env-patterns.md`（坑 1，工具行为坑）· `framework/patterns/audit-methodology.md` §7 断言强度分级（坑 2：并发断言的配对要求 + 「变异红了几条」的核对纪律）
 
-**状态：** 待确认
+**状态：** ✅ **已沉淀 v1.0.14（2026-08-09 用户裁决）** → 坑 1 → `testing-env-patterns.md` **§13**（含「症状方向与真因无关」与三态 seam 绕法）· 坑 2 → 同文件 **§14**；「变异红了几条」的核对纪律并入 `audit-methodology.md` §7.1 推论一。
 
 ---
 

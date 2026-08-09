@@ -86,5 +86,17 @@
     ],
     "confirmed_at": "2026-08-04",
     "priority": "medium"
+  },
+  {
+    "id": "BL-M51B-CARRYOVER",
+    "title": "M5.1b 遗留 17 条 open items（扫描器缺陷 / 叙述面守护 / 夹具清态 / 流程偏差）",
+    "description": "M5.1b-TENANT-INJECTION 以 8/8 全 PASS 签收（fix_rounds=4），但签收方登记了 17 条 open items。**原文与逐条证据见 `progress.json` 的 `evaluator_feedback.open_items_carried`**（该批 done 时的快照）与 `docs/test-reports/M5.1b-TENANT-INJECTION-signoff.md`；本条只做索引，不复制原文以免两处漂移。七组如下：① **裁决暂缓的叙述面守护四项**（扩守护到 runtime.ts/prisma.ts · 🔒④ 换语义级判据 · 🔒②b 查 pattern 有效性 · census 自身叙述面无钉）——rv4 实测确认仍在树上，换个简繁形近字即可绕过 🔒②b。② **U2：本批修复引入的潜伏回归（最高优先级）**——`db-layer-importer-census.test.ts` 的 re-export pattern 从 `[^'\\\"`;]*?` 放宽成 `[^;]*?` 后重新放进跨语句误捕：`export const a = 1`（无分号）后文散文含 ` from 'lib/db/privileged'` 会让扫描器**凭空捏造**一个 importer。当前靠 Prettier 强制分号不可达；修法建议改成结构化子句匹配而非「任意字符 + from」。③ **U1/U3/U4/U5 四类扫描器潜伏形态**（行尾注释含 ` from './old'` 既误捕又漏真 specifier · 模板串带替换 `import(`./${name}`)` 捕到字面量 · 普通字符串里的 import 语句误捕 · 动态 import 尾逗号漏抓）——均当前 src/ 零触发；该文件的「已知边界」段**未声称完备**，故不构成对已交付陈述的证伪。④ **夹具清态**：`tests/integration/f004-transaction-atomicity.test.ts` 每跑一次泄漏 6 条孤儿 OperationLog + 3 条 PendingAction（两位 evaluator 各自机械证实），单调增长永不回收；并入 dev 库跨批次孤儿行（实测已累积 500+ 条 OperationLog 指向已不存在的 Tenant）。⑤ **承接未处置**：F003 三种未登记绕过（声明后 push / 模板串诱饵 / 扫描面偏移）· F007 收窄误伤 Planner 每批必读的 `docs/test-reports/user_report/`（已验证更小改法）· docs/archive 排除最小性未达 · `NestedTransactionOptionsError` 零测试覆盖 · 代理非 get 陷阱（set/has/ownKeys）fail-open · prisma.ts「方法必须 bind」无钉守 · acceptance ④「提交路径」用例无鉴别力。⑥ **流程偏差**：F007 的改动混在 subject 标 F008 的 commit `57998bf` 里（铁律 1 偏差，签收方机械确认）。⑦ **方法学**：`find src -type f -exec cat {} +` 对未改动内容三次给出三个不同哈希（文件顺序不定），不能用作还原对账判据——须先 `sort`。",
+    "decisions": [
+      "2026-08-09 用户裁决：本批 17 条合并成**一条** BL 归档，保持批次溯源完整；排期时再拆分。",
+      "2026-08-09 用户裁决：下一批次做**扫描器小批次**，消费本条的 ①②③ 三组（U1–U5 + 叙述面守护四项）；④⑤⑥⑦ 留在本条待后续排期。",
+      "第 ① 组的暂缓来自 M5.1b 第四轮的规格层裁决：注释只指向钉的位置、不承诺完备性，「叙述面完备性」一族整体转 backlog、该批不再加断言（两位互不通气的 evaluator 各自提出「再加断言钉断言收益递减」）。"
+    ],
+    "confirmed_at": "2026-08-09",
+    "priority": "high"
   }
 ]

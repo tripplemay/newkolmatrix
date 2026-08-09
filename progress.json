@@ -1,12 +1,12 @@
 {
-  "status": "fixing",
+  "status": "reverifying",
   "user_goal": "M5.1b:补上 M5.1 未完成的债 + 做完机制层其余六条。F001(evaluator)补验已落 main 的三层 client + ALS 代理实现——尤其两条变异证活,收编证不了断言鉴别力;F008 先修两条经 grep 证伪的注释(第二条会污染 F003 白名单口径)并把 importer 清单升级为机械钉;F002-F007 原文承接(withTenant 硬语义 + B1-4/B3 回归 → 引导白名单普查钉 → 15 处事务迁移 → ALS 三上下文实测 → 开关开六段最小闭环 e2e → 文档与未覆盖入口清单)。已知代价(D-9):F001 补验落在 verifying,即在未独立验证的底座上先盖六层;缓解=Generator 发现机制与 D-1/D-4 不符须立即停工提审计。",
   "total_features": 8,
-  "completed_features": 7,
-  "fix_rounds": 3,
+  "completed_features": 8,
+  "fix_rounds": 4,
   "current_sprint": "M5.1b-TENANT-INJECTION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-09T03:10",
+  "last_updated": "2026-08-09T03:40",
   "reference_docs": [
     "docs/specs/M5.1b-TENANT-INJECTION-spec.md",
     "docs/specs/M5.1-TENANT-INJECTION-spec.md",
@@ -27,125 +27,30 @@
     "applied_batch": "M5.1b-TENANT-INJECTION",
     "applied_at": "2026-08-07T02:43:15Z"
   },
-  "evaluator_feedback": {
-    "summary": "第三次复验（fix_rounds=3 的验收）：2 个隔离 evaluator，被验 HEAD = a122b7d。**7 PASS / 1 PARTIAL / 0 FAIL**。F001 由历轮 PARTIAL **改判 PASS**（该 evaluator 自己重跑全量取证，明确不采信他人报告作为判据链）。F008 维持 PARTIAL，四条驱动项中三条与全量绿不绿无关。",
-    "pass_count": 7,
-    "partial_count": 1,
-    "fail_count": 0,
-    "issues": [
-      {
-        "feature_id": "F008",
-        "result": "PARTIAL",
-        "description": "判定不变（PARTIAL）。新事实使**驱动项 1 降级**，但驱动项 2/3/4 全部是当下就成立的洞，任一条即足以维持 PARTIAL，且与全量是否全绿完全无关。【已真修，各自变异证活】rv2 点名的两条：M1a(撤回 pattern-1 贪婪可选)→1 failed 红的正是侧效应回归条；M1b(摘反引号)→红的正是反引号条；M1c(摘 require pattern)→红的正是 require 条。产品注释的完备性承诺已按用户裁决真删，两条被指派更正的注释经我独立 grep 复核均属实。【驱动项 1 —— 由「新假阴」收紧定级为「潜伏性覆盖面回归」】我自己扫 src/ 全量 384 文件比对三版 pattern：HEAD vs OLD 新丢失 0 / 新捡回 5，当前仓中该形态实际用例数 0，故「新增假阴性 0」作为**仓域**陈述属实（我独立复算一致）；但它不等于「扫描器无新盲区」——后者不属实：21 条探针上 HEAD 漏 6，含行尾注释含撇号/反引号/分号、export 子句同款，以及 ES2022 字符串绑定名 `import { \"weird-name\" as w, x } from './y'`（我自核 OLD 抓到 / HEAD 漏，确系 fix-3 引入，且属**语言语法本身**而非编辑习惯，严重度高于我原举例）。当下影响与覆盖面是两个问题，混读正是本批反复栽的那一步。【驱动项 2 —— 🔒④ 射程远小于其用例名承诺，当下成立】名为「注释只许指路，不许承诺覆盖面」，实为三字面量黑名单 + 一句 toContain + 只扫 tenant-scope.ts 一个文件。A3 写 5 行同义完备性承诺→14 passed 全绿；A4 黑名单词全写成 `// >` 开头→全绿；A6 保留正向 token 句、紧接着明文撤销它并承诺覆盖面→全绿。活性对照 A1/A2 均能红，排除判据失灵。【驱动项 3 —— 最重，当下成立】A7：把 rv2 证伪的原句逐字写回 src/lib/db/runtime.ts（正是 rv2 发现 1 的缺陷原位）→ census 14 passed 全绿，扩到 6 个普查/文档钉 → 6 files / 88 tests 全绿。**用户裁决的机械化根本不覆盖原缺陷所在文件。**【驱动项 4 —— 当下成立】被证伪的那句话迁入了裁决刚指定的「唯一权威位置」：tests/unit/db-layer-importer-census.test.ts:351-352 仍以现在时第一人称自陈「条数就是 CLAIMS.length…不可能再对不上」，而 tenant-scope.ts:48-52 自己写明这句已被证伪；M2 在 HEAD 上重新证伪（简繁形近字换 pattern、条数仍 3 → 逐字复活被证伪句 → 14 passed 全绿；控制组红并点名，排除扫描器致盲），🔒②b 未被加强。【另核一条外部事实，登记不构成处方】编排者提的更小改法（可选分组 ? → ??、字符类还原）我自己实跑：21 条探针 OLD 漏 5 / HEAD 漏 6 / **LAZY 漏 0**，同时解掉侧效应吞噬、行尾注释假阴、ES2022 绑定名假阴，假阳性探针与 HEAD 一致无新增误命中。改不改属 Generator/Planner 职权，不是我的判定内容。",
-        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv3-F008-F001.md §1-§3 与 §8 变异表。最小复现（任一条即可维持 PARTIAL）：(1) A7 —— 在 src/lib/db/runtime.ts 加回被证伪原句 → census 14 passed 全绿；(2) A3 —— 在 tenant-scope.ts 说明段写同义完备性承诺 → 14 passed 全绿；(3) M2 —— claim① 的 pattern 换简繁形近字 + 逐字复活被证伪句 → 14 passed 全绿，pattern 还原则红并点名。"
-      },
-      {
-        "feature_id": "F001",
-        "result": "PASS",
-        "description": "由 PARTIAL 改判 **PASS**，改判依据是**我自己的实跑输出**，不是他人取证。原 acceptance 六条现全部 PASS。改判过程：我上一版把 ② 挂在「未核」是因为受编排的「不得跑全量」约束；编排者转来的一条事实（另一位 evaluator 单次全量 11.35s、未 stalled）只改变了我的**风险评估**——既然单次全量远低于 watchdog 的 600s 无进展阈值，我就没有理由继续把 ② 挂着。于是我自己跑：先核实工作树仍逐位停在被验 HEAD a122b7d（四个关键文件 shasum 与基线一致、git diff --stat 空），再 `npx vitest run` → **148 files / 1881 tests 全绿，Duration 11.39s**，独立取 exit code = 0。数字与另一位重合，**这是印证不是我的依据**；同时也说明 rv2 那次 stalled 是该次运行的环境/用法问题，不是本套件的性质。M5.1b 批次级 acceptance ①~⑦ 亦全部满足：⑤（核实 F008 更正）本轮首次成立——tenant-scope.ts 的 withTenant 绝对句已改对（真实调用点 15 处 / 11 文件，与注释一致，我独立 grep 复核）、runtime.ts importer 清单已改对（恰三处，与注释①②③及 GUARDED.expected 三者相符）。",
-        "steps_to_reproduce": "在停于 a122b7d 的干净工作树上跑 `npx vitest run` → 148 files / 1881 tests 全绿，`echo $?` → 0。其余各条见报告 §4-§5 与 §9.1。"
-      },
-      {
-        "feature_id": "F002",
-        "result": "PASS",
-        "description": "回归确认无回归（本轮为回归确认而非 acceptance 全量重放；PASS 的精确含义 = 未检出回归 + 承载钉经实打变异证明是活的）。三条自造变异证活：M1（新建探针用本轮修复所针对的形态引入 privileged）→ NEW pattern 下钉红并点名，OLD pattern 下该断言全绿而三条新回归用例红 —— 双向证明本轮修的是活洞、三条新回归用例不是死钉；M2（把跨租户守卫条件改成恒不成立）→ 仅 ①(c) 两条红，作用域准；M3（摘掉 withTenant 的事务本体）→ F002 面 8 条 + F004 面 6 条共 14 条红，还原后 22/22 绿。M5（把 architecture.md 的白名单计数 5 改 6）→ F007 断言红并点名到文件:行。",
-        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv3-regression-L1.md §4-§5"
-      },
-      {
-        "feature_id": "F003",
-        "result": "PASS",
-        "description": "回归确认无回归（本轮为回归确认而非 acceptance 全量重放；PASS 的精确含义 = 未检出回归 + 承载钉经实打变异证明是活的）。三条自造变异证活：M1（新建探针用本轮修复所针对的形态引入 privileged）→ NEW pattern 下钉红并点名，OLD pattern 下该断言全绿而三条新回归用例红 —— 双向证明本轮修的是活洞、三条新回归用例不是死钉；M2（把跨租户守卫条件改成恒不成立）→ 仅 ①(c) 两条红，作用域准；M3（摘掉 withTenant 的事务本体）→ F002 面 8 条 + F004 面 6 条共 14 条红，还原后 22/22 绿。M5（把 architecture.md 的白名单计数 5 改 6）→ F007 断言红并点名到文件:行。",
-        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv3-regression-L1.md §4-§5"
-      },
-      {
-        "feature_id": "F004",
-        "result": "PASS",
-        "description": "回归确认无回归（本轮为回归确认而非 acceptance 全量重放；PASS 的精确含义 = 未检出回归 + 承载钉经实打变异证明是活的）。三条自造变异证活：M1（新建探针用本轮修复所针对的形态引入 privileged）→ NEW pattern 下钉红并点名，OLD pattern 下该断言全绿而三条新回归用例红 —— 双向证明本轮修的是活洞、三条新回归用例不是死钉；M2（把跨租户守卫条件改成恒不成立）→ 仅 ①(c) 两条红，作用域准；M3（摘掉 withTenant 的事务本体）→ F002 面 8 条 + F004 面 6 条共 14 条红，还原后 22/22 绿。M5（把 architecture.md 的白名单计数 5 改 6）→ F007 断言红并点名到文件:行。",
-        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv3-regression-L1.md §4-§5"
-      },
-      {
-        "feature_id": "F005",
-        "result": "PASS",
-        "description": "回归确认无回归（本轮为回归确认而非 acceptance 全量重放；PASS 的精确含义 = 未检出回归 + 承载钉经实打变异证明是活的）。三条自造变异证活：M1（新建探针用本轮修复所针对的形态引入 privileged）→ NEW pattern 下钉红并点名，OLD pattern 下该断言全绿而三条新回归用例红 —— 双向证明本轮修的是活洞、三条新回归用例不是死钉；M2（把跨租户守卫条件改成恒不成立）→ 仅 ①(c) 两条红，作用域准；M3（摘掉 withTenant 的事务本体）→ F002 面 8 条 + F004 面 6 条共 14 条红，还原后 22/22 绿。M5（把 architecture.md 的白名单计数 5 改 6）→ F007 断言红并点名到文件:行。",
-        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv3-regression-L1.md §4-§5"
-      },
-      {
-        "feature_id": "F006",
-        "result": "PASS",
-        "description": "回归确认无回归（本轮为回归确认而非 acceptance 全量重放；PASS 的精确含义 = 未检出回归 + 承载钉经实打变异证明是活的）。三条自造变异证活：M1（新建探针用本轮修复所针对的形态引入 privileged）→ NEW pattern 下钉红并点名，OLD pattern 下该断言全绿而三条新回归用例红 —— 双向证明本轮修的是活洞、三条新回归用例不是死钉；M2（把跨租户守卫条件改成恒不成立）→ 仅 ①(c) 两条红，作用域准；M3（摘掉 withTenant 的事务本体）→ F002 面 8 条 + F004 面 6 条共 14 条红，还原后 22/22 绿。M5（把 architecture.md 的白名单计数 5 改 6）→ F007 断言红并点名到文件:行。",
-        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv3-regression-L1.md §4-§5"
-      },
-      {
-        "feature_id": "F007",
-        "result": "PASS",
-        "description": "回归确认无回归（本轮为回归确认而非 acceptance 全量重放；PASS 的精确含义 = 未检出回归 + 承载钉经实打变异证明是活的）。三条自造变异证活：M1（新建探针用本轮修复所针对的形态引入 privileged）→ NEW pattern 下钉红并点名，OLD pattern 下该断言全绿而三条新回归用例红 —— 双向证明本轮修的是活洞、三条新回归用例不是死钉；M2（把跨租户守卫条件改成恒不成立）→ 仅 ①(c) 两条红，作用域准；M3（摘掉 withTenant 的事务本体）→ F002 面 8 条 + F004 面 6 条共 14 条红，还原后 22/22 绿。M5（把 architecture.md 的白名单计数 5 改 6）→ F007 断言红并点名到文件:行。",
-        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv3-regression-L1.md §4-§5"
-      }
-    ],
-    "verification_form": {
-      "round": "reverify-3（fix_rounds=3 的验收）",
-      "verified_head": "a122b7d9c24367f90fa946c6bc12ed071a3d2aaf",
-      "fan_out": "rv3-F008-F001 / rv3-regression-L1（各自独立 worktree）",
-      "no_adversarial_this_round": "本轮未派对抗复核：F008 的四条驱动项已被**两位互不通气的 evaluator + 编排者本人的最小复现**三方交叉确认，且用户在本轮直接下达了收口裁决（见 coordinator_note_on_flow）。如实登记该省略。",
-      "reports": [
-        "docs/test-reports/M5.1b-rv3-F008-F001.md",
-        "docs/test-reports/M5.1b-rv3-regression-L1.md"
-      ]
-    },
-    "pattern_change_audit": "以 TypeScript parser 作 ground truth（ts.createSourceFile 遍历 ImportDeclaration / ExportDeclaration / ImportEqualsDeclaration / 动态 import() / require()），刻意不用正则验正则；判据先做活性自测（差集判据 5/5 正确、oracle 自身 5/5 正确，含两条专防误判的探针）。**仓域结论**：src/ 全量 384 个 .ts/.tsx 上，NEW 相对 oracle 假阴 0 / 假阳 0，OLD 假阴 5 / 假阳 0 → **新增假阴 0、新增假阳 0**；修好 5 条真实假阴（AppWrappers.tsx 4 个 css + MiniCalendar.tsx 1 个），并消除 1 处旧假阳（campaigns/page.tsx 的 re-export pattern 跨过 export const 粘到下一行 import）。两个被守模块的 importer 集合 OLD 与 NEW 逐条相同（runtime 3 / privileged 5），与写死的期望清单 missing=[] unexpected=[] 完全相符。**代价（记为 D-1）**：ES2022 arbitrary module namespace names（`import { \"weird-name\" as w, x } from '...'` / `export { x as \"a-b\" } from '...'`）OLD 抓得到、NEW 抓不到，本仓当前零使用，属潜在损失而非活洞，且未进「已知边界」登记。**另记 D-2**：新增三个回归用例的 9 条断言里，3 条是真回归钉、5 条是正当的反向护栏、1 条是死钉（T3-b 的输入在 OLD 下也绿，行内注释断言了一件对该输入不成立的事；真能触发那种吞噬的输入是 `const s = 'a from ' + 'b';`）。",
-    "coordinator_note_on_flow": "本轮第二次出现流程压缩，如实登记：判定回来后，编排者向用户呈报了两位 evaluator **各自独立**得出的同一判断（『同一缺陷族已连续四轮复发、每次都在为消灭它而写的那句话里，再加断言钉断言收益递减明显，属规格层裁决』），用户裁决**有界收口**：只修三条实证缺陷（惰性可选替换字符类 / 修死钉 / 删 census 里已被证伪的自陈），叙述面完备性这一族整体转 backlog，本批不再加断言。编排者在呈报前已自行最小复现确认：(a) fix-3 引入的新假阴属实；(b) `? → ??` 的更小改法同时解掉全部已知新漏抓——该事实亦由 rv3-F008-F001 独立复算确认（21 条探针 OLD 漏 5 / HEAD 漏 6 / LAZY 漏 0）。",
-    "deferred_to_backlog_by_ruling": [
-      "把叙述面守护扩到 src/lib/db/runtime.ts 与 prisma.ts（A7 实测：runtime.ts 叙述面当前无任何钉在守）",
-      "给 🔒④ 换语义级判据（当前为三字面量黑名单 + 一句 toContain + 只扫一个文件；A3/A4/A6 三种绕过实测全绿）",
-      "🔒②b 不查 pattern 有效性（M2 实测：简繁形近字换 pattern 后守护面缩水而断言不响）",
-      "db-layer-importer-census.test.ts 自身叙述面无钉（其 describe 标题覆盖面亦大于实物）"
-    ],
-    "l1_evidence_independent": {
-      "note": "两位 evaluator **各自独立**跑了全量，数字完全重合（互为印证，非互相采信）",
-      "tsc": "exit 0（两位）",
-      "lint": "No ESLint warnings or errors（两位）",
-      "vitest": "148 files / 1881 tests 全绿 exit 0（rv3-regression 11.35s · rv3-F008-F001 11.39s）",
-      "rls_e2e": "15 passed",
-      "gate_smoke": "exit 0",
-      "delivery_e2e": "exit 0",
-      "reach_e2e": "SKIP_DRAFT_LLM=true 降级 exit 0；**真网关起草段未被任何证据覆盖**（rv3-F008-F001 明确不采信他人此项取证）",
-      "stalled_incident_resolved": "rv2 那次 watchdog stalled 经本轮两位各自单次全量（11.35s / 11.39s，远低于 600s 阈值）证明是**该次运行的环境/用法问题**，非本套件性质"
-    },
-    "blind_spots_registered": [
-      "[F008 新·潜伏] import↔from 之间含引号/反引号/分号即整条漏抓（含 ES2022 字符串绑定名这一**合法模块语法**），未登记在测试文件『已知边界』段。当下影响为零（384 文件实测新丢失 0），但一次合法编辑即可触发。**本轮裁决要修**。",
-      "[F008 新] 三条新增回归用例里有一条死钉（T3-b 输入在 OLD 下也绿，行内注释断言了对该输入不成立的事）。**本轮裁决要修**。",
-      "[F008 新·当下] tests/unit/db-layer-importer-census.test.ts:351-352 仍载有已被两轮证伪的自陈。**本轮裁决要删**。",
-      "[F008 新·当下，裁决转 backlog] runtime.ts 叙述面无任何钉在守（A7：被证伪原句可逐字复活，6 钉 88 tests 全绿）。",
-      "[F008 承接·裁决转 backlog] 🔒④ 三种绕过（同义改写 / `// >` 前缀 / 保留 token 后明文撤销）实测全绿；🔒②b 不查 pattern 有效性。",
-      "[F008 承接] 动态 import attributes（import('./x',{with:{...}}) / assert）OLD/NEW 均漏且未登记；`import{a}from'x'` / `import'x'`（无空格）两版均漏；字符串拼接动态路径正则层无解（已如实登记并配『故意断言抓不到』用例，实测该登记属实）。",
-      "[F007 新] architecture-doc-freshness.test.ts 的 srcFilesImporting 是**第三套**扫描器（只认 from-import、不剥注释），本轮把 F008 扫描器加宽而未动它，两处『实物 importer 数』语义已分叉；当前实物 5 个 importer 全是 from-import，两套口径重合、文档不失实，故不改判定（记为 D-4）。",
-      "[F004 新] tests/integration/f004-transaction-atomicity.test.ts 每跑一次留 +6 OperationLog / +3 PendingAction 孤儿行（afterAll 两层清理只覆盖 Tenant 表），BEFORE/AFTER 计数快照为证；F004 acceptance 不含清理条款故不改判定。",
-      "[F001 承接] acceptance ④『提交路径』用例无鉴别力；代理非 get 陷阱（set / has / ownKeys）全部 fail-open（写入被静默吞掉、`'tenant' in prisma` 为 false）；prisma.ts『方法必须 bind』这条设计断言全仓无钉守（本轮未重放）。",
-      "[方法论·本轮新增] 『新增假阴性 0』这类结论**必须标作用域**：仓域（今天这批文件受不受影响）与扫描器域（判据有没有新盲区）是两个问题，本轮两位 evaluator 各自复算，结论相反且都成立。",
-      "[承接未处置] F003 三种未登记绕过；F007 收窄误伤 docs/test-reports/user_report/；docs/archive 排除最小性未达；NestedTransactionOptionsError 零测试覆盖；dev 库跨批次孤儿行累积；F007 改动混在 subject 标 F008 的 commit 里（铁律 1 偏差）。",
-      "[状态文件] rv3-regression 指出 progress.generator_handoff 的 round 与改动面描述停在 fix-2，与本轮实际改动面对不上。它未据此作任何判断（那是被验对象自述），仅登记事实——已在本次落盘时更正。"
-    ],
-    "l2_status": "L2 未授权。reach:e2e 由 rv3-regression 以 SKIP_DRAFT_LLM=true 降级跑完（gateway chat 0 次 / 真实投递 0 封）；rv3-F008-F001 明确不采信该项为自己判据，故**真网关起草段本轮无任何证据覆盖**，如实登记为未验。"
-  },
+  "evaluator_feedback": null,
   "generator_handoff": {
     "batch": "M5.1b-TENANT-INJECTION",
     "lane": "fast (Generator=主上下文)",
-    "round": "fix-2（复验 6 PASS / 2 PARTIAL 之后；两条 PARTIAL 由同一条发现驱动）",
+    "round": "fix-4（复验-3 判 7 PASS / 1 PARTIAL 之后；用户裁决有界收口）",
+    "changed_files_this_round": [
+      "tests/unit/db-layer-importer-census.test.ts（唯一改动文件）"
+    ],
     "fixed": [
-      "F008 @df36a3f —— 把「守的条数」从注释里的声称改成由 FALSIFIED_CLAIMS 数据结构产出；守护面从文件头 // 块放宽到整个文件（关掉复验登记的 B7）；射程如实写进注释并加断言钉住；顺带修掉 prisma.ts:10 与自身政策矛盾的陈旧计数。三条变异证活实跑。"
+      "F008 @c251fe9 —— ① 撤回 fix-3 的字符类收紧、改用惰性可选（一个字符），同时解掉原侧效应吞噬、行尾注释假阴、ES2022 字符串绑定名假阴；re-export 因情况不同取 [^;]*?（既挡住旧假阳性又允许注释含引号），残留边界已登记。② 修死钉 T3-b（原输入在旧 pattern 下也绿）。③ 删掉已被 rv2/rv3 两轮证伪的自陈。④ 补一条钉守住 fix-3 顺带消掉的 re-export 假阳性。三条变异证活实跑。"
     ],
     "l1_evidence": {
       "tsc": "npx tsc --noEmit exit 0",
       "lint": "next lint -> 'No ESLint warnings or errors'",
-      "vitest": "npx vitest run -> 148 files / 1877 tests 全绿（fix-1 后为 1875，本轮净增 2 条断言）",
-      "not_run": "rls:e2e / gate:smoke / delivery:e2e / reach:e2e 本轮未跑 —— 改动仅限 src/lib/db 两个文件的注释与一个 unit 测试文件，不触及运行时代码路径（tsc + 全量 vitest 已覆盖）。如实登记，不算进「全绿」。"
+      "vitest": "npx vitest run -> 148 files / 1885 tests 全绿（rv3 被验点为 1881，本轮净增 4 条回归断言）",
+      "pattern_diff": "src/ 全量 384 文件三版互比：FIX4 vs OLD 新丢失 0 / 新捡回 5；FIX4 vs FIX3 为 0/0",
+      "not_run": "rls:e2e / gate:smoke / delivery:e2e / reach:e2e 本轮未跑 —— 唯一改动文件是一个 unit 测试，零产品代码改动（src/ diff 为空）。如实登记，不算进「全绿」。"
     },
-    "notes_for_evaluator": "复验（fix-1）的 evaluator_feedback 按 generator.md fixing 模式清空，原文在 git 历史（commit b5284d9 的 progress.json）与 4 份报告里：docs/test-reports/M5.1b-rv1-*.md 与 M5.1b-adversarial-rv1-F008.md。本轮复验需要知道的：① 改动面仅三个文件：src/lib/db/tenant-scope.ts（注释）· src/lib/db/prisma.ts（注释）· tests/unit/db-layer-importer-census.test.ts（那组断言重构 + 新增 2 条）。零运行时代码改动。② 上一轮点名的那条（第 ① 条被证伪句逐字写回全绿）请**自己重放**确认现在会红；另请自己再造绕过——本轮已知抓不到的有：同义改写 / 中文数字 /「个」替「处」/ 语序颠倒，这些已如实写进注释与断言 ④，若你认为其中某条应当抓到，请直接判并说明。③ **F001 的 PARTIAL 由同一条发现驱动**（acceptance ⑤ 核实 F008 的更正），请据批末实物重核。④ 本轮**未处置**的复验登记项（均不在 F008 acceptance 内，留给 Planner 排期）：F003 新守卫的三种未登记绕过（声明后 push / 模板串诱饵 / 扫描面偏移）；F007 收窄把 Planner 每批必读的 docs/test-reports/user_report/ 一并排除（复验已验证更小改法）；docs/archive 排除的最小性未达；代理写侧 set/defineProperty/delete 全部 no-throw；NestedTransactionOptionsError 零测试覆盖；acceptance ④「提交路径」用例无鉴别力；$executeRaw 标签模板版无实跑用例；dev 库跨批次孤儿行累积（OperationLog 539 行中 335 行指向已不存在的 Tenant）；F007 改动混在 F008 subject 的 commit 里（铁律 1 偏差）。"
+    "notes_for_evaluator": "复验-3 的 evaluator_feedback 按 generator.md fixing 模式清空，原文在 git 历史（commit 之前那次 verify 提交的 progress.json）与两份报告：docs/test-reports/M5.1b-rv3-F008-F001.md · M5.1b-rv3-regression-L1.md。本轮复验需要知道的：① **改动面只有一个 unit 测试文件**，src/ diff 为空——回归面因此比前几轮更窄，但那个文件是两道普查钉之一的实现本体，其 pattern 变化会作用于 src/ 全部文件的扫描结果，请独立复算（前两轮分别用过 TS parser oracle 与三版互比，可另设判据但请先验活）。② 上一轮点名的两条已知漏抓（行尾注释含引号 / ES2022 字符串绑定名）请**自己重放**确认现在会红；另请自己再造绕过——本轮已知**仍**抓不到的有：`import{a}from'x'` 与 `import'x'`（无空格）、动态 import attributes（with/assert）、字符串拼接动态路径、多行 export 子句行尾注释含分号。这些已如实写进「已知边界」段。③ **本轮按用户裁决明确不做**的四项（叙述面完备性一族）已列在上一轮 feedback 的 deferred_to_backlog_by_ruling，包括：扩叙述面守护到 runtime.ts/prisma.ts、给 🔒④ 换语义级判据、🔒②b 查 pattern 有效性、census 自身叙述面无钉。**它们在树上仍成立**（A3/A4/A6/A7/M2 五条绕过实测全绿），是已知且经裁决暂缓的，不是被隐瞒的。④ 历轮其余未处置项：F003 三种未登记绕过 · F007 收窄误伤 docs/test-reports/user_report/ · docs/archive 排除最小性 · NestedTransactionOptionsError 零测试覆盖 · dev 库跨批次孤儿行 · F007 改动混在 subject 标 F008 的 commit 里（铁律 1 偏差）。⑤ F001 已于上一轮由该 evaluator 自行改判 PASS（它自己重跑全量取证）。本轮 F001 状态为 completed。"
   },
   "session_notes": {
     "Andy": null,
     "Reviewer": "第二次复验：上一轮缺口经独立重放确认已堵上；新查出的两条同族缺陷经对抗复核 3/3 UPHELD。本轮最有价值的两件事：① 对抗复核纠正了根因方向（是「外层 ? 贪婪」不是「惰性」），并把逃逸条件加宽到「文件后文任意位置出现 from 即可触发」——发现方与编排者最初的理解都不够准；② 它给出定界「失实的是保证句、不是清单」，避免把一个文档缺陷误读成数据缺陷。另：rv2-F008-F001 因跑全量卡死被 watchdog 中断，唤醒续跑时明确禁止再跑全量、要求用已有证据下判定并标注未验项——worktree 隔离使中断没有污染主仓。",
-    "Mark": "fix-2 只有一条 feature，但值得记的是「修法选择」：复验说『修法一行』，照做能消掉实例、留住形状。改成 claim→patterns 后，「三条」不再是我数出来的而是 CLAIMS.length，并加了一条专门钉住「守的条数 = 首轮点名的条数」的断言——即这个缺陷再复发时会当场红，不必等下一轮验收。另：写更正段时又被自己的钉钉红一次（引用了被证伪原句），已改述；这是同一条纪律第二次实测生效。"
+    "Mark": "fix-4 的教训比修法本身重要：fix-3 我选了「收紧字符类」，它解掉了目标 bug 却换来两类新漏抓——其中 ES2022 字符串绑定名是**合法模块语法**，不是边角。而正确解只是把可选组从贪婪改惰性，一个字符。差别在于：我当时是「让目标用例变绿」，没有回头问「这个改法还会挡住什么」。第二条：用户裁决把「叙述面完备性」整族转 backlog 之后，这一条终于收敛了——前三轮都在同一个递归里打转（加断言钉断言），而两位 evaluator 各自独立指出这一点比我自己察觉要早。"
   },
   "lane": "fast",
   "prior_batch_closure": {

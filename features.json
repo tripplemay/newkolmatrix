@@ -15,7 +15,7 @@
       "title": "更正 F001 遗留的两条失实注释 + 防再犯机械钉",
       "priority": "high",
       "executor": "generator",
-      "status": "completed",
+      "status": "pending",
       "description": "spec D-12。M5.1 的 spec-lock 稽核用 grep 证伪了两条注释（docs/test-reports/M5.1-F001-spec-lock-review.md）。第二条会**直接污染 F003 的白名单口径**（照它写死白名单会漏掉真实 importer prisma.ts、并写入一个不存在的 instrumentation.ts），故本条必须先于 F003 完成。",
       "acceptance": "① **两条注释逐条改对**：(a) src/lib/db/tenant-scope.ts:13-14「全仓此刻没有任何 withTenant 调用点」→ 实测同批测试自带 5 处，应改为「**产品代码**零调用点」类准确表述；(b) src/lib/db/runtime.ts:8-9 的 importer 清单两头都错（漏列真实 importer src/lib/db/prisma.ts:23；写入的 src/instrumentation.ts 实际 import 的是 db/prisma 与 db/app-role，并不 import runtime）→ 按实测重写。② **改完自己 grep 核一遍**：新写的每一句事实性断言都要有对应的一条命令输出作依据（铁律 13）。原缺陷正是「注释与实物不符」，改成另一句同样未核的话 = 未修复。核对命令与输出写进 commit 正文。③ **防再犯机械钉**（新增 tests/unit/ 下测试，vitest 收集范围内）：把「runtime.ts / privileged.ts 的 importer 清单」从注释升级为**机械断言**——扫 src/ 全仓实际 importer 集合，与写死在测试文件里的期望集合比对，不一致即红**并点名文件**。扫描用 readFileSync 递归遍历，**不得用 git grep**（只搜已跟踪文件，新文件未 commit 时恒空绿）。这条钉与 F003 的白名单钉**守的不是同一件事**：F003 守「谁能 import privileged（越权面）」，本条守「注释里的 importer 清单与实物同步（文档漂移面）」；两者判据不得互相派生，否则一处失效两处同时瞎。④ **变异证活**：新增一个文件 import db/runtime → ③ 的钉必须红并点名；把期望集合里的 prisma.ts 摘掉 → 必须红。每条给实跑红的输出，仅描述不算。变异还原不得用 git checkout。⑤ tsc/lint + 全量 vitest 绿。"
     },

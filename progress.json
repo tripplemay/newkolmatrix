@@ -1,12 +1,12 @@
 {
-  "status": "reverifying",
+  "status": "fixing",
   "user_goal": "M5.1b:补上 M5.1 未完成的债 + 做完机制层其余六条。F001(evaluator)补验已落 main 的三层 client + ALS 代理实现——尤其两条变异证活,收编证不了断言鉴别力;F008 先修两条经 grep 证伪的注释(第二条会污染 F003 白名单口径)并把 importer 清单升级为机械钉;F002-F007 原文承接(withTenant 硬语义 + B1-4/B3 回归 → 引导白名单普查钉 → 15 处事务迁移 → ALS 三上下文实测 → 开关开六段最小闭环 e2e → 文档与未覆盖入口清单)。已知代价(D-9):F001 补验落在 verifying,即在未独立验证的底座上先盖六层;缓解=Generator 发现机制与 D-1/D-4 不符须立即停工提审计。",
   "total_features": 8,
-  "completed_features": 7,
+  "completed_features": 6,
   "fix_rounds": 1,
   "current_sprint": "M5.1b-TENANT-INJECTION",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-08T09:10",
+  "last_updated": "2026-08-09T00:20",
   "reference_docs": [
     "docs/specs/M5.1b-TENANT-INJECTION-spec.md",
     "docs/specs/M5.1-TENANT-INJECTION-spec.md",
@@ -27,7 +27,106 @@
     "applied_batch": "M5.1b-TENANT-INJECTION",
     "applied_at": "2026-08-07T02:43:15Z"
   },
-  "evaluator_feedback": null,
+  "evaluator_feedback": {
+    "summary": "复验（fix_rounds=1）：3 个隔离 evaluator 各自独立 worktree + 1 条对抗复核。6 PASS / 2 PARTIAL / 0 FAIL。F008 与 F001 的 PARTIAL 由**同一条发现**驱动，经对抗复核 UPHELD（未被证伪）；首轮的其余三条 PARTIAL（F003 / F004 与 F007 的收窄争议）本轮均判 PASS。",
+    "pass_count": 6,
+    "partial_count": 2,
+    "fail_count": 0,
+    "issues": [
+      {
+        "feature_id": "F008",
+        "result": "PARTIAL",
+        "description": "上一轮两条不成立项：①(a) 注释失实已真修好（说明段每句事实性断言我逐条 grep/读码核过，无一条为假；runtime.ts importer 清单实测恰三处与注释逐条相同）；② 仍未完全成立。产品注释 src/lib/db/tenant-scope.ts:37 声称守『三条已被实测证伪的绝对句不得复活』，而 tests/unit/db-layer-importer-census.test.ts:295-299 的黑名单只覆盖首轮点名的第 1、3 条（'零 withTenant 调用点'/'没有嵌套守卫'/'不要嵌套调用'），第 2 条『本模块此刻只交付**单层**语义』无对应条目——该句在 HEAD 上仍是假话（嵌套语义就在同文件 :166-180），逐字复活后全仓 148 files/1875 tests 全绿。即『声称覆盖面>实际覆盖面』的缺陷族未消除，规模从 3/3 缩到 1/3。另登记射程边界：守护只读文件头连续 // 块，同文件 JSDoc 里写同样的话不被抓（B7）。acceptance ③④⑤ 均 PASS：三条规定变异我自跑各红且只红对应那条，两条原 importer 变异红且点名，tsc 0/lint 0/全量 148·1875 绿。口径坦白：若把『三条』读作黑名单三个字符串则该句为真；我按『首轮逐条点名的三条句子』判（测试文件自称形态取自该报告原文）。修法一行：黑名单补一条，或把『三条已被实测证伪的绝对句』改成『下列三个句式』。",
+        "steps_to_reproduce": "cd 至被验树(41ba4db)；npx vitest run tests/unit/db-layer-importer-census.test.ts → 8 passed（基线）。在 src/lib/db/tenant-scope.ts 说明段（锚点行『会话面入口的标准包裹在 lib/db/tenant-entry.ts…』之后）插入一行 `// 本模块此刻只交付**单层**语义。`；npx vitest run → Test Files 148 passed (148) / Tests 1875 passed (1875)，无一条红。对照：改插 `// 产品代码（src/）零 withTenant 调用点。` → 1 failed，🔒② 红并点名。还原用反向编辑（python 字符串替换），shasum -a 256 src/lib/db/tenant-scope.ts 回到 e25977b362888e6760235fd7bad3cdcad8ea82f36456a6313775764c7f0bf228。"
+      },
+      {
+        "feature_id": "F001",
+        "result": "PARTIAL",
+        "description": "原 acceptance 六条本轮全部 PASS：① 三分支各有真库正向用例（(c) 钉类型不钉字符串），鉴别力由变异 A 证活；② 开关关逐位不变（全量 148/1875 绿；tests/ 相对 b0b1120 为 7 新增 2 修改零删除，两个修改均纯追加；tests/ 文件数 236→243；.env 中 DB_APP_ROLE_RUNTIME 零命中；e6ecef1 的 src/ 触及面仅 src/lib/db/）；③ 两实例且连接串来源不同（真库 current_user kol_app vs kol），鉴别力由我自造的变异 N4（开关静默失效）证活；④ raw 转发落 ALS 事务，鉴别力由变异 B 证活，并补上了上一轮登记的盲区（标签模板 $queryRaw 实测 txid 相等、读得到 app.tenant_id、开关开+无 ALS 同样抛 MissingTenantScopeError）；⑤ 两条规定变异已实施实跑；⑥ tsc 0/lint 0。M5.1b F001 的 ①~⑦ 亦逐条执行（④ 做了 4 组作者未采用的形态 + 7 条打 F008 新断言的绕过）。判 PARTIAL 的唯一驱动是 acceptance ⑤『核实 F008 的更正』：两条被指派更正的注释本身已属实，但同段新写的『② 三条…不得复活』只兑现 2/3（见 F008 条）。另登记三条不驱动判定的发现：代理写侧 set/defineProperty/delete 全部 no-throw（上一轮『只装 get』的延伸，写进去的值再也读不出且不报错）；prisma.ts:10『15 处调用点的迁移是 F004』是无钉守的陈旧计数，与同文件 27 行下方刚立的『可变数字要么有钉守要么不写』政策冲突（实测 F004 迁走 13 处，批末剩 2 处）；④『提交路径』用例在变异 B 下仍绿，无鉴别力。",
+        "steps_to_reproduce": "npx vitest run tests/integration/tenant-injection-proxy.test.ts → 11 passed（基线）。变异 A：src/lib/db/prisma.ts:30 `throw new MissingTenantScopeError();` → `return getRuntimeDb();` → 3 failed | 8 passed，红的三条全在 ①(c)。变异 B：在 get trap 前置分支把 $queryRawUnsafe/$executeRawUnsafe 绑到 getRuntimeDb() → 4 failed | 7 passed，含 D-11 点名的『④ 回滚路径…回滚零残留』。变异 N4：src/lib/db/runtime.ts `const url = resolveRuntimeDatabaseUrl();` → `const url: string | null = null;` → 1 failed，红的是『③ 开关开：切 kol_app』。三条均反向编辑还原，shasum 回到 prisma=41b9b194…b3d / runtime=2c255c39…fb1。acceptance ⑤ 复现见 F008 条。"
+      },
+      {
+        "feature_id": "F003",
+        "result": "PASS",
+        "description": "两条首轮驱动均已兑现，且我自己实跑打了新判据。(a) 重写后的『白名单恒不可从别处推导』守卫不再恒绿：上一轮打穿它的那条形态（`const BOOTSTRAP_WHITELIST = [...deriveFromScan()]`）本轮实测当场红，且只红它一条。acceptance ⑤ 判 PASS 的口径依据我自己读的实物：⑤ 的主语是白名单实物（as-built 确为纯字面量数组），且 ⑤ 指定的范式 tests/unit/project-scope-census.test.ts 里本身没有任何『检测派生』的守卫。(b) spec §4 硬约束第 2 条已兑现：两钉均写『显式决定：不纳入』+ 理由 + 代价登记 + 兜底归属，不是复述口径。我核过该决定援引的两条事实：F006 acceptance ②(f) 确实要求 kol_app 连接的 DB 层零行证据（属实）；『F002/F005/F006 夹具理由各自写在文件头』对 F005/F006 属实，对 F002 不准（理由在函数旁注而非文件头，措辞不精确，不改判定）。其余各条：白名单 as-built 5 文件经我独立普查与实物逐位相符；auth 相关 6 文件 205 tests passed；tsc exit 0 / lint clean。残留问题见盲区（守卫仍有三条未登记的绕过形态）。",
+        "steps_to_reproduce": "cd 独立 worktree，HEAD=41ba4db。① 基线：npx vitest run tests/unit/bootstrap-whitelist-census.test.ts tests/unit/db-layer-importer-census.test.ts tests/integration/f004-transaction-atomicity.test.ts → 3 files / 21 tests passed。② 立活性判据：新建 src/lib/__evalprobe_backdoor.ts 取 globalThis.privilegedDb（不 import）→ F003 红并点名、F008 绿。③ 带该探针依次施加 6 条变异；每条变异后用 scratchpad 基线副本覆盖还原并 shasum 对账（03261c72…3174d）。④ 硬约束核查：读 tests/unit/bootstrap-whitelist-census.test.ts:43-54 与 tests/unit/db-layer-importer-census.test.ts:31-43。"
+      },
+      {
+        "feature_id": "F004",
+        "result": "PASS",
+        "description": "acceptance ③ 首轮唯一缺口（gate.ts 的 executePendingAction）已补上有真实鉴别力的用例。我重放了对抗复核那条『不新增 import』的等价变异：把 src/lib/agent/gate/gate.ts:373 的 `db: tx` 换成 globalThis.runtimeClients.get('__default__')（Prisma 已 type-only import，故 F008 的 importer 钉不会替它翻红）。实测：新用例单独翻红（expected 1 to be +0），而首轮被错误登记为覆盖的 create-share-link（11 tests）与 payout-gate（12 tests）在同一变异下仍全绿、F008 钉 8 tests 全绿 —— 合计 1 failed | 38 passed，红的正是该红的那条。新用例的空绿风险我另打了反向变异证伪：把探针工具的写入摘掉 → 配套的防空绿对照当场红并点名，说明该对照有真实活性。7 个『原子性即全部意义』点现 7/7 有守卫。我独立重跑 $transaction 普查：HEAD 上真调用点仅 auth/register.ts:110（白名单）与 tenant-scope.ts:181（withTenant 自身）→ 13 处确已迁走。acceptance ④ 三套脚本 exit=0（reach:e2e 用脚本自带 SKIP_DRAFT_LLM=true 降级，自报 gateway chat 0 次）。acceptance ⑥：tsc exit 0、lint clean、全量 148 files / 1875 tests passed。另：本轮 fix 的 src/ 改动经机械过滤证明为零条非注释行，故首轮 PASS 的 ②⑤ 结论沿用有据。",
+        "steps_to_reproduce": "① 基线：npx vitest run tests/integration/f004-transaction-atomicity.test.ts → 8 tests passed。② 变异 M7：gate.ts:373 `db: tx,` → `db: (globalThis as unknown as { runtimeClients: Map<string, Prisma.TransactionClient> }).runtimeClients.get('__default__')!,`（不新增 import）→ 跑 f004 + create-share-link + payout-gate + db-layer-importer-census → 1 failed | 38 passed，唯一红的是新用例。③ 反向编辑还原，shasum gate.ts = 58c8e812…4976d（= 基线）。④ 变异 M8：把探针工具的 create 换成 `void db;` → 1 failed | 7 passed，红的是防空绿那条。⑤ npm run gate:smoke / delivery:e2e / SKIP_DRAFT_LLM=true reach:e2e 三者 exit=0。⑥ tsc 0 / lint clean / vitest 148 files 1875 tests passed。"
+      },
+      {
+        "feature_id": "F007",
+        "result": "PASS",
+        "description": "扫描面收窄不削弱 acceptance ②。逐条核对：(a) 判据形态未动——3 条 stale needle 与 4 条计数 pattern 在 diff 中零改动，收窄只加了 DOCS_EXCLUDED 与一行递归短路（+20/-0）；(b) 仍含 docs/ 范围——扫描仍从 docs 根递归，保留 docs/dev、docs/specs、docs/product、docs/audits、docs/reviews、docs/test-cases 与 docs 根，而 audit-methodology.md:168 记载的原始失效形态是『压根不搜 docs/』，该成因未复现；(c) 先验活未被掏空——两条 liveness needle 在未被排除的目录均有副本，探针不依赖被排除目录存活。acceptance ⑤ 的变异证活由我独立重放（未沿用 Generator 声称的变异点）：注入 docs/dev/deploy.md 与 docs/product/gap-data-layer.md 各一条作废句，均红并点名到文件:行。acceptance ④ 的两个既有钉在 fix-1 中未被触碰，口径不变。另加做一项检查：三条 stale needle 经 git log -S 逐条证明确曾真实存在于现行文档并在本批 3baf293 被删，故非空断言。两条 finding 登记不改判：FINDING-1 代价陈述有事实错误——注释称『test-reports/ 按目录约定只放验收产物、由 Evaluator 写、且带批次日期』，这句对 docs/test-reports/user_report/ 三个分句全错，harness-rules.md:263 与 planner.md:11 明定该子目录是用户反馈、且是 Planner 每批必读的现行输入面，它是活的不是历史面，现整个落在排除区内（我实打注入作废运维指令 + 假计数锚点，41 passed 完全看不见；已验证更小改法可零代价堵上）。FINDING-2 最小性未达——只排除 docs/test-reports 已足够（实测 41 passed），docs/archive 的排除无任何实测红驱动，属预防性扩大。",
+        "steps_to_reproduce": "① 把 tests/unit/architecture-doc-freshness.test.ts 的 DOCS_EXCLUDED 改回 [] → 1 failed，点名 docs/test-reports/M5.1b-verify-F007-L1.md:70 与 :110；② 往 docs/dev/deploy.md 追加『注入机制与引导白名单归 M5.1』→ 红并点名 :186；③ 往 docs/test-reports/user_report/ 追加同类作废句 → 41 passed，看不见；④ 变异 M4：把 user_report 重新纳入 → 当前实物 41 passed 零新红，重放 ③ 的注入则红并点名 :131。"
+      },
+      {
+        "feature_id": "F002",
+        "result": "PASS",
+        "description": "回归确认（本轮未重验全部 acceptance，首轮已 PASS）：F002/F005/F006 无回归，且非默认继承：用 ts.transpileModule({removeComments:true}) 比对 emit 产物证明本轮三个 src 文件改动为**零条非注释行**（tenant-scope.ts old=2131 new=2131、runtime.ts 717=717、prisma.ts 632=632，全部 IDENTICAL）；判据本身先做活性自测——第一版基于 ts.createScanner 的比对器两个探针双双失败（该判相同的判 DIFFERS、该判不同的判 IDENTICAL），照单全收会得出方向完全反了的结论，故当场废弃重写。F002 另做实打变异防『全绿但钉已死』：set_config 第三参 true→false，B3 残留两条钉红，还原后 14 passed。F005/F006 的证据文件均不在本轮改动清单内；rls:e2e 两次均 15 passed，F006 自有夹具零残留经独立 SQL 核实（判据先做活性自证）。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv1-F007-regression.md §regression"
+      },
+      {
+        "feature_id": "F005",
+        "result": "PASS",
+        "description": "回归确认（本轮未重验全部 acceptance，首轮已 PASS）：证据文件未在改动清单内；als-context-propagation + routine-tenant-explicit + session-tenant-context 共 3 files / 33 passed。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv1-F007-regression.md §regression"
+      },
+      {
+        "feature_id": "F006",
+        "result": "PASS",
+        "description": "回归确认（本轮未重验全部 acceptance，首轮已 PASS）：tests/e2e/tenant-rls-min-loop.e2e.test.ts 未在改动清单内；npm run rls:e2e 两次均 1 file / 15 passed；自有夹具零残留经独立 SQL 核实且判据先做活性自证。",
+        "steps_to_reproduce": "见 docs/test-reports/M5.1b-rv1-F007-regression.md §regression"
+      }
+    ],
+    "verification_form": {
+      "round": "reverify-1（fix_rounds=1）",
+      "lane": "fast (2a 同会话隔离 evaluator subagent)",
+      "verified_head": "41ba4dba6c5ed5afd6e2eb2e48ed29d5ffd60fb0",
+      "fan_out": "rv-F008-F001 / rv-F003-F004 / rv-F007-regression（含全批 L1 与 F002/F005/F006 回归），各自独立 worktree",
+      "reports": [
+        "docs/test-reports/M5.1b-rv1-F008-F001.md",
+        "docs/test-reports/M5.1b-rv1-F003-F004.md",
+        "docs/test-reports/M5.1b-rv1-F007-regression.md",
+        "docs/test-reports/M5.1b-adversarial-rv1-F008.md"
+      ]
+    },
+    "adversarial_review": [
+      {
+        "target": "F008（同时覆盖 F001 的 PARTIAL 驱动）",
+        "verdict": "UPHELD",
+        "detail": "未能证伪。**读法之争按原文裁定**：支持「三条 = 首轮逐条点名的三条陈述」有四处原文依据（两份首轮报告各自逐条点名且都含「单层语义」；测试文件 :294 头注自称形态取自首轮报告原文；tenant-scope.ts:25-26 把「句子」与「字面匹配」分开写）；支持「三条 = 黑名单三串」只有「数组恰 3 条」这一个巧合，且要成立必须采用首轮原文里不存在的切分，并把祈使片段『不要嵌套调用』称作「已被实测证伪的绝对句」，还会把 :37 读成同义反复——恰好变回它自称不是的那种「已被守住」空话。**决定性实测另加同位置对照**：把『本模块此刻只交付单层语义』写进说明段 → 全量 148 files / 1875 tests 0 failed；**同一行位置**换成黑名单串『产品代码（src/）零 withTenant 调用点』→ 当场红并点名。该对照排除了「扫描器没看见那一行」的反向解释，证明绿的原因只能是守护面不含那句话。全仓无第二条断言在守它（any_other_assertion_guards_it = NONE）。另独立复核成立两条附带登记：守护只读文件开头连续 // 块（黑名单三串写进 JSDoc → 8 passed 全绿）；prisma.ts:10『15 处调用点的迁移是 F004』是无钉守的陈旧计数，且与同文件 :37-40 自己宣布的『可变数字要么有钉守要么不写』直接自相矛盾。"
+      }
+    ],
+    "l1_evidence_independent": {
+      "note": "由 rv-F007-regression 独立复跑；rv-F003-F004 与 rv-F008-F001 各自也跑过全量，三者数字一致",
+      "tsc": "npx tsc --noEmit → exit 0，零输出",
+      "lint": "npx next lint → 'No ESLint warnings or errors'",
+      "vitest": "npx vitest run → 148 files / 1875 tests 全绿（变异前后各跑一次，结果一致）",
+      "rls_e2e": "npm run rls:e2e → 15 passed（跑两次一致）",
+      "gate_smoke_delivery_reach": "gate:smoke / delivery:e2e / reach:e2e（SKIP_DRAFT_LLM=true 降级）三者 exit=0",
+      "test_visual": "未跑 —— spec §7 登记为不计分项，且本批 src/ 改动经机械证明为零条非注释行"
+    },
+    "blind_spots_registered": [
+      "[F008 新守护组] 7 条自造绕过全部未抓到：同义改写 / 中文数字 / 「个」替「处」 / 语序颠倒 / 首轮第 2 条被证伪句逐字复活 / 黑名单三串写进 JSDoc。其中只有「第 2 条逐字复活」构成对声称覆盖面的证伪（驱动 PARTIAL），其余属射程窄但措辞精确（不扣分）或射程边界。",
+      "[F003 新守护] 三条未登记的绕过形态：声明后 push 派生条目 / 模板串诱饵声明 / 扫描面偏移（collectSources 里 continue 掉某目录）。三者下真实后门探针均被静默吸收，而钉文件头对新守卫零盲区登记。建议改判据为『断言运行期清单与源码字面量逐条等同』或至少登记这三条。",
+      "[F007 收窄新造盲区] docs/test-reports/user_report/ 是 harness-rules.md:263 与 planner.md:11 明定的 Planner 每批必读现行输入面，却整个落在排除区内；实打注入作废运维指令 + 假计数锚点 → 41 passed 完全看不见。存在已验证的更小改法（保留排除但把 user_report 重新纳入）可零代价堵上。",
+      "[F007] docs/archive 的排除无实测红驱动（只排除 test-reports 已足够），最小性未达；注释称『排除后守的是 docs/dev + docs/specs』属低估（docs/product 等同样在守护面内）；注释中『M5.2 一改覆盖面历史报告会集体翻红』是前瞻性预判而非实测（当前排除区内零个数字形态计数锚点）。",
+      "[F001 承接] prisma 代理只装 get 陷阱的延伸：写侧 set / defineProperty / deleteProperty 全部 no-throw（写进去的值再也读不出且不报错）。当前 src/ 不可达。",
+      "[F001] prisma.ts:10『15 处调用点的迁移是 F004』是无钉守的陈旧计数（批末 src/ 真实 $transaction( 只剩 register.ts:110 一处），与同文件下方刚立的政策自相矛盾。",
+      "[F001] acceptance ④『提交路径』用例在变异 B 下仍绿，无鉴别力；$executeRaw 标签模板版仍无实跑用例。",
+      "[F004 承接] NestedTransactionOptionsError 零测试覆盖（tests/ 侧唯一命中是一处注释），而它正是 F004 新用例必须换判据的直接原因。",
+      "[F003+F008 承接] 两道普查钉在『拼接路径 + 拼接键』这一维盲区重叠，本轮独立复现属实；钉文件头已改成正确表述并说明为何不修。",
+      "[清态] tests/integration/f004-transaction-atomicity.test.ts 每跑一次泄漏孤儿 PendingAction（裸 String 无 FK 不级联），而清理判据只看 Tenant 前缀 —— 判据结构上看不见那些行。evaluator 已定向删除本轮 14 条探针孤儿。",
+      "[清态] dev 库跨批次孤儿累积：OperationLog 539 行中 335 行 tenantId 指向已不存在的 Tenant（7-27 起逐批累积）；另有 2 行来自 M5-AUTH-RLS 批次中断进程的孤儿 Tenant。夹具前缀是 pid 作用域，中断留下的孤儿永不回收。建议升级为可复跑的全库孤儿普查脚本。",
+      "[流程] F007 的改动由 subject 标 F008 的 commit 57998bf 携带（正文有独立小节明示，非隐瞒），与铁律 1『每 feature 独立 commit、可独立审查回滚』有偏差 —— 回滚 F008 会一并回滚 F007 的收窄，而一旦回滚仓库会立刻因验收报告的原文引用翻红。",
+      "[方法学，本轮第 4 次] 判据先验活再次救场：rv-F007 的第一版 emit 比对器两个探针双双失败（方向完全反了）；rv-F008 追出的一条全量红是自己留在 scripts/ 的探针导致普查计数漂移；rv-F003 的第一版 user_report 探针栽在父目录短路。三例均为自查发现并如实报告。"
+    ],
+    "l2_status": "L2 未授权，全部结论产自本机 dev Postgres 与进程内测试。reach:e2e 由 rv-F003-F004 以脚本自带 SKIP_DRAFT_LLM=true 降级跑完，自报 gateway chat 0 次 / 真实投递 0 封。"
+  },
   "generator_handoff": {
     "batch": "M5.1b-TENANT-INJECTION",
     "lane": "fast (Generator=主上下文)",
@@ -51,7 +150,7 @@
   },
   "session_notes": {
     "Andy": null,
-    "Reviewer": "本轮 verifying 采用 fan-out：5 个隔离 evaluator 各自独立 git worktree（node_modules 符号链接 + .env 拷贝），解决了「变异证活必须改产品代码」与「并行验收」的结构冲突——共享工作树下并行变异必然互相污染。3 条 PARTIAL 全部走对抗复核，0 条被证伪，其中 2 条被复核员反向加强。值得沉淀的两条方法学：① 对抗复核员自曝未加引号的 zsh glob 令计数静默返回 0（照单全收会错误证伪），靠先做活性自测抓住——「判据先验活」这条纪律在复核端同样适用；② 三条 PARTIAL 中有两条是同一形态：**产品性质正确，但声称在守它的那道防线并不存在**（F008 的 :22「已由某钉守住」写下即为假；F004 的 gate.ts:364 有既有用例被登记为覆盖但实测零鉴别力）。这类缺陷全绿的仓库看不见，只能靠变异跑全量来暴露。",
+    "Reviewer": "复验一轮：首轮 4 条 PARTIAL 里 3 条已消（F003/F004 + F007 的收窄争议判不削弱），剩 F008/F001 由同一条发现驱动 —— **同一个缺陷族在「为消灭它而写的那句话」里复发**：注释声称守三条已被证伪的绝对句，黑名单实际只覆盖其中两条。对抗复核用「同一行位置换成黑名单串则当场红」的对照排除了「扫描器没看见」这一反向解释。本轮三个 evaluator 各自都因「判据先验活」救过一次场（emit 比对器方向反了 / 自己的探针污染普查计数 / 父目录短路），全部自查发现并如实报告 —— 这条纪律的价值本轮又被证了三次。",
     "Mark": "fix-1 三条修复的共同形态值得记：首轮 4 条 PARTIAL 里有 3 条是「产品对的，但声称在守它的防线不存在」。修法统一为「先定规矩 → 再给规矩配钉 → 钉配变异证活」，而不是把假话换成另一句话。两处自己撞到的：① 写 F008 那段注释时照抄了被证伪的原句去讲教训，新加的钉当场把我钉红——钉起作用的第一个实例，已把「引用历史原句请改述」写进注释；② 自核 `$transaction` 计数时用双引号写 `\"\\.\\$transaction(\"`，$ 被当行尾锚点**静默返回空**，差点据此写下错误结论，改单引号并先做判据活性自证才取数。另：F007 的 doc-freshness 钉扫整个 docs/，验收报告一落盘就自钉红，已收窄扫描面并登记代价。"
   },
   "lane": "fast",

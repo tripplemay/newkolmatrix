@@ -99,5 +99,16 @@
     ],
     "confirmed_at": "2026-08-09",
     "priority": "high"
+  },
+  {
+    "id": "BL-DB-STALE-COUNTS",
+    "title": "src/lib/db 叙述面的三处陈旧计数（M5.1c F002 射程外发现）",
+    "description": "M5.1c F002 清理覆盖面承诺句时逐文件读到的，**均已实测证实已漂**，但属「陈旧计数」而非「覆盖面承诺」，不在该 feature 的 acceptance 射程内，故当时未改：① `src/lib/db/tenant-entry.ts` 写「其余 30 个 route / 12 个 admin page / 3 条例程尚未包裹」——普查实物是 route 29 入口面 1 已覆盖 → 剩 28、page 6 入口面 1 已覆盖 → 剩 5（「3 条例程」是对的）。② `src/lib/db/app-role.ts` 写「既有 135 个测试文件行为不变」——实测 149 个 .test.ts(x)，vitest 报 148 files。③ `src/lib/db/prisma.ts:3` 写「src/ 下 73 个文件、206 处模型调用点」——**同一文件 :40 自己宣布**「原文『73 个 src 文件 / 206 处模型调用 / 15 处 $transaction』经首轮验收实测在批末已全部陈旧」并称已删除，而 :3 仍留着其中两个，一个文件内部自相矛盾。三处都违反库内已立的规矩「注释里的可变数字要么有钉守着，要么不写」（tenant-scope.ts 说明段，由 tests/unit/db-layer-importer-census.test.ts 的 🔒① 钉住其存在）。**修法建议先定口径再动手**：是逐处删数改成指向 `docs/specs/M5.1-uncovered-entrypoints.md`（已有普查 + doc-freshness 钉），还是给这些数各加钉——后者是 M5.1b 已被判定收益递减的那条路。",
+    "decisions": [
+      "2026-08-09 M5.1c F002 执行中发现并逐条实测；**刻意不顺手修**——F002 的 acceptance 射程是「覆盖面承诺句」，陈旧计数是另一族，静默扩大射程违反铁律 10（无 feature 号归属的改动 = 越界）。",
+      "证据与实测数字见 commit a2834fa 正文末段「射程外的三处发现」。"
+    ],
+    "confirmed_at": "2026-08-09",
+    "priority": "medium"
   }
 ]

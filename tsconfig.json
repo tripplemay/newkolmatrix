@@ -23,6 +23,7 @@
     // for net-new src/lib/** in later foundation work; don't rebuild vendor typing now.
     "strictNullChecks": false,
     "strictPropertyInitialization": false,
+    "ignoreDeprecations": "5.0",
     "downlevelIteration": true,
     "baseUrl": "src",
     "paths": {

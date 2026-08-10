@@ -6,7 +6,10 @@
 // 运行时 = nodejs（Prisma）。
 
 import { z } from 'zod';
+// M5.2-TENANT-COVERAGE F004 — 会话面入口的租户作用域包裹（口径见 api/actions/route.ts 头注）。
+// 【D-4 表态：不涉外呼】setCandidateVerdict 只写裁定 + 留痕，全是 DB，用默认事务时长。
 import { requireSessionTenantId } from 'lib/auth/session-tenant';
+import { withSessionTenant } from 'lib/db/tenant-entry';
 import { setCandidateVerdict } from 'lib/match/verdict';
 
 export const runtime = 'nodejs';
@@ -33,7 +36,9 @@ export async function POST(
       );
     }
 
-    const result = await setCandidateVerdict(tenantId, id, parsed.data.verdict);
+    const result = await withSessionTenant(() =>
+      setCandidateVerdict(tenantId, id, parsed.data.verdict),
+    );
     if (result.ok === false) {
       return Response.json({ error: '候选不存在' }, { status: 404 });
     }

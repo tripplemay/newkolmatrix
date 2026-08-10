@@ -136,10 +136,10 @@ push main → ci.yml 自动检查 + build-push.yml 自动推 app + tools 两镜�
 >    一个 RSC page / 一个例程 / 跨租户零行含 DB 层证据）。审计 B2-1 那句「切过去就没人能登录」
 >    已由引导白名单解开。
 >
->    **但覆盖面尚未收口。** 入口面实测 78 条、已包裹 21 条（M5.1b 的 3 条 `api/nav-badges` ·
->    `admin/knowledge` · 例程 `health-scan`，加 M5.2 F001–F003 已接线的 18 条）。逐条清单与差集
+>    **但覆盖面尚未收口。** 入口面实测 78 条、已包裹 32 条（M5.1b 的 3 条 `api/nav-badges` ·
+>    `admin/knowledge` · 例程 `health-scan`，加 M5.2 F001–F004 已接线的 29 条）。逐条清单与差集
 >    由普查产出，落盘在 `docs/specs/M5.1-uncovered-entrypoints.md`（重跑：`npm run census:entrypoints`）。
->    **现在在生产打开开关 = 那 57 条入口全部当场抛 `MissingTenantScopeError`**——是 fail-closed
+>    **现在在生产打开开关 = 那 46 条入口全部当场抛 `MissingTenantScopeError`**——是 fail-closed
 >    的报错，不是静默零行（这一点比 M5.1 之前好，但对用户仍是全站 500）。**M5.2 收口中，未完成前
 >    生产开关一律不动。**
 >

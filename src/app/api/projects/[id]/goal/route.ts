@@ -6,7 +6,10 @@
 // zod 校验逐字段 400 明示（targetExposure 非负整数 / ISO 日期 / periodStart<periodEnd）——
 // 「参数错误」这种一句话回执让人无从改起，逐条列出才有用。
 
+// M5.2-TENANT-COVERAGE F004 — 会话面入口的租户作用域包裹（口径见 api/actions/route.ts 头注）。
+// 【D-4 表态：不涉外呼】setProjectGoal 只写目标字段 + 留痕，全是 DB，用默认事务时长。
 import { requireSessionTenantId } from 'lib/auth/session-tenant';
+import { withSessionTenant } from 'lib/db/tenant-entry';
 import { setProjectGoal, setProjectGoalInputSchema } from 'lib/projects/set-goal';
 
 export const runtime = 'nodejs';
@@ -34,9 +37,11 @@ export async function PATCH(
       );
     }
     const tenantId = await requireSessionTenantId();
-    const r = await setProjectGoal(tenantId, id, parsed.data, {
-      actor: 'operator', // UI 入口 = 人直接操作
-    });
+    const r = await withSessionTenant(() =>
+      setProjectGoal(tenantId, id, parsed.data, {
+        actor: 'operator', // UI 入口 = 人直接操作
+      }),
+    );
     if (r.ok === false) {
       return Response.json(
         { code: r.code, error: '项目不存在' },

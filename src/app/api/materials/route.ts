@@ -9,7 +9,16 @@
 // 运行时 = nodejs（Prisma + 磁盘 IO）。
 
 import { prisma } from 'lib/db/prisma';
+// M5.2-TENANT-COVERAGE F004 — 会话面入口的租户作用域包裹（口径见 api/actions/route.ts 头注）。
+//
+// 【D-4 表态：POST **分两段包**，刻意不把落盘放进事务】上传路径是「查游戏 → 落盘 →
+// 落库（失败则删文件补偿）」。若整段包成一个事务，一次磁盘写就会被算进事务持有时间，
+// 大文件上传直接把连接占住。而分两段**恰好等于今天的行为**：查游戏与建行本来就是两条
+// 各自自动提交的语句（本批之前根本没有事务包着它们），所以这不是为省事而放宽，
+// 是保持语义不变。补偿逻辑（removeMaterialFile）动的是磁盘不是库，不受事务回滚影响。
+// 【D-4 表态：GET 不涉外呼】只读素材列表，默认事务时长。
 import { requireSessionTenantId } from 'lib/auth/session-tenant';
+import { withSessionTenant } from 'lib/db/tenant-entry';
 import { materialTypeSchema } from 'lib/data/schemas/knowledge';
 import { rateLimitUpload } from 'lib/knowledge/rate-limit';
 import { saveMaterialFile, removeMaterialFile } from 'lib/knowledge/storage';
@@ -57,10 +66,12 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     // gameId 必须真实存在且属当前租户（同时天然挡掉路径穿越形状的 gameId——查不到即 404）
-    const game = await prisma.game.findFirst({
-      where: { id: gameId, tenantId },
-      select: { id: true },
-    });
+    const game = await withSessionTenant(() =>
+      prisma.game.findFirst({
+        where: { id: gameId, tenantId },
+        select: { id: true },
+      }),
+    );
     if (!game) {
       return Response.json({ error: '游戏不存在' }, { status: 404 });
     }
@@ -75,22 +86,24 @@ export async function POST(req: Request): Promise<Response> {
     // 先落盘后落库；落库失败回滚删文件（不留孤儿文件）
     const saved = await saveMaterialFile(game.id, file.name, bytes);
     try {
-      const material = await prisma.material.create({
-        data: {
-          id: saved.id, // 行 id = 文件名 cuid 前缀，行与文件同源可溯
-          tenantId,
-          gameId: game.id,
-          type: typeParsed.data,
-          source: '你上传',
-          fileName: file.name,
-          storageRef: saved.storageRef,
-          mimeType: check.mimeType,
-          sizeBytes: bytes.length,
-          // P6：视频族仅存元数据，落库即 failed + parseError 明示（可重试语义）
-          parseStatus: check.parseable ? 'pending' : 'failed',
-          parseError: check.parseable ? null : METADATA_ONLY_PARSE_ERROR,
-        },
-      });
+      const material = await withSessionTenant(() =>
+        prisma.material.create({
+          data: {
+            id: saved.id, // 行 id = 文件名 cuid 前缀，行与文件同源可溯
+            tenantId,
+            gameId: game.id,
+            type: typeParsed.data,
+            source: '你上传',
+            fileName: file.name,
+            storageRef: saved.storageRef,
+            mimeType: check.mimeType,
+            sizeBytes: bytes.length,
+            // P6：视频族仅存元数据，落库即 failed + parseError 明示（可重试语义）
+            parseStatus: check.parseable ? 'pending' : 'failed',
+            parseError: check.parseable ? null : METADATA_ONLY_PARSE_ERROR,
+          },
+        }),
+      );
       return Response.json(
         { material: toMaterialDto(material) },
         { status: 201 },
@@ -112,10 +125,12 @@ export async function GET(req: Request): Promise<Response> {
     if (!gameId) {
       return Response.json({ error: '缺少 gameId 查询参数' }, { status: 400 });
     }
-    const materials = await prisma.material.findMany({
-      where: { tenantId, gameId },
-      orderBy: { createdAt: 'asc' },
-    });
+    const materials = await withSessionTenant(() =>
+      prisma.material.findMany({
+        where: { tenantId, gameId },
+        orderBy: { createdAt: 'asc' },
+      }),
+    );
     return Response.json({ materials: materials.map(toMaterialDto) });
   } catch (error) {
     console.error('[api/materials] GET 失败:', error);

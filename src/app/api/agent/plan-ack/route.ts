@@ -6,7 +6,12 @@
 // 运行时 = nodejs（Prisma）。
 
 import { z } from 'zod';
+// M5.2-TENANT-COVERAGE F004 — 会话面入口的租户作用域包裹（口径见 api/actions/route.ts 头注）。
+// 【D-4 表态：不涉外呼】acknowledgePlan 只写「计划已认可」留痕。**与 F001 的 execute 路径不冲突**（acceptance ③）：
+// 认可只留痕、**不解锁执行权**（M4.5 行动计划卡语义），本路由不碰 PendingAction、
+// 不调 gate 的任何函数，因此不存在「从作用域内调 executePendingAction」那种嵌套，全是 DB，用默认事务时长。
 import { requireSessionTenantId } from 'lib/auth/session-tenant';
+import { withSessionTenant } from 'lib/db/tenant-entry';
 import { agentRateLimitGuard } from 'lib/agent/http';
 import { acknowledgePlan, PLAN_NOT_FOUND_MSG } from 'lib/agent/plan-ack';
 
@@ -30,7 +35,9 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
     const tenantId = await requireSessionTenantId();
-    const result = await acknowledgePlan(parsed.data.planId, { tenantId });
+    const result = await withSessionTenant(() =>
+      acknowledgePlan(parsed.data.planId, { tenantId }),
+    );
     return Response.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : '认可失败，请重试';

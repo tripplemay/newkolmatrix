@@ -6,11 +6,20 @@
 // 运行时 = nodejs（Prisma + 磁盘 + 网关调用）。
 
 import { prisma } from 'lib/db/prisma';
+// M5.2-TENANT-COVERAGE F004 — 会话面入口的租户作用域包裹（口径见 api/actions/route.ts 头注）。
+//
+// 【D-4 表态：外呼**在事务内**，timeout 从网关 abort 上限派生】parseMaterial 会调网关
+// （素材解析 / 向量化），与它前后的素材读写在同一段。派生理由同 api/reach/refine。
 import { requireSessionTenantId } from 'lib/auth/session-tenant';
+import { AIGC_TIMEOUT_MS } from 'lib/ai/gateway';
+import { withSessionTenant } from 'lib/db/tenant-entry';
 import { parseMaterial } from 'lib/knowledge/parse';
 import { toMaterialDto } from 'lib/knowledge/dto';
 
 export const runtime = 'nodejs';
+
+/** 事务须长于网关 abort 上限（D-4 表态，见文件头）。 */
+const PARSE_TX_TIMEOUT_MS = AIGC_TIMEOUT_MS + 20_000;
 export const maxDuration = 60; // 同步解析：文本/图片单素材网关往返预算内（ADR-19）
 
 export async function POST(
@@ -22,15 +31,21 @@ export async function POST(
     const tenantId = await requireSessionTenantId();
 
     // 素材必须存在且属当前租户（不信任路径参数）
-    const material = await prisma.material.findFirst({
-      where: { id, tenantId },
-      select: { id: true },
-    });
-    if (!material) {
+    const outcome = await withSessionTenant(
+      async () => {
+        const material = await prisma.material.findFirst({
+          where: { id, tenantId },
+          select: { id: true },
+        });
+        if (!material) return null;
+        return parseMaterial(id);
+      },
+      { timeout: PARSE_TX_TIMEOUT_MS },
+    );
+    if (!outcome) {
       return Response.json({ error: '素材不存在' }, { status: 404 });
     }
-
-    const result = await parseMaterial(id);
+    const result = outcome;
     if (result.ok === false) {
       if (result.code === 'ALREADY_PARSING') {
         return Response.json(

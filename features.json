@@ -33,7 +33,7 @@
       "title": "其余 10 条 route（match / projects / materials / agent / handoffs / signals）",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "剩余长尾。其中 `signals/inbound` 是**无会话面 webhook**——它没有登录会话，须显式解析出 tenantId 再 withTenant，接法与其余 9 条不同，别套会话面模板。",
       "acceptance": "① 10 条包上：`match/candidates/[id]/verdict` · `match/plans/[id]/approve` · `match/refresh` · `projects/[id]/goal` · `projects/route` · `materials/[id]/parse` · `materials/route` · `agent/plan-ack` · `handoffs/route` · `signals/inbound`。② **`signals/inbound` 单独表态**：webhook 无会话，tenantId 从哪来、解析不出时怎么办（须 fail-closed，不得回落到任意租户）。配一条「解析不出 tenantId」的用例。③ `agent/plan-ack` 与 agent 主路由同域，须确认不与 F001 的 execute 路径处置冲突。④ `npm run agentloop:e2e` 在开关开着的条件下仍绿（循环内跨人格接力、批量 pending 逐项确认语义零回退）。这要求 **`scripts/test/agentloop-e2e.ts` 一并接线（裁决 2-A）**，该脚本含 confirm/execute 调用，按 D-3 裁决口径 2 逐段包、不得整包 `main()`。**开关开着验（spec D-5）**：`DB_APP_ROLE_RUNTIME=1` 且真连 `kol_app` 非特权角色下逐入口跑通。开关未开时代理回落特权连接，漏包一个入口数据照常返回、测试照常绿、**零信号**——不开关等于没验。 **接法照抄样板实物**（spec D-1）：会话面读 `src/app/api/nav-badges/route.ts`，无会话面读 `src/lib/jobs/scheduler.ts` 的 health-scan，按其形态翻译。 **不得引入新的 `privilegedDb` 使用点**（spec §4.2）——包不上就如实登记，别开后门。 tsc/lint + 全量 vitest 绿；`docs/specs/M5.1-uncovered-entrypoints.md` 随本条重跑（`npm run census:entrypoints -- --write`），已覆盖数须增加对应条数。"
     },

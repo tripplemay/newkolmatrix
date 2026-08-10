@@ -4,7 +4,10 @@
 // 弹窗——路由是 approve-plan 服务的薄封装，批准语义（单选事务 + S10 推进）全在服务层。
 // 运行时 = nodejs（Prisma）。
 
+// M5.2-TENANT-COVERAGE F004 — 会话面入口的租户作用域包裹（口径见 api/actions/route.ts 头注）。
+// 【D-4 表态：不涉外呼】approvePlan 只改方案状态 + 留痕，全是 DB，用默认事务时长。
 import { requireSessionTenantId } from 'lib/auth/session-tenant';
+import { withSessionTenant } from 'lib/db/tenant-entry';
 import { approvePlan } from 'lib/match/approve-plan';
 
 export const runtime = 'nodejs';
@@ -17,7 +20,7 @@ export async function POST(
     const { id } = await params;
     const tenantId = await requireSessionTenantId();
 
-    const result = await approvePlan(id, { tenantId });
+    const result = await withSessionTenant(() => approvePlan(id, { tenantId }));
 
     if (result.ok === false) {
       if (result.code === 'NOT_FOUND') {

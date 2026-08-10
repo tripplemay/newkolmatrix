@@ -18,6 +18,9 @@ import {
   systemContext,
 } from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
+import { withTenant } from '../../src/lib/db/tenant-scope';
+// 收尾断开连接要拿**运行时 client 本体**：`prisma` 是 ALS 感知代理，无作用域时属性访问即 fail-closed。
+import { getRuntimeDb } from '../../src/lib/db/runtime';
 import { getNativeToolNames } from '../../src/lib/agent/tools';
 import { getPersona } from '../../src/lib/agent/registry';
 import {
@@ -47,6 +50,29 @@ function assert(cond: boolean, msg: string): void {
   console.log(`  ✓ ${msg}`);
 }
 
+
+// ── M5.2-TENANT-COVERAGE F004（裁决 2-A + D-3 裁决口径 2）— 租户作用域接线 ────────────
+//
+// 本脚本挂在 `npm run agentloop:e2e` 上，是活的验收资产，故随本批接线。
+// 纪律同 gate-smoke / reach-e2e：**夹具 / 断言查询 / runScriptedLoop（loop 内跑真 executeTool）/
+// acknowledgePlan / aggregatePending 逐条包进 q()**；而 confirmPendingAction 与
+// executePendingAction **一律裸调**——它们按 spec D-3 裁决自带作用域。
+//
+// 【尤其注意 confirmAndExecuteSequentially 不能包】它内部经 gatePost 调 confirm/execute，
+// 一旦落在作用域里，execute 那段带 { timeout: 90_000 } 的事务会变成嵌套 → 当场抛
+// NestedTransactionOptionsError。批量确认的「逐项走两步票据」语义正是要在无外层事务下跑。
+//
+// 【D-4 表态：本脚本零外呼】模型是 mock、测试床全程装 fetch 哨兵（任何出网即失败），
+// outbound 只有 create_share_link 且恒走 mock 通道。故全部用默认事务时长。
+let scopeTenantId = '';
+
+/** 逐段租户作用域。同租户嵌套复用外层事务，故重复包裹无副作用。 */
+function q<T>(fn: () => Promise<T>): Promise<T> {
+  if (!scopeTenantId) {
+    throw new Error('[agentloop-e2e] q() 在租户解析出来之前被调用（接线顺序错了）');
+  }
+  return withTenant(scopeTenantId, fn);
+}
 
 /** 逐项闸门传输（与两个 route handler 同一服务层实现；无批量端点可用，也不该有）。 */
 function gatePost(ctx: ToolContext): BatchPost {
@@ -102,38 +128,39 @@ async function main(): Promise<void> {
   );
 
   const ctx = await systemContext(DEV_TENANT_SLUG, { agentId: 'orchestrator' });
+  scopeTenantId = ctx.tenantId; // q() 从此可用
   assertSessionTenant(session, ctx.tenantId);
   const tenantId = ctx.tenantId;
 
-  const fxProject = await prisma.project.create({
+  const fxProject = await q(() => prisma.project.create({
     data: { tenantId, name: `m45-agentloop-e2e-${process.pid}` },
-  });
+  }));
   const orchestratorCtx: ToolContext = { ...ctx, projectId: fxProject.id };
   const insightCtx: ToolContext = { ...orchestratorCtx, agentId: 'insight' };
 
   const createdPA: string[] = [];
   const createdLogs: string[] = [];
-  const projectsBefore = await prisma.project.count({ where: { tenantId } });
-  const shareBefore = await prisma.shareLink.count({ where: { tenantId } });
+  const projectsBefore = await q(() => prisma.project.count({ where: { tenantId } }));
+  const shareBefore = await q(() => prisma.shareLink.count({ where: { tenantId } }));
   // 跑前 ShareLink id 基线 —— 清理段按「差集」删，不依赖 gateLogId / projectId。
   // 【为什么不能只靠那两把键】本批 e2e 备的是 `scope='quarterly'` 分享，projectId 恒 null；
   // 而闸门红线一旦回归（outbound 直连执行），链接也不带 gateLogId —— 两把键同时落空，
   // 恰好在最该清干净的失败路径上漏掉真实产物。差集是唯一不受被测代码行为影响的键。
   const shareIdsBefore = (
-    await prisma.shareLink.findMany({
+    await q(() => prisma.shareLink.findMany({
       where: { tenantId },
       select: { id: true },
-    })
+    }))
   ).map((r) => r.id);
   const runStartedAt = new Date();
-  const markerBefore = await prisma.operationLog.count({
+  const markerBefore = await q(() => prisma.operationLog.count({
     where: { tenantId, summary: { contains: SHARE_CREATED_MARKER } },
-  });
+  }));
 
   try {
     /* ── ① 编排会话：计划 → 接力 → 追问 ─────────────────────────── */
     console.log('[1/3] 编排会话：propose_plan → handoff_to → 组合追问');
-    const run1 = await runScriptedLoop({
+    const run1 = await q(() => runScriptedLoop({
       copilot: {
         route: '/admin',
         projectId: fxProject.id,
@@ -189,7 +216,7 @@ async function main(): Promise<void> {
           text: '组合看完了：本期分子无回传源，ROI 算不出来，已如实标注，等你确认后续动作。',
         },
       ],
-    });
+    }));
 
     assert(run1.networkCalls.length === 0, '编排会话零外呼');
     assert(
@@ -205,9 +232,9 @@ async function main(): Promise<void> {
       items: Array<{ gateUnderreported: boolean }>;
     };
     createdLogs.push(planOut.planId);
-    const planRow = await prisma.operationLog.findUnique({
+    const planRow = await q(() => prisma.operationLog.findUnique({
       where: { id: planOut.planId },
-    });
+    }));
     assert(
       planRow?.summary?.startsWith(PLAN_PROPOSED_MARKER) === true,
       '计划留痕落 OperationLog(kind=auto)',
@@ -219,14 +246,14 @@ async function main(): Promise<void> {
     );
 
     // 认可计划 → 只留痕，不解锁执行权（下面 ② 仍然只拿到 pending）
-    const ack = await acknowledgePlan(planOut.planId, { tenantId });
+    const ack = await q(() => acknowledgePlan(planOut.planId, { tenantId }));
     createdLogs.push(ack.logId);
     assert(ack.alreadyAcknowledged === false, '计划认可落一行留痕');
 
-    const handoffRow = await prisma.handoff.findFirst({
+    const handoffRow = await q(() => prisma.handoff.findFirst({
       where: { tenantId, projectId: fxProject.id },
       orderBy: { createdAt: 'desc' },
-    });
+    }));
     assert(
       handoffRow?.fromAgent === 'orchestrator' &&
         handoffRow?.toAgent === 'insight',
@@ -258,7 +285,7 @@ async function main(): Promise<void> {
       '🔒 接力后调编排独占工具被拒，且拒因确实是"该工具不可用"（越权负向断言）',
     );
     assert(
-      (await prisma.project.count({ where: { tenantId } })) === projectsBefore,
+      (await q(() => prisma.project.count({ where: { tenantId } }))) === projectsBefore,
       '越权建项目未发生（项目数与会话前一致）',
     );
 
@@ -290,7 +317,7 @@ async function main(): Promise<void> {
         { toolName: 'create_share_link', input: { scope: 'quarterly' } },
       ],
     };
-    const run2 = await runScriptedLoop({
+    const run2 = await q(() => runScriptedLoop({
       copilot: {
         route: '/admin/insight',
         projectId: fxProject.id,
@@ -300,7 +327,7 @@ async function main(): Promise<void> {
       ctx: insightCtx,
       prompt: '把季度汇总备两份对外分享',
       script: [shareCall, shareCall, { text: '两份都备好了，等你确认。' }],
-    });
+    }));
     assert(run2.networkCalls.length === 0, '洞察会话零外呼');
 
     const rawPendingIds = run2.toolOutputs.map(
@@ -320,11 +347,11 @@ async function main(): Promise<void> {
       '2 件都落 pending',
     );
     assert(
-      (await prisma.shareLink.count({ where: { tenantId } })) === shareBefore,
+      (await q(() => prisma.shareLink.count({ where: { tenantId } }))) === shareBefore,
       '🔒 计划已被认可，但 outbound 仍停在 pending——副作用零发生',
     );
 
-    const batchItems = toPendingBatchItems(await aggregatePending(insightCtx));
+    const batchItems = toPendingBatchItems(await q(() => aggregatePending(insightCtx)));
     const mine = batchItems.filter((i) => pendingIds.includes(i.id));
     assert(mine.length === 2, '聚合确认面列出这 2 件');
     assert(
@@ -342,31 +369,31 @@ async function main(): Promise<void> {
     );
     assert(batch.succeeded === 2 && batch.failed === 0, '2 件逐项确认全部成功');
     assert(
-      (await prisma.shareLink.count({ where: { tenantId } })) ===
+      (await q(() => prisma.shareLink.count({ where: { tenantId } }))) ===
         shareBefore + 2,
       '副作用逐个发生（恰好 2 次，不多不少）',
     );
     assert(
-      (await prisma.operationLog.count({
+      (await q(() => prisma.operationLog.count({
         where: { tenantId, summary: { contains: SHARE_CREATED_MARKER } },
-      })) ===
+      }))) ===
         markerBefore + 2,
       'mock 分享通道留痕 ×2（零真实公开暴露）',
     );
     assert(
-      (await prisma.operationLog.count({
+      (await q(() => prisma.operationLog.count({
         where: { tenantId, kind: 'irrev', ref: { in: pendingIds } },
-      })) === 2,
+      }))) === 2,
       'irrev 不可逆留痕齐',
     );
 
-    const telemetryRows = await prisma.operationLog.count({
+    const telemetryRows = await q(() => prisma.operationLog.count({
       where: {
         tenantId,
         kind: 'auto',
         summary: { startsWith: LOOP_TELEMETRY_MARKER },
       },
-    });
+    }));
     assert(telemetryRows >= 2, '两次会话各落一行 loop 遥测');
 
     console.log('[agentloop-e2e] ✅ 全部断言通过（零外呼 · 零真实对外副作用）');
@@ -374,39 +401,39 @@ async function main(): Promise<void> {
     // 夹具清理（只删本脚本产物）。每步各自 try/catch —— 清理段自身绝不可再抛，
     // 否则会掩盖主流程首因并跳过后续清理（见 cleanupStep 头注）。
     await cleanupStep('shareLink(本次跑出来的：id 基线差集)', () =>
-      prisma.shareLink.deleteMany({
+      q(() => prisma.shareLink.deleteMany({
         where: {
           tenantId,
           id: { notIn: shareIdsBefore },
           createdAt: { gte: runStartedAt },
         },
-      }),
+      })),
     );
     await cleanupStep('operationLog(ref ∈ createdPA)', () =>
-      prisma.operationLog.deleteMany({
+      q(() => prisma.operationLog.deleteMany({
         where: { tenantId, ref: { in: createdPA } },
-      }),
+      })),
     );
     await cleanupStep('operationLog(id ∈ createdLogs)', () =>
-      prisma.operationLog.deleteMany({
+      q(() => prisma.operationLog.deleteMany({
         where: { tenantId, id: { in: createdLogs } },
-      }),
+      })),
     );
     await cleanupStep('operationLog(projectId = 夹具项目)', () =>
-      prisma.operationLog.deleteMany({
+      q(() => prisma.operationLog.deleteMany({
         where: { tenantId, projectId: fxProject.id },
-      }),
+      })),
     );
     await cleanupStep('pendingAction(id ∈ createdPA)', () =>
-      prisma.pendingAction.deleteMany({ where: { id: { in: createdPA } } }),
+      q(() => prisma.pendingAction.deleteMany({ where: { id: { in: createdPA } } })),
     );
     await cleanupStep('handoff(projectId = 夹具项目)', () =>
-      prisma.handoff.deleteMany({
+      q(() => prisma.handoff.deleteMany({
         where: { tenantId, projectId: fxProject.id },
-      }),
+      })),
     );
     await cleanupStep('project(夹具项目)', () =>
-      prisma.project.deleteMany({ where: { id: fxProject.id } }),
+      q(() => prisma.project.deleteMany({ where: { id: fxProject.id } })),
     );
 
     // 【显式决定：留不删】mock 分享通道的 SHARE_CREATED 标记行 ref=null / projectId=null，
@@ -417,9 +444,9 @@ async function main(): Promise<void> {
     // 让它从「静默泄漏」变成「有账可查的显式残留」。
     // 来源：M4.5 首轮验收 F010 缺陷 ②（对抗复核 DOWNGRADED：不要求改代码，需明文兜底）。
     await cleanupStep('SHARE_CREATED 留痕计账（不删，只报账）', async () => {
-      const markerAfter = await prisma.operationLog.count({
+      const markerAfter = await q(() => prisma.operationLog.count({
         where: { tenantId, summary: { contains: SHARE_CREATED_MARKER } },
-      });
+      }));
       console.log(
         `[清理] 按 append-only 口径**保留**（不删）SHARE_CREATED 标记留痕 ${
           markerAfter - markerBefore
@@ -431,7 +458,7 @@ async function main(): Promise<void> {
 
 main()
   .then(async () => {
-    await prisma.$disconnect();
+    await getRuntimeDb().$disconnect();
     process.exit(0);
   })
   .catch(async (err) => {
@@ -439,6 +466,6 @@ main()
       '[agentloop-e2e] ❌',
       err instanceof Error ? err.message : err,
     );
-    await prisma.$disconnect();
+    await getRuntimeDb().$disconnect();
     process.exit(1);
   });

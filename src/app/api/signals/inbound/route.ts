@@ -9,6 +9,7 @@
 
 import { Webhook, type WebhookRequiredHeaders } from 'svix';
 import { DEV_TENANT_SLUG, systemTenantId } from 'lib/agent/context';
+import { withTenant } from 'lib/db/tenant-scope';
 import {
   checkRateLimit,
   clientIpOf,
@@ -113,8 +114,22 @@ export async function POST(req: Request): Promise<Response> {
     // 故走**显式**系统租户路径而不是会话。**已知限制**：回传源当前只对应 dev 租户——
     // 真 partner / 真回传源的多租户路由属 M5 伞下另批（spec §3 明列不做）。
     // 显式写出来是刻意的：读这一行就知道信号落到哪个租户，而不是藏在一个函数名里。
+    // M5.2-TENANT-COVERAGE F004（acceptance ②）— **无会话面**入口，接法与其余 9 条不同：
+    // 没有登录会话可解，所以不是 withSessionTenant，而是先显式解析出 tenantId 再 withTenant
+    //（样板 = src/lib/jobs/scheduler.ts 的 health-scan）。
+    //
+    // 【tenantId 从哪来】下面那行的 systemTenantId：slug → 租户 id，走引导面 privilegedDb
+    //（租户是它的产物，此刻还没有租户变量可设，见 lib/agent/context 的 tenantIdBySlug）。
+    //
+    // 【解析不出时怎么办：fail-closed，绝不回落到任意租户】tenantIdBySlug 查不到即**抛错**，
+    // 由下面的 catch 兜成 500 apply_failed —— 信号不落库、Resend 按 at-least-once 重投。
+    // 这里刻意没有「找不到就用第一个租户 / 默认租户」之类的兜底：那等于把外部回传写进
+    // 一个碰巧存在的租户名下，且不报错、不留痕、事后无从发现（同 spec D-3 对会话面回落的判定）。
+    // 判据：tests/integration/m52-f004-signals-tenant.test.ts。
     const tenantId = await systemTenantId(DEV_TENANT_SLUG);
-    const result = await ingestDeliverySignal(normalized.signal, { tenantId });
+    const result = await withTenant(tenantId, () =>
+      ingestDeliverySignal(normalized.signal, { tenantId }),
+    );
     return Response.json({ ok: true, ...result });
   } catch (err) {
     console.error('[signals/inbound] 应用失败:', err);

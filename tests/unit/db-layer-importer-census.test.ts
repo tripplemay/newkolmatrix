@@ -248,7 +248,15 @@ describe('db 层 importer 清单机械钉（F008 立，M5.1c F001 换 AST 判据
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // 遍历面逐分支证活。**每条各自摘掉对应 visitor 分支即红，且只红它**——
+  // 遍历面逐分支证活。摘掉某个 visitor 分支，**对应那条必红**；红的通常不止它一条，
+  // 因为被守模块的实测清单也依赖同一个分支。实测（`node tests/tools/m51c-f001-mutations.mjs`）：
+  //   摘 ImportDeclaration → 红 6 · 摘 ExportDeclaration → 红 2 · 摘 ImportEquals → 红 1
+  //   摘动态 import() → 红 4 · 摘 require() → 红 1
+  // 关键是**每条遍历面用例都有一个只针对它的分支**，而不是「只红它一条」。
+  //
+  // > **fix-1 更正：** 上一版这里写「每条各自摘掉对应 visitor 分支即红，**且只红它**」——
+  // > 后半句字面为假，同一批 commit 正文自己记的 M1→红 6 就与之矛盾（首轮验收 N-1 点名）。
+  //
   // 这是「变异要看红了几条」（audit-methodology.md §7.1 推论一）的直接落实：
   // 若一条用例只能与全文件一起红，它就没有独立鉴别力，不该冒充守卫。
   // ══════════════════════════════════════════════════════════════════
@@ -334,7 +342,11 @@ describe('db 层 importer 清单机械钉（F008 立，M5.1c F001 换 AST 判据
     expect(importSpecifiers(tsxSource, 'b.tsx')).toEqual(['./after-tsx']);
   });
 
-  it('🔒 字面出现不算 import：注释 / 字符串 / 同名标识符', () => {
+  // 【本条守的是「不得多抓」，不是「不得漏抓」—— 与上面五条方向相反，如实标明】
+  // 摘掉任何一个 visitor 分支都不会让它红（那些是漏抓方向）；能让它红的是**放宽取值**这一族变异，
+  // 例如「把任意字符串字面量都当成 specifier」。首轮验收 N-2 指出它带 `🔒` 前缀却未在
+  // 「逐条重验」账目里出现，故此处补上它的变异类别与实测（见 fix-1 的 M12）。
+  it('🔒 字面出现不算 import：注释 / 字符串 / 同名标识符（守多抓方向）', () => {
     // ① 注释里提到路径（runtime.ts:3 的分工表就是这形态）
     expect(
       importSpecifiers(`//   privilegedDb（lib/db/privileged.ts）  恒 DATABASE_URL`),
@@ -369,11 +381,28 @@ describe('db 层 importer 清单机械钉（F008 立，M5.1c F001 换 AST 判据
   // 📜 正则时代的漏抓/误捕语料
   //
   // 【这一条不是守卫，是语料 —— 如实说明，免得它冒充鉴别力】
-  // 下面每种形态在正则版上都实测红过（来源逐条标注），换 AST 后**按构造不可能复发**：
-  // 它们全都是「文本层看不出语句边界」造成的，而语法树里语句边界是节点边界。
-  // 因此本条**没有独立的变异**：唯一能让它红的改动（摘掉 visitor 分支）会同时红掉
-  // 上面五条遍历面用例。保留它的理由只有一个 —— 记住这些形态曾经真的漏过，
-  // 谁若哪天想把判据改回文本匹配，这里是现成的反例清单。
+  // 它记录的是：这些形态曾经真的漏过。谁若哪天想把判据改回文本匹配，这里是现成的反例清单。
+  // 本条**没有独立的变异**：能让它红的改动（摘掉 visitor 分支）会同时红掉上面五条遍历面用例。
+  //
+  // 【每种形态在换代前红几代 —— 实测，不是概述】
+  // 换代前的实现按文本哈希去重共 **5 代**（6a120a7 原版 / fadc1f4 组 / 1ea4abb fix-3 /
+  // 2bc02aa 补 require / c251fe9 fix-4＝立项 HEAD）。重跑：`node tests/tools/m51c-f001-probe-bench.mjs`
+  //（该台先做正负活性自测；下面这些数是对**固定 commit** 的测量，不随代码演进而漂）。
+  //   (a) 侧效应吞噬                       2/5（原版与 fadc1f4 组；fix-3 起已修）
+  //   (b) 后文字符串 from 触发吞噬          2/5（同上）
+  //   (c) 行尾注释含引号/反引号/分号  各 2/5（fix-3 与 2bc02aa 上整条漏抓，fix-4 撤回后已修）
+  //   (d) ES2022 带引号绑定名        各 2/5（同 (c)）
+  //   (e) U1 多行 import 行尾注释含 from    5/5
+  //   (f) U2 散文在行尾注释 5/5 · 散文是模板串 3/5
+  //   (g) 幻影块注释                       1/5（仅原版）
+  //
+  // > **fix-1 更正（M5.1c 首轮验收 + 对抗复核逐条证伪）：** 上一版这里写「下面每种形态在正则版上
+  // > 都实测红过（来源逐条标注）」——**该句为假**。当时新补的 (e)(f)(g) 三条探针在**全部 5 个
+  // > 换代前世代上都是绿的**：(e) 钉成了单行 import（真形态是多行）、(f) 把散文放进整行 `//` 注释
+  // > （会被 stripComments 先滤掉）、(g) 漏抄了 M5.1b 原用例的第三行 `/** 正常块注释 */`
+  // > （那正是**闭合**幻影块注释的那一行）。三条新增、三条零鉴别力，而注释声称它们红过。
+  // > 根因不是眼力，是**顺序**：先写断言与说明，再（没有）去量。fix-1 起改为
+  // > 「先在 `m51c-f001-probe-bench.mjs` 上量出红格，再有资格写那句话」，上面的逐条数即其输出。
   //
   // M5.1c F001 按 spec D-3 逐条重验了 M5.1b 留下的 7 条正则期回归用例：
   //   · 3 条在 AST 下仍有独立鉴别力 → 已改写并上移（反引号动态 import → 「字面量形态」；
@@ -381,7 +410,7 @@ describe('db 层 importer 清单机械钉（F008 立，M5.1c F001 换 AST 判据
   //   · 4 条在 AST 下无独立变异（侧效应吞噬 / 后文字符串 from / 行尾注释含引号 / ES2022 绑定名）
   //     → 并入本条语料，不再单列为 🔒
   // ══════════════════════════════════════════════════════════════════
-  it('📜 语料：正则时代六种漏抓/误捕形态在 AST 下的实际表现（无独立鉴别力，见上方注释）', () => {
+  it('📜 语料：正则时代七种漏抓/误捕形态 (a)–(g) 在 AST 下的实际表现（无独立鉴别力，见上方注释）', () => {
     // (a) 侧效应 import 被后续 from-import 吞掉（原始版；`(?:...)?` 是贪婪可选）
     expect(importSpecifiers("import './runtime';\nimport { z } from 'zod';")).toEqual([
       './runtime',
@@ -400,21 +429,41 @@ describe('db 层 importer 清单机械钉（F008 立，M5.1c F001 换 AST 判据
       './es2022',
     ]);
     expect(importSpecifiers('export { x as "a-b" } from "./es2022x";')).toEqual(['./es2022x']);
-    // (e) U1：行尾注释里写着旧路径 —— 正则版既误捕注释里的 './old'，又漏掉真的 './new'
-    expect(importSpecifiers("import { a } from './new'; // 旧版 from './old'")).toEqual([
+    // (e) U1：**多行** import 的行尾注释里写着旧路径 —— 5/5 代既误捕 './old' 又漏掉真的 './new'。
+    //     【fix-1 换过输入】上一版钉的是**单行** import（`import { a } from './new'; // … './old'`），
+    //     实测 5 代全绿：单行时 ` from './new'` 先于注释出现，正则回溯后照样抓对。
+    //     形态是真的，但那个实例不复现它。
+    expect(importSpecifiers("import {\n  a, // 旧版 from './old'\n} from './new';")).toEqual([
       './new',
     ]);
-    // (f) U2：无分号的 export 语句 + 后文散文含 ` from '…'` —— fix-4 版会**凭空捏造** importer。
-    //     这是本批立项的头号理由（BL-M51B-CARRYOVER 第 ② 组，当时靠 Prettier 强制分号才不可达）。
-    const u2 = "export const a = 1\n// 说明：本模块的数据 from 'lib/db/privileged' 而来";
-    expect(importSpecifiers(u2), 'U2 复发：凭空捏造了一个 importer').toEqual([]);
-    // (g) 幻影块注释：行注释里的 `/*`（路由通配）曾让整个文件的 import 被吞
-    //     （F003 实测于 src/app/api/auth/[...nextauth]/route.ts:1 的 `/api/auth/*`）
+    // (f) U2：无分号 export + 后文散文含 ` from '…'` → **凭空捏造** importer。
+    //     这是本批立项的头号理由（BL-M51B-CARRYOVER 第 ② 组）。两个实例的红面不同，都留着：
+    //       · 散文在**行尾**注释里 → 5/5 代红（含 fix-4 ＝ 立项 HEAD）
+    //       · 散文是**普通代码**（模板串）→ 3/5 代红（fix-3 与 2bc02aa 绿，fix-4 又放回来）
+    //     【fix-1 换过输入】上一版钉的是散文在**整行 `//` 注释**里，5 代全绿 ——
+    //     `stripComments` 会先整行滤掉它，散文根本进不了正则。
+    expect(
+      importSpecifiers("export const a = 1 // 本模块的数据 from 'lib/db/privileged' 而来"),
+      'U2 复发：行尾注释里的散文被当成 import，凭空捏造了一个 importer',
+    ).toEqual([]);
     expect(
       importSpecifiers(
-        ['// M5 路由装配：/api/auth/*', "import { privilegedDb } from 'lib/db/privileged';"].join(
-          '\n',
-        ),
+        "export const a = 1\nconst doc = `本模块的数据 from 'lib/db/privileged' 而来`;",
+      ),
+      'U2 复发：模板串里的散文被当成 import',
+    ).toEqual([]);
+    // (g) 幻影块注释：行注释里的 `/*`（路由通配）曾让整个文件的 import 被吞
+    //     （F003 实测于 src/app/api/auth/[...nextauth]/route.ts:1 的 `/api/auth/*`）。
+    //     只在**原版** 6a120a7 上红（返回 []），fadc1f4 起已修 → 1/5 代。它钉的是那次修复不得回退。
+    //     【fix-1 补回了第三行】上一版把 M5.1b 原用例的 `/** 正常块注释 */` 漏掉了，
+    //     而那正是**闭合**幻影块注释的那一行；没有它，任何一代都触发不了该 bug，实测 5 代全绿。
+    expect(
+      importSpecifiers(
+        [
+          '// M5 路由装配：/api/auth/*',
+          "import { privilegedDb } from 'lib/db/privileged';",
+          '/** 正常块注释 */',
+        ].join('\n'),
       ),
     ).toEqual(['lib/db/privileged']);
   });

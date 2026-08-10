@@ -80,7 +80,6 @@
     "csv-parse": "7.0.1",
     "framer-motion": "^7.10.2",
     "ieee754": "^1.2.1",
-    "image-size": "^2.0.2",
     "mapbox-gl": "^2.10.0",
     "next": "15.5.23",
     "next-auth": "5.0.0-beta.32",

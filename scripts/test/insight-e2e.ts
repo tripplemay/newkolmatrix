@@ -27,6 +27,9 @@ import {
   systemContext,
 } from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
+import { withTenant } from '../../src/lib/db/tenant-scope';
+// 收尾断开连接要拿**运行时 client 本体**：`prisma` 是 ALS 感知代理，无作用域时属性访问即 fail-closed。
+import { getRuntimeDb } from '../../src/lib/db/runtime';
 import { SHARE_CREATED_MARKER } from '../../src/lib/ops/share';
 import { loadProjectSpend } from '../../src/lib/insight/metric-snapshot';
 import { adoptWeeklyReport } from '../../src/lib/insight/weekly-report';
@@ -37,6 +40,25 @@ import type { CreateShareLinkOutput } from '../../src/lib/agent/tools/create-sha
 function assert(cond: boolean, msg: string): void {
   if (!cond) throw new Error(`ASSERT FAIL: ${msg}`);
   console.log(`  ✓ ${msg}`);
+}
+
+// ── M5.2-TENANT-COVERAGE F003（裁决 2-A + D-3 裁决口径 2）— 租户作用域接线 ────────────
+//
+// 本脚本挂在 `npm run insight:e2e` 上，是活的验收资产，故随本批接线。
+// 纪律同 gate-smoke / reach-e2e：**夹具 / 断言查询 / executeTool / 领域函数逐条包进 q()，
+// 而 confirmPendingAction 与 executePendingAction 一律裸调**——它们按 spec D-3 裁决自带作用域，
+// 从作用域内调 execute 会因嵌套带选项当场抛 NestedTransactionOptionsError。整包 main() 同理会炸。
+//
+// 【D-4 表态：本脚本全程不涉外呼】draft_report 默认走清凭据后的降级固定草案（脚本自己清的，明示不静默），
+// 因此没有网关往返；create_share_link 停在闸门。全部用默认事务时长。
+let scopeTenantId = '';
+
+/** 逐段租户作用域。同租户嵌套复用外层事务，故重复包裹无副作用。 */
+function q<T>(fn: () => Promise<T>): Promise<T> {
+  if (!scopeTenantId) {
+    throw new Error('[insight-e2e] q() 在租户解析出来之前被调用（接线顺序错了）');
+  }
+  return withTenant(scopeTenantId, fn);
 }
 
 const AMOUNT = 900.5;
@@ -55,17 +77,18 @@ async function main(): Promise<void> {
   );
   getNativeToolNames();
   const ctx = await systemContext(DEV_TENANT_SLUG, { agentId: 'insight' });
+  scopeTenantId = ctx.tenantId; // q() 从此可用
 
   // ── 夹具：合成项目 + KOL + released Payout（spend 真源；m4-* 前缀不触碰真实行）──
-  const fxKol = await prisma.kol.create({
+  const fxKol = await q(() => prisma.kol.create({
     data: {
       tenantId: ctx.tenantId,
       canonicalHandle: `m4-insight-e2e-${process.pid}`,
       displayName: 'Insight E2E 测试创作者',
     },
     select: { id: true },
-  });
-  const fxProject = await prisma.project.create({
+  }));
+  const fxProject = await q(() => prisma.project.create({
     data: {
       tenantId: ctx.tenantId,
       name: `Insight E2E 项目 ${process.pid}`,
@@ -76,8 +99,8 @@ async function main(): Promise<void> {
       },
     },
     select: { id: true },
-  });
-  await prisma.deal.create({
+  }));
+  await q(() => prisma.deal.create({
     data: {
       tenantId: ctx.tenantId,
       projectId: fxProject.id,
@@ -96,26 +119,26 @@ async function main(): Promise<void> {
         ],
       },
     },
-  });
+  }));
   const createdPA: string[] = [];
 
   const markerCount = () =>
-    prisma.operationLog.count({
+    q(() => prisma.operationLog.count({
       where: {
         tenantId: ctx.tenantId,
         summary: { contains: SHARE_CREATED_MARKER },
       },
-    });
+    }));
   const shareRowCount = () =>
-    prisma.shareLink.count({
+    q(() => prisma.shareLink.count({
       where: { tenantId: ctx.tenantId, projectId: fxProject.id },
-    });
+    }));
 
   try {
     // ── ① 度量装配：spend 真源聚合 ──
-    const facts = await loadProjectSpend(fxProject.id, {
+    const facts = await q(() => loadProjectSpend(fxProject.id, {
       tenantId: ctx.tenantId,
-    });
+    }));
     assert(facts.spendSource === 'payout', '① 装配 spendSource=payout（真源）');
     assert(facts.spend === AMOUNT, `① 装配 spend=${AMOUNT}（分整数累加）`);
     assert(
@@ -124,11 +147,11 @@ async function main(): Promise<void> {
     );
 
     // ── ② compute_roi：分子缺显证据不足 + gaps ──
-    const roiRes = await executeTool(
+    const roiRes = await q(() => executeTool(
       'compute_roi',
       { projectId: fxProject.id },
       ctx,
-    );
+    ));
     const roiOut = roiRes.output as ComputeRoiToolOutput;
     assert(
       roiOut.roi.roi === null && roiOut.roi.basis === 'insufficient_evidence',
@@ -142,11 +165,11 @@ async function main(): Promise<void> {
     );
 
     // ── ③ draft_report 起草落库 ──
-    const draftRes = await executeTool(
+    const draftRes = await q(() => executeTool(
       'draft_report',
       { projectId: fxProject.id },
       ctx,
-    );
+    ));
     const draft = draftRes.output as DraftWeeklyReportResult;
     assert(
       draft.draftContent.length > 0 && draft.adopted === false,
@@ -160,26 +183,26 @@ async function main(): Promise<void> {
     }
 
     // ── ④ 采纳 internal：无 PendingAction ──
-    const paBefore = await prisma.pendingAction.count({
+    const paBefore = await q(() => prisma.pendingAction.count({
       where: { tenantId: ctx.tenantId },
-    });
-    const adopt = await adoptWeeklyReport(draft.reportId, {
+    }));
+    const adopt = await q(() => adoptWeeklyReport(draft.reportId, {
       tenantId: ctx.tenantId,
-    });
+    }));
     assert(adopt.adopted && !adopt.alreadyAdopted, '④ 采纳生效（internal）');
-    const paAfter = await prisma.pendingAction.count({
+    const paAfter = await q(() => prisma.pendingAction.count({
       where: { tenantId: ctx.tenantId },
-    });
+    }));
     assert(paAfter === paBefore, '④ 采纳不产生 PendingAction（P5 无闸门）');
 
     // ── ⑤ create_share_link 无令牌 → pending（副作用零发生）──
     const shareBefore = await shareRowCount();
     const markerBefore = await markerCount();
-    const shareRes = await executeTool(
+    const shareRes = await q(() => executeTool(
       'create_share_link',
       { scope: 'project', projectId: fxProject.id },
       ctx,
-    );
+    ));
     assert(
       isPendingEnvelope(shareRes.output),
       '⑤ 无令牌 → pending 信封（服务端强制停在确认前）',
@@ -204,17 +227,17 @@ async function main(): Promise<void> {
     const out = exec.output as CreateShareLinkOutput;
     assert(out.created && !out.already, '⑥ 执行成功（首次，非重入）');
     assert(out.token != null && out.token.length === 64, '⑥ token 明文仅响应现一次');
-    const row = await prisma.shareLink.findUniqueOrThrow({
+    const row = await q(() => prisma.shareLink.findUniqueOrThrow({
       where: { id: out.shareLinkId },
-    });
+    }));
     assert(row.gateLogId === paId, '⑥ ShareLink.gateLogId 非空（经闸门）');
     assert(
       row.tokenHash === createHash('sha256').update(out.token!).digest('hex'),
       '⑥ DB 只存 tokenHash（sha256，明文不落库）',
     );
-    const irrev = await prisma.operationLog.findFirst({
+    const irrev = await q(() => prisma.operationLog.findFirst({
       where: { tenantId: ctx.tenantId, kind: 'irrev', ref: paId },
-    });
+    }));
     assert(irrev != null, '⑥ irrev 留痕在场（与业务写入同事务）');
     assert((await markerCount()) === markerBefore + 1, '⑥ mock 分享恰好发生一次');
 
@@ -230,30 +253,30 @@ async function main(): Promise<void> {
     console.log('[insight-e2e] ✅ 全部断言通过（零真实公开暴露）');
   } finally {
     // 夹具清理（只删本脚本产物；PA/留痕按 id 精确删）
-    await prisma.shareLink.deleteMany({
+    await q(() => prisma.shareLink.deleteMany({
       where: { tenantId: ctx.tenantId, gateLogId: { in: createdPA } },
-    });
-    await prisma.operationLog.deleteMany({
+    }));
+    await q(() => prisma.operationLog.deleteMany({
       where: { tenantId: ctx.tenantId, ref: { in: createdPA } },
-    });
-    await prisma.pendingAction.deleteMany({
+    }));
+    await q(() => prisma.pendingAction.deleteMany({
       where: { id: { in: createdPA } },
-    });
-    await prisma.weeklyReport.deleteMany({
+    }));
+    await q(() => prisma.weeklyReport.deleteMany({
       where: { tenantId: ctx.tenantId, projectId: fxProject.id },
-    });
-    await prisma.project.deleteMany({ where: { id: fxProject.id } });
-    await prisma.kol.deleteMany({ where: { id: fxKol.id } });
+    }));
+    await q(() => prisma.project.deleteMany({ where: { id: fxProject.id } }));
+    await q(() => prisma.kol.deleteMany({ where: { id: fxKol.id } }));
   }
 }
 
 main()
   .then(async () => {
-    await prisma.$disconnect();
+    await getRuntimeDb().$disconnect();
     process.exit(0);
   })
   .catch(async (err) => {
     console.error('[insight-e2e] ❌', err instanceof Error ? err.message : err);
-    await prisma.$disconnect();
+    await getRuntimeDb().$disconnect();
     process.exit(1);
   });

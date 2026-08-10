@@ -106,7 +106,7 @@ KOLMatrix 不是「CRUD-over-REST + AI 挂件」，而是以「工具结果协�
 
 - **AI 唯一出口**：aigcgateway（OpenAI 兼容 baseURL），chat（tool-calling）+ embedding 双链路；密钥全走 env。默认 chat=`deepseek-v3`、embedding=`bge-m3`（`src/lib/ai/gateway.ts` 常量，env 可覆盖）。
 - **数据现状**：`scripts/seed/data/kol-seed-enriched-final.csv` **2,524 条**真实 KOL（含表头 2,525 行）入 git 可复现；Apify 采集、外购评估 API、平台一方 API 均后期。
-- **租户与认证（M5 as-built）**：真实认证已实装（Auth.js v5 Credentials + JWT，开放注册即建租户）；租户来源仅两条路——会话（`buildToolContext` → `requireSessionIdentity`）或显式 `systemContext(tenantSlug)`，**无隐式回落 dev**（缺则抛）。**RLS 地基已就位、注入机制已落地、运行时未切换**：`kol_app` 非特权角色 + 24 表 default-deny policy + BYPASSRLS 启动哨兵已落（M5 F007/F008）；三层 client + ALS 感知代理 + `withTenant` + 引导白名单已落（M5.1 + M5.1b，**as-built 见 §7.1.1**），并已用开关真开、连 `kol_app`、RLS 真生效的最小闭环 e2e 证明机制成立（`npm run rls:e2e`）。应用运行时**仍是特权连接**，切换是显式开关 `DB_APP_ROLE_RUNTIME`（默认关，开而配错即抛）。**全站收口进行中（M5.2）**：入口面实测 78 条、已包裹 13 条，差集清单见 `docs/specs/M5.1-uncovered-entrypoints.md`。M5.2 的接线目标是 53 条，批末**普查判**已覆盖 54 条——差额是 `actions/[id]/execute` 与 `[id]/confirm` 两条按 spec D-3 裁决把作用域下沉进领域层（route 文件本身不含包裹字面量，普查判未覆盖，隔离不打折），账见 `docs/specs/M5.2-TENANT-COVERAGE-spec.md` §2.3。M4.8 的三口径 census 钉（`tests/unit/project-scope-census.test.ts`）在运行时切换前仍是主力防线。
+- **租户与认证（M5 as-built）**：真实认证已实装（Auth.js v5 Credentials + JWT，开放注册即建租户）；租户来源仅两条路——会话（`buildToolContext` → `requireSessionIdentity`）或显式 `systemContext(tenantSlug)`，**无隐式回落 dev**（缺则抛）。**RLS 地基已就位、注入机制已落地、运行时未切换**：`kol_app` 非特权角色 + 24 表 default-deny policy + BYPASSRLS 启动哨兵已落（M5 F007/F008）；三层 client + ALS 感知代理 + `withTenant` + 引导白名单已落（M5.1 + M5.1b，**as-built 见 §7.1.1**），并已用开关真开、连 `kol_app`、RLS 真生效的最小闭环 e2e 证明机制成立（`npm run rls:e2e`）。应用运行时**仍是特权连接**，切换是显式开关 `DB_APP_ROLE_RUNTIME`（默认关，开而配错即抛）。**全站收口进行中（M5.2）**：入口面实测 78 条、已包裹 21 条，差集清单见 `docs/specs/M5.1-uncovered-entrypoints.md`。M5.2 的接线目标是 53 条，批末**普查判**已覆盖 54 条——差额是 `actions/[id]/execute` 与 `[id]/confirm` 两条按 spec D-3 裁决把作用域下沉进领域层（route 文件本身不含包裹字面量，普查判未覆盖，隔离不打折），账见 `docs/specs/M5.2-TENANT-COVERAGE-spec.md` §2.3。M4.8 的三口径 census 钉（`tests/unit/project-scope-census.test.ts`）在运行时切换前仍是主力防线。
 - **资金边界**：合同/支付走 partner（电子签 + Stripe escrow）；本系统只做触发条件 + 闸门 + 状态追溯，不碰资金与税务。
 - **已交付地基**：DS-FOUNDATION（admin 外壳 / 色阶注入 / 深浅色 / 路由表 / 构建门）· **AGENT-FOUNDATION（M0：Prisma schema + pgvector + seed + gateway + 四柱 + 编排框架 + AI→人闸门）** · GO-LIVE（生产全栈化：db 容器 + migrate one-shot + `/api/health`）· FE-REFACTOR（前端整肃 + 视觉基线）。
 
@@ -705,7 +705,7 @@ RLS policy 认的是会话变量 `app.tenant_id`，而该变量必须以 `is_loc
 
 **覆盖面：M5.1b 只到最小闭环，全站收口在 M5.2** M5.1b 证的是**机制成立**（`npm run rls:e2e`：
 开关开 + 连 `kol_app` + RLS 真生效下走通登录 / 注册 / API route / RSC page / 例程 / 跨租户零行六段）。
-入口面实测 78 条、已包裹 13 条（M5.2 进行中）；差集清单由普查产出，落盘在
+入口面实测 78 条、已包裹 21 条（M5.2 进行中）；差集清单由普查产出，落盘在
 `docs/specs/M5.1-uncovered-entrypoints.md`。**未包裹的入口在开关打开时会 fail-closed 抛错**，
 不会静默读到零行——这是刻意的分批安全网。
 

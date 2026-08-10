@@ -23,6 +23,9 @@ import {
   systemContext,
 } from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
+import { withTenant } from '../../src/lib/db/tenant-scope';
+// 收尾断开连接要拿**运行时 client 本体**：`prisma` 是 ALS 感知代理，无作用域时属性访问即 fail-closed。
+import { getRuntimeDb } from '../../src/lib/db/runtime';
 import { DISTRIBUTED_MARKER, RELEASED_MARKER } from '../../src/lib/ops/partner';
 import { loadDeliveryCheck } from '../../src/lib/delivery/check';
 import {
@@ -36,6 +39,25 @@ function assert(cond: boolean, msg: string): void {
   console.log(`  ✓ ${msg}`);
 }
 
+// ── M5.2-TENANT-COVERAGE F003（裁决 2-A + D-3 裁决口径 2）— 租户作用域接线 ────────────
+//
+// 本脚本挂在 `npm run delivery:e2e` 上，是活的验收资产，故随本批接线。
+// 纪律同 gate-smoke / reach-e2e：**夹具 / 断言查询 / executeTool / 领域函数逐条包进 q()，
+// 而 confirmPendingAction 与 executePendingAction 一律裸调**——它们按 spec D-3 裁决自带作用域，
+// 从作用域内调 execute 会因嵌套带选项当场抛 NestedTransactionOptionsError。整包 main() 同理会炸。
+//
+// 【D-4 表态：本脚本全程不涉外呼】payout / distribute_keys 都是 outbound，但在本脚本里都停在闸门或经 execute 路径；
+// 资金动作恒 mock（partner 适配器），无网关往返，故全部用默认事务时长。
+let scopeTenantId = '';
+
+/** 逐段租户作用域。同租户嵌套复用外层事务，故重复包裹无副作用。 */
+function q<T>(fn: () => Promise<T>): Promise<T> {
+  if (!scopeTenantId) {
+    throw new Error('[delivery-e2e] q() 在租户解析出来之前被调用（接线顺序错了）');
+  }
+  return withTenant(scopeTenantId, fn);
+}
+
 const AMOUNT = 1600;
 
 async function main(): Promise<void> {
@@ -44,10 +66,11 @@ async function main(): Promise<void> {
   );
   getNativeToolNames();
   const ctx = await systemContext(DEV_TENANT_SLUG, { agentId: 'delivery' });
+  scopeTenantId = ctx.tenantId; // q() 从此可用
   const reachCtx = { ...ctx, agentId: 'reach' as const };
 
   // ── 夹具：合成 KOL + 项目（P1：不触碰任何真实 KOL 行；m3b-* 前缀，spec §7 白名单）──
-  const fxKol = await prisma.kol.create({
+  const fxKol = await q(() => prisma.kol.create({
     data: {
       tenantId: ctx.tenantId,
       canonicalHandle: `m3b-delivery-e2e-${process.pid}`,
@@ -55,8 +78,8 @@ async function main(): Promise<void> {
       language: 'zh',
     },
     select: { id: true },
-  });
-  const fxProject = await prisma.project.create({
+  }));
+  const fxProject = await q(() => prisma.project.create({
     data: {
       tenantId: ctx.tenantId,
       name: `Delivery E2E 项目 ${process.pid}`,
@@ -64,20 +87,20 @@ async function main(): Promise<void> {
       maxReached: 'reach',
     },
     select: { id: true },
-  });
+  }));
   const createdPA: string[] = [];
 
   const markerCount = (marker: string) =>
-    prisma.operationLog.count({
+    q(() => prisma.operationLog.count({
       where: { tenantId: ctx.tenantId, summary: { contains: marker } },
-    });
+    }));
 
   try {
     const releasedBefore = await markerCount(RELEASED_MARKER);
     const distributedBefore = await markerCount(DISTRIBUTED_MARKER);
 
     // ── ① 报价承诺过闸门 → Deal + 五条件（F003 接线点）──
-    const quote = await executeTool(
+    const quote = await q(() => executeTool(
       'commit_quote',
       {
         projectId: fxProject.id,
@@ -88,7 +111,7 @@ async function main(): Promise<void> {
         scope: '项目内使用 90 天',
       },
       reachCtx,
-    );
+    ));
     assert(isPendingEnvelope(quote.output), '① commit_quote 无令牌 → pending 信封');
     if (!isPendingEnvelope(quote.output)) return;
     createdPA.push(quote.output.pendingActionId);
@@ -101,7 +124,7 @@ async function main(): Promise<void> {
     const dealId = (qExec.output as { dealId: string }).dealId;
     assert(!!dealId, '① 同事务生成 Deal（有 committed quote 必有 Deal）');
 
-    const deliverables = await prisma.deliverable.findMany({ where: { dealId } });
+    const deliverables = await q(() => prisma.deliverable.findMany({ where: { dealId } }));
     assert(deliverables.length === 5, '① 五条交付条件生成齐（台账五列一一对应）');
     assert(
       deliverables.find((d) => d.kind === 'key')?.required === true,
@@ -109,28 +132,28 @@ async function main(): Promise<void> {
     );
 
     // ── ② 条件未齐时放款被服务端拒（P6：连 PendingAction 都不产生）──
-    const paBefore = await prisma.pendingAction.count({
+    const paBefore = await q(() => prisma.pendingAction.count({
       where: { tenantId: ctx.tenantId },
-    });
+    }));
     let rejected = false;
     try {
-      await executeTool('payout', { dealId }, ctx);
+      await q(() => executeTool('payout', { dealId }, ctx));
     } catch (err) {
       rejected = /条件未齐/.test(err instanceof Error ? err.message : '');
     }
     assert(rejected, '② 条件未齐 → payout 服务端拒绝（FR-8.2.4.2 无绕过入口）');
     assert(
-      (await prisma.pendingAction.count({ where: { tenantId: ctx.tenantId } })) ===
+      (await q(() => prisma.pendingAction.count({ where: { tenantId: ctx.tenantId } }))) ===
         paBefore,
       '② 拒绝发生在落 PendingAction 之前（待办都不产生）',
     );
 
     // ── ③ 登记合同/托管单号 → 条件置 met + Deal 推进（F008）──
-    const refs = await registerDealRefs(
+    const refs = await q(() => registerDealRefs(
       dealId,
       { contractRef: `sign-e2e-${process.pid}`, escrowRef: `esc-e2e-${process.pid}` },
       { tenantId: ctx.tenantId, actor: 'operator' },
-    );
+    ));
     assert(refs.dealStatus === 'escrowed', '③ 登记 refs → Deal negotiating→escrowed（逐级）');
     assert(
       refs.check.byKind.contract.cell === 'ok' &&
@@ -139,16 +162,16 @@ async function main(): Promise<void> {
     );
 
     // ── ④ key 池登记 + 分发闸门（F006）：条件 key 由分发动作满足 ──
-    await registerKeyPool(
+    await q(() => registerKeyPool(
       dealId,
       { keyRefs: [`pool-e2e-${process.pid}-1`, `pool-e2e-${process.pid}-2`] },
       { tenantId: ctx.tenantId, actor: 'operator' },
-    );
-    const keys = await executeTool(
+    ));
+    const keys = await q(() => executeTool(
       'distribute_keys',
       { dealId, quantity: 2 },
       ctx,
-    );
+    ));
     assert(isPendingEnvelope(keys.output), '④ distribute_keys 无令牌 → pending');
     if (!isPendingEnvelope(keys.output)) return;
     createdPA.push(keys.output.pendingActionId);
@@ -163,25 +186,25 @@ async function main(): Promise<void> {
     const kConf = await confirmPendingAction(keys.output.pendingActionId, ctx);
     await executePendingAction(keys.output.pendingActionId, kConf.ticket, ctx);
     assert(
-      (await prisma.gameKey.count({ where: { dealId, status: 'distributed' } })) === 2,
+      (await q(() => prisma.gameKey.count({ where: { dealId, status: 'distributed' } }))) === 2,
       '④ 确认后 GameKey reserved→distributed（gateLogId 非空）',
     );
 
     // ── ⑤ 人工核验内容与 #ad → 条件全齐 ──
-    const rows = await prisma.deliverable.findMany({ where: { dealId } });
+    const rows = await q(() => prisma.deliverable.findMany({ where: { dealId } }));
     for (const kind of ['content', 'ad_disclosure'] as const) {
       const row = rows.find((d) => d.kind === kind)!;
-      await verifyDeliverable(
+      await q(() => verifyDeliverable(
         row.id,
         { status: 'met', evidenceRef: `evidence-${kind}` },
         { tenantId: ctx.tenantId, actor: 'operator' },
-      );
+      ));
     }
-    const check = await loadDeliveryCheck(dealId, { tenantId: ctx.tenantId });
+    const check = await q(() => loadDeliveryCheck(dealId, { tenantId: ctx.tenantId }));
     assert(check?.check.ready === true, '⑤ 条件全齐 → deliveryCheck.ready=true（放款钮出现的同一真相）');
 
     // ── ⑥ 放款：无令牌 → pending，副作用零发生 ──
-    const payout = await executeTool('payout', { dealId }, ctx);
+    const payout = await q(() => executeTool('payout', { dealId }, ctx));
     assert(isPendingEnvelope(payout.output), '⑥ payout 无令牌 → pending 信封（点确认才放款）');
     if (!isPendingEnvelope(payout.output)) return;
     createdPA.push(payout.output.pendingActionId);
@@ -191,7 +214,7 @@ async function main(): Promise<void> {
       '⑥ harm 三行齐（收款方 / 金额+币种 / 依据）',
     );
     assert(
-      (await prisma.payout.count({ where: { dealId, status: 'released' } })) === 0 &&
+      (await q(() => prisma.payout.count({ where: { dealId, status: 'released' } }))) === 0 &&
         (await markerCount(RELEASED_MARKER)) === releasedBefore,
       '⑥ 副作用零发生（无 released 行、无放款标记）',
     );
@@ -213,20 +236,20 @@ async function main(): Promise<void> {
     assert(out.mocked === true, '⑦ P1：mock 适配器（未发生任何真实资金动作）');
     assert(out.dealStatus === 'completed', '⑦ Deal 推进 completed');
 
-    const payoutRow = await prisma.payout.findFirst({ where: { dealId } });
+    const payoutRow = await q(() => prisma.payout.findFirst({ where: { dealId } }));
     assert(
       payoutRow?.status === 'released' &&
         payoutRow.gateLogId === payout.output.pendingActionId,
       '⑦ Payout released 且 gateLogId 指回闸门动作',
     );
     assert(
-      (await prisma.operationLog.count({
+      (await q(() => prisma.operationLog.count({
         where: {
           tenantId: ctx.tenantId,
           kind: 'irrev',
           ref: payout.output.pendingActionId,
         },
-      })) === 1,
+      }))) === 1,
       '⑦ irrev 留痕在场（同事务）',
     );
     assert(
@@ -236,14 +259,13 @@ async function main(): Promise<void> {
 
     // ── ⑧ →insight 守卫真判（F010）：全部 Deal 收尾 → 放行 ──
     const { advanceStage } = await import('../../src/lib/domain/env-advance');
-    await prisma.project.update({
+    await q(() => prisma.project.update({
       where: { id: fxProject.id },
       data: { cur: 'delivery', maxReached: 'delivery' },
-    });
-    const adv = await advanceStage({
-      projectId: fxProject.id,
-      tenantId: ctx.tenantId,
-    });
+    }));
+    const adv = await q(() =>
+      advanceStage({ projectId: fxProject.id, tenantId: ctx.tenantId }),
+    );
     assert(
       adv.ok === true && adv.cur === 'insight',
       '⑧ 全部 Deal completed → →insight 守卫放行',
@@ -262,32 +284,32 @@ async function main(): Promise<void> {
     );
   } finally {
     // 清理夹具（含 mock 观测标记——沿 M3-A「按业务标记清态」口径）
-    await prisma.operationLog.deleteMany({
+    await q(() => prisma.operationLog.deleteMany({
       where: { tenantId: ctx.tenantId, summary: { contains: RELEASED_MARKER } },
-    });
-    await prisma.operationLog.deleteMany({
+    }));
+    await q(() => prisma.operationLog.deleteMany({
       where: { tenantId: ctx.tenantId, summary: { contains: DISTRIBUTED_MARKER } },
-    });
-    await prisma.operationLog.deleteMany({
+    }));
+    await q(() => prisma.operationLog.deleteMany({
       where: { tenantId: ctx.tenantId, projectId: fxProject.id },
-    });
+    }));
     if (createdPA.length) {
-      await prisma.operationLog.deleteMany({
+      await q(() => prisma.operationLog.deleteMany({
         where: { tenantId: ctx.tenantId, ref: { in: createdPA } },
-      });
-      await prisma.pendingAction.deleteMany({
+      }));
+      await q(() => prisma.pendingAction.deleteMany({
         where: { id: { in: createdPA } },
-      });
+      }));
     }
-    await prisma.project.deleteMany({ where: { id: fxProject.id } });
-    await prisma.kol.deleteMany({ where: { id: fxKol.id } });
+    await q(() => prisma.project.deleteMany({ where: { id: fxProject.id } }));
+    await q(() => prisma.kol.deleteMany({ where: { id: fxKol.id } }));
     console.log('[delivery-e2e] 夹具已清理');
   }
 }
 
 main()
   .then(async () => {
-    await prisma.$disconnect();
+    await getRuntimeDb().$disconnect();
     process.exit(0);
   })
   .catch(async (err) => {
@@ -295,6 +317,6 @@ main()
       '[delivery-e2e] ❌ 失败：',
       err instanceof Error ? (err.stack ?? err.message) : err,
     );
-    await prisma.$disconnect();
+    await getRuntimeDb().$disconnect();
     process.exit(1);
   });

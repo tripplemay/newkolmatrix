@@ -24,7 +24,7 @@
       "title": "delivery 域 4 条 + insight 域 2 条 route",
       "priority": "high",
       "executor": "generator",
-      "status": "pending",
+      "status": "completed",
       "description": "交付域涉资金动作（恒 mock 零真实资金），洞察域涉分享闸门（恒 mock 零公开暴露）。",
       "acceptance": "① 6 条包上：`delivery/deals/[id]/keys` · `delivery/deals/[id]/refs` · `delivery/deliverables/[id]` · `delivery/payout` · `insight/adopt` · `insight/share`。② `delivery/register.ts` 有 3 处既有 `withTenant`，包裹后全部变同租户嵌套——须实测确认**复用外层事务**而非开第二个（贴查询计划或事务 id 证据，不能只说「按语义应该」）。③ `npm run delivery:e2e` 与 `npm run insight:e2e` 在开关开着的条件下仍绿；**放款仍须条件齐→确认才放**、分享仍须过闸门，语义零回退。这要求 **`scripts/test/delivery-e2e.ts` 与 `scripts/test/insight-e2e.ts` 一并接线（裁决 2-A）**，两者均含 confirm/execute 调用，按 D-3 裁决口径 2 逐段包、不得整包 `main()`。**开关开着验（spec D-5）**：`DB_APP_ROLE_RUNTIME=1` 且真连 `kol_app` 非特权角色下逐入口跑通。开关未开时代理回落特权连接，漏包一个入口数据照常返回、测试照常绿、**零信号**——不开关等于没验。 **接法照抄样板实物**（spec D-1）：会话面读 `src/app/api/nav-badges/route.ts`，无会话面读 `src/lib/jobs/scheduler.ts` 的 health-scan，按其形态翻译。 **不得引入新的 `privilegedDb` 使用点**（spec §4.2）——包不上就如实登记，别开后门。 tsc/lint + 全量 vitest 绿；`docs/specs/M5.1-uncovered-entrypoints.md` 随本条重跑（`npm run census:entrypoints -- --write`），已覆盖数须增加对应条数。"
     },

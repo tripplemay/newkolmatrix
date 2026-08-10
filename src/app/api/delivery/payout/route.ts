@@ -12,7 +12,13 @@ import { z } from 'zod';
 import { buildToolContext } from 'lib/agent/context';
 import { executeTool } from 'lib/agent/execute';
 import { isPendingEnvelope } from 'lib/agent/gate/harm';
+// M5.2-TENANT-COVERAGE F003 — 会话面入口的租户作用域包裹（口径见 api/actions/route.ts 头注）。
+//
+// 【D-4 表态：本路由**不涉外呼**，用默认事务时长】payout 是 outbound，但它在此处被闸门
+// 拦在确认前——只读条件 / 建 harm 披露、落 PendingAction + 留痕，全是 DB。真正的副作用
+// （放款）发生在 /api/actions/[id]/execute，那条按 spec D-3 裁决走领域层自带作用域。
 import { deliveryRateLimitGuard } from 'lib/delivery/http';
+import { withSessionTenant } from 'lib/db/tenant-entry';
 
 export const runtime = 'nodejs';
 
@@ -36,7 +42,9 @@ export async function POST(req: Request): Promise<Response> {
     }
     const { projectId, dealId } = parsed.data;
     const ctx = await buildToolContext({ agentId: 'delivery', projectId });
-    const result = await executeTool('payout', { dealId }, ctx);
+    const result = await withSessionTenant(() =>
+      executeTool('payout', { dealId }, ctx),
+    );
     if (!isPendingEnvelope(result.output)) {
       // outbound 必须停在闸门——拿到非 pending 信封说明闸门被绕过，拒绝并报警
       console.error('[api/delivery/payout] outbound 未停在闸门:', result.output);

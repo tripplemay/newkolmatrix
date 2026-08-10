@@ -164,7 +164,13 @@ export interface PendingActionDetail {
   ticketUsedAt: string | null;
 }
 
-/** 惰性过期翻转：pending 过确认窗 / confirmed 过票窗 → expired（原子条件 UPDATE，幂等）。 */
+/**
+ * 惰性过期翻转：pending 过确认窗 / confirmed 过票窗 → expired（原子条件 UPDATE，幂等）。
+ *
+ * M5.2 F001：**自带租户作用域**（租户取自入参那一行，不另外要参数）。它被两种调用方共用——
+ * 入口层已包的 detail 路径（同租户嵌套 → 复用外层事务）与 executePendingAction 的
+ * 无外层路径（自己开一个）。两边都不用操心作用域从哪来。
+ */
 async function lazyExpire(pa: PendingAction): Promise<PendingAction> {
   const now = Date.now();
   const confirmWindowPassed =
@@ -174,12 +180,14 @@ async function lazyExpire(pa: PendingAction): Promise<PendingAction> {
     !!pa.ticketExpiresAt &&
     pa.ticketExpiresAt.getTime() < now;
   if (!confirmWindowPassed && !ticketWindowPassed) return pa;
-  await prisma.pendingAction.updateMany({
-    where: { id: pa.id, status: pa.status }, // 条件写：并发下已流转则不动
-    data: { status: 'expired' },
+  return withTenant(pa.tenantId, async () => {
+    await prisma.pendingAction.updateMany({
+      where: { id: pa.id, status: pa.status }, // 条件写：并发下已流转则不动
+      data: { status: 'expired' },
+    });
+    const fresh = await prisma.pendingAction.findUnique({ where: { id: pa.id } });
+    return fresh ?? { ...pa, status: 'expired' };
   });
-  const fresh = await prisma.pendingAction.findUnique({ where: { id: pa.id } });
-  return fresh ?? { ...pa, status: 'expired' };
 }
 
 /** 详情（脱敏：不含 inputJson / 各类 hash——披露以 harm 为准，凭据不出闸门服务）。 */
@@ -218,14 +226,25 @@ export interface ConfirmResult {
   ticketExpiresAt: string;
 }
 
-/** 人确认 → 签发一次性执行票（原子条件 UPDATE WHERE status='pending'，并发败者 409）。不执行副作用。 */
+/**
+ * 人确认 → 签发一次性执行票（原子条件 UPDATE WHERE status='pending'，并发败者 409）。不执行副作用。
+ *
+ * 【M5.2 F001（spec D-3 裁决第二处）— 本函数**自带租户作用域**，调用方不得在作用域内调它】
+ * 理由与 executePendingAction 同族：这里也有「先写后抛」——确认窗过期时先把 pending 惰性
+ * 翻成 expired（lazyExpire 自开事务并提交），紧接着抛 GATE_EXPIRED。若整段落在调用方的大
+ * 事务里，那次翻转会随抛错一起回滚（探针实测：裸调 status=expired，外层有作用域 status=pending）。
+ * 故 confirm route 与 execute route 一样**不在入口层包**。判据：
+ * tests/integration/m52-f001-gate-scope.test.ts §5。
+ */
 export async function confirmPendingAction(
   pendingActionId: string,
   ctx: ToolContext,
 ): Promise<ConfirmResult> {
-  const pa = await prisma.pendingAction.findFirst({
-    where: { id: pendingActionId, tenantId: ctx.tenantId },
-  });
+  const pa = await withTenant(ctx.tenantId, () =>
+    prisma.pendingAction.findFirst({
+      where: { id: pendingActionId, tenantId: ctx.tenantId },
+    }),
+  );
   if (!pa) throw new GateError('GATE_NOT_FOUND', '未找到该待确认动作');
   if (pa.status === 'expired') {
     throw new GateError('GATE_EXPIRED', '确认已过期，请重新发起该动作');
@@ -293,15 +312,29 @@ export async function confirmPendingAction(
  * 副作用成功 → **同一事务** executed + irrev 留痕 + 业务态变更（工具经 ctx.db 写入）；
  * 失败 → failed、无 irrev 行（业务写入随事务回滚）。外部副作用（真实发信）无法进 DB
  * 事务——适配器以 ctx.gateActionId 为幂等键（P6），crash 重放不重复发信。
+ *
+ * 【M5.2 F001（spec D-3 裁决＝处置③）— 本函数**自带租户作用域**，调用方不得在作用域内调它】
+ * 本函数是刻意的**三段独立事务**，缺一段就不成立：
+ *   ① 认领   —— 票据消费必须先于副作用**独立落定**，否则失败后票可重放；
+ *   ② 副作用 —— 外呼 + executed + irrev 收尾同生共死（G5），带 90s 超时；
+ *   ③ 失败收尾 —— failed + auto 痕，设计上就指望它**活过 ② 的回滚**。
+ * 于是作用域只能下沉到这里、逐段各开一个事务；由调用方（route/脚本）在外面包一个大作用域
+ * 会把三段合并成一个事务，② 一回滚就把 ① 的票据消费和 ③ 的 failed 态一起带走
+ *（开关开着真连 kol_app 实测：status 退回 confirmed、ticketUsedAt 变回 null、failed 痕为 0）。
+ * 外层若已有作用域，② 段那次带选项的 withTenant 会当场抛 NestedTransactionOptionsError
+ *（tenant-scope.ts 既有的 fail-closed）——这正是本约束的机械守门，不是意外。
+ * 判据：tests/integration/m52-f001-gate-scope.test.ts。
  */
 export async function executePendingAction(
   pendingActionId: string,
   ticket: string,
   ctx: ToolContext,
 ): Promise<{ executed: true; output: unknown }> {
-  const pa = await prisma.pendingAction.findFirst({
-    where: { id: pendingActionId, tenantId: ctx.tenantId },
-  });
+  const pa = await withTenant(ctx.tenantId, () =>
+    prisma.pendingAction.findFirst({
+      where: { id: pendingActionId, tenantId: ctx.tenantId },
+    }),
+  );
   if (!pa) throw new GateError('GATE_NOT_FOUND', '未找到该待确认动作');
 
   switch (pa.status) {
@@ -343,16 +376,19 @@ export async function executePendingAction(
   if (!tool) throw new Error(`[gate] 工具已不存在: ${pa.toolName}`);
 
   // 原子条件 UPDATE #2（消 R15）：并发双消费 / 票重放只有一方 count=1，败者 409。
-  const claimed = await prisma.pendingAction.updateMany({
-    where: {
-      id: pa.id,
-      tenantId: ctx.tenantId,
-      status: 'confirmed',
-      ticketUsedAt: null,
-      ticketExpiresAt: { gt: new Date() },
-    },
-    data: { status: 'executing', ticketUsedAt: new Date() },
-  });
+  // M5.2 F001：① 段自己的事务 —— 它必须**独立提交**，副作用失败也带不走这次票据消费。
+  const claimed = await withTenant(ctx.tenantId, () =>
+    prisma.pendingAction.updateMany({
+      where: {
+        id: pa.id,
+        tenantId: ctx.tenantId,
+        status: 'confirmed',
+        ticketUsedAt: null,
+        ticketExpiresAt: { gt: new Date() },
+      },
+      data: { status: 'executing', ticketUsedAt: new Date() },
+    }),
+  );
   if (claimed.count === 0) {
     throw new GateError('GATE_ALREADY_DECIDED', '执行票已被消费（并发或重放）');
   }
@@ -394,20 +430,24 @@ export async function executePendingAction(
     return { executed: true, output };
   } catch (err) {
     // 副作用失败 → failed、无 irrev 行（业务写入已随事务回滚）；留 auto 痕便于排查。
-    await prisma.pendingAction.update({
-      where: { id: pa.id },
-      data: { status: 'failed' },
-    });
-    await prisma.operationLog.create({
-      data: {
-        tenantId: ctx.tenantId,
-        kind: 'auto',
-        actor: ctx.agentId,
-        summary: `执行 outbound「${pa.toolName}」失败：${
-          err instanceof Error ? err.message.slice(0, 200) : String(err)
-        }`,
-        ref: pa.id,
-      },
+    // M5.2 F001：③ 段自己的事务 —— 它的**全部意义**就是活过 ② 的回滚。
+    // 若这里落在调用方的大事务里，rethrow 会把这两行一起带走（实测：failed 痕 0 条）。
+    await withTenant(ctx.tenantId, async () => {
+      await prisma.pendingAction.update({
+        where: { id: pa.id },
+        data: { status: 'failed' },
+      });
+      await prisma.operationLog.create({
+        data: {
+          tenantId: ctx.tenantId,
+          kind: 'auto',
+          actor: ctx.agentId,
+          summary: `执行 outbound「${pa.toolName}」失败：${
+            err instanceof Error ? err.message.slice(0, 200) : String(err)
+          }`,
+          ref: pa.id,
+        },
+      });
     });
     throw err;
   }

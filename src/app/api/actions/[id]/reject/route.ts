@@ -4,9 +4,11 @@
 // Agent 重试须产出**新的** PendingAction（新一轮披露、新的确认）——不可逆动作严禁静默重试。
 // 运行时 = nodejs（Prisma）；P9 限流 30/min/IP fail-open。
 
+// M5.2-TENANT-COVERAGE F001 — 会话面入口的租户作用域包裹（口径见 api/actions/route.ts 头注）。
 import { buildToolContext } from 'lib/agent/context';
 import { rejectPendingAction } from 'lib/agent/gate/gate';
 import { actionsRateLimitGuard, gateErrorResponse } from 'lib/agent/gate/http';
+import { withSessionTenant } from 'lib/db/tenant-entry';
 
 export const runtime = 'nodejs';
 
@@ -19,7 +21,7 @@ export async function POST(
   try {
     const { id } = await params;
     const ctx = await buildToolContext();
-    const result = await rejectPendingAction(id, ctx);
+    const result = await withSessionTenant(() => rejectPendingAction(id, ctx));
     return Response.json(result);
   } catch (error) {
     return gateErrorResponse(error);

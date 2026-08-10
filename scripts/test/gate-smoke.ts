@@ -29,6 +29,11 @@ import {
   systemContext,
 } from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
+import { withTenant, type TenantTxOptions } from '../../src/lib/db/tenant-scope';
+// 收尾断开连接要拿**运行时 client 本体**：`prisma` 是 ALS 感知代理，开关开着且不在作用域内时
+// 连读它一个属性都会 fail-closed 抛 MissingTenantScopeError（接线实测：原来的
+// `prisma.$disconnect()` 死在这儿，栈底就是代理的 get 陷阱）。
+import { getRuntimeDb } from '../../src/lib/db/runtime';
 import type { ToolContext } from '../../src/lib/agent/tools/types';
 
 function assert(cond: boolean, msg: string): void {
@@ -36,10 +41,43 @@ function assert(cond: boolean, msg: string): void {
   console.log(`  ✓ ${msg}`);
 }
 
+// ── M5.2-TENANT-COVERAGE F001（裁决 2-A + D-3 裁决口径 2）— 租户作用域接线 ────────────
+//
+// 本脚本挂在 `npm run gate:smoke` 上，是活的验收资产（不是已废探针），故随本批接线：
+// 开关 DB_APP_ROLE_RUNTIME=1 一开，脚本自己的每一次数据访问都必须在租户作用域内，
+// 否则 prisma 代理 fail-closed 抛 MissingTenantScopeError（实测：接线前死在夹具建行）。
+//
+// 【为什么是「逐段包」而不是把 main() 整个包起来】
+// `executePendingAction` 自带作用域且分三段独立事务（spec D-3 裁决）：从租户作用域内调它，
+// 它那段带 { timeout: 90_000 } 的事务会变成嵌套 → NestedTransactionOptionsError 当场抛。
+// 所以本文件的纪律是：**夹具、断言查询、executeTool、confirm/reject/detail 逐条包进 q()，
+// 而 executePendingAction 一律裸调**。整包 main() 会当场炸，这是刻意的机械守门，不是意外。
+let scopeTenantId = '';
+
+/**
+ * 逐段租户作用域。同租户嵌套复用外层事务，故重复包裹无副作用。
+ *
+ * `txOptions` 只给**涉外呼**的段用（D-4 要求逐条表态）：默认 Prisma interactive transaction
+ * 超时是 5 秒，而包住一次网关往返的段会真的超。本文件已知这样的段有一处 —— G3 的
+ * `search_kols`（先向网关要 embedding，再做 pgvector 查询）。接线首跑实测抓到过一次
+ * 事务超时（栈底 src/lib/agent/tools/search-kols.ts 的 $queryRawUnsafe，落在
+ * _transactionWithCallback 里），随后三次连跑又都过 —— 典型的**时序相关**，
+ * 不表态就是把绿灯交给运气。
+ */
+function q<T>(fn: () => Promise<T>, txOptions?: TenantTxOptions): Promise<T> {
+  if (!scopeTenantId) {
+    throw new Error('[gate-smoke] q() 在租户解析出来之前被调用（接线顺序错了）');
+  }
+  return withTenant(scopeTenantId, fn, txOptions);
+}
+
+/** 涉网关往返的段用的事务时长（D-4 表态）。取 30s 与 send_outreach 的 abort 上限同量级。 */
+const GATEWAY_TX_TIMEOUT_MS = 30_000;
+
 async function countSent(tenantId: string): Promise<number> {
-  return prisma.operationLog.count({
+  return q(() => prisma.operationLog.count({
     where: { tenantId, summary: { contains: SENT_MARKER } },
-  });
+  }));
 }
 
 /** 期望抛出指定分码的 GateError；返回是否命中。 */
@@ -68,7 +106,7 @@ async function newPending(
   ids: { projectId: string; kolId: string },
   subject: string,
 ): Promise<string> {
-  const r = await executeTool(
+  const r = await q(() => executeTool(
     'send_outreach',
     {
       projectId: ids.projectId,
@@ -77,7 +115,7 @@ async function newPending(
       body: `${subject}——正文`,
     },
     ctx,
-  );
+  ));
   if (!isPendingEnvelope(r.output)) throw new Error('预期 pending 信封');
   return r.output.pendingActionId;
 }
@@ -130,10 +168,11 @@ async function main(): Promise<void> {
   });
 
   const ctx = await systemContext(DEV_TENANT_SLUG, { agentId: 'reach' });
+  scopeTenantId = ctx.tenantId; // q() 从此可用（systemContext 走引导面 privilegedDb，无需作用域）
   const createdPA: string[] = [];
 
   // ── F003 夹具：合成 KOL（contactEmail=测试地址）+ 项目（结束后清理；不触碰真实 KOL 行，P1）──
-  const fxKol = await prisma.kol.create({
+  const fxKol = await q(() => prisma.kol.create({
     data: {
       tenantId: ctx.tenantId,
       canonicalHandle: FIXTURE.kolHandle,
@@ -145,17 +184,17 @@ async function main(): Promise<void> {
       },
     },
     select: { id: true },
-  });
-  const fxProject = await prisma.project.create({
+  }));
+  const fxProject = await q(() => prisma.project.create({
     data: { tenantId: ctx.tenantId, name: FIXTURE.projectName },
     select: { id: true },
-  });
+  }));
   const fx = { projectId: fxProject.id, kolId: fxKol.id };
 
   try {
     // ── G1：outbound 服务端强制（无令牌 → pending，副作用未执行）──
     const before = await countSent(ctx.tenantId);
-    const r1 = await executeTool(
+    const r1 = await q(() => executeTool(
       'send_outreach',
       {
         projectId: fx.projectId,
@@ -164,7 +203,7 @@ async function main(): Promise<void> {
         body: '你好，我们正在为《星轨协议》上线寻找创作者合作……',
       },
       ctx,
-    );
+    ));
     assert(
       isPendingEnvelope(r1.output),
       'G1: outbound send_outreach 无令牌 → 返回 pending 信封（未执行）',
@@ -204,10 +243,10 @@ async function main(): Promise<void> {
     assert(harm.label === '对外·不可撤销', 'G2: 统一红标「对外·不可撤销」');
 
     // ── G3：internal 动作不加闸门 ──
-    const s = await executeTool(
-      'search_kols',
-      { query: '坦克世界', topK: 3 },
-      ctx,
+    const s = await q(
+      () => executeTool('search_kols', { query: '坦克世界', topK: 3 }, ctx),
+      // D-4 表态：本段先向网关要 embedding 再查 pgvector，默认 5s 会时序性地超（实测抓到过）。
+      { timeout: GATEWAY_TX_TIMEOUT_MS },
     );
     assert(
       !isPendingEnvelope(s.output),
@@ -216,11 +255,11 @@ async function main(): Promise<void> {
 
     // ── G4：无阈值分级（50 位对象的 harm 与单人走完全相同确认流程；send_outreach 本批
     //    为单人语法（P7），批量维度由测试工具承载断言）──
-    const rBig = await executeTool(
+    const rBig = await q(() => executeTool(
       'gate_smoke_bulk_tool',
       { note: '大批量动作无阈值断言' },
       ctx,
-    );
+    ));
     assert(
       isPendingEnvelope(rBig.output),
       'G4: 50 位对象批量与单人走完全相同确认流程（无阈值豁免，D28）',
@@ -244,9 +283,9 @@ async function main(): Promise<void> {
       (await countSent(ctx.tenantId)) === before,
       'G5: confirm 只签票不执行（副作用仍未发生）',
     );
-    let pa = await prisma.pendingAction.findUnique({
+    let pa = await q(() => prisma.pendingAction.findUnique({
       where: { id: env.pendingActionId },
-    });
+    }));
     assert(
       pa?.status === 'confirmed',
       'G5: confirm 后 status=confirmed（7 态中间态）',
@@ -256,14 +295,14 @@ async function main(): Promise<void> {
       pa?.ticketHash === sha256(conf.ticket) && pa.ticketHash !== conf.ticket,
       'G5: DB 只存票 hash（sha256），明文不落库',
     );
-    const confirmLog = await prisma.operationLog.count({
+    const confirmLog = await q(() => prisma.operationLog.count({
       where: {
         tenantId: ctx.tenantId,
         kind: 'gate',
         ref: env.pendingActionId,
         summary: { contains: '签发执行票' },
       },
-    });
+    }));
     assert(confirmLog === 1, 'G5: 确认=签票写 gate 留痕（§9.3.2）');
     assert(
       await expectGateError(
@@ -283,20 +322,20 @@ async function main(): Promise<void> {
       (await countSent(ctx.tenantId)) === before + 1,
       'G5: 执行后副作用真发生（SENT 留痕 +1）',
     );
-    const irrev = await prisma.operationLog.count({
+    const irrev = await q(() => prisma.operationLog.count({
       where: {
         tenantId: ctx.tenantId,
         kind: 'irrev',
         ref: env.pendingActionId,
       },
-    });
+    }));
     assert(
       irrev === 1,
       'G5: 同一事务写一条 OperationLog kind:irrev（executed+irrev+业务态变更）',
     );
-    pa = await prisma.pendingAction.findUnique({
+    pa = await q(() => prisma.pendingAction.findUnique({
       where: { id: env.pendingActionId },
-    });
+    }));
     assert(pa?.status === 'executed', 'G5: PendingAction 置 executed');
     assert(!!pa?.ticketUsedAt, 'G5: ticketUsedAt 记录消费时刻（重放挡板）');
     assert(
@@ -313,35 +352,35 @@ async function main(): Promise<void> {
     );
 
     // ── G5.5（F003）：触达落库与状态推进（与 executed+irrev 同一事务的业务态变更）──
-    const sentMsg = await prisma.outreachMessage.findFirst({
+    const sentMsg = await q(() => prisma.outreachMessage.findFirst({
       where: {
         tenantId: ctx.tenantId,
         gateLogId: env.pendingActionId,
         direction: 'sent',
       },
-    });
+    }));
     assert(
       !!sentMsg,
       'G5.5: OutreachMessage(direction=sent, gateLogId=PA.id) 落库（:468 sent 必非空）',
     );
     assert(!!sentMsg?.sentAt, 'G5.5: sentAt 记录发送时刻');
-    const fxThread = await prisma.outreachThread.findUnique({
+    const fxThread = await q(() => prisma.outreachThread.findUnique({
       where: {
         projectId_kolId: { projectId: fx.projectId, kolId: fx.kolId },
       },
-    });
+    }));
     assert(
       fxThread?.status === 'sent',
       'G5.5: OutreachThread.status 经 crmInfer 推进 pending_send → sent（三处复用铁律）',
     );
-    const advanceLog = await prisma.operationLog.count({
+    const advanceLog = await q(() => prisma.operationLog.count({
       where: {
         tenantId: ctx.tenantId,
         kind: 'auto',
         projectId: fx.projectId,
         summary: { contains: '触达状态推进' },
       },
-    });
+    }));
     assert(
       advanceLog === 1,
       'G5.5: 状态推进事件留痕（OperationLog kind:auto + payloadJson）',
@@ -365,10 +404,10 @@ async function main(): Promise<void> {
       ),
       'G6: 伪票 → 403 GATE_TOKEN_INVALID',
     );
-    await prisma.pendingAction.update({
+    await q(() => prisma.pendingAction.update({
       where: { id: paA },
       data: { ticketExpiresAt: new Date(Date.now() - 1000) },
-    });
+    }));
     assert(
       await expectGateError(
         () => executePendingAction(paA, confA.ticket, ctx),
@@ -377,17 +416,17 @@ async function main(): Promise<void> {
       'G6: 票 TTL 过期 → 410 GATE_EXPIRED',
     );
     assert(
-      (await prisma.pendingAction.findUnique({ where: { id: paA } }))
+      (await q(() => prisma.pendingAction.findUnique({ where: { id: paA } })))
         ?.status === 'expired',
       'G6: 票过期惰性翻转 confirmed → expired',
     );
 
     const paB = await newPending(ctx, fx, 'G6-b pending 过期');
     createdPA.push(paB);
-    await prisma.pendingAction.update({
+    await q(() => prisma.pendingAction.update({
       where: { id: paB },
       data: { expiresAt: new Date(Date.now() - 1000) },
-    });
+    }));
     assert(
       await expectGateError(
         () => confirmPendingAction(paB, ctx),
@@ -396,13 +435,13 @@ async function main(): Promise<void> {
       'G6: 确认窗过期 → 410 GATE_EXPIRED',
     );
     assert(
-      (await prisma.pendingAction.findUnique({ where: { id: paB } }))
+      (await q(() => prisma.pendingAction.findUnique({ where: { id: paB } })))
         ?.status === 'expired',
       'G6: 确认窗过期惰性翻转 pending → expired',
     );
     assert(
       await expectGateError(
-        () => getPendingActionDetail('nonexistent-id', ctx),
+        () => q(() => getPendingActionDetail('nonexistent-id', ctx)),
         'GATE_NOT_FOUND',
       ),
       'G6: 不存在的 actionId → 404 GATE_NOT_FOUND',
@@ -410,10 +449,10 @@ async function main(): Promise<void> {
 
     const paC = await newPending(ctx, fx, 'G6-c 拒绝');
     createdPA.push(paC);
-    await rejectPendingAction(paC, ctx);
-    const paCRow = await prisma.pendingAction.findUnique({
+    await q(() => rejectPendingAction(paC, ctx));
+    const paCRow = await q(() => prisma.pendingAction.findUnique({
       where: { id: paC },
-    });
+    }));
     assert(
       paCRow?.status === 'rejected',
       'G6: reject 写真实 rejected 态（清 v0 expiresAt=epoch 债）',
@@ -424,9 +463,9 @@ async function main(): Promise<void> {
         paCRow.expiresAt.getTime() > Date.parse('2000-01-01'),
       'G6: reject 不再篡改 expiresAt（真实态非 epoch 失效）',
     );
-    const block = await prisma.operationLog.count({
+    const block = await q(() => prisma.operationLog.count({
       where: { tenantId: ctx.tenantId, kind: 'block', ref: paC },
-    });
+    }));
     assert(block === 1, 'G6: 拒绝 → 写一条 OperationLog kind:block');
     assert(
       await expectGateError(
@@ -453,11 +492,11 @@ async function main(): Promise<void> {
       'G7: PendingActionStatus 枚举 7 态全量在场',
     );
 
-    const rFail = await executeTool(
+    const rFail = await q(() => executeTool(
       'gate_smoke_failing_tool',
       { note: 'G7 failed 态' },
       ctx,
-    );
+    ));
     assert(
       isPendingEnvelope(rFail.output),
       'G7: 测试工具（outbound）同样被闸门拦截',
@@ -473,14 +512,14 @@ async function main(): Promise<void> {
     }
     assert(failedThrew, 'G7: 副作用失败 → 原始错误上抛');
     assert(
-      (await prisma.pendingAction.findUnique({ where: { id: paD } }))
+      (await q(() => prisma.pendingAction.findUnique({ where: { id: paD } })))
         ?.status === 'failed',
       'G7: 副作用失败 → status=failed',
     );
     assert(
-      (await prisma.operationLog.count({
+      (await q(() => prisma.operationLog.count({
         where: { tenantId: ctx.tenantId, kind: 'irrev', ref: paD },
-      })) === 0,
+      }))) === 0,
       // M5.1b fix-1 更名：原名括号里写「业务写入随事务回滚」，**该半句没有对应判据**——
       // gate_smoke_failing_tool 的 execute 是 `async () => { throw ... }`，一次 DB 写入都不做，
       // 而 irrev 行由 gate 在工具成功之后才写，工具抛错时压根走不到。于是这条断言只证了
@@ -493,12 +532,12 @@ async function main(): Promise<void> {
 
     const paF = await newPending(ctx, fx, 'G7 executing 认账');
     createdPA.push(paF);
-    await prisma.pendingAction.update({
+    await q(() => prisma.pendingAction.update({
       where: { id: paF },
       data: { status: 'executing' },
-    });
+    }));
     assert(
-      (await getPendingActionDetail(paF, ctx)).status === 'executing',
+      (await q(() => getPendingActionDetail(paF, ctx))).status === 'executing',
       'G7: executing 瞬态可被 GET 详情如实返回',
     );
     assert(
@@ -560,14 +599,19 @@ async function main(): Promise<void> {
     // ── ★D20 变异测试：把拦截退回原状（直调 tool.execute 绕过 executeTool 门控）──
     const beforeMut = await countSent(ctx.tenantId);
     const tool = getTool('send_outreach')!;
-    await tool.execute(
-      {
-        projectId: fx.projectId,
-        kolId: fx.kolId,
-        subject: '变异：直调绕过闸门',
-        body: '变异测试正文',
-      } as never,
-      ctx,
+    // 这一句刻意**绕过 executeTool**，故它不经上面那些 q() 包裹的路径——租户作用域要自己给，
+    // 否则开关开着时死在 resolveKol 的 MissingTenantScopeError 上（接线首跑实测）。
+    // 包的是「作用域」，绕过的是「闸门门控」：变异要退回的是后者，不是前者。
+    await q(() =>
+      tool.execute(
+        {
+          projectId: fx.projectId,
+          kolId: fx.kolId,
+          subject: '变异：直调绕过闸门',
+          body: '变异测试正文',
+        } as never,
+        ctx,
+      ),
     ); // = 拦截退回原状
     const afterMut = await countSent(ctx.tenantId);
     const g1AssertionWouldGoRed = afterMut > beforeMut; // 副作用 DID 发生
@@ -582,29 +626,29 @@ async function main(): Promise<void> {
   } finally {
     // 清理本测试产生的 PendingAction + OperationLog（SENT/gate/irrev/block/auto/变异）
     // + F003 夹具（project 级联 thread/message；再删合成 KOL）。
-    await prisma.operationLog.deleteMany({
+    await q(() => prisma.operationLog.deleteMany({
       where: { tenantId: ctx.tenantId, summary: { contains: SENT_MARKER } },
-    });
-    await prisma.operationLog.deleteMany({
+    }));
+    await q(() => prisma.operationLog.deleteMany({
       where: { tenantId: ctx.tenantId, projectId: fx.projectId },
-    });
+    }));
     if (createdPA.length) {
-      await prisma.operationLog.deleteMany({
+      await q(() => prisma.operationLog.deleteMany({
         where: { tenantId: ctx.tenantId, ref: { in: createdPA } },
-      });
-      await prisma.pendingAction.deleteMany({
+      }));
+      await q(() => prisma.pendingAction.deleteMany({
         where: { id: { in: createdPA } },
-      });
+      }));
     }
-    await prisma.project.deleteMany({ where: { id: fx.projectId } });
-    await prisma.kol.deleteMany({ where: { id: fx.kolId } });
+    await q(() => prisma.project.deleteMany({ where: { id: fx.projectId } }));
+    await q(() => prisma.kol.deleteMany({ where: { id: fx.kolId } }));
     console.log('[gate-smoke] 测试数据已清理（含 F003 夹具）');
   }
 }
 
 main()
   .then(async () => {
-    await prisma.$disconnect();
+    await getRuntimeDb().$disconnect();
     process.exit(0);
   })
   .catch(async (err) => {
@@ -612,6 +656,6 @@ main()
       '[gate-smoke] ❌ 失败：',
       err instanceof Error ? err.stack ?? err.message : err,
     );
-    await prisma.$disconnect();
+    await getRuntimeDb().$disconnect();
     process.exit(1);
   });

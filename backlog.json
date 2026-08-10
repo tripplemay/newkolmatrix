@@ -89,13 +89,14 @@
   },
   {
     "id": "BL-M51B-CARRYOVER",
-    "title": "M5.1b 遗留 17 条 open items（扫描器缺陷 / 叙述面守护 / 夹具清态 / 流程偏差）",
-    "description": "M5.1b-TENANT-INJECTION 以 8/8 全 PASS 签收（fix_rounds=4），但签收方登记了 17 条 open items。**原文与逐条证据见 `progress.json` 的 `evaluator_feedback.open_items_carried`**（该批 done 时的快照）与 `docs/test-reports/M5.1b-TENANT-INJECTION-signoff.md`；本条只做索引，不复制原文以免两处漂移。七组如下：① **裁决暂缓的叙述面守护四项**（扩守护到 runtime.ts/prisma.ts · 🔒④ 换语义级判据 · 🔒②b 查 pattern 有效性 · census 自身叙述面无钉）——rv4 实测确认仍在树上，换个简繁形近字即可绕过 🔒②b。② **U2：本批修复引入的潜伏回归（最高优先级）**——`db-layer-importer-census.test.ts` 的 re-export pattern 从 `[^'\\\"`;]*?` 放宽成 `[^;]*?` 后重新放进跨语句误捕：`export const a = 1`（无分号）后文散文含 ` from 'lib/db/privileged'` 会让扫描器**凭空捏造**一个 importer。当前靠 Prettier 强制分号不可达；修法建议改成结构化子句匹配而非「任意字符 + from」。③ **U1/U3/U4/U5 四类扫描器潜伏形态**（行尾注释含 ` from './old'` 既误捕又漏真 specifier · 模板串带替换 `import(`./${name}`)` 捕到字面量 · 普通字符串里的 import 语句误捕 · 动态 import 尾逗号漏抓）——均当前 src/ 零触发；该文件的「已知边界」段**未声称完备**，故不构成对已交付陈述的证伪。④ **夹具清态**：`tests/integration/f004-transaction-atomicity.test.ts` 每跑一次泄漏 6 条孤儿 OperationLog + 3 条 PendingAction（两位 evaluator 各自机械证实），单调增长永不回收；并入 dev 库跨批次孤儿行（实测已累积 500+ 条 OperationLog 指向已不存在的 Tenant）。⑤ **承接未处置**：F003 三种未登记绕过（声明后 push / 模板串诱饵 / 扫描面偏移）· F007 收窄误伤 Planner 每批必读的 `docs/test-reports/user_report/`（已验证更小改法）· docs/archive 排除最小性未达 · `NestedTransactionOptionsError` 零测试覆盖 · 代理非 get 陷阱（set/has/ownKeys）fail-open · prisma.ts「方法必须 bind」无钉守 · acceptance ④「提交路径」用例无鉴别力。⑥ **流程偏差**：F007 的改动混在 subject 标 F008 的 commit `57998bf` 里（铁律 1 偏差，签收方机械确认）。⑦ **方法学**：`find src -type f -exec cat {} +` 对未改动内容三次给出三个不同哈希（文件顺序不定），不能用作还原对账判据——须先 `sort`。",
+    "title": "M5.1b 遗留 open items：①②③ 组已由 M5.1c 消费，余 ④⑤⑥⑦ 待排期",
+    "description": "**账目更新（2026-08-10，M5.1c 签收方结项动作 #3）：** 本条原写「17 条 open items」并按七组索引。其中 **①②③ 三组已由 `M5.1c-CENSUS-SCANNER` 消费并签收**（GRANTED，`docs/test-reports/M5.1c-CENSUS-SCANNER-signoff.md`）：\n  · ②③ 组（U1–U5 扫描器潜伏形态）—— 由「判据从正则换成 TS AST」一次性溶掉，并配了逐形态的换代前/换代后对照（`node tests/tools/m51c-f001-probe-bench.mjs` 可重跑）；\n  · ① 组（叙述面守护四项）—— **未按原计划加固**，改走用户裁决的「删承诺句」路线；该组的四个子项（扩守护面到 runtime.ts/prisma.ts · 🔒④ 语义化 · 🔒②b 查 pattern 有效性 · census 自身上钉）**仍在树上未做**，但其驱动理由已被「不写承诺」替代，排期前应先复核是否还有必要。\n**余下待排期的是 ④⑤⑥⑦ 四组：** ④ 夹具清态（f004-transaction-atomicity 每跑一次泄漏 6 条孤儿 OperationLog + 3 条 PendingAction，单调增长永不回收；并入 dev 库跨批次孤儿行）· ⑤ 承接未处置（F003 三种未登记绕过 · F007 收窄误伤 `docs/test-reports/user_report/` · docs/archive 排除最小性未达 · `NestedTransactionOptionsError` 零覆盖 · 代理非 get 陷阱 fail-open · prisma.ts「方法必须 bind」无钉守 · acceptance ④「提交路径」用例无鉴别力）· ⑥ 流程（F007 改动混在标 F008 的 commit `57998bf` 里）· ⑦ 方法学（`find -exec cat` 顺序不定致哈希不稳，须先 sort）。\n**原文与逐条证据**见 M5.1b done 时 `progress.json` 的 `evaluator_feedback.open_items_carried` 快照与 `docs/test-reports/M5.1b-TENANT-INJECTION-signoff.md`；本条只做索引。",
     "decisions": [
       "2026-08-09 用户裁决：本批 17 条合并成**一条** BL 归档，保持批次溯源完整；排期时再拆分。",
       "2026-08-09 用户裁决：下一批次做**扫描器小批次**，消费本条的 ①②③ 三组（U1–U5 + 叙述面守护四项）；④⑤⑥⑦ 留在本条待后续排期。",
       "第 ① 组的暂缓来自 M5.1b 第四轮的规格层裁决：注释只指向钉的位置、不承诺完备性，「叙述面完备性」一族整体转 backlog、该批不再加断言（两位互不通气的 evaluator 各自提出「再加断言钉断言收益递减」）。",
-      "2026-08-09 立 M5.1c-CENSUS-SCANNER 时的实际消费口径（与提出时的设想不同，如实登记）：第 ②③ 组（U1–U5）由「扫描器 AST 化」一次性溶掉；第 ① 组**不按原计划加固四项**，改为「删承诺句、不再加钉」——加固路线正是上一批被两位 evaluator 各自判定收益递减的那条。故 ① 组的四个子项（扩守护面 · 🔒④ 语义化 · 🔒②b 查 pattern 有效性 · census 自身上钉）**仍留在本条**，只是其驱动理由已被「不写承诺」替代，后续排期时应先复核它们是否还有必要。"
+      "2026-08-09 立 M5.1c-CENSUS-SCANNER 时的实际消费口径（与提出时的设想不同，如实登记）：第 ②③ 组（U1–U5）由「扫描器 AST 化」一次性溶掉；第 ① 组**不按原计划加固四项**，改为「删承诺句、不再加钉」——加固路线正是上一批被两位 evaluator 各自判定收益递减的那条。故 ① 组的四个子项（扩守护面 · 🔒④ 语义化 · 🔒②b 查 pattern 有效性 · census 自身上钉）**仍留在本条**，只是其驱动理由已被「不写承诺」替代，后续排期时应先复核它们是否还有必要。",
+      "2026-08-10 M5.1c 签收方结项动作 #3：本条标题原停留在「17 条」而 ①②③ 组已消费 —— **「清单声称 ≠ 实际」这一族在归档层的又一次复现**，故按实际消费情况重写标题与描述。"
     ],
     "confirmed_at": "2026-08-09",
     "priority": "high"
@@ -111,5 +112,16 @@
     ],
     "confirmed_at": "2026-08-09",
     "priority": "medium"
+  },
+  {
+    "id": "BL-M51C-CLOSURE",
+    "title": "M5.1c 签收结项动作三项（需 feature 号归属，不能在 done 阶段顺手改）",
+    "description": "`M5.1c-CENSUS-SCANNER` 签收 GRANTED 时列了 5 条结项动作，其中 2 条已在 done 阶段落账（progress.json 写盘 · BL-M51B-CARRYOVER 对账）。**余下三条都要动代码，按铁律 10 必须有 feature 号归属**：\n**① W1 —— 补记一行被静默改写的 `// >`。** M5.1c fix-1 同时改写了 `src/lib/db/privileged.ts` 的两行 `// >` 历史更正，新更正段只交代了其中一行。另一行（旧措辞「两个文件的头注都写着『别互相派生』」）被改成属实表述但**没有留下记录**。方向朝真、也没抹除记录，故未阻断签收；但 `// >` 区的价值恰在于「记录本身不被静默改写」，补一句是这条规矩的自我兑现。约一行的量。\n**② S3 / S4 —— 两道自测缺口并入交付方的台子。** `tests/tools/m51c-f001-mutations.mjs` 缺「变异是否真的改变了文件」（写盘后哈希若等于基线即应硬失败）；`m51c-f001-probe-bench.mjs` 缺「世代未坍缩」一道（若抽取路径出错导致各世代实现相同，红格数会系统性归零而无人察觉）。三路验收方各自的工具里都已实现，抄过去即可。\n**③ O-3 —— 决定 `scripts/test/m51c-scanner-equivalence.ts` 的落点。** 它留在 `scripts/` 下使`docs/specs/M5.1-uncovered-entrypoints.md` 的 script 扫描面 49→50、合计 102→103（**入口面 78/3/75 未变**，M5.2 消费的是这三个数，故实际危害≈0）。三个验收方探针已被挪到 `tests/tools/` 避免同类污染，唯独这个没挪。挪则需同步 `package.json` 的 `census:scanner-equiv` 与该文档的两个计数。",
+    "decisions": [
+      "2026-08-10 M5.1c done 阶段：这三项都要改代码/注释，按铁律 10「无 feature 号归属的代码修改 = 越界」不在 done 阶段顺手做，归档待排期。",
+      "三项均经签收方判定**不阻断签收**，属卫生级，可与其它小批次合并。"
+    ],
+    "confirmed_at": "2026-08-10",
+    "priority": "low"
   }
 ]

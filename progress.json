@@ -1,22 +1,22 @@
 {
-  "status": "done",
-  "user_goal": "M5.1c：把 M5.1b 遗留的普查扫描器缺陷从根上解掉。两条用户裁决：① 扫描器改用 TS AST 而非继续修补正则（复验方已实证全仓 384 文件 0 分歧，typescript 本就是依赖）；② 叙述面「删承诺句、不再加钉」——不写承诺就不存在「声称 > 实际」，从根上退出 M5.1b 打了四轮的那个递归。",
-  "total_features": 2,
-  "completed_features": 2,
-  "fix_rounds": 1,
-  "current_sprint": "M5.1c-CENSUS-SCANNER",
+  "status": "building",
+  "user_goal": "M5.2：把租户注入从「机制成立」推到「隔离真的生效」。44 条入口接上租户作用域，并在 DB_APP_ROLE_RUNTIME=1 且真连 kol_app 的条件下逐条跑通。用户三条裁决：① 排除 scripts/test/ 下 29 条历史验收探针（为已废弃的一次性产物付接线工不划算，另行登记待清理）；② 终点＝代码包裹 + 开关开着跑通，**不碰生产**（生产切换是独立的人类闸门动作）；③ 按业务域切成 7 条实装 + 1 条收口 e2e，一批做完。",
+  "total_features": 8,
+  "completed_features": 0,
+  "fix_rounds": 0,
+  "current_sprint": "M5.2-TENANT-COVERAGE",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-10T05:05",
+  "last_updated": "2026-08-10T05:40",
   "reference_docs": [
-    "docs/specs/M5.1c-CENSUS-SCANNER-spec.md",
+    "docs/specs/M5.2-TENANT-COVERAGE-spec.md",
+    "docs/specs/M5.1-uncovered-entrypoints.md",
     "docs/specs/M5.1b-TENANT-INJECTION-spec.md",
-    "docs/test-reports/M5.1b-TENANT-INJECTION-signoff.md",
-    "docs/test-reports/M5.1b-rv4-F008.md"
+    "docs/test-reports/M5.1c-CENSUS-SCANNER-signoff.md"
   ],
   "docs": {
-    "spec": "docs/specs/M5.1c-CENSUS-SCANNER-spec.md",
+    "spec": "docs/specs/M5.2-TENANT-COVERAGE-spec.md",
     "test_cases": null,
-    "signoff": "docs/test-reports/M5.1c-CENSUS-SCANNER-signoff.md",
+    "signoff": null,
     "framework_reviewed": true
   },
   "role_assignments": null,
@@ -25,99 +25,20 @@
     "applied_batch": "M5.1b-TENANT-INJECTION",
     "applied_at": "2026-08-07T02:43:15Z"
   },
-  "evaluator_feedback": {
-    "round": "signoff",
-    "verdict": "GRANTED",
-    "batch": "M5.1c-CENSUS-SCANNER",
-    "verified_head": "37e5e12468e46605af99124e4560914bf6528533",
-    "features": {
-      "F001": {
-        "result": "PASS",
-        "acceptance": {
-          "①": "PASS",
-          "②": "PASS",
-          "③": "PASS",
-          "④": "PASS",
-          "⑤": "PASS",
-          "⑥": "PASS",
-          "⑦": "PASS"
-        }
-      },
-      "F002": {
-        "result": "PASS",
-        "acceptance": {
-          "①": "PASS",
-          "②": "PASS",
-          "③": "PASS",
-          "④": "PASS",
-          "⑤": "PASS",
-          "⑥": "PASS"
-        }
-      }
-    },
-    "l1": {
-      "tsc": "exit 0（0 行）",
-      "lint": "exit 0 · No ESLint warnings or errors",
-      "vitest": "148 files / 1888 tests passed"
-    },
-    "own_mutations": [
-      "SG-M1 现实侧注入未登记 importer（.tsx + 动态 import(@/…) + 裸路径静态 import）→ 红 2 并点名探针文件",
-      "SG-M2a 判据对全部 .tsx 致盲 → 红 2（预扫阈值 + ScriptKind）",
-      "SG-M2b 判据只对一个未登记文件致盲 → 全绿（射程实测，未证伪任何现行陈述）",
-      "SG-M2c 对照组：只对一个已登记 importer 致盲 → 红 1",
-      "SG-B1–B5 短路法重算五分支红格 → 6/2/1/4/1，与注释逐个吻合"
-    ],
-    "narrative_audit": "17 项可机械核对陈述逐条复算，0 项被证伪",
-    "l2_status": "未授权，全程未执行；本批不存在需 L2 才能验的面",
-    "open_items": [
-      "S1",
-      "S2",
-      "S3",
-      "S4",
-      "W1",
-      "W2",
-      "N-1",
-      "O-1",
-      "O-2",
-      "O-3",
-      "M10",
-      "declare-module 射程外"
-    ],
-    "closure_actions": [
-      "progress.json 落 status=done / docs.signoff / 本 feedback（O-2）",
-      "privileged.ts 的 // > 区补记 fix-1 对 ② 行的改写（W1）",
-      "backlog：BL-M51B-CARRYOVER 标注已消费的 ①②③ 组",
-      "S3/S4 两道自测缺口并入交付方台子",
-      "O-3：决定 m51c-scanner-equivalence.ts 的落点"
-    ],
-    "signoff_report": "docs/test-reports/M5.1c-CENSUS-SCANNER-signoff.md",
-    "verification_form": {
-      "rounds": "verify-1（2/2 PARTIAL）→ 对抗复核（两条均维持，发现 1 被判低估）→ fix-1 → reverify-1（两路 PASS）→ signoff（GRANTED）",
-      "agents": "6 个隔离 agent，各自独立 worktree 与 fresh context：verify-F001 / verify-F002 / adversarial-M51c / rv1b-fixes / rv1b-reg / signoff-M51c",
-      "process_incidents": "首派的 rv1-fixes 与 rv1-reg 两个进程在开工约 10 分钟处分别因『连接中断』与『ENOTFOUND』失败，只留骨架、零结论。编排者先取残件再清工作区，主仓经核实未受污染（HEAD de2b27c，工作树 0 处改动，src/tests 子树 OID 与 HEAD 一致），随后在干净工作区重派；残件未喂给新 agent（未验过的判据不作为前提传递）。",
-      "reports": [
-        "docs/test-reports/M5.1c-verify-F001.md",
-        "docs/test-reports/M5.1c-verify-F002.md",
-        "docs/test-reports/M5.1c-adversarial.md",
-        "docs/test-reports/M5.1c-rv1-fixes.md",
-        "docs/test-reports/M5.1c-rv1-regression.md",
-        "docs/test-reports/M5.1c-CENSUS-SCANNER-signoff.md"
-      ]
-    }
-  },
+  "evaluator_feedback": null,
   "generator_handoff": null,
   "session_notes": {
-    "Andy": "fix-1 完成，进 reverifying。8 项清单：6 项必修/建议已修，2 项标注为「不必做」（三方一致：AST 实现本体、等价性审计脚本、GUARDED 清单、src/ 均不动）。核心改法是**把顺序倒过来**：先建台量红格，再有资格写那句话。为此把两个一次性脚本落进仓——`tests/tools/m51c-f001-probe-bench.mjs`（候选探针台，世代按哈希去重得 5 代而非人指认的 3 代）与`tests/tools/m51c-f001-mutations.mjs`（变异台，把首轮那个假阴性坑写进代码：`Tests no tests` 不能当 0 failed）。三件留给复验方注意：① 我写 (a)–(d) 的红格数时**又一次先写后量**，写完当场发现并补量了（数值与归属都对上了，但过程是错的，如实记）；② **M10 仍全绿**（预扫不传文件名），维持如实登记，没有为遮掩它加新钉；③ 语料段现在逐条写着「换代前红几代、红在哪几代」，这些是对**固定 commit** 的测量，不随代码演进漂，但若有人重写历史（rebase/amend 那 9 个 commit），它们会失效——重跑 probe-bench 即知。",
+    "Andy": null,
     "Reviewer": null,
     "Mark": null
   },
   "lane": "fast",
   "prior_batch_closure": {
-    "batch": "M5.1b-TENANT-INJECTION",
-    "closed_as": "done（8/8 全 PASS，独立 evaluator 签收 GRANTED）",
-    "fix_rounds": 4,
-    "signoff": "docs/test-reports/M5.1b-TENANT-INJECTION-signoff.md",
-    "carried": "BL-M51B-CARRYOVER（17 条 open items 合并归档）；本批消费其第 ①②③ 组，④⑤⑥⑦ 留待排期",
-    "note": "四轮里三轮打的是同一缺陷族「声称的覆盖面 > 实际覆盖面」，每次都复发在为消灭它而写的那句话里；靠用户裁决「有界收口 + 整族转 backlog」退出递归。本批的两条裁决（AST 化 / 删承诺句）是该族的根治尝试。"
+    "batch": "M5.1c-CENSUS-SCANNER",
+    "closed_as": "done（2/2 PASS，独立签收 GRANTED）",
+    "fix_rounds": 1,
+    "signoff": "docs/test-reports/M5.1c-CENSUS-SCANNER-signoff.md",
+    "carried": "BL-M51C-CLOSURE（3 项卫生级，需 feature 号归属）· BL-M51B-CARRYOVER 余 ④⑤⑥⑦ 组",
+    "note": "M5.1/M5.1b/M5.1c 三批共同的产出是「机制 + 可信判据」；本批是第一次真正交付隔离价值。"
   }
 }

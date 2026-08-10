@@ -4,10 +4,16 @@
 // commit_quote（outbound）→ pending 信封 → 前端走真链路 GET 详情 → confirm → execute。
 // 权威校验在此（zod）；前端表单仅格式提示（裁决叮嘱 ③）。运行时 = nodejs（Prisma）。
 
+// M5.2-TENANT-COVERAGE F002 — 会话面入口的租户作用域包裹（口径见 api/actions/route.ts 头注）。
+//
+// 【D-4 表态：本路由**不涉外呼**，用默认事务时长】commit_quote 是 outbound，但它在此处
+// 被闸门拦在确认前——只落 PendingAction + 留痕，全是 DB。真正的副作用发生在
+// /api/actions/[id]/execute，那条按 spec D-3 裁决走领域层自带作用域（含 90s 外呼窗）。
 import { z } from 'zod';
 import { buildToolContext } from 'lib/agent/context';
 import { executeTool } from 'lib/agent/execute';
 import { isPendingEnvelope } from 'lib/agent/gate/harm';
+import { withSessionTenant } from 'lib/db/tenant-entry';
 
 export const runtime = 'nodejs';
 
@@ -33,7 +39,9 @@ export async function POST(req: Request): Promise<Response> {
       agentId: 'reach',
       projectId: parsed.data.projectId,
     });
-    const r = await executeTool('commit_quote', parsed.data, ctx);
+    const r = await withSessionTenant(() =>
+      executeTool('commit_quote', parsed.data, ctx),
+    );
     if (!isPendingEnvelope(r.output)) {
       console.error('[api/reach/quote] 非 pending 返回，闸门异常', r);
       return Response.json({ error: '内部异常，已拒绝报价' }, { status: 500 });

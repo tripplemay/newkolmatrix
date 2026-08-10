@@ -135,5 +135,13 @@
     ],
     "confirmed_at": "2026-08-10",
     "priority": "low"
+  },
+  {
+    "id": "BL-REACH-E2E-GATEWAY-FLAKE",
+    "title": "reach:e2e / agentloop:e2e 依赖真网关 15s abort，间歇性 TimeoutError",
+    "description": "M5.2 F002 接线时观测到：`npm run reach:e2e` 的 ① 段调 draft_email 走真网关 chat，abort 上限是 `AIGC_TIMEOUT_MS`（默认 15s，src/lib/agent/tools/email-drafting.ts:35）。模型偶尔超过 15s → 整条 e2e 以 `TimeoutError: The operation was aborted due to timeout` 失败。**与本批的租户接线无关**：该 abort 计时自 generateText 发起时开始、只计 HTTP 墙钟，与是否处在 DB 事务内无关；F002 期间开关关着也复现过。本会话观测约 2/9 次失败。现有降级出口是 `SKIP_DRAFT_LLM=true`（明示不静默），F002 验收即以「真网关一次 + 该降级一次」两路取证。**待裁**：是否给这类 e2e 的网关段加重试/退避，或把 e2e 默认切到降级路径、真网关只在专门的 L2 档跑。同族风险在 F004 的 agentloop:e2e（多步 loop，网关调用更多次）。",
+    "decisions": [],
+    "confirmed_at": "2026-08-10",
+    "priority": "medium"
   }
 ]

@@ -2,11 +2,11 @@
   "status": "building",
   "user_goal": "M5.2：把租户注入从「机制成立」推到「隔离真的生效」。44 条入口接上租户作用域，并在 DB_APP_ROLE_RUNTIME=1 且真连 kol_app 的条件下逐条跑通。用户三条裁决：① 排除 scripts/test/ 下 29 条历史验收探针（为已废弃的一次性产物付接线工不划算，另行登记待清理）；② 终点＝代码包裹 + 开关开着跑通，**不碰生产**（生产切换是独立的人类闸门动作）；③ 按业务域切成 7 条实装 + 1 条收口 e2e，一批做完。",
   "total_features": 8,
-  "completed_features": 1,
+  "completed_features": 2,
   "fix_rounds": 0,
   "current_sprint": "M5.2-TENANT-COVERAGE",
   "dashboard_url": "https://claude.ai/code/artifact/922046a5-2f30-446a-aebf-88fa24d09939",
-  "last_updated": "2026-08-10T05:25",
+  "last_updated": "2026-08-10T05:52",
   "reference_docs": [
     "docs/specs/M5.2-TENANT-COVERAGE-spec.md",
     "docs/specs/M5.1-uncovered-entrypoints.md",

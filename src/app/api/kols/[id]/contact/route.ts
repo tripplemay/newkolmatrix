@@ -7,8 +7,16 @@
 // 先校验 body 再解析租户（fail fast）：400 路径不依赖 dev tenant——CI 无 seed 库也可测。
 // ⚠️ P1：真实 KOL 行不得写入测试地址（验收仅夹具行 / VK-FULL 白名单行）。
 
+// M5.2-TENANT-COVERAGE F002 — 会话面入口的租户作用域包裹（口径见 api/actions/route.ts 头注）。
+// 【D-4 表态：不涉外呼】setKolContactEmail 只改 Kol.contactEmail + fieldProvenance，
+// 全是 DB，用默认事务时长。
+//
+// 作用域从 setKolContactEmail 起包，**不包 zod 校验与格式归一**：那两步纯计算不碰库，
+// 包进去只会白白拉长事务（同 tenant-entry.ts 头注对会话解析的那条理由）。
+// 400 路径因此仍然一次库都不碰——「坏格式不依赖库」这个既有性质没被本次接线改掉。
 import { z } from 'zod';
 import { requireSessionTenantId } from 'lib/auth/session-tenant';
+import { withSessionTenant } from 'lib/db/tenant-entry';
 import {
   normalizeContactEmailInput,
   setKolContactEmail,
@@ -44,7 +52,9 @@ export async function PATCH(
     }
 
     const tenantId = await requireSessionTenantId();
-    const result = await setKolContactEmail(tenantId, id, normalized.value);
+    const result = await withSessionTenant(() =>
+      setKolContactEmail(tenantId, id, normalized.value),
+    );
     if (result.ok === false) {
       return Response.json({ error: '创作者不存在' }, { status: 404 });
     }

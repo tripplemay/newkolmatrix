@@ -5,7 +5,11 @@
 // commit_quote 闸门）。internal 动作（人工标记可被后续事实覆盖修正，无确认框——D27 边界）。
 // 运行时 = nodejs（Prisma）。
 
+// M5.2-TENANT-COVERAGE F002 — 会话面入口的租户作用域包裹（口径见 api/actions/route.ts 头注）。
+// 【D-4 表态：不涉外呼】applyManualOverride 只写 Signal → 走 crmInfer 推断 → 落留痕，全是 DB，
+// 用默认事务时长。
 import { requireSessionTenantId } from 'lib/auth/session-tenant';
+import { withSessionTenant } from 'lib/db/tenant-entry';
 import {
   applyManualOverride,
   manualOverrideInputSchema,
@@ -25,10 +29,12 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
     const tenantId = await requireSessionTenantId();
-    const result = await applyManualOverride(parsed.data, {
-      tenantId,
-      actor: 'operator', // UI 入口 = 人直接操作
-    });
+    const result = await withSessionTenant(() =>
+      applyManualOverride(parsed.data, {
+        tenantId,
+        actor: 'operator', // UI 入口 = 人直接操作
+      }),
+    );
     return Response.json(result);
   } catch (error) {
     console.error('[api/reach/override] 失败:', error);

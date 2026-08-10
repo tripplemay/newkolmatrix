@@ -25,11 +25,38 @@ import {
   systemContext,
 } from '../../src/lib/agent/context';
 import { prisma } from '../../src/lib/db/prisma';
+import { withTenant, type TenantTxOptions } from '../../src/lib/db/tenant-scope';
+// 收尾断开连接要拿**运行时 client 本体**：`prisma` 是 ALS 感知代理，开关开着且不在作用域内时
+// 连读它一个属性都会 fail-closed 抛 MissingTenantScopeError（F001 接线实测踩过）。
+import { getRuntimeDb } from '../../src/lib/db/runtime';
+import { AIGC_TIMEOUT_MS } from '../../src/lib/ai/gateway';
 
 function assert(cond: boolean, msg: string): void {
   if (!cond) throw new Error(`ASSERT FAIL: ${msg}`);
   console.log(`  ✓ ${msg}`);
 }
+
+// ── M5.2-TENANT-COVERAGE F002（裁决 2-A + D-3 裁决口径 2）— 租户作用域接线 ────────────
+//
+// 本脚本挂在 `npm run reach:e2e` 上，是活的验收资产，故随本批接线。
+// 纪律同 gate-smoke：**夹具 / 断言查询 / executeTool 逐条包进 q()，而 confirm 与
+// executePendingAction 一律裸调**——它们按 spec D-3 裁决自带作用域，从作用域内调 execute
+// 会因嵌套带选项当场抛 NestedTransactionOptionsError。整包 main() 同理会炸。
+let scopeTenantId = '';
+
+/** 逐段租户作用域。同租户嵌套复用外层事务，故重复包裹无副作用。 */
+function q<T>(fn: () => Promise<T>, txOptions?: TenantTxOptions): Promise<T> {
+  if (!scopeTenantId) {
+    throw new Error('[reach-e2e] q() 在租户解析出来之前被调用（接线顺序错了）');
+  }
+  return withTenant(scopeTenantId, fn, txOptions);
+}
+
+/**
+ * 涉网关往返的段用的事务时长（D-4 表态）。**从网关自己的 abort 上限派生**，不写死：
+ * 写死的话，谁把 AIGC_TIMEOUT_MS 调大，事务就会先于外呼死掉。同 api/reach/refine 的口径。
+ */
+const GATEWAY_TX_TIMEOUT_MS = AIGC_TIMEOUT_MS + 10_000;
 
 const REAL_MODE =
   !!process.env.RESEND_API_KEY && !!process.env.OUTREACH_TEST_RECIPIENT;
@@ -43,9 +70,10 @@ async function main(): Promise<void> {
   );
   getNativeToolNames();
   const ctx = await systemContext(DEV_TENANT_SLUG, { agentId: 'reach' });
+  scopeTenantId = ctx.tenantId; // q() 从此可用（systemContext 走引导面 privilegedDb，无需作用域）
 
   // ── 夹具：合成 KOL + 项目（P1：不触碰任何真实 KOL 行）──
-  const fxKol = await prisma.kol.create({
+  const fxKol = await q(() => prisma.kol.create({
     data: {
       tenantId: ctx.tenantId,
       canonicalHandle: `reach-e2e-kol-${process.pid}`,
@@ -57,29 +85,29 @@ async function main(): Promise<void> {
       },
     },
     select: { id: true },
-  });
-  const fxProject = await prisma.project.create({
+  }));
+  const fxProject = await q(() => prisma.project.create({
     data: { tenantId: ctx.tenantId, name: `Reach E2E 项目 ${process.pid}` },
     select: { id: true },
-  });
+  }));
   const createdPA: string[] = [];
 
   try {
     // ── P1 前置断言：测试地址未落在任何真实 KOL 行上 ──
-    const leaked = await prisma.kol.count({
+    const leaked = await q(() => prisma.kol.count({
       where: {
         tenantId: ctx.tenantId,
         contactEmail: TEST_EMAIL,
         id: { not: fxKol.id },
       },
-    });
+    }));
     assert(leaked === 0, 'P1: 测试地址仅在合成夹具行（真实 KOL 零染指）');
 
     // ── ① 起草（draft_email，真网关 L2 最小用量）──
     let draftBody: string;
     if (process.env.SKIP_DRAFT_LLM === 'true') {
       console.log('  ⚠ SKIP_DRAFT_LLM=true：跳过真网关起草，用固定草稿（明示降级）');
-      const thread = await prisma.outreachThread.upsert({
+      const thread = await q(() => prisma.outreachThread.upsert({
         where: {
           projectId_kolId: { projectId: fxProject.id, kolId: fxKol.id },
         },
@@ -91,8 +119,8 @@ async function main(): Promise<void> {
         },
         update: {},
         select: { id: true },
-      });
-      await prisma.outreachMessage.create({
+      }));
+      await q(() => prisma.outreachMessage.create({
         data: {
           tenantId: ctx.tenantId,
           threadId: thread.id,
@@ -101,17 +129,22 @@ async function main(): Promise<void> {
           body: '（跳过 LLM 的固定草稿正文）',
           language: 'zh',
         },
-      });
+      }));
       draftBody = '（跳过 LLM 的固定草稿正文）';
     } else {
-      const r = await executeTool(
-        'draft_email',
-        {
-          projectId: fxProject.id,
-          kolId: fxKol.id,
-          brief: 'E2E 闭环测试：邀请参与新游戏上线合作（此为测试邮件）',
-        },
-        ctx,
+      const r = await q(
+        () =>
+          executeTool(
+            'draft_email',
+            {
+              projectId: fxProject.id,
+              kolId: fxKol.id,
+              brief: 'E2E 闭环测试：邀请参与新游戏上线合作（此为测试邮件）',
+            },
+            ctx,
+          ),
+        // D-4 表态：这一段真打网关 chat，默认 5s 事务必超（见 GATEWAY_TX_TIMEOUT_MS）
+        { timeout: GATEWAY_TX_TIMEOUT_MS },
       );
       llmCalls += 1;
       const draft = r.output as { subject: string; body: string; language: string };
@@ -119,24 +152,24 @@ async function main(): Promise<void> {
       assert(draft.language === 'zh', '① 语言随 KOL.language（NFR-I2）');
       draftBody = draft.body;
     }
-    const draftRow = await prisma.outreachMessage.findFirst({
+    const draftRow = await q(() => prisma.outreachMessage.findFirst({
       where: {
         tenantId: ctx.tenantId,
         direction: 'draft',
         thread: { projectId: fxProject.id, kolId: fxKol.id },
       },
       orderBy: { createdAt: 'desc' },
-    });
+    }));
     assert(!!draftRow, '① 草稿落库（OutreachMessage direction=draft，审阅数据源）');
 
     // ── ② 审阅后发起发送：无令牌 → pending，副作用零发生 ──
-    const sentBefore = await prisma.outreachMessage.count({
+    const sentBefore = await q(() => prisma.outreachMessage.count({
       where: { tenantId: ctx.tenantId, direction: 'sent', threadId: draftRow!.threadId },
-    });
-    const markerBefore = await prisma.operationLog.count({
+    }));
+    const markerBefore = await q(() => prisma.operationLog.count({
       where: { tenantId: ctx.tenantId, summary: { contains: SENT_MARKER } },
-    });
-    const send = await executeTool(
+    }));
+    const send = await q(() => executeTool(
       'send_outreach',
       {
         projectId: fxProject.id,
@@ -146,17 +179,17 @@ async function main(): Promise<void> {
         language: 'zh',
       },
       ctx,
-    );
+    ));
     assert(isPendingEnvelope(send.output), '② 无令牌 → pending 信封（停在确认前）');
     const env = send.output as { pendingActionId: string; harm: { targets: string[] } };
     createdPA.push(env.pendingActionId);
     assert(
-      (await prisma.outreachMessage.count({
+      (await q(() => prisma.outreachMessage.count({
         where: { tenantId: ctx.tenantId, direction: 'sent', threadId: draftRow!.threadId },
-      })) === sentBefore &&
-        (await prisma.operationLog.count({
+      }))) === sentBefore &&
+        (await q(() => prisma.operationLog.count({
           where: { tenantId: ctx.tenantId, summary: { contains: SENT_MARKER } },
-        })) === markerBefore,
+        }))) === markerBefore,
       '② 副作用零发生（无 sent 行、无投递标记——「点确认才发送」）',
     );
     assert(
@@ -184,44 +217,44 @@ async function main(): Promise<void> {
     }
 
     // ── ④ 落库与留痕齐 ──
-    const sentRow = await prisma.outreachMessage.findUnique({
+    const sentRow = await q(() => prisma.outreachMessage.findUnique({
       where: { id: out.messageId },
-    });
+    }));
     assert(
       sentRow?.direction === 'sent' && sentRow.gateLogId === env.pendingActionId,
       '④ OutreachMessage(direction=sent, gateLogId=PA.id) 落库（:468）',
     );
-    const thread = await prisma.outreachThread.findUnique({
+    const thread = await q(() => prisma.outreachThread.findUnique({
       where: { id: out.threadId },
-    });
+    }));
     assert(thread?.status === 'sent', '④ thread 经 crmInfer 推进 pending_send → sent');
     assert(
-      (await prisma.operationLog.count({
+      (await q(() => prisma.operationLog.count({
         where: { tenantId: ctx.tenantId, kind: 'irrev', ref: env.pendingActionId },
-      })) === 1,
+      }))) === 1,
       '④ irrev 留痕在场（同事务）',
     );
     assert(
-      (await prisma.operationLog.count({
+      (await q(() => prisma.operationLog.count({
         where: {
           tenantId: ctx.tenantId,
           kind: 'auto',
           projectId: fxProject.id,
           summary: { contains: '触达状态推进' },
         },
-      })) === 1,
+      }))) === 1,
       '④ 状态推进事件留痕在场',
     );
 
     // ── ⑤ P1 终局断言：本次链路未向任何非测试地址发信 ──
-    const strayMsgs = await prisma.outreachMessage.count({
+    const strayMsgs = await q(() => prisma.outreachMessage.count({
       where: {
         tenantId: ctx.tenantId,
         direction: 'sent',
         threadId: { not: out.threadId },
         createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) },
       },
-    });
+    }));
     assert(strayMsgs === 0, 'P1: 5 分钟窗口内无夹具外 sent 行（真实 KOL 零发信）');
 
     console.log('[reach-e2e] ✅ E2E 闭环全绿');
@@ -230,32 +263,32 @@ async function main(): Promise<void> {
     );
   } finally {
     // 清理夹具（REAL 模式的投递记录随夹具清除；真实邮箱里的邮件即是外部证据）
-    await prisma.operationLog.deleteMany({
+    await q(() => prisma.operationLog.deleteMany({
       where: { tenantId: ctx.tenantId, summary: { contains: SENT_MARKER } },
-    });
-    await prisma.operationLog.deleteMany({
+    }));
+    await q(() => prisma.operationLog.deleteMany({
       where: { tenantId: ctx.tenantId, projectId: fxProject.id },
-    });
+    }));
     if (createdPA.length) {
-      await prisma.operationLog.deleteMany({
+      await q(() => prisma.operationLog.deleteMany({
         where: { tenantId: ctx.tenantId, ref: { in: createdPA } },
-      });
-      await prisma.pendingAction.deleteMany({ where: { id: { in: createdPA } } });
+      }));
+      await q(() => prisma.pendingAction.deleteMany({ where: { id: { in: createdPA } } }));
     }
-    await prisma.signal.deleteMany({ where: { tenantId: ctx.tenantId, projectId: fxProject.id } });
-    await prisma.project.deleteMany({ where: { id: fxProject.id } });
-    await prisma.kol.deleteMany({ where: { id: fxKol.id } });
+    await q(() => prisma.signal.deleteMany({ where: { tenantId: ctx.tenantId, projectId: fxProject.id } }));
+    await q(() => prisma.project.deleteMany({ where: { id: fxProject.id } }));
+    await q(() => prisma.kol.deleteMany({ where: { id: fxKol.id } }));
     console.log('[reach-e2e] 夹具已清理');
   }
 }
 
 main()
   .then(async () => {
-    await prisma.$disconnect();
+    await getRuntimeDb().$disconnect();
     process.exit(0);
   })
   .catch(async (err) => {
     console.error('[reach-e2e] ❌ 失败：', err instanceof Error ? (err.stack ?? err.message) : err);
-    await prisma.$disconnect();
+    await getRuntimeDb().$disconnect();
     process.exit(1);
   });

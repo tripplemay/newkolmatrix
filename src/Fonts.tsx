@@ -34,7 +34,7 @@ export default function Fonts() {
               font-display: swap;
               src: url('${
                 prefix + '/fonts/dm-sans/DMSans-Regular.ttf'
-              }) format('truetype');
+              }') format('truetype');
             }
             
             @font-face {
@@ -44,7 +44,7 @@ export default function Fonts() {
               font-display: swap;
               src: url('${
                 prefix + '/fonts/dm-sans/DMSans-Medium.ttf'
-              }) format('truetype');
+              }') format('truetype');
             }
             
             @font-face {
@@ -54,7 +54,7 @@ export default function Fonts() {
               font-display: swap;
               src: url('${
                 prefix + '/fonts/dm-sans/DMSans-Bold.ttf'
-              }) format('truetype');
+              }') format('truetype');
             }
           `,
       }}

@@ -30,7 +30,7 @@
   "session_notes": {
     "Andy": null,
     "Reviewer": null,
-    "Mark": null
+    "Mark": "M5.2 F001 已 done 并推 main（2bbbf79，CI success）。本会话真正的产出是**口径**，不是 5 条 route。\n三条用户裁决已落盘（docs/specs/M5.2-F001-actions-wiring-adjudication.md §5）：\n  ① D-3 选处置③；② 范围 44→53（补回 9 条活 npm 探针）；③ 追裁：confirm 同属「先写后抛」，一并走③。\nF002–F007 照办的口径（spec §D-3 裁决段，别只读本条）：\n  · 会话面默认入口层 withSessionTenant；只有「先写后抛 / 靠后续独立事务收尾」才下沉领域层。\n    本批已确定两处（execute / confirm）。**再遇第三处必须提审，不得自行类推**——这条是用户明确定的。\n  · 接线活探针时逐段包，executePendingAction 一律裸调（整包 main() 会因嵌套带选项当场抛）。\n踩过三次同一个坑，接着做的人注意：**源码级扫描器不剔注释**。注释里照字面写违规/包裹形态会\n被自己的钉点名或把覆盖数虚报高（本批实测两次：session-tenant-context 点名 actions/route.ts；\n普查把 execute route 误判已覆盖，8→7）。写反例一律改述，别写字面量。\nD-4 的坑比 spec 预想的宽：入口一包，任何调网关的工具都被 5s 事务罩住。gate-smoke 的 G3\n（search_kols 先要 embedding 再查 pgvector）实测时序性超时，已显式给 30s。F004 的 /api/agent\n和 F006 的 nightly-screen / kol-sync 会更严重，别等它红了才想。\n剩 F002–F008 共 7 条，均 pending。F008 收口目标：普查判已覆盖 54 / 未覆盖 24（spec §2.3）。"
   },
   "lane": "fast",
   "prior_batch_closure": {

@@ -7,7 +7,88 @@
 // 3. 无效输入（白名单外类型 / >20MB / 图片最短边 ≤10px（vision 上游硬约束）/ 坏图）
 //    → HTTP 400/413 拒收，不落盘不落库（P5：上传时校验优于解析时炸）。
 
-import { imageSize } from 'image-size';
+type ImageDimensions = { width: number; height: number };
+
+function readPngDimensions(bytes: Buffer): ImageDimensions | null {
+  if (
+    bytes.length < 24 ||
+    bytes.readUInt32BE(0) !== 0x89504e47 ||
+    bytes.readUInt32BE(4) !== 0x0d0a1a0a ||
+    bytes.toString('ascii', 12, 16) !== 'IHDR'
+  ) {
+    return null;
+  }
+  return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+}
+
+function readJpegDimensions(bytes: Buffer): ImageDimensions | null {
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
+  let offset = 2;
+  while (offset + 9 < bytes.length) {
+    if (bytes[offset] !== 0xff) return null;
+    const marker = bytes[offset + 1];
+    offset += 2;
+    if (marker === 0xd9 || marker === 0xda) return null;
+    if (offset + 2 > bytes.length) return null;
+    const segmentLength = bytes.readUInt16BE(offset);
+    if (segmentLength < 2 || offset + segmentLength > bytes.length) return null;
+    const isSofMarker =
+      (marker >= 0xc0 && marker <= 0xc3) ||
+      (marker >= 0xc5 && marker <= 0xc7) ||
+      (marker >= 0xc9 && marker <= 0xcb) ||
+      (marker >= 0xcd && marker <= 0xcf);
+    if (isSofMarker) {
+      if (segmentLength < 7) return null;
+      return {
+        height: bytes.readUInt16BE(offset + 3),
+        width: bytes.readUInt16BE(offset + 5),
+      };
+    }
+    offset += segmentLength;
+  }
+  return null;
+}
+
+function readWebpDimensions(bytes: Buffer): ImageDimensions | null {
+  if (
+    bytes.length < 30 ||
+    bytes.toString('ascii', 0, 4) !== 'RIFF' ||
+    bytes.toString('ascii', 8, 12) !== 'WEBP'
+  ) {
+    return null;
+  }
+  const chunk = bytes.toString('ascii', 12, 16);
+  if (chunk === 'VP8 ' && bytes.length >= 30) {
+    return {
+      width: bytes.readUInt16LE(26) & 0x3fff,
+      height: bytes.readUInt16LE(28) & 0x3fff,
+    };
+  }
+  if (chunk === 'VP8L' && bytes.length >= 25) {
+    const b0 = bytes[21];
+    const b1 = bytes[22];
+    const b2 = bytes[23];
+    const b3 = bytes[24];
+    return {
+      width: 1 + (((b1 & 0x3f) << 8) | b0),
+      height: 1 + (((b3 & 0x0f) << 10) | (b2 << 2) | ((b1 & 0xc0) >> 6)),
+    };
+  }
+  if (chunk === 'VP8X' && bytes.length >= 30) {
+    return {
+      width: 1 + bytes.readUIntLE(24, 3),
+      height: 1 + bytes.readUIntLE(27, 3),
+    };
+  }
+  return null;
+}
+
+function readImageDimensions(ext: string, bytes: Buffer): ImageDimensions | null {
+  if (ext === 'png') return readPngDimensions(bytes);
+  if (ext === 'jpg' || ext === 'jpeg') return readJpegDimensions(bytes);
+  if (ext === 'webp') return readWebpDimensions(bytes);
+  return null;
+}
 
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB
 /** vision 上游硬约束（立项实测：最短边 ≤10px 报 InvalidParameter）。 */
@@ -86,13 +167,12 @@ export function validateUploadFile(
   if (IMAGE_EXTS.has(ext)) {
     let width = 0;
     let height = 0;
-    try {
-      const dim = imageSize(bytes);
-      width = dim.width ?? 0;
-      height = dim.height ?? 0;
-    } catch {
+    const dim = readImageDimensions(ext, bytes);
+    if (!dim) {
       return { ok: false, status: 400, error: '图片文件损坏或无法解析尺寸' };
     }
+    width = dim.width;
+    height = dim.height;
     if (Math.min(width, height) <= MIN_IMAGE_SIDE_PX) {
       return {
         ok: false,

@@ -25,6 +25,7 @@
     "strictPropertyInitialization": false,
     "downlevelIteration": true,
     "baseUrl": "src",
+    "ignoreDeprecations": "5.0",
     "paths": {
       "@/public/*": ["./src/assets/public/*"]
     },

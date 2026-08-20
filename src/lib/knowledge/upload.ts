@@ -7,8 +7,6 @@
 // 3. 无效输入（白名单外类型 / >20MB / 图片最短边 ≤10px（vision 上游硬约束）/ 坏图）
 //    → HTTP 400/413 拒收，不落盘不落库（P5：上传时校验优于解析时炸）。
 
-import { imageSize } from 'image-size';
-
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB
 /** vision 上游硬约束（立项实测：最短边 ≤10px 报 InvalidParameter）。 */
 export const MIN_IMAGE_SIDE_PX = 10;
@@ -35,6 +33,79 @@ const METADATA_ONLY_MIME: Record<string, string> = {
 };
 
 const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'webp']);
+
+type ImageDimensions = { width: number; height: number };
+
+function readPngDimensions(bytes: Buffer): ImageDimensions | null {
+  const pngSignature = '89504e470d0a1a0a';
+  if (bytes.length < 24 || bytes.subarray(0, 8).toString('hex') !== pngSignature) {
+    return null;
+  }
+  if (bytes.subarray(12, 16).toString('ascii') !== 'IHDR') return null;
+  const width = bytes.readUInt32BE(16);
+  const height = bytes.readUInt32BE(20);
+  return width > 0 && height > 0 ? { width, height } : null;
+}
+
+function readJpegDimensions(bytes: Buffer): ImageDimensions | null {
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
+  let offset = 2;
+  while (offset + 9 < bytes.length) {
+    if (bytes[offset] !== 0xff) return null;
+    const marker = bytes[offset + 1];
+    offset += 2;
+    if (marker === 0xd9 || marker === 0xda) return null;
+    const length = bytes.readUInt16BE(offset);
+    if (length < 2 || offset + length > bytes.length) return null;
+    if (
+      (marker >= 0xc0 && marker <= 0xc3) ||
+      (marker >= 0xc5 && marker <= 0xc7) ||
+      (marker >= 0xc9 && marker <= 0xcb) ||
+      (marker >= 0xcd && marker <= 0xcf)
+    ) {
+      const height = bytes.readUInt16BE(offset + 3);
+      const width = bytes.readUInt16BE(offset + 5);
+      return width > 0 && height > 0 ? { width, height } : null;
+    }
+    offset += length;
+  }
+  return null;
+}
+
+function readWebpDimensions(bytes: Buffer): ImageDimensions | null {
+  if (
+    bytes.length < 30 ||
+    bytes.subarray(0, 4).toString('ascii') !== 'RIFF' ||
+    bytes.subarray(8, 12).toString('ascii') !== 'WEBP'
+  ) {
+    return null;
+  }
+  const chunk = bytes.subarray(12, 16).toString('ascii');
+  if (chunk === 'VP8X' && bytes.length >= 30) {
+    const width = 1 + bytes.readUIntLE(24, 3);
+    const height = 1 + bytes.readUIntLE(27, 3);
+    return { width, height };
+  }
+  if (chunk === 'VP8 ' && bytes.length >= 30) {
+    const width = bytes.readUInt16LE(26) & 0x3fff;
+    const height = bytes.readUInt16LE(28) & 0x3fff;
+    return width > 0 && height > 0 ? { width, height } : null;
+  }
+  if (chunk === 'VP8L' && bytes.length >= 25) {
+    const bits = bytes.readUInt32LE(21);
+    const width = (bits & 0x3fff) + 1;
+    const height = ((bits >> 14) & 0x3fff) + 1;
+    return { width, height };
+  }
+  return null;
+}
+
+function readImageDimensions(ext: string, bytes: Buffer): ImageDimensions | null {
+  if (ext === 'png') return readPngDimensions(bytes);
+  if (ext === 'jpg' || ext === 'jpeg') return readJpegDimensions(bytes);
+  if (ext === 'webp') return readWebpDimensions(bytes);
+  return null;
+}
 
 export const METADATA_ONLY_PARSE_ERROR =
   '类型暂不支持解析（视频等媒体格式，M2+ 能力升级后可重试）';
@@ -84,15 +155,11 @@ export function validateUploadFile(
   }
 
   if (IMAGE_EXTS.has(ext)) {
-    let width = 0;
-    let height = 0;
-    try {
-      const dim = imageSize(bytes);
-      width = dim.width ?? 0;
-      height = dim.height ?? 0;
-    } catch {
+    const dim = readImageDimensions(ext, bytes);
+    if (!dim) {
       return { ok: false, status: 400, error: '图片文件损坏或无法解析尺寸' };
     }
+    const { width, height } = dim;
     if (Math.min(width, height) <= MIN_IMAGE_SIDE_PX) {
       return {
         ok: false,

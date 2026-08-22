@@ -104,6 +104,7 @@
     "react-tabs": "^5.1.0",
     "react-to-print": "^2.14.6",
     "resend": "^6.18.0",
+    "sharp": "0.35.3",
     "stylis": "^4.1.1",
     "stylis-plugin-rtl": "2.0.2",
     "svix": "^1.99.0",
@@ -111,8 +112,7 @@
     "typescript": "5.9.3",
     "unpdf": "^1.6.2",
     "web-vitals": "^2.1.4",
-    "zod": "4.4.3",
-    "sharp": "0.35.3"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@babel/cli": "^7.24.6",
@@ -162,5 +162,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "overrides": {
+    "postcss": "8.5.26",
+    "sharp": "0.35.3"
   }
 }

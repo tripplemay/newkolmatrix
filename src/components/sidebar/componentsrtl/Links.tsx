@@ -15,7 +15,7 @@ import {
 
 export function SidebarLinks(props: { routes: RoutesType[] }) {
   //  Chakra color mode
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
 
   const { routes } = props;
 

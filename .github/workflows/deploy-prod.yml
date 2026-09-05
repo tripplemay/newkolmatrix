@@ -6,7 +6,7 @@ name: Deploy to Production (deploysvr)
 # 仅手动触发（harness 铁律：deploy/prod 永留人类闸门）。首次上线前置见 docs/dev/deploy.md（一次性人工设置清单）。
 #
 # 依赖 GitHub repo secrets（值来自 deploysvr 部署密钥）：
-#     PROD_HOST    = 194.238.26.173
+#     PROD_HOST    = <deploysvr host/IP stored in GitHub Secrets>
 #     PROD_USER    = <部署用户>
 #     PROD_SSH_KEY = <deploysvr 部署私钥>
 # 部署目录 /opt/apps/newkolmatrix 须已放好 docker-compose.prod.yml（见 docs/dev/deploy.md）。

@@ -25,7 +25,7 @@ import {
   resetUploadRateLimit,
 } from '../../src/lib/knowledge/rate-limit';
 
-/** 只含 PNG 签名 + IHDR 的最小头（image-size 只读头，够用）。 */
+/** 只含 PNG 签名 + IHDR 的最小头（尺寸读取器只读头，够用）。 */
 function makePng(width: number, height: number): Buffer {
   const dim = Buffer.alloc(8);
   dim.writeUInt32BE(width, 0);

@@ -36,6 +36,9 @@ function readJpegDimensions(bytes: Buffer): ImageDimensions | null {
       (marker >= 0xc9 && marker <= 0xcb) ||
       (marker >= 0xcd && marker <= 0xcf)
     ) {
+      // A SOF segment contains precision (1 byte), height (2 bytes), and
+      // width (2 bytes); reject a short malformed segment before reading it.
+      if (length < 7) return null;
       const height = bytes.readUInt16BE(offset + 3);
       const width = bytes.readUInt16BE(offset + 5);
       return width > 0 && height > 0 ? { width, height } : null;
@@ -47,7 +50,7 @@ function readJpegDimensions(bytes: Buffer): ImageDimensions | null {
 
 function readWebpDimensions(bytes: Buffer): ImageDimensions | null {
   if (
-    bytes.length < 30 ||
+    bytes.length < 25 ||
     bytes.subarray(0, 4).toString('ascii') !== 'RIFF' ||
     bytes.subarray(8, 12).toString('ascii') !== 'WEBP'
   ) {

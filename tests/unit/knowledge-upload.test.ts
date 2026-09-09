@@ -25,7 +25,7 @@ import {
   resetUploadRateLimit,
 } from '../../src/lib/knowledge/rate-limit';
 
-/** 只含 PNG 签名 + IHDR 的最小头（image-size 只读头，够用）。 */
+/** 只含 PNG 签名 + IHDR 的最小头（尺寸读取器只读头，够用）。 */
 function makePng(width: number, height: number): Buffer {
   const dim = Buffer.alloc(8);
   dim.writeUInt32BE(width, 0);
@@ -38,6 +38,19 @@ function makePng(width: number, height: number): Buffer {
     Buffer.from([8, 6, 0, 0, 0]),
     Buffer.from([0, 0, 0, 0]),
   ]);
+}
+
+function makeWebpLossless(width: number, height: number): Buffer {
+  const bytes = Buffer.alloc(25);
+  bytes.write('RIFF', 0, 'ascii');
+  bytes.writeUInt32LE(17, 4);
+  bytes.write('WEBP', 8, 'ascii');
+  bytes.write('VP8L', 12, 'ascii');
+  bytes.writeUInt32LE(5, 16);
+  bytes[20] = 0x2f;
+  const bits = (width - 1) | ((height - 1) << 14);
+  bytes.writeUInt32LE(bits, 21);
+  return bytes;
 }
 
 const GAME_ID = 'ck0000000000000000000001'; // cuid 形状
@@ -122,6 +135,11 @@ describe('upload 校验（白名单 / 超限 / 小图 / 视频族）', () => {
   it('坏图（无法解析尺寸）→ 400 拒', () => {
     const r = validateUploadFile('broken.png', Buffer.from('not a png'));
     expect(r.ok).toBe(false);
+  });
+
+  it('最小合法 VP8L WebP（25 bytes）可读取尺寸', () => {
+    const r = validateUploadFile('lossless.webp', makeWebpLossless(32, 32));
+    expect(r).toEqual({ ok: true, mimeType: 'image/webp', parseable: true });
   });
 
   it('视频族仅存元数据（P6）：放行但 parseable=false + 明示文案存在', () => {

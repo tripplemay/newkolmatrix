@@ -23,11 +23,18 @@ function readPngDimensions(bytes: Buffer): ImageDimensions | null {
 function readJpegDimensions(bytes: Buffer): ImageDimensions | null {
   if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
   let offset = 2;
-  while (offset + 9 < bytes.length) {
+  while (offset + 1 < bytes.length) {
     if (bytes[offset] !== 0xff) return null;
-    const marker = bytes[offset + 1];
-    offset += 2;
+    // JPEG permits one or more 0xff fill bytes before the marker code.
+    // Treating the first fill byte as the marker rejects otherwise valid JPEGs.
+    while (offset < bytes.length && bytes[offset] === 0xff) offset += 1;
+    if (offset >= bytes.length) return null;
+    const marker = bytes[offset++];
+    if (marker === 0x00) return null;
+    // Standalone markers do not carry a two-byte segment length.
     if (marker === 0xd9 || marker === 0xda) return null;
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) continue;
+    if (offset + 2 > bytes.length) return null;
     const length = bytes.readUInt16BE(offset);
     if (length < 2 || offset + length > bytes.length) return null;
     if (

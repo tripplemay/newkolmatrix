@@ -53,6 +53,19 @@ function makeWebpLossless(width: number, height: number): Buffer {
   return bytes;
 }
 
+function makeJpegWithMarkerFill(width: number, height: number): Buffer {
+  return Buffer.from([
+    0xff, 0xd8, // SOI
+    0xff, 0xff, 0xe0, 0x00, 0x02, // fill byte + empty APP0
+    0xff, 0xc0, 0x00, 0x08, 0x08,
+    (height >> 8) & 0xff,
+    height & 0xff,
+    (width >> 8) & 0xff,
+    width & 0xff,
+    0x01, 0x01, 0x11, 0x00,
+  ]);
+}
+
 const GAME_ID = 'ck0000000000000000000001'; // cuid 形状
 
 describe('storage：路径穿越防护（双层）', () => {
@@ -140,6 +153,11 @@ describe('upload 校验（白名单 / 超限 / 小图 / 视频族）', () => {
   it('最小合法 VP8L WebP（25 bytes）可读取尺寸', () => {
     const r = validateUploadFile('lossless.webp', makeWebpLossless(32, 32));
     expect(r).toEqual({ ok: true, mimeType: 'image/webp', parseable: true });
+  });
+
+  it('合法 JPEG 的 marker fill byte 不会导致尺寸解析失败', () => {
+    const r = validateUploadFile('filled.jpg', makeJpegWithMarkerFill(32, 32));
+    expect(r).toEqual({ ok: true, mimeType: 'image/jpeg', parseable: true });
   });
 
   it('视频族仅存元数据（P6）：放行但 parseable=false + 明示文案存在', () => {

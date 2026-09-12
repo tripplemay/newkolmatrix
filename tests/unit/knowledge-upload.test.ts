@@ -25,7 +25,7 @@ import {
   resetUploadRateLimit,
 } from '../../src/lib/knowledge/rate-limit';
 
-/** 只含 PNG 签名 + IHDR 的最小头（image-size 只读头，够用）。 */
+/** 只含 PNG 签名 + IHDR 的最小头（尺寸读取器只读头，够用）。 */
 function makePng(width: number, height: number): Buffer {
   const dim = Buffer.alloc(8);
   dim.writeUInt32BE(width, 0);
@@ -37,6 +37,32 @@ function makePng(width: number, height: number): Buffer {
     dim,
     Buffer.from([8, 6, 0, 0, 0]),
     Buffer.from([0, 0, 0, 0]),
+  ]);
+}
+
+function makeWebpLossless(width: number, height: number): Buffer {
+  const bytes = Buffer.alloc(25);
+  bytes.write('RIFF', 0, 'ascii');
+  bytes.writeUInt32LE(17, 4);
+  bytes.write('WEBP', 8, 'ascii');
+  bytes.write('VP8L', 12, 'ascii');
+  bytes.writeUInt32LE(5, 16);
+  bytes[20] = 0x2f;
+  const bits = (width - 1) | ((height - 1) << 14);
+  bytes.writeUInt32LE(bits, 21);
+  return bytes;
+}
+
+function makeJpegWithMarkerFill(width: number, height: number): Buffer {
+  return Buffer.from([
+    0xff, 0xd8, // SOI
+    0xff, 0xff, 0xe0, 0x00, 0x02, // fill byte + empty APP0
+    0xff, 0xc0, 0x00, 0x08, 0x08,
+    (height >> 8) & 0xff,
+    height & 0xff,
+    (width >> 8) & 0xff,
+    width & 0xff,
+    0x01, 0x01, 0x11, 0x00,
   ]);
 }
 
@@ -122,6 +148,16 @@ describe('upload 校验（白名单 / 超限 / 小图 / 视频族）', () => {
   it('坏图（无法解析尺寸）→ 400 拒', () => {
     const r = validateUploadFile('broken.png', Buffer.from('not a png'));
     expect(r.ok).toBe(false);
+  });
+
+  it('最小合法 VP8L WebP（25 bytes）可读取尺寸', () => {
+    const r = validateUploadFile('lossless.webp', makeWebpLossless(32, 32));
+    expect(r).toEqual({ ok: true, mimeType: 'image/webp', parseable: true });
+  });
+
+  it('合法 JPEG 的 marker fill byte 不会导致尺寸解析失败', () => {
+    const r = validateUploadFile('filled.jpg', makeJpegWithMarkerFill(32, 32));
+    expect(r).toEqual({ ok: true, mimeType: 'image/jpeg', parseable: true });
   });
 
   it('视频族仅存元数据（P6）：放行但 parseable=false + 明示文案存在', () => {

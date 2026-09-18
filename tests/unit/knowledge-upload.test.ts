@@ -53,6 +53,19 @@ function makeWebpLossless(width: number, height: number): Buffer {
   return bytes;
 }
 
+
+function makeWebpExtended(width: number, height: number): Buffer {
+  const bytes = Buffer.alloc(30);
+  bytes.write('RIFF', 0, 'ascii');
+  bytes.writeUInt32LE(22, 4);
+  bytes.write('WEBP', 8, 'ascii');
+  bytes.write('VP8X', 12, 'ascii');
+  bytes.writeUInt32LE(10, 16);
+  bytes.writeUIntLE(width - 1, 24, 3);
+  bytes.writeUIntLE(height - 1, 27, 3);
+  return bytes;
+}
+
 function makeJpegWithMarkerFill(width: number, height: number): Buffer {
   return Buffer.from([
     0xff, 0xd8, // SOI
@@ -153,6 +166,16 @@ describe('upload 校验（白名单 / 超限 / 小图 / 视频族）', () => {
   it('最小合法 VP8L WebP（25 bytes）可读取尺寸', () => {
     const r = validateUploadFile('lossless.webp', makeWebpLossless(32, 32));
     expect(r).toEqual({ ok: true, mimeType: 'image/webp', parseable: true });
+  });
+
+
+  it('最小边界尺寸对 VP8X WebP 同样生效', () => {
+    const r = validateUploadFile('tiny-extended.webp', makeWebpExtended(1, 4096));
+    expect(r.ok).toBe(false);
+    if (r.ok === false) {
+      expect(r.status).toBe(400);
+      expect(r.error).toContain('10px');
+    }
   });
 
   it('合法 JPEG 的 marker fill byte 不会导致尺寸解析失败', () => {

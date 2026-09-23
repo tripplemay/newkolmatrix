@@ -18,8 +18,9 @@ on:
       - ".claude/**"
       - "harness.json"
       - "harness.lock"
+  # Run CI for stacked PRs as well as PRs targeting main. Stacked review branches
+  # otherwise receive no checks, leaving dependency and security fixes unverified.
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:

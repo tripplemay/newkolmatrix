@@ -624,8 +624,9 @@ describe('[F007] 失败如实说 + 留痕 + 不抛穿', () => {
     };
     const sentinel = installNoNetworkSentinel();
     let winner = 'unknown';
+    let call!: Promise<string>;
     try {
-      const call: Promise<string> = executeTool(
+      call = executeTool(
         'consult_specialist',
         { targetAgent: 'insight', question: '挂住' },
         {
@@ -642,6 +643,7 @@ describe('[F007] 失败如实说 + 留痕 + 不抛穿', () => {
       winner = await Promise.race([call, timer]);
     } finally {
       release();
+      await call.catch((): void => undefined);
       sentinel.restore();
     }
     observed['F007.hangingSubLoopRaceWinner'] = winner;

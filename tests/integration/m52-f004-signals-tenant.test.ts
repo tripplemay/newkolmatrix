@@ -49,12 +49,13 @@ const svixIds: string[] = [];
 
 function signedRequest(body: unknown, svixId: string): Request {
   const payload = JSON.stringify(body);
-  const sig = new Webhook(SECRET).sign(svixId, new Date(), payload);
+  const signedAt = new Date();
+  const sig = new Webhook(SECRET).sign(svixId, signedAt, payload);
   return new Request('https://example.test/api/signals/inbound', {
     method: 'POST',
     headers: {
       'svix-id': svixId,
-      'svix-timestamp': String(Math.floor(Date.now() / 1000)),
+      'svix-timestamp': String(Math.floor(signedAt.getTime() / 1000)),
       'svix-signature': sig,
       'content-type': 'application/json',
       'x-forwarded-for': '198.51.100.77',

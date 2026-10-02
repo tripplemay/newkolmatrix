@@ -119,7 +119,7 @@ grep -rnE "PRIVATE KEY|BEGIN OPENSSH|sk-[A-Za-z0-9]{20}|cloudflare|CF_API|Bearer
 → 唯一命中：framework/patterns/web-runtime-patterns.md 的一行 grep 模式串（是"扫密码用的正则"本身，非真实 secret）
 grep 密码/token 字面赋值 → 0 命中
 ```
-结论：无 SSH 私钥 / CF token / 明文密码入库。IP `194.238.26.173` 仅出现在 spec 与 deploy-prod.yml 注释（低敏可容忍），environment.md 无 IP。**泄密门 PASS。**
+结论：无 SSH 私钥 / CF token / 明文密码入库。deploysvr host/IP 不入 git，仅通过 GitHub Secrets / 本地钥匙串引用，environment.md 无 IP。**泄密门 PASS。**
 
 ---
 

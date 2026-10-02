@@ -12,7 +12,7 @@
 DS-FOUNDATION 完成后，用户需要 CI（push 自动检查）+ CD（Docker 部署到 VPS）以便**在线上逐版本验收**后续重构版本。
 
 **探查到的 VPS 现状（real values，Planner 铁律 1 已核）：**
-- 共享多应用服务器：`deploysvr`（IP 194.238.26.173），Ubuntu 24.04.4 · Node 20.20 · PM2 7 · nginx 1.24(active) · Docker 29 · rsync · 4 CPU / 7.8G RAM / 111G 空闲
+- 共享多应用服务器：`deploysvr`（host/IP 存于 GitHub Secrets / 本地钥匙串，不入 git），Ubuntu 24.04.4 · Node 20.20 · PM2 7 · nginx 1.24(active) · Docker 29 · rsync · 4 CPU / 7.8G RAM / 111G 空闲
 - **旧 kolmatrix 已在跑**：docker compose（`kolmatrix-app-1`→:3001 healthy + postgres + redis），域名 `kol.guangai.ai`(HTTPS)，目录 `/opt/apps/kolmatrix`，仍是旧 repo。**本批次全程不碰它及其他 app**（nextpanel/aigc/tokenizer/invoce/apify）
 - 已占端口：3000/3001/3003/3004/3010/3100/3200/3201/3205/8000/8021/5432/5433/6379…
 - 旧 repo 有成熟 Docker CI/CD 到同一 VPS（build-push→ghcr / deploy-prod→appleboy ssh-action compose pull+up），secret 名 `PROD_HOST`/`PROD_USER`/`PROD_SSH_KEY`
@@ -104,7 +104,7 @@ DS-FOUNDATION 完成后，用户需要 CI（push 自动检查）+ CD（Docker �
 
 ## 7. Go-live 执行（Andy 代执行，用户 2026-07-14 授权 — 铁律 6 记账）
 机件验收通过后，Andy 按序执行（**首次部署上线前停下与用户确认一次**）：
-1. Cloudflare API（token 取自本地钥匙串，不落盘不打印）建 DNS A 记录 `newkol.guangai.ai` → 194.238.26.173（proxied 状态与用户确认）
+1. Cloudflare API（token 取自本地钥匙串，不落盘不打印）建 DNS A 记录 `newkol.guangai.ai` → `<deploysvr host/IP from secret manager>`（proxied 状态与用户确认）
 2. GitHub secrets（`gh secret set`）：`PROD_HOST`/`PROD_USER`/`PROD_SSH_KEY`（值来自 deploysvr 部署密钥）
 3. VPS：建 `/opt/apps/newkolmatrix`、放 docker-compose.prod.yml + .env、docker network（如需）、apply nginx conf + `nginx -t` + reload
 4. certbot 签 `newkol.guangai.ai` 证书（DNS 生效后）

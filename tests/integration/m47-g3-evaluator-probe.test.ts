@@ -647,8 +647,9 @@ describe('[F007] 失败如实说 + 留痕 + 不抛穿', () => {
       sentinel.restore();
     }
     observed['F007.hangingSubLoopRaceWinner'] = winner;
-    // 只登记事实：timer-won = 1.2s 内工具没有自我了断（无内部超时闸）
-    expect(['tool-returned', 'timer-won']).toContain(winner);
+    // This probe is intentionally diagnostic: the hanging model is released only
+    // during teardown, so a passing implementation must not block the race.
+    expect(winner).toBe('timer-won');
   });
 
   it('P13 · 前台失败条款正向锚点（字面精确匹配）', () => {
